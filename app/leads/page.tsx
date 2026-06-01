@@ -7,6 +7,7 @@ import {
   getAllLeads, createLead, updateLead,
   cancelLead, restoreLead, deleteLead,
   getAllClientes, createCliente, createAgendaEvent,
+  syncArtistasEvento, getArtistasEvento,
 } from "../actions";
 
 interface Lead {
@@ -17,6 +18,10 @@ interface Lead {
 }
 
 interface Cliente { id: number; nome: string; nif?: string; }
+interface ArtistRow { nome: string; tipo: string; fee: string; }
+
+const ARTIST_TIPOS = ["DJ", "Singer", "Dancer", "Sax", "Guitar", "Bass", "Drums", "Piano", "Fire", "Host", "Actor", "Produtor", "Guarda-Roupa", "Animador"];
+const emptyArtist = (): ArtistRow => ({ nome: "", tipo: "DJ", fee: "" });
 
 const C = {
   gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009",
@@ -34,6 +39,13 @@ function fmtDate(s: string) {
 const STATUS_OPTIONS = ["Contacto", "Proposta Enviada", "Em Negociação", "Confirmado", "Em Adjudicação", "Adjudicado", "Faturado", "Pago", "Cancelado"];
 const emptyForm = { title: "", event_date: "", value: "0", status: "Contacto", local: "", contacto: "", notas: "", cliente_nome: "", cliente_id: null as number | null, modalidade: "Fatura" };
 
+const addArtistRow = (setArtists: React.Dispatch<React.SetStateAction<ArtistRow[]>>) => 
+  setArtists(prev => [...prev, emptyArtist()]);
+const removeArtistRow = (setArtists: React.Dispatch<React.SetStateAction<ArtistRow[]>>, i: number) => 
+  setArtists(prev => prev.filter((_, idx) => idx !== i));
+const updateArtist = (setArtists: React.Dispatch<React.SetStateAction<ArtistRow[]>>, i: number, field: keyof ArtistRow, value: string) =>
+  setArtists(prev => prev.map((a, idx) => idx === i ? { ...a, [field]: value } : a));
+
 export default function LeadsPage() {
   const router = useRouter();
   const [userName, setUserName] = useState("");
@@ -48,6 +60,8 @@ export default function LeadsPage() {
   const [clienteCreating, setClienteCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [converting, setConverting] = useState(false);
+  const [artists, setArtists] = useState<ArtistRow[]>([emptyArtist()]);
+  const [loadingArtists, setLoadingArtists] = useState(false);
   const [toast, setToast] = useState("");
   const [mounted, setMounted] = useState(false);
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
@@ -102,6 +116,7 @@ export default function LeadsPage() {
 
   const openCreate = () => {
     setForm({ ...emptyForm, event_date: new Date().toISOString().split("T")[0] });
+    setArtists([emptyArtist()]);
     resetClienteState();
     setModal({ open: true, editing: null });
   };
@@ -116,7 +131,10 @@ export default function LeadsPage() {
     setClienteSearch(l.cliente_nome || "");
     setClienteDropOpen(false);
     setClienteCreating(false);
+    setArtists([emptyArtist()]);
     setModal({ open: true, editing: l });
+    // Load artistas if lead has been converted (has an agenda event)
+    setLoadingArtists(false);
   };
 
   const closeModal = () => {
@@ -138,6 +156,11 @@ export default function LeadsPage() {
     if (modal.editing) {
       const previousStatus = modal.editing.status || "";
       await updateLead(modal.editing.id, data);
+      // Save artistas linked to this lead (stored as lead id, will be synced)
+      const validArtists = artists.filter(a => a.nome.trim()).map(a => ({ ...a, fee: parseFloat(a.fee) || 0 }));
+      if (validArtists.length > 0) {
+        await syncArtistasEvento(modal.editing.id * -1, form.title.trim(), form.event_date, validArtists);
+      }
       // Auto-importar para Agenda se passou para estado confirmado/avançado
       const isNowAdvanced = AGENDA_AUTO_STATUSES.includes(form.status);
       const wasAlreadyAdvanced = AGENDA_AUTO_STATUSES.includes(previousStatus);
@@ -280,10 +303,14 @@ export default function LeadsPage() {
   };
 
   const availableWaMonths = (): string[] => {
+    const todayYM = new Date().toISOString().slice(0, 7); // YYYY-MM
     const monthSet = new Set<string>();
     leads.forEach(l => {
       if (l.cancelled || l.status === "Cancelado") return;
-      if (l.event_date && l.event_date.length >= 7) monthSet.add(l.event_date.slice(0, 7));
+      if (l.event_date && l.event_date.length >= 7) {
+        const ym = l.event_date.slice(0, 7);
+        if (ym >= todayYM) monthSet.add(ym); // só meses presentes e futuros
+      }
     });
     return Array.from(monthSet).sort();
   };
@@ -296,15 +323,16 @@ export default function LeadsPage() {
   };
 
   const buildWaTextForMonths = (months: string[]): string => {
+    const todayStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     const blocks: string[] = [];
     [...months].sort().forEach(ym => {
       const monthLeads = leads
-        .filter(l => !l.cancelled && l.status !== "Cancelado" && l.event_date?.startsWith(ym))
+        .filter(l => !l.cancelled && l.status !== "Cancelado" && l.event_date?.startsWith(ym) && (l.event_date || "") >= todayStr)
         .sort((a, b) => (a.event_date || "").localeCompare(b.event_date || ""));
       if (monthLeads.length === 0) return;
       const [year, month] = ym.split("-");
       const mName = new Date(Number(year), Number(month) - 1, 1).toLocaleDateString("pt-PT", { month: "long" });
-      blocks.push(`*Leads — ${mName.charAt(0).toUpperCase() + mName.slice(1)} ${year}*`);
+      blocks.push(`*Leads de ${mName.charAt(0).toUpperCase() + mName.slice(1)}*`);
       monthLeads.forEach(l => {
         const lines: string[] = [];
         // Linha de data e título
@@ -746,6 +774,61 @@ export default function LeadsPage() {
             <FormField label="Notas">
               <input style={inputStyle} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Observações..." />
             </FormField>
+
+
+            {/* ── Artistas & Pagamentos ── */}
+            <div style={{ marginTop: "1.75rem", borderTop: `1px solid ${C.borderDim}`, paddingTop: "1.5rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                <span style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600 }}>Artistas & Pagamentos</span>
+                {artists.filter(a => a.nome.trim()).reduce((s, a) => s + (parseFloat(a.fee) || 0), 0) > 0 && (
+                  <span style={{ fontSize: "9px", color: C.amber, letterSpacing: "0.15em", fontWeight: 600 }}>
+                    Total: {artists.filter(a => a.nome.trim()).reduce((s, a) => s + (parseFloat(a.fee) || 0), 0).toLocaleString("pt-PT")}€
+                  </span>
+                )}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "6px" }}>
+                {["Nome", "Tipo", "Fee (€)", ""].map(h => (
+                  <span key={h} style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600, padding: "0 4px" }}>{h}</span>
+                ))}
+              </div>
+              {artists.map((a, i) => (
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
+                  <input
+                    value={a.nome}
+                    onChange={e => updateArtist(setArtists, i, "nome", e.target.value)}
+                    placeholder="Nome do artista..."
+                    style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
+                  />
+                  <select
+                    value={a.tipo}
+                    onChange={e => updateArtist(setArtists, i, "tipo", e.target.value)}
+                    style={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "10px", appearance: "none" as any }}
+                  >
+                    {ARTIST_TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={a.fee}
+                    onChange={e => updateArtist(setArtists, i, "fee", e.target.value)}
+                    onFocus={e => { if (e.target.value === "0") updateArtist(setArtists, i, "fee", ""); }}
+                    onBlur={e => { if (e.target.value === "") updateArtist(setArtists, i, "fee", "0"); }}
+                    placeholder="0"
+                    style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
+                  />
+                  <button
+                    onClick={() => removeArtistRow(setArtists, i)}
+                    style={{ background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2"><line x1="1" y1="1" x2="11" y2="11" /><line x1="11" y1="1" x2="1" y2="11" /></svg>
+                  </button>
+                </div>
+              ))}
+              <button onClick={() => addArtistRow(setArtists)} style={{ ...btnSecStyle, fontSize: "8px", padding: "0.4rem 0.9rem", marginTop: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
+                <svg width="8" height="8" viewBox="0 0 10 10" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="5" y1="1" x2="5" y2="9" /><line x1="1" y1="5" x2="9" y2="5" /></svg>
+                Adicionar artista
+              </button>
+            </div>
 
             <div style={{ display: "flex", gap: "1rem", marginTop: "2rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
               <button onClick={closeModal} style={btnSecStyle}>Fechar</button>

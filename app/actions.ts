@@ -196,8 +196,8 @@ export async function getAllAgenda(userName: string = 'Admin') {
       success: true,
       data: res.rows.map((r: any) => {
         const eventTitle = r.event_name as string;
-        const hasEmoji = /^\p{Emoji}/u.test(eventTitle);
-        const finalTitle = hasEmoji ? eventTitle : `${getEventIcon(eventTitle)} ${eventTitle}`;
+        // Guardar título limpo sem emoji automático
+        const finalTitle = eventTitle;
         return {
           ...r, id: r.id, title: finalTitle, time_range: r.location || '',
           tipo: r.staff_needed || '', bill: r.client_cachet || 0,

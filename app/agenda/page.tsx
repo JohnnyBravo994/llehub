@@ -470,7 +470,7 @@ export default function AgendaPage() {
       startDate = `${selectedMonth}-01`;
       endDate = `${selectedMonth}-${String(daysInMonth).padStart(2, "0")}`;
       const mName = new Date(y, m - 1, 1).toLocaleDateString("pt-PT", { month: "long" });
-      label = `*${mName.charAt(0).toUpperCase() + mName.slice(1)} Atualizado*`;
+      label = `*Agenda de ${mName.charAt(0).toUpperCase() + mName.slice(1)}*`;
     } else if (waPeriodMode === "week7") {
       const today = new Date();
       const end = new Date(today);
@@ -480,7 +480,7 @@ export default function AgendaPage() {
       startDate = toLocalDateStr(today);
       endDate = toLocalDateStr(end);
       const fmt = (d: Date) => `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
-      label = `*Agenda — ${fmt(today)} a ${fmt(end)}*`;
+      label = `*Agenda de ${fmt(today)} a ${fmt(end)}*`;
     } else {
       if (!waCustomStart || !waCustomEnd) { setWaPeriodError("Preenche as duas datas."); return; }
       if (waCustomEnd < waCustomStart) { setWaPeriodError("Data final não pode ser anterior à inicial."); return; }
@@ -488,7 +488,7 @@ export default function AgendaPage() {
       endDate = waCustomEnd;
       const [, sm, sd] = waCustomStart.split("-");
       const [, em, ed] = waCustomEnd.split("-");
-      label = `*Agenda — ${sd}/${sm} a ${ed}/${em}*`;
+      label = `*Agenda de ${sd}/${sm} a ${ed}/${em}*`;
     }
     const text = buildAgendaTextForRange(startDate, endDate, label);
     setWaText(text);
