@@ -258,9 +258,6 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-</div>
-          </div>
-        )}
 
       </main>
     </div>{/* end desktop */}
