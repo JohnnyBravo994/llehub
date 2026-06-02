@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ARTIST_TIPOS } from "../constants";
+import { ARTIST_TIPOS, resolveColaboradorNome } from "../constants";
 import { getAllPagamentos, updatePagamento, deletePagamento, addPagamento, getAllColaboradores } from "../actions";
 
 interface Pagamento {
@@ -22,16 +22,7 @@ const C = {
   green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
 };
 
-// Aliases: chave = nome alternativo (lowercase), valor = nome canónico
-// Ex: "gio" e "joão pereira" são a mesma pessoa → nome canónico "João Pereira"
-const ARTIST_ALIASES: Record<string, string> = {
-  "gio": "João Pereira",
-  "joão pereira": "João Pereira",
-};
-
-function resolveNome(nome: string): string {
-  return ARTIST_ALIASES[nome.trim().toLowerCase()] ?? nome.trim();
-}
+function resolveNome(nome: string): string { return resolveColaboradorNome(nome); }
 function fmtDate(s: string) {
   if (!s) return "—";
   const d = new Date(s + "T00:00:00");
@@ -364,7 +355,7 @@ export default function PagamentosPage() {
                             <td style={tds({})}>
                               {isEditing
                                 ? <input value={editForm.nome} onChange={e => setEditForm(f => ({ ...f, nome: e.target.value }))} style={{ ...inlineInput, width: "140px" }} />
-                                : <span style={{ fontSize: "11px", color: isAnnia ? C.green : C.textPrimary }}>{p.nome}</span>
+                                : <span style={{ fontSize: "11px", color: isAnnia ? C.green : C.textPrimary }}>{resolveNome(p.nome)}</span>
                               }
                             </td>
                             <td style={tds({ muted: true })}>
@@ -578,7 +569,7 @@ export default function PagamentosPage() {
                 <div key={row.id} className="mob-artist-row">
                   <div style={{flex:1, minWidth:0}}>
                     <div className="mob-artist-name">{row.evento_nome}</div>
-                    <div className="mob-artist-tipo">{row.nome} · {row.tipo}</div>
+                    <div className="mob-artist-tipo">{resolveNome(row.nome)} · {row.tipo}</div>
                     <div style={{fontSize:"10px", color:"rgba(245,240,232,0.25)", marginTop:2}}>
                       {new Date(row.evento_data+"T00:00:00").toLocaleDateString("pt-PT",{day:"numeric",month:"short"})}
                     </div>

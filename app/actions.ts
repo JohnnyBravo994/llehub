@@ -576,14 +576,45 @@ export async function getFaturacaoData() {
 
     const allItems = [...agendaItems, ...leadsItems];
 
+    // Fetch clientes to resolve aliases and normalise grouping keys
+    const clientesRes = await turso.execute("SELECT id, nome, alias FROM clientes ORDER BY nome ASC");
+    const clientesMap: Record<number, { nome: string; alias: string }> = {};
+    for (const c of clientesRes.rows as any[]) {
+      clientesMap[Number(c.id)] = { nome: c.nome as string, alias: (c.alias as string) || '' };
+    }
+
+    // Group key: prefer cliente_id (immune to typos), fallback to trimmed name
+    // Display key: alias if set, otherwise nome
+    function groupKey(item: typeof allItems[number]): string {
+      if (item.cliente_id) return `id:${item.cliente_id}`;
+      return `nome:${item.cliente_nome.trim()}`;
+    }
+    function displayKey(item: typeof allItems[number]): string {
+      if (item.cliente_id && clientesMap[item.cliente_id]) {
+        const c = clientesMap[item.cliente_id];
+        return c.alias?.trim() || c.nome;
+      }
+      return item.cliente_nome.trim();
+    }
+
     const grouped: Record<string, typeof allItems> = {};
+    const groupedDisplayKey: Record<string, string> = {};
     for (const item of allItems) {
-      const key = item.cliente_nome.trim();
-      if (!grouped[key]) grouped[key] = [];
+      const key = groupKey(item);
+      const display = displayKey(item);
+      if (!grouped[key]) { grouped[key] = []; groupedDisplayKey[key] = display; }
       grouped[key].push(item);
     }
 
-    return { success: true, grouped };
+    // Re-key by display name for frontend compatibility
+    const groupedByDisplay: Record<string, typeof allItems> = {};
+    for (const [key, items] of Object.entries(grouped)) {
+      const display = groupedDisplayKey[key];
+      if (!groupedByDisplay[display]) groupedByDisplay[display] = [];
+      groupedByDisplay[display].push(...items);
+    }
+
+    return { success: true, grouped: groupedByDisplay };
   } catch (error) {
     console.error("Erro faturação:", error);
     return { success: false, grouped: {} };

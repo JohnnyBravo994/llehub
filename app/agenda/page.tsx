@@ -1,6 +1,6 @@
 "use client";
 
-import { ARTIST_TIPOS, MODALIDADES } from "../constants";
+import { ARTIST_TIPOS, MODALIDADES, resolveColaboradorNome } from "../constants";
 import { useEffect, useState, useCallback, useRef } from "react";
 import React from "react";
 import { useRouter } from "next/navigation";
@@ -97,7 +97,7 @@ interface ArtistRow {
 }
 
 interface Cliente {
-  id: number; nome: string; nif?: string;
+  id: number; nome: string; nif?: string; alias?: string;
 }
 
 const BILLING_ESTADOS = ["Contacto", "Proposta Enviada", "Em Negociação", "Confirmado", "Em Adjudicação", "Adjudicado", "Faturado", "Pago", "Cancelado"];
@@ -381,8 +381,13 @@ export default function AgendaPage() {
     const monthMatch = e.event_date.startsWith(selectedMonth);
     const searchMatch = !search || e.title.toLowerCase().includes(search.toLowerCase()) || (e.tipo || "").toLowerCase().includes(search.toLowerCase());
     const evArtists = artistasMap[e.id] || [];
-    const artistaMatch = !filterArtista || evArtists.some(a => a.nome.trim().toLowerCase() === filterArtista.toLowerCase());
-    const clienteMatch = !filterCliente || (e.cliente_nome || "").toLowerCase() === filterCliente.toLowerCase();
+    const artistaMatch = !filterArtista || evArtists.some(a => resolveColaboradorNome(a.nome).toLowerCase() === filterArtista.toLowerCase());
+    const clienteMatch = !filterCliente || (() => {
+      const cn = e.cliente_nome || '';
+      const c = clientes.find(c => c.nome === cn || (c.alias?.trim() && c.alias.trim() === cn));
+      const display = c?.alias?.trim() || cn;
+      return display.toLowerCase() === filterCliente.toLowerCase();
+    })();
     const equipaMatch = !filterEquipa || parseEquipa(e.tipo || "").includes(filterEquipa);
     // Soraya, Annia e Larissa nao veem eventos so do Joao
     const visibilityMatch = (userRole === "admin" && userName === "João") || !isSoJoao(e.tipo || "");
@@ -393,10 +398,14 @@ export default function AgendaPage() {
   // Listas para os dropdowns — baseadas em TODOS os eventos do mês seleccionado
   const allMonthEvents = events.filter(e => e.event_date.startsWith(selectedMonth));
   const dropdownArtistas = Array.from(new Set(
-    allMonthEvents.flatMap(e => (artistasMap[e.id] || []).map(a => a.nome.trim())).filter(Boolean)
+    allMonthEvents.flatMap(e => (artistasMap[e.id] || []).map(a => resolveColaboradorNome(a.nome))).filter(Boolean)
   )).sort();
   const dropdownClientes = Array.from(new Set(
-    allMonthEvents.map(e => e.cliente_nome || "").filter(Boolean)
+    allMonthEvents.map(e => {
+      if (!e.cliente_nome) return '';
+      const c = clientes.find(c => c.nome === e.cliente_nome || (c.alias?.trim() && c.alias.trim() === e.cliente_nome));
+      return c?.alias?.trim() || e.cliente_nome;
+    }).filter(Boolean)
   )).sort();
   const dropdownEquipa = EQUIPA_NOMES.filter(n =>
     allMonthEvents.some(e => parseEquipa(e.tipo || "").includes(n))
@@ -495,8 +504,13 @@ export default function AgendaPage() {
         if (e.event_date !== dateStr || e.cancelled) return false;
         if (!((userRole === "admin" && userName === "João") || !isSoJoao(e.tipo || ""))) return false;
         const evArtists = artistasMap[e.id] || [];
-        if (filterArtista && !evArtists.some(a => a.nome.trim().toLowerCase() === filterArtista.toLowerCase())) return false;
-        if (filterCliente && (e.cliente_nome || "").toLowerCase() !== filterCliente.toLowerCase()) return false;
+        if (filterArtista && !evArtists.some(a => resolveColaboradorNome(a.nome).toLowerCase() === filterArtista.toLowerCase())) return false;
+        if (filterCliente && (() => {
+          const cn = e.cliente_nome || '';
+          const c = clientes.find(c => c.nome === cn || (c.alias?.trim() && c.alias.trim() === cn));
+          const display = c?.alias?.trim() || cn;
+          return display.toLowerCase() !== filterCliente.toLowerCase();
+        })()) return false;
         if (filterEquipa && !parseEquipa(e.tipo || "").includes(filterEquipa)) return false;
         return true;
       });
@@ -760,7 +774,7 @@ export default function AgendaPage() {
                         const evArtists = (artistasMap[e.id] || []).filter(a => a.nome.trim());
                         return evArtists.length > 0
                           ? <span style={{ fontSize: "10px", color: C.textSec, letterSpacing: "0.03em" }}>
-                              {evArtists.map(a => a.nome).join(" · ")}
+                              {evArtists.map(a => resolveColaboradorNome(a.nome)).join(" · ")}
                             </span>
                           : <span style={{ fontSize: "10px", color: C.textMuted }}>—</span>;
                       })()}
@@ -975,7 +989,7 @@ export default function AgendaPage() {
                 <div className="mob-card-meta">
                   {e.time_range && <><span>{e.time_range}</span><span className="mob-card-meta-dot">·</span></>}
                   {parseEquipa(e.tipo||"").map(n=><span key={n}>{EQUIPA_SYMBOL[n]}</span>)}
-                  {evArtists.length > 0 && <><span className="mob-card-meta-dot">·</span><span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"140px"}}>{evArtists.slice(0,2).map((a:any)=>a.nome).join(" · ")}{evArtists.length>2?` +${evArtists.length-2}`:""}</span></>}
+                  {evArtists.length > 0 && <><span className="mob-card-meta-dot">·</span><span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"140px"}}>{evArtists.slice(0,2).map((a:any)=>resolveColaboradorNome(a.nome)).join(" · ")}{evArtists.length>2?` +${evArtists.length-2}`:""}</span></>}
                 </div>
                 <div className="mob-card-badges">
                   <span className="mob-badge" style={{background:`${bsColor}18`,color:bsColor}}>

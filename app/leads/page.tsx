@@ -85,7 +85,19 @@ interface Lead {
   cliente_nome?: string; cliente_id?: number | null; modalidade?: string;
 }
 
-interface Cliente { id: number; nome: string; nif?: string; }
+interface Cliente { id: number; nome: string; nif?: string; alias?: string; }
+
+function displayClienteNome(lead: { cliente_id?: number | null; cliente_nome?: string }, clientes: Cliente[]): string {
+  if (lead.cliente_id) {
+    const c = clientes.find(c => c.id === lead.cliente_id);
+    if (c) return c.alias?.trim() || c.nome;
+  }
+  if (lead.cliente_nome) {
+    const c = clientes.find(c => c.nome === lead.cliente_nome || (c.alias?.trim() && c.alias.trim() === lead.cliente_nome));
+    if (c) return c.alias?.trim() || c.nome;
+  }
+  return lead.cliente_nome || '';
+}
 interface ArtistRow { nome: string; tipo: string; fee: string; }
 
 const ARTIST_TIPOS = ["DJ", "Singer", "Dancer", "Sax", "Guitar", "Bass", "Drums", "Piano", "Fire", "Host", "Actor", "Produtor", "Guarda-Roupa", "Animador"];
@@ -411,7 +423,7 @@ export default function LeadsPage() {
         lines.push(`${dateStr}${dateStr ? " — " : ""}${titleParts.join(" · ")}`);
         // Cliente/Origem
         if (l.cliente_nome && l.cliente_nome !== "undefined") {
-          lines.push(`Cliente/Origem: ${l.cliente_nome}`);
+          lines.push(`Cliente/Origem: ${displayClienteNome(l, clientes)}`);
         } else if (l.contacto && l.contacto !== "undefined") {
           lines.push(`Origem: ${l.contacto}`);
         }
@@ -528,7 +540,7 @@ export default function LeadsPage() {
                           {!!l.cancelled && <span style={{ fontSize: "8px", color: C.red, letterSpacing: "0.2em", marginLeft: "0.5rem" }}>[CANCELADO]</span>}
                           {l.notas && <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px", fontStyle: "italic" }}>"{l.notas}"</div>}
                         </td>
-                        <td style={tdStyle({ muted: true, maxW: "180px" })}>{l.cliente_nome || "—"}</td>
+                        <td style={tdStyle({ muted: true, maxW: "180px" })}>{displayClienteNome(l, clientes) || "—"}</td>
                         <td style={tdStyle({})}>
                           <StatusBadge color={statusColor(l.status)} label={l.status || "Pendente"} />
                         </td>
@@ -619,7 +631,7 @@ export default function LeadsPage() {
                   </div>
                   <div className="mob-card-body">
                     <div className={`mob-card-title${l.cancelled?" cancelled":""}`}>{l.title}</div>
-                    {l.cliente_nome && <div className="mob-card-meta">{l.cliente_nome}</div>}
+                    {l.cliente_nome && <div className="mob-card-meta">{displayClienteNome(l, clientes)}</div>}
                     {l.notas && <div className="mob-card-meta" style={{fontStyle:"italic", marginTop:2}}>"{l.notas}"</div>}
                     <div className="mob-card-badges">
                       <span className="mob-badge" style={{background:`${sc}18`,color:sc}}>

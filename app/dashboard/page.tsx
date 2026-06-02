@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getDashboardData } from "../actions";
+import { resolveColaboradorNome } from "../constants";
 
 interface Lead {
   id: number; title: string; event_date: string; status_icon: string; value: number;
@@ -181,7 +182,7 @@ export default function Dashboard() {
                     <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
                       {e.location && <span style={{ fontSize: "9px", color: C.textSec }}>📍 {e.location}</span>}
                       {(e.artistas && e.artistas.length > 0)
-                        ? <span style={{ fontSize: "9px", color: C.textSec }}>🎵 {e.artistas.map(a => a.nome).join(" · ")}</span>
+                        ? <span style={{ fontSize: "9px", color: C.textSec }}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</span>
                         : parseArtists(e.artists)
                           ? <span style={{ fontSize: "9px", color: C.textSec }}>🎵 {parseArtists(e.artists)}</span>
                           : e.staff ? <span style={{ fontSize: "9px", color: C.textMuted }}>👥 {e.staff}</span> : null
@@ -219,7 +220,7 @@ export default function Dashboard() {
                       </div>
                       {e.location && <p style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px" }}>📍 {e.location}</p>}
                       {(e.artistas && e.artistas.length > 0)
-                        ? <p style={{ fontSize: "9px", color: C.textSec, marginTop: "2px" }}>🎵 {e.artistas.map(a => a.nome).join(" · ")}</p>
+                        ? <p style={{ fontSize: "9px", color: C.textSec, marginTop: "2px" }}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</p>
                         : parseArtists(e.artists)
                           ? <p style={{ fontSize: "9px", color: C.textSec, marginTop: "2px" }}>🎵 {parseArtists(e.artists)}</p>
                           : e.staff ? <p style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px" }}>👥 {e.staff}</p> : null
@@ -289,7 +290,7 @@ export default function Dashboard() {
             <div style={{display:"flex", flexDirection:"column", gap:"2px"}}>
               {e.location && <span style={{fontSize:"10px", color:"rgba(245,240,232,0.45)"}}>📍 {e.location}</span>}
               {(e.artistas && e.artistas.length > 0)
-                ? <span style={{fontSize:"10px", color:"rgba(245,240,232,0.45)"}}>🎵 {e.artistas.map((a:any) => a.nome).join(" · ")}</span>
+                ? <span style={{fontSize:"10px", color:"rgba(245,240,232,0.45)"}}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</span>
                 : parseArtists(e.artists)
                   ? <span style={{fontSize:"10px", color:"rgba(245,240,232,0.45)"}}>🎵 {parseArtists(e.artists)}</span>
                   : e.staff ? <span style={{fontSize:"10px", color:"rgba(245,240,232,0.3)"}}>👥 {e.staff}</span> : null
@@ -321,7 +322,7 @@ export default function Dashboard() {
                 <div style={{ paddingLeft:"calc(52px + 0.75rem)", display:"flex", flexDirection:"column", gap:"2px" }}>
                   {e.location && <span style={{fontSize:"10px", color:"rgba(245,240,232,0.4)"}}>📍 {e.location}</span>}
                   {(e.artistas && e.artistas.length > 0)
-                    ? <span style={{fontSize:"10px", color:"rgba(245,240,232,0.4)"}}>🎵 {e.artistas.map((a:any) => a.nome).join(" · ")}</span>
+                    ? <span style={{fontSize:"10px", color:"rgba(245,240,232,0.4)"}}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</span>
                     : parseArtists(e.artists)
                       ? <span style={{fontSize:"10px", color:"rgba(245,240,232,0.4)"}}>🎵 {parseArtists(e.artists)}</span>
                       : e.staff ? <span style={{fontSize:"10px", color:"rgba(245,240,232,0.25)"}}>👥 {e.staff}</span> : null

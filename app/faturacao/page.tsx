@@ -322,7 +322,7 @@ export default function FaturacaoPage() {
               const recebidoParcial = items.filter(i => i.billing_status === 'Adjudicado').reduce((s, i) => s + (i.valor_recebido || 0), 0);
               const totalRecebidoCliente = pagos + recebidoParcial;
               const pendentes = items.filter(i => ['Confirmado', 'Em Adjudicação', 'Adjudicado', 'Faturado'].includes(i.billing_status)).length;
-              const clienteInfo = clientes.find(c => c.nome === clienteNome);
+              const clienteInfo = clientes.find(c => c.nome === clienteNome || (c.alias?.trim() && c.alias.trim() === clienteNome));
 
               return (
                 <div key={clienteNome} style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative" }}>
@@ -336,8 +336,8 @@ export default function FaturacaoPage() {
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.35rem" }}>
                         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", color: C.textPrimary, fontWeight: 400, letterSpacing: "0.05em" }}>{displayClienteName(clienteNome, clienteInfo)}</span>
-                        {clienteInfo?.alias?.trim() && (
-                          <span style={{ fontSize: "9px", letterSpacing: "0.15em", color: C.textMuted }}>{clienteNome}</span>
+                        {clienteInfo?.alias?.trim() && clienteInfo.nome !== clienteNome && (
+                          <span style={{ fontSize: "9px", letterSpacing: "0.15em", color: C.textMuted }}>{clienteInfo.nome}</span>
                         )}
                         {clienteInfo?.nif && (
                           <span style={{ fontSize: "8px", letterSpacing: "0.2em", color: C.textMuted, background: "rgba(255,255,255,0.04)", padding: "2px 8px", border: `1px solid ${C.borderDim}` }}>
@@ -544,7 +544,7 @@ export default function FaturacaoPage() {
           const recebidoParcial = items.filter((i:any) => i.billing_status === "Adjudicado").reduce((s:number, i:any) => s + (i.valor_recebido || 0), 0);
           const totalRecebidoCliente = pagos + recebidoParcial;
           const pendentes = items.filter((i:any) => ["Confirmado","Em Adjudicação","Adjudicado","Faturado"].includes(i.billing_status)).length;
-          const clienteInfo2 = clientes.find(c => c.nome === clienteNome);
+          const clienteInfo2 = clientes.find(c => c.nome === clienteNome || (c.alias?.trim() && c.alias.trim() === clienteNome));
           const displayNome = displayClienteName(clienteNome, clienteInfo2);
           return (
             <div key={clienteNome}>
