@@ -242,15 +242,32 @@ export async function updateAgendaEvent(
       sql: "UPDATE agenda SET event_name=?, event_date=?, location=?, staff_needed=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=? WHERE id=?",
       args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', id],
     });
-    // Sync lead ligada (se existir): título, data, valor e status
-    const linked = await turso.execute({ sql: "SELECT origem_lead_id FROM agenda WHERE id=?", args: [id] });
-    const leadId = linked.rows[0]?.origem_lead_id;
+
+    // Obter origem_lead_id actual do evento
+    const evRow = await turso.execute({ sql: "SELECT origem_lead_id FROM agenda WHERE id=?", args: [id] });
+    let leadId = evRow.rows[0]?.origem_lead_id ? Number(evRow.rows[0].origem_lead_id) : null;
+
+    // Auto-link: se ainda não tem FK, tentar encontrar lead com mesmo título+data
+    if (!leadId) {
+      const normTitle = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+      const match = await turso.execute({
+        sql: "SELECT id FROM leads WHERE event_date=? AND LOWER(TRIM(title))=? AND status != 'Cancelado' LIMIT 1",
+        args: [data.date, normTitle(data.title)],
+      });
+      if (match.rows.length > 0) {
+        leadId = Number((match.rows[0] as any).id);
+        await turso.execute({ sql: "UPDATE agenda SET origem_lead_id=? WHERE id=?", args: [leadId, id] });
+      }
+    }
+
+    // Sync lead ligada (título, data, valor, status, cliente)
     if (leadId) {
       await turso.execute({
-        sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, modalidade=? WHERE id=?",
-        args: [data.title, data.date, data.bill, data.billing_status || 'Contacto', data.modalidade || 'Fatura', leadId],
+        sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=? WHERE id=?",
+        args: [data.title, data.date, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', leadId],
       });
     }
+
     return { success: true };
   } catch (error) {
     console.error("Erro editar evento:", error);
@@ -435,11 +452,26 @@ export async function updateLead(
       sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=? WHERE id=?",
       args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', id],
     });
-    // Sync evento de agenda ligado (se existir): título, data, valor, billing_status, cliente
+
+    // 1. Sync evento já ligado por FK
     await turso.execute({
       sql: "UPDATE agenda SET event_name=?, event_date=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=? WHERE origem_lead_id=?",
       args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', id],
     });
+
+    // 2. Auto-link + sync eventos antigos sem origem_lead_id (match por data+título)
+    const normTitle = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+    const unlinked = await turso.execute({
+      sql: "SELECT id FROM agenda WHERE origem_lead_id IS NULL AND event_date=? AND LOWER(TRIM(event_name))=?",
+      args: [data.event_date, normTitle(data.title)],
+    });
+    for (const row of unlinked.rows as any[]) {
+      await turso.execute({
+        sql: "UPDATE agenda SET origem_lead_id=?, event_name=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=? WHERE id=?",
+        args: [id, data.title, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', row.id],
+      });
+    }
+
     return { success: true };
   } catch (error) {
     console.error("Erro editar lead:", error);
@@ -641,19 +673,35 @@ export async function getFaturacaoData() {
   }
 }
 
+// Helper: dado um agenda id, devolve o lead_id ligado (por FK ou por auto-link título+data)
+async function resolveLinkedLeadId(agendaId: number): Promise<number | null> {
+  const row = await turso.execute({ sql: "SELECT origem_lead_id, event_name, event_date FROM agenda WHERE id=?", args: [agendaId] });
+  if (!row.rows.length) return null;
+  const r = row.rows[0] as any;
+  if (r.origem_lead_id) return Number(r.origem_lead_id);
+  const normTitle = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+  const match = await turso.execute({
+    sql: "SELECT id FROM leads WHERE event_date=? AND LOWER(TRIM(title))=? AND status != 'Cancelado' LIMIT 1",
+    args: [r.event_date, normTitle(r.event_name || '')],
+  });
+  if (match.rows.length > 0) {
+    const leadId = Number((match.rows[0] as any).id);
+    await turso.execute({ sql: "UPDATE agenda SET origem_lead_id=? WHERE id=?", args: [leadId, agendaId] });
+    return leadId;
+  }
+  return null;
+}
+
 export async function updateItemBillingStatus(origem: 'agenda' | 'lead', id: number, billing_status: string) {
   try {
     if (origem === 'agenda') {
       await turso.execute({ sql: "UPDATE agenda SET billing_status=? WHERE id=?", args: [billing_status, id] });
-      // Sync lead ligada (se existir)
-      const linked = await turso.execute({ sql: "SELECT origem_lead_id FROM agenda WHERE id=?", args: [id] });
-      const leadId = linked.rows[0]?.origem_lead_id;
+      const leadId = await resolveLinkedLeadId(id);
       if (leadId) {
         await turso.execute({ sql: "UPDATE leads SET status=? WHERE id=?", args: [billing_status, leadId] });
       }
     } else {
       await turso.execute({ sql: "UPDATE leads SET status=? WHERE id=?", args: [billing_status, id] });
-      // Sync evento de agenda ligado (se existir)
       await turso.execute({ sql: "UPDATE agenda SET billing_status=? WHERE origem_lead_id=?", args: [billing_status, id] });
     }
     return { success: true };
@@ -667,15 +715,12 @@ export async function updateValorRecebido(origem: 'agenda' | 'lead', id: number,
   try {
     if (origem === 'agenda') {
       await turso.execute({ sql: "UPDATE agenda SET valor_recebido=? WHERE id=?", args: [valor, id] });
-      // Sync lead ligada (se existir)
-      const linked = await turso.execute({ sql: "SELECT origem_lead_id FROM agenda WHERE id=?", args: [id] });
-      const leadId = linked.rows[0]?.origem_lead_id;
+      const leadId = await resolveLinkedLeadId(id);
       if (leadId) {
         await turso.execute({ sql: "UPDATE leads SET valor_recebido=? WHERE id=?", args: [valor, leadId] });
       }
     } else {
       await turso.execute({ sql: "UPDATE leads SET valor_recebido=? WHERE id=?", args: [valor, id] });
-      // Sync evento de agenda ligado (se existir)
       await turso.execute({ sql: "UPDATE agenda SET valor_recebido=? WHERE origem_lead_id=?", args: [valor, id] });
     }
     return { success: true };
