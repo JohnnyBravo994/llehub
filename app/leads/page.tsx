@@ -75,7 +75,7 @@ import {
   getAllLeads, createLead, updateLead,
   cancelLead, restoreLead, deleteLead,
   getAllClientes, createCliente, createAgendaEvent,
-  syncArtistasEvento, getArtistasEvento,
+  syncArtistasEvento, getArtistasEvento, setupDatabase, syncArtistasParaAgenda,
 } from "../actions";
 
 interface Lead {
@@ -184,7 +184,7 @@ export default function LeadsPage() {
     const parsed = JSON.parse(u);
     setUserName(parsed.name);
     setUserRole(parsed.role || "admin");
-    load();
+    setupDatabase().then(() => load());
     setTimeout(() => setMounted(true), 100);
   }, [load]);
 
@@ -232,15 +232,21 @@ export default function LeadsPage() {
       value: parseFloat(form.value) || 0, status: form.status,
       cliente_id: form.cliente_id ?? null,
       cliente_nome: form.cliente_nome, modalidade: form.modalidade,
-      local: form.local, contacto: form.contacto, notas: form.notas,
     };
     if (modal.editing) {
       const previousStatus = modal.editing.status || "";
-      await updateLead(modal.editing.id, data);
+      const saveResult = await updateLead(modal.editing.id, data);
+      if (!saveResult.success) {
+        showToast("Erro ao guardar: " + (saveResult.message || "erro desconhecido"));
+        setSaving(false);
+        return;
+      }
       // Save artistas linked to this lead (stored as lead id, will be synced)
       const validArtists = artists.filter(a => a.nome.trim()).map(a => ({ ...a, fee: parseFloat(a.fee) || 0 }));
       if (validArtists.length > 0) {
         await syncArtistasEvento(modal.editing.id * -1, form.title.trim(), form.event_date, validArtists);
+        // Sync artistas para o evento de agenda ligado (se existir)
+        await syncArtistasParaAgenda(modal.editing.id, form.title.trim(), form.event_date, validArtists);
       }
       // Auto-importar para Agenda se passou para estado confirmado/avançado
       const isNowAdvanced = AGENDA_AUTO_STATUSES.includes(form.status);

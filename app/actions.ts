@@ -76,9 +76,34 @@ export async function setupDatabase() {
       try { await turso.execute(`ALTER TABLE agenda ADD COLUMN ${col}`); } catch { }
     }
 
+    // Garantir tabela leads com todas as colunas necessárias
+    try {
+      await turso.execute(`CREATE TABLE IF NOT EXISTS leads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL DEFAULT '',
+        event_date TEXT DEFAULT '',
+        value REAL DEFAULT 0,
+        status TEXT DEFAULT 'Contacto',
+        client_name TEXT DEFAULT '',
+        local TEXT DEFAULT '',
+        contacto TEXT DEFAULT '',
+        notas TEXT DEFAULT '',
+        cliente_id INTEGER,
+        modalidade TEXT DEFAULT 'Fatura',
+        valor_recebido REAL DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now'))
+      )`);
+    } catch { }
     const leadsCols = [
+      "title TEXT NOT NULL DEFAULT ''",
+      "event_date TEXT DEFAULT ''",
+      "value REAL DEFAULT 0",
+      "status TEXT DEFAULT 'Contacto'",
+      "client_name TEXT DEFAULT ''",
+      "local TEXT DEFAULT ''",
+      "contacto TEXT DEFAULT ''",
+      "notas TEXT DEFAULT ''",
       "cliente_id INTEGER",
-      "cliente_nome TEXT DEFAULT ''",
       "modalidade TEXT DEFAULT 'Fatura'",
       "valor_recebido REAL DEFAULT 0",
     ];
@@ -226,7 +251,21 @@ export async function createAgendaEvent(data: {
       args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.origem_lead_id ?? null],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
-    return { success: true, id: Number(last.rows[0].id) };
+    const newId = Number(last.rows[0].id);
+    // Migrar artistas da lead associada (guardados com evento_id negativo) para este evento
+    if (data.origem_lead_id) {
+      const leadArtistas = await turso.execute({
+        sql: "SELECT nome, tipo, fee FROM artistas_evento WHERE evento_id=?",
+        args: [-data.origem_lead_id],
+      });
+      for (const a of leadArtistas.rows as any[]) {
+        await turso.execute({
+          sql: "INSERT INTO artistas_evento (evento_id, evento_nome, evento_data, nome, tipo, fee) VALUES (?, ?, ?, ?, ?, ?)",
+          args: [newId, data.title, data.date, a.nome, a.tipo, a.fee],
+        });
+      }
+    }
+    return { success: true, id: newId };
   } catch (error) {
     console.error("Erro criar evento:", error);
     return { success: false, message: "Erro ao criar evento.", id: null };
@@ -315,7 +354,25 @@ export async function getAllArtistasAgenda(): Promise<{ success: boolean; data: 
   }
 }
 
-export async function getArtistasEvento(eventoId: number) {
+// Sync artistas de um evento de agenda para o lado da lead (evento_id negativo)
+export async function syncArtistasParaLead(leadId: number, eventoNome: string, eventoData: string, artistas: { nome: string; tipo: string; fee: number }[]) {
+  try {
+    await turso.execute({ sql: "DELETE FROM artistas_evento WHERE evento_id=?", args: [-leadId] });
+    for (const a of artistas) {
+      if (!a.nome.trim()) continue;
+      await turso.execute({
+        sql: "INSERT INTO artistas_evento (evento_id, evento_nome, evento_data, nome, tipo, fee) VALUES (?, ?, ?, ?, ?, ?)",
+        args: [-leadId, eventoNome, eventoData, a.nome.trim(), a.tipo, a.fee],
+      });
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("Erro sync artistas lead:", error);
+    return { success: false };
+  }
+}
+
+(eventoId: number) {
   try {
     const res = await turso.execute({
       sql: "SELECT * FROM artistas_evento WHERE evento_id=? ORDER BY id ASC",
@@ -351,6 +408,48 @@ export async function syncArtistasEvento(eventoId: number, eventoNome: string, e
     return { success: false };
   }
 }
+
+// Sync artistas de uma lead para o evento de agenda ligado (por origem_lead_id)
+export async function syncArtistasParaAgenda(leadId: number, eventoNome: string, eventoData: string, artistas: { nome: string; tipo: string; fee: number }[]) {
+  try {
+    const linked = await turso.execute({
+      sql: "SELECT id FROM agenda WHERE origem_lead_id=?",
+      args: [leadId],
+    });
+    if (!linked.rows.length) return { success: true }; // sem evento ligado, nada a fazer
+    const agendaEventId = Number((linked.rows[0] as any).id);
+    await turso.execute({ sql: "DELETE FROM artistas_evento WHERE evento_id=?", args: [agendaEventId] });
+    for (const a of artistas) {
+      if (!a.nome.trim()) continue;
+      await turso.execute({
+        sql: "INSERT INTO artistas_evento (evento_id, evento_nome, evento_data, nome, tipo, fee) VALUES (?, ?, ?, ?, ?, ?)",
+        args: [agendaEventId, eventoNome, eventoData, a.nome.trim(), a.tipo, a.fee],
+      });
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("Erro sync artistas agenda:", error);
+    return { success: false };
+  }
+}
+
+(leadId: number, eventoNome: string, eventoData: string, artistas: { nome: string; tipo: string; fee: number }[]) {
+  try {
+    await turso.execute({ sql: "DELETE FROM artistas_evento WHERE evento_id=?", args: [-leadId] });
+    for (const a of artistas) {
+      if (!a.nome.trim()) continue;
+      await turso.execute({
+        sql: "INSERT INTO artistas_evento (evento_id, evento_nome, evento_data, nome, tipo, fee) VALUES (?, ?, ?, ?, ?, ?)",
+        args: [-leadId, eventoNome, eventoData, a.nome.trim(), a.tipo, a.fee],
+      });
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("Erro sync artistas lead:", error);
+    return { success: false };
+  }
+}
+
 
 export async function getAllPagamentos() {
   try {
@@ -472,10 +571,33 @@ export async function updateLead(
       });
     }
 
+    // 3. Sync artistas: copiar artistas da lead (evento_id negativo) para o evento de agenda ligado
+    // Encontrar o evento de agenda ligado (por FK ou auto-link acima)
+    const linkedEv = await turso.execute({
+      sql: "SELECT id FROM agenda WHERE origem_lead_id=?",
+      args: [id],
+    });
+    if (linkedEv.rows.length > 0) {
+      const agendaEventId = Number((linkedEv.rows[0] as any).id);
+      const leadArtistas = await turso.execute({
+        sql: "SELECT nome, tipo, fee FROM artistas_evento WHERE evento_id=?",
+        args: [-id],
+      });
+      if (leadArtistas.rows.length > 0) {
+        await turso.execute({ sql: "DELETE FROM artistas_evento WHERE evento_id=?", args: [agendaEventId] });
+        for (const a of leadArtistas.rows as any[]) {
+          await turso.execute({
+            sql: "INSERT INTO artistas_evento (evento_id, evento_nome, evento_data, nome, tipo, fee) VALUES (?, ?, ?, ?, ?, ?)",
+            args: [agendaEventId, data.title, data.event_date, a.nome, a.tipo, a.fee],
+          });
+        }
+      }
+    }
+
     return { success: true };
   } catch (error) {
-    console.error("Erro editar lead:", error);
-    return { success: false, message: "Erro ao editar lead." };
+    console.error("Erro editar lead:", JSON.stringify(error));
+    return { success: false, message: String(error) };
   }
 }
 

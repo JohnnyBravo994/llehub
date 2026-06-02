@@ -75,7 +75,7 @@ function CustomSelect({
 import {
   getAllAgenda, createAgendaEvent, updateAgendaEvent,
   cancelAgendaEvent, restoreAgendaEvent, deleteAgendaEvent,
-  getArtistasEvento, syncArtistasEvento, getAllArtistasAgenda,
+  getArtistasEvento, syncArtistasEvento, getAllArtistasAgenda, syncArtistasParaLead,
   getAllClientes, createCliente, getAllLeads,
 } from "../actions";
 
@@ -88,7 +88,7 @@ interface AgendaEvent {
 
 interface Lead {
   id: number; title: string; event_date: string; value: number;
-  status?: string; cancelled?: number; cliente_nome?: string; modalidade?: string;
+  status?: string; cancelled?: number; cliente_nome?: string; modalidade?: string; cliente_id?: number | null;
 }
 
 const CONFIRMED_STATUSES = ["Confirmado", "Em Adjudicação", "Adjudicado", "Pago"];
@@ -308,6 +308,11 @@ export default function AgendaPage() {
     if (modal.editing) {
       await updateAgendaEvent(modal.editing.id, data);
       await syncArtistasEvento(modal.editing.id, cleanTitle, form.date, validArtists);
+      // Sync artistas para a lead ligada após guardar na agenda
+      const linkedLeadId = (modal.editing as any).origem_lead_id;
+      if (linkedLeadId) {
+        await syncArtistasParaLead(linkedLeadId, cleanTitle, form.date, validArtists);
+      }
       showToast("Evento actualizado");
     } else if (isResidencia && residenciaDates.length > 0) {
       const validDates = residenciaDates.filter(d => d.trim());
@@ -362,6 +367,7 @@ export default function AgendaPage() {
     const res = await createAgendaEvent({
       title: l.title, date: l.event_date, time: "", tipo: "Evento",
       bill: l.value || 0, billing_status: l.status,
+      cliente_id: (l as any).cliente_id ?? null,
       cliente_nome: l.cliente_nome, modalidade: l.modalidade,
       origem_lead_id: l.id,
     });
