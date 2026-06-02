@@ -71,6 +71,7 @@ export async function setupDatabase() {
       "modalidade TEXT DEFAULT 'Fatura'",
       "valor_recebido REAL DEFAULT 0",
       "origem_lead_id INTEGER",
+      "venue TEXT DEFAULT ''",
     ];
     for (const col of agendaCols) {
       try { await turso.execute(`ALTER TABLE agenda ADD COLUMN ${col}`); } catch { }
@@ -225,7 +226,7 @@ export async function getAllAgenda(userName: string = 'Admin') {
         // Guardar título limpo sem emoji automático
         const finalTitle = eventTitle;
         return {
-          ...r, id: r.id, title: finalTitle, time_range: r.location || '',
+          ...r, id: r.id, title: finalTitle, time_range: r.location || '', venue: r.venue || '',
           tipo: r.staff_needed || '', bill: r.client_cachet || 0,
           cancelled: r.status === 'Cancelado' ? 1 : 0,
           billing_status: r.billing_status || '', cliente_id: r.cliente_id || null,
@@ -243,12 +244,12 @@ export async function getAllAgenda(userName: string = 'Admin') {
 export async function createAgendaEvent(data: {
   title: string; date: string; time: string; tipo: string; bill: number;
   billing_status?: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string;
-  origem_lead_id?: number | null;
+  origem_lead_id?: number | null; venue?: string;
 }) {
   try {
     await turso.execute({
-      sql: "INSERT INTO agenda (event_name, event_date, location, staff_needed, client_cachet, status, visibility, billing_status, cliente_id, cliente_nome, modalidade, origem_lead_id) VALUES (?, ?, ?, ?, ?, 'Confirmado', 'Public', ?, ?, ?, ?, ?)",
-      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.origem_lead_id ?? null],
+      sql: "INSERT INTO agenda (event_name, event_date, location, staff_needed, client_cachet, status, visibility, billing_status, cliente_id, cliente_nome, modalidade, origem_lead_id, venue) VALUES (?, ?, ?, ?, ?, 'Confirmado', 'Public', ?, ?, ?, ?, ?, ?)",
+      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.origem_lead_id ?? null, data.venue || ''],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
     const newId = Number(last.rows[0].id);
@@ -274,12 +275,12 @@ export async function createAgendaEvent(data: {
 
 export async function updateAgendaEvent(
   id: number,
-  data: { title: string; date: string; time: string; tipo: string; bill: number; billing_status?: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string; }
+  data: { title: string; date: string; time: string; tipo: string; bill: number; billing_status?: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string; venue?: string; }
 ) {
   try {
     await turso.execute({
-      sql: "UPDATE agenda SET event_name=?, event_date=?, location=?, staff_needed=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=? WHERE id=?",
-      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', id],
+      sql: "UPDATE agenda SET event_name=?, event_date=?, location=?, staff_needed=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, venue=? WHERE id=?",
+      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.venue || '', id],
     });
 
     // Obter origem_lead_id actual do evento
@@ -302,8 +303,8 @@ export async function updateAgendaEvent(
     // Sync lead ligada (título, data, valor, status, cliente)
     if (leadId) {
       await turso.execute({
-        sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=? WHERE id=?",
-        args: [data.title, data.date, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', leadId],
+        sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, local=? WHERE id=?",
+        args: [data.title, data.date, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.venue || '', leadId],
       });
     }
 
@@ -528,18 +529,18 @@ export async function createLead(data: {
 
 export async function updateLead(
   id: number,
-  data: { title: string; event_date: string; value: number; status: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string; }
+  data: { title: string; event_date: string; value: number; status: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string; local?: string; }
 ) {
   try {
     await turso.execute({
-      sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=? WHERE id=?",
-      args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', id],
+      sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, local=? WHERE id=?",
+      args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', id],
     });
 
     // 1. Sync evento já ligado por FK
     await turso.execute({
-      sql: "UPDATE agenda SET event_name=?, event_date=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=? WHERE origem_lead_id=?",
-      args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', id],
+      sql: "UPDATE agenda SET event_name=?, event_date=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, venue=? WHERE origem_lead_id=?",
+      args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', id],
     });
 
     // 2. Auto-link + sync eventos antigos sem origem_lead_id (match por data+título)

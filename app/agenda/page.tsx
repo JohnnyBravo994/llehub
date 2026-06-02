@@ -83,7 +83,7 @@ interface AgendaEvent {
   id: number; title: string; event_date: string; time_range?: string;
   tipo?: string; bill?: number; status?: string; cancelled?: number;
   billing_status?: string; cliente_nome?: string; modalidade?: string;
-  origem_lead_id?: number | null;
+  origem_lead_id?: number | null; venue?: string;
 }
 
 interface Lead {
@@ -152,7 +152,7 @@ function artistsSummary(artists: ArtistRow[]) {
   return artists.filter(a => a.nome.trim()).map(a => a.nome).join(" · ");
 }
 
-const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura" };
+const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura", venue: "" };
 const emptyArtist = (): ArtistRow => ({ nome: "", tipo: "DJ", fee: "" });
 
 export default function AgendaPage() {
@@ -266,6 +266,7 @@ export default function AgendaPage() {
       billing_status: e.billing_status || "Contacto",
       cliente_nome: e.cliente_nome || "",
       modalidade: e.modalidade || "Fatura",
+      venue: e.venue || "",
     });
     setClienteSearch(e.cliente_nome || "");
     setClienteDropOpen(false);
@@ -302,6 +303,7 @@ export default function AgendaPage() {
       title: cleanTitle, date: form.date, time: form.time, tipo: form.tipo,
       bill: parseFloat(form.bill) || 0, billing_status: form.billing_status,
       cliente_nome: form.cliente_nome, modalidade: form.modalidade,
+      venue: form.venue || "",
     };
     const validArtists = artists.filter(a => a.nome.trim()).map(a => ({ ...a, fee: parseFloat(a.fee) || 0 }));
 
@@ -489,14 +491,14 @@ export default function AgendaPage() {
   const WEEKDAYS_PT_LONG = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
   const buildAgendaTextForRange = (startDate: string, endDate: string, label: string): string => {
-    const lines: string[] = [label];
-    const leadStatusEmoji = (status: string) => {
-      const s = (status || "").toLowerCase();
-      if (["confirmado", "adjudicado", "faturado", "pago"].includes(s)) return "🟢";
-      if (s === "cancelado") return "🔴";
-      return "🟡";
+    const lines: string[] = [label, ""];
+    const TIPO_LABEL: Record<string, string> = {
+      "DJ": "🎧 DJ", "Cantor": "🎤 Cantor", "Cantora": "🎤 Cantora",
+      "Músico": "🎵 Músico", "Pianista": "🎹 Pianista", "Saxofonista": "🎷 Saxofone",
+      "Guitarrista": "🎸 Guitarra", "Baterista": "🥁 Bateria", "Violinista": "🎻 Violino",
+      "Backing Vocal": "🎤 Backing", "Host": "🎙️ Host", "Karaoke": "🎤 Karaoke",
+      "Produtor": "🧑🏽‍💻 Produtor", "Técnico": "🔧 Técnico", "Outro": "🎵",
     };
-    // Use local date parsing to avoid timezone shift
     const parseLocalDate = (dateStr: string) => {
       const [y, m, d] = dateStr.split("-").map(Number);
       return new Date(y, m - 1, d);
@@ -509,8 +511,6 @@ export default function AgendaPage() {
       const yyyy = cur.getFullYear();
       const dateStr = `${yyyy}-${mm}-${dd}`;
       const wd = WEEKDAYS_PT_LONG[cur.getDay()];
-      const prefix = `${dd}/${mm} ${wd}`;
-      // Events for this day — apply same filters as the current view
       const dayEvents = events.filter(e => {
         if (e.event_date !== dateStr || e.cancelled) return false;
         if (!((userRole === "admin" && userName === "João") || !isSoJoao(e.tipo || ""))) return false;
@@ -527,9 +527,10 @@ export default function AgendaPage() {
       });
       const dayLeads = confirmedLeads.filter(l => l.event_date === dateStr && !l.cancelled);
       if (dayEvents.length === 0 && dayLeads.length === 0) {
-        lines.push(`${prefix} ⛱️ FOLGA`);
+        lines.push(`*${dd}/${mm} ${wd}*`);
+        lines.push(`⛱️ FOLGA`);
+        lines.push("");
       } else {
-        const dayRows: Array<{ icons: string; desc: string }> = [];
         for (const e of dayEvents) {
           const evArtists = artistasMap[e.id] || [];
           const seen = new Set<string>();
@@ -538,22 +539,31 @@ export default function AgendaPage() {
             .map(a => { const ic = TIPO_ICON[a.tipo] || "🎵"; if (seen.has(ic)) return ""; seen.add(ic); return ic; })
             .filter(Boolean).join("") || "🎵";
           const title = (e.title || "").replace(/^\p{Emoji}[\p{Emoji}‍\s]*/u, "").trim();
-          const time = (e.time_range && e.time_range !== "undefined") ? ` · ${e.time_range}` : "";
-          dayRows.push({ icons, desc: `${title}${time}` });
+          const venue = e.venue ? `\n📍 ${e.venue}` : "";
+          const time = (e.time_range && e.time_range !== "undefined") ? `\n🕐 ${e.time_range}` : "";
+          const artistLines = evArtists
+            .filter(a => a.nome.trim())
+            .map(a => {
+              const label = TIPO_LABEL[a.tipo] || `🎵 ${a.tipo}`;
+              const fee = parseFloat(a.fee) > 0 ? ` (${Number(a.fee).toLocaleString("pt-PT", { minimumFractionDigits: 0 })}€)` : "";
+              return `   ${label}: ${resolveColaboradorNome(a.nome)}${fee}`;
+            }).join("\n");
+          const bill = e.bill ? `\n💶 Faturar: ${Number(e.bill).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€` : "";
+          lines.push(`*${dd}/${mm} ${wd} ${icons} ${title}*${venue}${time}`);
+          if (artistLines) lines.push(artistLines);
+          if (bill) lines.push(bill);
+          lines.push("");
         }
         for (const l of dayLeads) {
-          dayRows.push({ icons: leadStatusEmoji(l.status || ""), desc: l.title || "" });
+          const status = (l.status || "").toLowerCase();
+          const icon = ["confirmado","adjudicado","faturado","pago"].includes(status) ? "🟢" : status === "cancelado" ? "🔴" : "🟡";
+          lines.push(`*${dd}/${mm} ${wd} ${icon} ${l.title}*`);
+          lines.push("");
         }
-        dayRows.forEach((row, idx) => {
-          const line = idx === 0
-            ? `${prefix} ${row.icons} ${row.desc}`.trim()
-            : `           ${row.icons} ${row.desc}`.trim();
-          lines.push(line);
-        });
       }
       cur.setDate(cur.getDate() + 1);
     }
-    return lines.join("\n");
+    return lines.join("\n").trim();
   };
 
   const handleCopyAgenda = () => {
@@ -1181,6 +1191,9 @@ export default function AgendaPage() {
               )}
               <FormField label="Hora">
                 <input style={inputStyle} value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} placeholder="20:00-23:00" />
+              </FormField>
+              <FormField label="Local">
+                <input style={inputStyle} value={form.venue} onChange={e => setForm(f => ({ ...f, venue: e.target.value }))} placeholder="SUD, Hyatt, Epic Sana..." />
               </FormField>
               <FormField label="Equipa / Tipo">
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
