@@ -372,7 +372,7 @@ export async function syncArtistasParaLead(leadId: number, eventoNome: string, e
   }
 }
 
-(eventoId: number) {
+export async function getArtistasEvento(eventoId: number) {
   try {
     const res = await turso.execute({
       sql: "SELECT * FROM artistas_evento WHERE evento_id=? ORDER BY id ASC",
