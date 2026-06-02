@@ -232,6 +232,7 @@ export default function LeadsPage() {
       value: parseFloat(form.value) || 0, status: form.status,
       cliente_id: form.cliente_id ?? null,
       cliente_nome: form.cliente_nome, modalidade: form.modalidade,
+      local: form.local, contacto: form.contacto, notas: form.notas,
     };
     if (modal.editing) {
       const previousStatus = modal.editing.status || "";
