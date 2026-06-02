@@ -1,8 +1,77 @@
 "use client";
 
 import { ARTIST_TIPOS, MODALIDADES } from "../constants";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
+
+// ── CustomSelect — cross-browser dropdown (substitui <select> nativo) ─────────
+function CustomSelect({
+  value, onChange, options, style, placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  style?: React.CSSProperties;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  const label = options.find(o => o.value === value)?.label ?? placeholder ?? value;
+  return (
+    <div ref={ref} style={{ position: "relative", width: "100%" }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          ...style,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          cursor: "pointer", userSelect: "none", boxSizing: "border-box",
+        }}
+      >
+        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+        <svg width="8" height="5" viewBox="0 0 8 5" fill="none" style={{ marginLeft: 6, flexShrink: 0, opacity: 0.5, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+          <path d="M1 1l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      </div>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0,
+          background: "#1a1710", border: "1px solid rgba(201,169,110,0.2)",
+          zIndex: 9999, maxHeight: 240, overflowY: "auto",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+        }}>
+          {options.map(o => (
+            <div
+              key={o.value}
+              onMouseDown={e => { e.preventDefault(); onChange(o.value); setOpen(false); }}
+              style={{
+                padding: "0.6rem 1rem",
+                fontSize: style?.fontSize ?? "11px",
+                fontFamily: style?.fontFamily ?? "inherit",
+                letterSpacing: style?.letterSpacing ?? "0.05em",
+                color: o.value === value ? "#C9A96E" : "#F5F0E8",
+                background: o.value === value ? "rgba(201,169,110,0.1)" : "transparent",
+                cursor: "pointer",
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.08)")}
+              onMouseLeave={e => (e.currentTarget.style.background = o.value === value ? "rgba(201,169,110,0.1)" : "transparent")}
+            >
+              {o.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 import {
   getAllAgenda, createAgendaEvent, updateAgendaEvent,
   cancelAgendaEvent, restoreAgendaEvent, deleteAgendaEvent,
@@ -563,29 +632,29 @@ export default function AgendaPage() {
               style={{ flex: 1, background: "rgba(255,255,255,0.03)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: C.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "0.9rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
             />
             {/* Artista dropdown */}
-            <select
-              value={filterArtista} onChange={e => setFilterArtista(e.target.value)}
-              style={{ background: filterArtista ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: filterArtista ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", appearance: "none" as any, minWidth: "130px", textTransform: "uppercase" }}
-            >
-              <option value="">Artista</option>
-              {dropdownArtistas.map(a => <option key={a} value={a}>{a}</option>)}
-            </select>
+            <CustomSelect
+              value={filterArtista}
+              onChange={v => setFilterArtista(v)}
+              placeholder="Artista"
+              options={[{ value: "", label: "Artista" }, ...dropdownArtistas.map(a => ({ value: a, label: a }))]}
+              style={{ background: filterArtista ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: filterArtista ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
+            />
             {/* Cliente dropdown */}
-            <select
-              value={filterCliente} onChange={e => setFilterCliente(e.target.value)}
-              style={{ background: filterCliente ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: filterCliente ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", appearance: "none" as any, minWidth: "130px", textTransform: "uppercase" }}
-            >
-              <option value="">Cliente</option>
-              {dropdownClientes.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <CustomSelect
+              value={filterCliente}
+              onChange={v => setFilterCliente(v)}
+              placeholder="Cliente"
+              options={[{ value: "", label: "Cliente" }, ...dropdownClientes.map(c => ({ value: c, label: c }))]}
+              style={{ background: filterCliente ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: filterCliente ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
+            />
             {/* Equipa dropdown */}
-            <select
-              value={filterEquipa} onChange={e => setFilterEquipa(e.target.value)}
-              style={{ background: filterEquipa ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", color: filterEquipa ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", appearance: "none" as any, minWidth: "120px", textTransform: "uppercase" }}
-            >
-              <option value="">Equipa</option>
-              {dropdownEquipa.map(n => <option key={n} value={n}>{EQUIPA_SYMBOL[n]} {n}</option>)}
-            </select>
+            <CustomSelect
+              value={filterEquipa}
+              onChange={v => setFilterEquipa(v)}
+              placeholder="Equipa"
+              options={[{ value: "", label: "Equipa" }, ...dropdownEquipa.map(n => ({ value: n, label: `${EQUIPA_SYMBOL[n]} ${n}` }))]}
+              style={{ background: filterEquipa ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", color: filterEquipa ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "120px", textTransform: "uppercase" as any }}
+            />
             {/* Clear filters — só aparece se houver algum filtro activo */}
             {(filterArtista || filterCliente || filterEquipa) && (
               <button
@@ -1212,14 +1281,20 @@ export default function AgendaPage() {
               </FormField>
               )}
               <FormField label="Modalidade">
-                <select style={{ ...inputStyle, appearance: "none" as any }} value={form.modalidade} onChange={e => setForm(f => ({ ...f, modalidade: e.target.value }))}>
-                  {MODALIDADES.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
+                <CustomSelect
+                  value={form.modalidade}
+                  onChange={v => setForm(f => ({ ...f, modalidade: v }))}
+                  options={MODALIDADES.map(m => ({ value: m, label: m }))}
+                  style={inputStyle}
+                />
               </FormField>
               <FormField label="Estado" style={{ gridColumn: "1 / -1" }}>
-                <select style={{ ...inputStyle, appearance: "none" as any }} value={form.billing_status} onChange={e => setForm(f => ({ ...f, billing_status: e.target.value }))}>
-                  {BILLING_ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <CustomSelect
+                  value={form.billing_status}
+                  onChange={v => setForm(f => ({ ...f, billing_status: v }))}
+                  options={BILLING_ESTADOS.map(s => ({ value: s, label: s }))}
+                  style={inputStyle}
+                />
               </FormField>
             </div>
 
@@ -1252,13 +1327,12 @@ export default function AgendaPage() {
                         placeholder="Nome do artista..."
                         style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
                       />
-                      <select
+                      <CustomSelect
                         value={a.tipo}
-                        onChange={e => updateArtist(i, "tipo", e.target.value)}
-                        style={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "10px", appearance: "none" as any }}
-                      >
-                        {ARTIST_TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
+                        onChange={v => updateArtist(i, "tipo", v)}
+                        options={ARTIST_TIPOS.map(t => ({ value: t, label: t }))}
+                        style={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "10px" }}
+                      />
                       <input
                         type="text"
                         inputMode="decimal"

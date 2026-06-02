@@ -1,7 +1,75 @@
 "use client";
 
 import { MODALIDADES } from "../constants";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
+
+// ── CustomSelect — cross-browser dropdown (substitui <select> nativo) ─────────
+function CustomSelect({
+  value, onChange, options, style, placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  style?: React.CSSProperties;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  const label = options.find(o => o.value === value)?.label ?? placeholder ?? value;
+  return (
+    <div ref={ref} style={{ position: "relative", width: "100%" }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          ...style,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          cursor: "pointer", userSelect: "none", boxSizing: "border-box",
+        }}
+      >
+        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+        <svg width="8" height="5" viewBox="0 0 8 5" fill="none" style={{ marginLeft: 6, flexShrink: 0, opacity: 0.5, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+          <path d="M1 1l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      </div>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0,
+          background: "#1a1710", border: "1px solid rgba(201,169,110,0.2)",
+          zIndex: 9999, maxHeight: 240, overflowY: "auto",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+        }}>
+          {options.map(o => (
+            <div
+              key={o.value}
+              onMouseDown={e => { e.preventDefault(); onChange(o.value); setOpen(false); }}
+              style={{
+                padding: "0.6rem 1rem",
+                fontSize: style?.fontSize ?? "11px",
+                fontFamily: style?.fontFamily ?? "inherit",
+                letterSpacing: style?.letterSpacing ?? "0.05em",
+                color: o.value === value ? "#C9A96E" : "#F5F0E8",
+                background: o.value === value ? "rgba(201,169,110,0.1)" : "transparent",
+                cursor: "pointer",
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.08)")}
+              onMouseLeave={e => (e.currentTarget.style.background = o.value === value ? "rgba(201,169,110,0.1)" : "transparent")}
+            >
+              {o.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 import { useRouter } from "next/navigation";
 import {
   getAllLeads, createLead, updateLead,
@@ -759,14 +827,20 @@ export default function LeadsPage() {
             </FormField>
             )}
             <FormField label="Estado">
-              <select style={{ ...inputStyle, appearance: "none" as any }} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-                {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <CustomSelect
+                value={form.status}
+                onChange={v => setForm(f => ({ ...f, status: v }))}
+                options={STATUS_OPTIONS.map(s => ({ value: s, label: s }))}
+                style={inputStyle}
+              />
             </FormField>
             <FormField label="Modalidade de Pagamento">
-              <select style={{ ...inputStyle, appearance: "none" as any }} value={form.modalidade} onChange={e => setForm(f => ({ ...f, modalidade: e.target.value }))}>
-                {MODALIDADES.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
+              <CustomSelect
+                value={form.modalidade}
+                onChange={v => setForm(f => ({ ...f, modalidade: v }))}
+                options={MODALIDADES.map(m => ({ value: m, label: m }))}
+                style={inputStyle}
+              />
             </FormField>
             <FormField label="Contacto">
               <input style={inputStyle} value={form.contacto} onChange={e => setForm(f => ({ ...f, contacto: e.target.value }))} placeholder="Nome ou telefone..." />
@@ -799,13 +873,12 @@ export default function LeadsPage() {
                     placeholder="Nome do artista..."
                     style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
                   />
-                  <select
+                  <CustomSelect
                     value={a.tipo}
-                    onChange={e => updateArtist(setArtists, i, "tipo", e.target.value)}
-                    style={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "10px", appearance: "none" as any }}
-                  >
-                    {ARTIST_TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
+                    onChange={v => updateArtist(setArtists, i, "tipo", v)}
+                    options={ARTIST_TIPOS.map(t => ({ value: t, label: t }))}
+                    style={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "10px" }}
+                  />
                   <input
                     type="text"
                     inputMode="decimal"
