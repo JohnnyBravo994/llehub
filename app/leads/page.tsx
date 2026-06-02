@@ -255,13 +255,14 @@ export default function LeadsPage() {
           cliente_id: form.cliente_id ?? null,
           cliente_nome: form.cliente_nome,
           modalidade: form.modalidade,
+          origem_lead_id: modal.editing.id,
         });
         showToast("Lead actualizada · Evento criado na Agenda");
       } else {
         showToast("Lead actualizada");
       }
     } else {
-      await createLead(data);
+      const res = await createLead(data);
       // Se criar directamente com estado avançado, também importa
       if (AGENDA_AUTO_STATUSES.includes(form.status)) {
         await createAgendaEvent({
@@ -274,6 +275,7 @@ export default function LeadsPage() {
           cliente_id: form.cliente_id ?? null,
           cliente_nome: form.cliente_nome,
           modalidade: form.modalidade,
+          origem_lead_id: res.id ?? null,
         });
         showToast("Lead criada · Evento criado na Agenda");
       } else {
@@ -298,6 +300,7 @@ export default function LeadsPage() {
       cliente_id: form.cliente_id ?? null,
       cliente_nome: form.cliente_nome,
       modalidade: form.modalidade,
+      origem_lead_id: modal.editing.id,
     });
     setConverting(false);
     if (res.success) {

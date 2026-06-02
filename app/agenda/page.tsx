@@ -83,6 +83,7 @@ interface AgendaEvent {
   id: number; title: string; event_date: string; time_range?: string;
   tipo?: string; bill?: number; status?: string; cancelled?: number;
   billing_status?: string; cliente_nome?: string; modalidade?: string;
+  origem_lead_id?: number | null;
 }
 
 interface Lead {
@@ -217,7 +218,10 @@ export default function AgendaPage() {
         if (!CONFIRMED_STATUSES.includes(l.status || "") || !l.event_date) return false;
         const leadTitle = stripEmoji(l.title);
         const leadValue = l.value || 0;
-        // Considera duplicado se na mesma data: título parecido OU mesmo valor (> 0)
+        // Critério primário: lead já tem evento na agenda com origem_lead_id = l.id
+        const hasLinkedEvent = agendaEvents.some(e => e.origem_lead_id === l.id);
+        if (hasLinkedEvent) return false;
+        // Critério fallback (leads antigas sem origem_lead_id): título parecido OU mesmo valor na mesma data
         const isDuplicate = agendaEvents.some(e => {
           if (e.event_date !== l.event_date) return false;
           const agendaTitle = stripEmoji(e.title || "");
@@ -359,6 +363,7 @@ export default function AgendaPage() {
       title: l.title, date: l.event_date, time: "", tipo: "Evento",
       bill: l.value || 0, billing_status: l.status,
       cliente_nome: l.cliente_nome, modalidade: l.modalidade,
+      origem_lead_id: l.id,
     });
     if (res.success) { showToast("Lead convertida em evento"); load(); }
     else showToast("Erro ao converter");
