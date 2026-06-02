@@ -433,22 +433,6 @@ export async function syncArtistasParaAgenda(leadId: number, eventoNome: string,
   }
 }
 
-(leadId: number, eventoNome: string, eventoData: string, artistas: { nome: string; tipo: string; fee: number }[]) {
-  try {
-    await turso.execute({ sql: "DELETE FROM artistas_evento WHERE evento_id=?", args: [-leadId] });
-    for (const a of artistas) {
-      if (!a.nome.trim()) continue;
-      await turso.execute({
-        sql: "INSERT INTO artistas_evento (evento_id, evento_nome, evento_data, nome, tipo, fee) VALUES (?, ?, ?, ?, ?, ?)",
-        args: [-leadId, eventoNome, eventoData, a.nome.trim(), a.tipo, a.fee],
-      });
-    }
-    return { success: true };
-  } catch (error) {
-    console.error("Erro sync artistas lead:", error);
-    return { success: false };
-  }
-}
 
 
 export async function getAllPagamentos() {
