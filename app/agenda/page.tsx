@@ -1010,6 +1010,7 @@ export default function AgendaPage() {
                 </div>
                 <div className="mob-card-meta">
                   {e.time_range && <><span>{e.time_range}</span><span className="mob-card-meta-dot">·</span></>}
+                  {e.venue && <><span style={{color:"rgba(201,169,110,0.7)"}}>📍 {e.venue}</span><span className="mob-card-meta-dot">·</span></>}
                   {parseEquipa(e.tipo||"").map(n=><span key={n}>{EQUIPA_SYMBOL[n]}</span>)}
                   {evArtists.length > 0 && <><span className="mob-card-meta-dot">·</span><span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"140px"}}>{evArtists.slice(0,2).map((a:any)=>resolveColaboradorNome(a.nome)).join(" · ")}{evArtists.length>2?` +${evArtists.length-2}`:""}</span></>}
                 </div>

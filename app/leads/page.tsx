@@ -643,6 +643,7 @@ export default function LeadsPage() {
                   </div>
                   <div className="mob-card-body">
                     <div className={`mob-card-title${l.cancelled?" cancelled":""}`}>{l.title}</div>
+                    {l.local && <div className="mob-card-meta" style={{color:"rgba(201,169,110,0.7)"}}>📍 {l.local}</div>}
                     {l.cliente_nome && <div className="mob-card-meta">{displayClienteNome(l, clientes)}</div>}
                     {l.notas && <div className="mob-card-meta" style={{fontStyle:"italic", marginTop:2}}>"{l.notas}"</div>}
                     <div className="mob-card-badges">

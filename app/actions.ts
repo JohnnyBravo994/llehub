@@ -203,7 +203,7 @@ export async function getDashboardData(userName: string = 'Admin', clientTodaySt
         const eventTitle = (r.event_name as string) || '(sem título)';
         const cleanTitle = eventTitle.replace(/^\p{Emoji}[\p{Emoji}\u200d\s]*/u, '').trim();
         const artistas = artistasByEvento[Number(r.id)] || [];
-        return { ...r, title: cleanTitle, hours: r.start_time && r.end_time ? `${r.start_time} - ${r.end_time}` : (r.start_time || ''), location: r.location || r.venue || '', staff: r.staff_needed || '', bill: r.client_cachet || 0, artists: r.artists || '', artistas };
+        return { ...r, title: cleanTitle, hours: r.location || '', location: r.venue || '', staff: r.staff_needed || '', bill: r.client_cachet || 0, artists: r.artists || '', artistas };
       }),
     };
   } catch (error) {
@@ -551,8 +551,8 @@ export async function updateLead(
     });
     for (const row of unlinked.rows as any[]) {
       await turso.execute({
-        sql: "UPDATE agenda SET origem_lead_id=?, event_name=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=? WHERE id=?",
-        args: [id, data.title, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', row.id],
+        sql: "UPDATE agenda SET origem_lead_id=?, event_name=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, venue=? WHERE id=?",
+        args: [id, data.title, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', row.id],
       });
     }
 
