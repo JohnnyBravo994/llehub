@@ -83,6 +83,7 @@ interface Lead {
   status?: string; cancelled?: number;
   local?: string; contacto?: string; notas?: string;
   cliente_nome?: string; cliente_id?: number | null; modalidade?: string;
+  agenda_event_id?: number | null;
 }
 
 interface Cliente { id: number; nome: string; nif?: string; alias?: string; }
@@ -213,8 +214,28 @@ export default function LeadsPage() {
     setClienteCreating(false);
     setArtists([emptyArtist()]);
     setModal({ open: true, editing: l });
-    // Load artistas if lead has been converted (has an agenda event)
-    setLoadingArtists(false);
+    // Carregar artistas: primeiro tenta evento de agenda ligado, senão usa artistas da lead
+    setLoadingArtists(true);
+    (async () => {
+      // Preferir artistas do evento de agenda (fonte de verdade quando há sync)
+      const agendaId = l.agenda_event_id ?? null;
+      let loaded: ArtistRow[] = [];
+      if (agendaId) {
+        const res = await getArtistasEvento(agendaId);
+        if (res.success && res.data.length > 0) {
+          loaded = res.data.map(a => ({ nome: a.nome, tipo: a.tipo, fee: String(a.fee) }));
+        }
+      }
+      // Fallback: artistas guardados directamente na lead (evento_id negativo)
+      if (loaded.length === 0) {
+        const res = await getArtistasEvento(-l.id);
+        if (res.success && res.data.length > 0) {
+          loaded = res.data.map(a => ({ nome: a.nome, tipo: a.tipo, fee: String(a.fee) }));
+        }
+      }
+      setArtists(loaded.length > 0 ? loaded : [emptyArtist()]);
+      setLoadingArtists(false);
+    })();
   };
 
   const closeModal = () => {
@@ -233,6 +254,7 @@ export default function LeadsPage() {
       cliente_id: form.cliente_id ?? null,
       cliente_nome: form.cliente_nome, modalidade: form.modalidade,
       local: form.local || "",
+      contacto: form.contacto || "", notas: form.notas || "",
     };
     if (modal.editing) {
       const previousStatus = modal.editing.status || "";
@@ -265,6 +287,8 @@ export default function LeadsPage() {
           cliente_nome: form.cliente_nome,
           modalidade: form.modalidade,
           origem_lead_id: modal.editing.id,
+          contacto: form.contacto || "",
+          notas: form.notas || "",
         });
         showToast("Lead actualizada · Evento criado na Agenda");
       } else {
@@ -285,6 +309,8 @@ export default function LeadsPage() {
           cliente_nome: form.cliente_nome,
           modalidade: form.modalidade,
           origem_lead_id: res.id ?? null,
+          contacto: form.contacto || "",
+          notas: form.notas || "",
         });
         showToast("Lead criada · Evento criado na Agenda");
       } else {
@@ -311,6 +337,8 @@ export default function LeadsPage() {
       modalidade: form.modalidade,
       venue: form.local || "",
       origem_lead_id: modal.editing.id,
+      contacto: form.contacto || "",
+      notas: form.notas || "",
     });
     setConverting(false);
     if (res.success) {

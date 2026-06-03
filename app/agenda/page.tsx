@@ -84,6 +84,7 @@ interface AgendaEvent {
   tipo?: string; bill?: number; status?: string; cancelled?: number;
   billing_status?: string; cliente_nome?: string; modalidade?: string;
   origem_lead_id?: number | null; venue?: string;
+  contacto?: string; notas?: string;
 }
 
 interface Lead {
@@ -152,7 +153,7 @@ function artistsSummary(artists: ArtistRow[]) {
   return artists.filter(a => a.nome.trim()).map(a => a.nome).join(" · ");
 }
 
-const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura", venue: "" };
+const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura", venue: "", contacto: "", notas: "" };
 const emptyArtist = (): ArtistRow => ({ nome: "", tipo: "DJ", fee: "" });
 
 export default function AgendaPage() {
@@ -267,6 +268,7 @@ export default function AgendaPage() {
       cliente_nome: e.cliente_nome || "",
       modalidade: e.modalidade || "Fatura",
       venue: e.venue || "",
+      contacto: e.contacto || "", notas: e.notas || "",
     });
     setClienteSearch(e.cliente_nome || "");
     setClienteDropOpen(false);
@@ -304,14 +306,15 @@ export default function AgendaPage() {
       bill: parseFloat(form.bill) || 0, billing_status: form.billing_status,
       cliente_nome: form.cliente_nome, modalidade: form.modalidade,
       venue: form.venue || "",
+      contacto: form.contacto || "", notas: form.notas || "",
     };
     const validArtists = artists.filter(a => a.nome.trim()).map(a => ({ ...a, fee: parseFloat(a.fee) || 0 }));
 
     if (modal.editing) {
-      await updateAgendaEvent(modal.editing.id, data);
+      const updateRes = await updateAgendaEvent(modal.editing.id, data);
       await syncArtistasEvento(modal.editing.id, cleanTitle, form.date, validArtists);
-      // Sync artistas para a lead ligada após guardar na agenda
-      const linkedLeadId = (modal.editing as any).origem_lead_id;
+      // Sync artistas para a lead ligada — usar leadId resolvido pela action (mais fiável que o objeto em memória)
+      const linkedLeadId = updateRes.leadId ?? (modal.editing as any).origem_lead_id;
       if (linkedLeadId) {
         await syncArtistasParaLead(linkedLeadId, cleanTitle, form.date, validArtists);
       }
@@ -372,6 +375,7 @@ export default function AgendaPage() {
       cliente_id: (l as any).cliente_id ?? null,
       cliente_nome: l.cliente_nome, modalidade: l.modalidade,
       origem_lead_id: l.id,
+      contacto: (l as any).contacto || "", notas: (l as any).notas || "",
     });
     if (res.success) { showToast("Lead convertida em evento"); load(); }
     else showToast("Erro ao converter");
@@ -1197,6 +1201,9 @@ export default function AgendaPage() {
               <FormField label="Local">
                 <input style={inputStyle} value={form.venue} onChange={e => setForm(f => ({ ...f, venue: e.target.value }))} placeholder="SUD, Hyatt, Epic Sana..." />
               </FormField>
+              <FormField label="Contacto">
+                <input style={inputStyle} value={form.contacto} onChange={e => setForm(f => ({ ...f, contacto: e.target.value }))} placeholder="Nome ou telefone..." />
+              </FormField>
               <FormField label="Equipa / Tipo">
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                   {EQUIPA_NOMES.map(n => {
@@ -1335,6 +1342,9 @@ export default function AgendaPage() {
                   options={BILLING_ESTADOS.map(s => ({ value: s, label: s }))}
                   style={inputStyle}
                 />
+              </FormField>
+              <FormField label="Notas" style={{ gridColumn: "1 / -1" }}>
+                <textarea style={{ ...inputStyle, minHeight: "72px", resize: "vertical" }} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Observações..." />
               </FormField>
             </div>
 
