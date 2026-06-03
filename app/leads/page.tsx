@@ -256,8 +256,9 @@ export default function LeadsPage() {
         await createAgendaEvent({
           title: form.title.trim(),
           date: form.event_date,
-          time: form.local || "",
+          time: "",
           tipo: "Evento",
+          venue: form.local || "",
           bill: parseFloat(form.value) || 0,
           billing_status: form.status,
           cliente_id: form.cliente_id ?? null,
@@ -301,13 +302,14 @@ export default function LeadsPage() {
     const res = await createAgendaEvent({
       title: form.title.trim(),
       date: form.event_date,
-      time: form.local || "",
+      time: "",
       tipo: "Evento",
       bill: parseFloat(form.value) || 0,
       billing_status: "Contacto",
       cliente_id: form.cliente_id ?? null,
       cliente_nome: form.cliente_nome,
       modalidade: form.modalidade,
+      venue: form.local || "",
       origem_lead_id: modal.editing.id,
     });
     setConverting(false);
@@ -866,6 +868,9 @@ export default function LeadsPage() {
                 options={MODALIDADES.map(m => ({ value: m, label: m }))}
                 style={inputStyle}
               />
+            </FormField>
+            <FormField label="Local">
+              <input style={inputStyle} value={form.local} onChange={e => setForm(f => ({ ...f, local: e.target.value }))} placeholder="SUD, Hyatt, Epic Sana..." />
             </FormField>
             <FormField label="Contacto">
               <input style={inputStyle} value={form.contacto} onChange={e => setForm(f => ({ ...f, contacto: e.target.value }))} placeholder="Nome ou telefone..." />
