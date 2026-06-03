@@ -83,7 +83,7 @@ interface AgendaEvent {
   id: number; title: string; event_date: string; time_range?: string;
   tipo?: string; bill?: number; status?: string; cancelled?: number;
   billing_status?: string; cliente_nome?: string; modalidade?: string;
-  origem_lead_id?: number | null; venue?: string; event_id?: string;
+  origem_lead_id?: number | null; venue?: string;
   contacto?: string; notas?: string;
 }
 
@@ -1417,14 +1417,6 @@ export default function AgendaPage() {
             </div>
 
             <div style={{ display: "flex", gap: "1rem", marginTop: "2rem", justifyContent: "flex-end" }}>
-              {modal.editing && (
-                <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
-                  <span style={{ fontSize: "8px", letterSpacing: "0.15em", color: "rgba(201,169,110,0.4)", fontFamily: "monospace" }}>
-                    event_id: {(modal.editing as any).event_id || <span style={{ color: "rgba(255,80,80,0.6)" }}>vazio ⚠</span>}
-                    {(modal.editing as any).origem_lead_id && <span style={{ marginLeft: "1rem" }}>lead_id: {(modal.editing as any).origem_lead_id}</span>}
-                  </span>
-                </div>
-              )}
               <button onClick={closeModal} style={btnSecStyle}>Fechar</button>
               {modal.editing && !modal.editing.cancelled && (
                 <button onClick={handleCancelFromModal} style={btnDangerStyle}>Cancelar Evento</button>

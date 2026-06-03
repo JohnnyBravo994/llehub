@@ -84,7 +84,7 @@ interface Lead {
   status?: string; cancelled?: number;
   local?: string; contacto?: string; notas?: string;
   cliente_nome?: string; cliente_id?: number | null; modalidade?: string;
-  agenda_event_id?: number | null; event_id?: string;
+  agenda_event_id?: number | null;
 }
 
 interface Cliente { id: number; nome: string; nif?: string; alias?: string; }
@@ -969,14 +969,6 @@ export default function LeadsPage() {
             </div>
 
             <div style={{ display: "flex", gap: "1rem", marginTop: "2rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
-              {modal.editing && (
-                <div style={{ width: "100%", marginBottom: "0.5rem" }}>
-                  <span style={{ fontSize: "8px", letterSpacing: "0.15em", color: "rgba(201,169,110,0.4)", fontFamily: "monospace" }}>
-                    event_id: {(modal.editing as any).event_id || <span style={{ color: "rgba(255,80,80,0.6)" }}>vazio ⚠</span>}
-                    {(modal.editing as any).agenda_event_id && <span style={{ marginLeft: "1rem" }}>agenda_id: {(modal.editing as any).agenda_event_id}</span>}
-                  </span>
-                </div>
-              )}
               <button onClick={closeModal} style={btnSecStyle}>Fechar</button>
               {modal.editing && !modal.editing.cancelled && (
                 <>
