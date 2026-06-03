@@ -76,7 +76,7 @@ import {
   getAllAgenda, createAgendaEvent, updateAgendaEvent,
   cancelAgendaEvent, restoreAgendaEvent, deleteAgendaEvent,
   getArtistasEvento, syncArtistasEvento, getAllArtistasAgenda, syncArtistasParaLead,
-  getAllClientes, createCliente, getAllLeads,
+  getAllClientes, createCliente, getAllLeads, syncAllExistingData,
 } from "../actions";
 
 interface AgendaEvent {
@@ -245,6 +245,12 @@ export default function AgendaPage() {
     const parsed = JSON.parse(u);
     setUserName(parsed.name);
     setUserRole(parsed.role || "admin");
+    // Sync inicial: corrigir dados históricos (agenda ganha), silencioso, uma vez por sessão
+    if (!sessionStorage.getItem("lle_sync_done")) {
+      syncAllExistingData().then(r => {
+        if (r.success) sessionStorage.setItem("lle_sync_done", "1");
+      });
+    }
     load();
     setTimeout(() => setMounted(true), 100);
   }, [load]);

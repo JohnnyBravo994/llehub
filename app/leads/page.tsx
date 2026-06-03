@@ -76,6 +76,7 @@ import {
   cancelLead, restoreLead, deleteLead,
   getAllClientes, createCliente, createAgendaEvent,
   syncArtistasEvento, getArtistasEvento, setupDatabase, syncArtistasParaAgenda,
+  syncAllExistingData,
 } from "../actions";
 
 interface Lead {
@@ -185,6 +186,12 @@ export default function LeadsPage() {
     const parsed = JSON.parse(u);
     setUserName(parsed.name);
     setUserRole(parsed.role || "admin");
+    // Sync inicial: corrigir dados históricos (agenda ganha), silencioso, uma vez por sessão
+    if (!sessionStorage.getItem("lle_sync_done")) {
+      syncAllExistingData().then(r => {
+        if (r.success) sessionStorage.setItem("lle_sync_done", "1");
+      });
+    }
     setupDatabase().then(() => load());
     setTimeout(() => setMounted(true), 100);
   }, [load]);
