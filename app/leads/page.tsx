@@ -528,8 +528,8 @@ export default function LeadsPage() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  {["Data Evento", "Lead / Projecto", "Cliente", "Estado", "Valor", "Ações"].map((h, i) => (
-                    <th key={h} style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${C.border}`, textAlign: i >= 4 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
+                  {["Data Evento", "Lead / Projecto", "Local", "Cliente", "Estado", "Valor", "Ações"].map((h, i) => (
+                    <th key={h} style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${C.border}`, textAlign: i >= 5 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -537,7 +537,7 @@ export default function LeadsPage() {
                 {sortedMonths.map(ym => (
                   <React.Fragment key={ym}>
                     <tr onClick={() => toggleMonth(ym)} style={{ cursor: "pointer" }}>
-                      <td colSpan={6} style={{ padding: "0.75rem 1.25rem", background: "rgba(201,169,110,0.05)", borderBottom: `1px solid ${C.border}` }}>
+                      <td colSpan={7} style={{ padding: "0.75rem 1.25rem", background: "rgba(201,169,110,0.05)", borderBottom: `1px solid ${C.border}` }}>
                         <span style={{ fontSize: "8px", letterSpacing: "0.4em", color: C.gold, fontWeight: 700, textTransform: "capitalize" }}>{monthLabel(ym)}</span>
                         <span style={{ fontSize: "8px", color: C.textMuted, marginLeft: "0.75rem" }}>({grouped[ym].length})</span>
                         <span style={{ fontSize: "9px", color: C.goldDim, marginLeft: "0.5rem", opacity: 0.7 }}>{collapsedMonths.has(ym) ? "▸" : "▾"}</span>
@@ -551,6 +551,7 @@ export default function LeadsPage() {
                           {!!l.cancelled && <span style={{ fontSize: "8px", color: C.red, letterSpacing: "0.2em", marginLeft: "0.5rem" }}>[CANCELADO]</span>}
                           {l.notas && <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px", fontStyle: "italic" }}>"{l.notas}"</div>}
                         </td>
+                        <td style={tdStyle({ muted: true, maxW: "130px" })}>{l.local || <span style={{ color: C.textMuted }}>—</span>}</td>
                         <td style={tdStyle({ muted: true, maxW: "180px" })}>{displayClienteNome(l, clientes) || "—"}</td>
                         <td style={tdStyle({})}>
                           <StatusBadge color={statusColor(l.status)} label={l.status || "Pendente"} />

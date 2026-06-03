@@ -703,8 +703,8 @@ export default function AgendaPage() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  {["Data", "Evento", "Hora", "Equipa", "Artistas", "Modalidade", "Estado", "Faturação", "Ações"].map((h, i) => (
-                    <th key={h} style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${C.border}`, textAlign: i >= 7 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
+                  {["Data", "Evento", "Hora", "Local", "Equipa", "Artistas", "Modalidade", "Estado", "Faturação", "Ações"].map((h, i) => (
+                    <th key={h} style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${C.border}`, textAlign: i >= 8 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -780,6 +780,7 @@ export default function AgendaPage() {
                       </div>
                     </td>
                     <td style={tdStyle({ muted: true, nowrap: true })}>{e.time_range || "—"}</td>
+                    <td style={tdStyle({ muted: true, maxW: "140px" })}>{e.venue || <span style={{ color: C.textMuted }}>—</span>}</td>
                     <td style={{ ...tdStyle({}), padding: "0.85rem 1rem" }}>
                       <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", alignItems: "center" }}>
                         {parseEquipa(e.tipo || "").length > 0
