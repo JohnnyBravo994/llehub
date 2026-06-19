@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import React from "react";
 import { useRouter } from "next/navigation";
 
-// ── CustomSelect — cross-browser dropdown (substitui <select> nativo) ─────────
+// ── CustomSelect ──────────────────────────────────────────────────────────────
 function CustomSelect({
   value, onChange, options, style, placeholder,
 }: {
@@ -72,6 +72,7 @@ function CustomSelect({
     </div>
   );
 }
+
 import {
   getAllAgenda, createAgendaEvent, updateAgendaEvent,
   cancelAgendaEvent, restoreAgendaEvent, deleteAgendaEvent,
@@ -79,6 +80,7 @@ import {
   getAllClientes, createCliente, getAllLeads, syncAllExistingData,
 } from "../actions";
 
+// ── INTERFACES ───────────────────────────────────────────────────────────────
 interface AgendaEvent {
   id: number; title: string; event_date: string; time_range?: string;
   tipo?: string; bill?: number; status?: string; cancelled?: number;
@@ -92,8 +94,6 @@ interface Lead {
   status?: string; cancelled?: number; cliente_nome?: string; modalidade?: string; cliente_id?: number | null;
 }
 
-const CONFIRMED_STATUSES = ["Confirmado", "Em Adjudicação", "Adjudicado", "Pago"];
-
 interface ArtistRow {
   id?: number; nome: string; tipo: string; fee: string;
 }
@@ -102,9 +102,10 @@ interface Cliente {
   id: number; nome: string; nif?: string; alias?: string;
 }
 
+// ── CONSTANTES ───────────────────────────────────────────────────────────────
+const CONFIRMED_STATUSES = ["Confirmado", "Em Adjudicação", "Adjudicado", "Pago"];
 const BILLING_ESTADOS = ["Contacto", "Proposta Enviada", "Em Negociação", "Confirmado", "Em Adjudicação", "Adjudicado", "Faturado", "Pago", "Cancelado"];
 
-// Mapeamento tipo artista → emoji
 const TIPO_ICON: Record<string, string> = {
   "DJ": "🎧", "Singer": "🎤", "Dancer": "💃", "Sax": "🎷",
   "Guitar": "🎸", "Bass": "🎸", "Drums": "🥁", "Piano": "🎹",
@@ -114,11 +115,18 @@ const TIPO_ICON: Record<string, string> = {
   "Produtor": "🧑🏽‍💻", "Guarda-Roupa": "🥻", "Animador": "🎪",
 };
 
-// Equipa: João=azul 🔵, Annia=flor 🌸, Empresa=castanho 🟤
 const EQUIPA_NOMES = ["João", "Annia", "Empresa"] as const;
 const EQUIPA_SYMBOL: Record<string, string> = { "João": "🔵", "Annia": "🌸", "Empresa": "🟤" };
 const EQUIPA_COLOR: Record<string, string> = { "João": "#85B7EB", "Annia": "#F4A7C0", "Empresa": "#A07850" };
 
+const C = {
+  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009",
+  border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
+  textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
+  green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
+};
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
 function parseEquipa(tipo: string): string[] {
   if (!tipo) return [];
   return EQUIPA_NOMES.filter(n => tipo.toLowerCase().includes(n.toLowerCase()));
@@ -133,13 +141,6 @@ function artistIcons(artistas: ArtistRow[]): string {
     .join("");
 }
 
-const C = {
-  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009",
-  border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
-  textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
-  green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
-};
-
 function fmtDate(s: string) {
   if (!s) return "—";
   const d = new Date(s + "T00:00:00");
@@ -148,14 +149,16 @@ function fmtDate(s: string) {
   return `${date} · ${weekday.charAt(0).toUpperCase() + weekday.slice(1)}`;
 }
 
-function artistsSummary(artists: ArtistRow[]) {
-  if (!artists.length) return "—";
-  return artists.filter(a => a.nome.trim()).map(a => a.nome).join(" · ");
+function timeToMinutes(t?: string) {
+  if (!t) return 9999;
+  const m = t.match(/^(\d{1,2}):(\d{2})/);
+  return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : 9999;
 }
 
 const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura", venue: "", contacto: "", notas: "" };
 const emptyArtist = (): ArtistRow => ({ nome: "", tipo: "DJ", fee: "" });
 
+// ── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function AgendaPage() {
   const router = useRouter();
   const [userName, setUserName] = useState("");
@@ -186,7 +189,6 @@ export default function AgendaPage() {
   const [toast, setToast] = useState("");
   const [undoAction, setUndoAction] = useState<{ label: string; fn: () => void } | null>(null);
   const [toastTimer, setToastTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
-  // Mobile filter panel state
   const [mobFilterOpen, setMobFilterOpen] = useState(false);
   const [mobFilterCategory, setMobFilterCategory] = useState<"" | "equipa" | "artista" | "cliente">("");
   const [mounted, setMounted] = useState(false);
@@ -206,7 +208,7 @@ export default function AgendaPage() {
     setToastTimer(t);
   };
 
-  // ✅ FIX: load() com resiliência — não quebra se uma chamada falhar
+  // ✅ FIX: load() com resiliência
   const load = useCallback(async () => {
     try {
       const [r, ar, cr, lr] = await Promise.all([
@@ -221,7 +223,6 @@ export default function AgendaPage() {
       if (lr.success) {
         const stripEmoji = (s: string) => s.replace(/[\p{Emoji}\u200d\ufe0f]+/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
         const agendaEvents = r.success ? (r.data as AgendaEvent[]) : [];
-
         const confirmed = (lr.data as Lead[]).filter(l => {
           if (!CONFIRMED_STATUSES.includes(l.status || "") || !l.event_date) return false;
           const leadTitle = stripEmoji(l.title);
@@ -254,11 +255,10 @@ export default function AgendaPage() {
     const parsed = JSON.parse(u);
     setUserName(parsed.name);
     setUserRole(parsed.role || "admin");
-    // Sync inicial: corrigir dados históricos (agenda ganha), silencioso, uma vez por sessão
     if (!sessionStorage.getItem("lle_sync_done")) {
       syncAllExistingData().then(r => {
         if (r?.success) sessionStorage.setItem("lle_sync_done", "1");
-      }).catch(() => {}); // ✅ FIX: não quebrar se sync falhar
+      }).catch(() => {});
     }
     load();
     setTimeout(() => setMounted(true), 100);
@@ -304,7 +304,6 @@ export default function AgendaPage() {
 
   const closeModal = () => setModal({ open: false, editing: null });
 
-  // Artist table helpers
   const addArtistRow = () => setArtists(prev => [...prev, emptyArtist()]);
   const removeArtistRow = (i: number) => setArtists(prev => prev.filter((_, idx) => idx !== i));
   const updateArtist = (i: number, field: keyof ArtistRow, value: string | number) =>
@@ -320,33 +319,25 @@ export default function AgendaPage() {
       title: cleanTitle, date: form.date, time: form.time, tipo: form.tipo,
       bill: parseFloat(form.bill) || 0, billing_status: form.billing_status,
       cliente_nome: form.cliente_nome, modalidade: form.modalidade,
-      venue: form.venue || "",
-      contacto: form.contacto || "", notas: form.notas || "",
+      venue: form.venue || "", contacto: form.contacto || "", notas: form.notas || "",
     };
     const validArtists = artists.filter(a => a.nome.trim()).map(a => ({ ...a, fee: parseFloat(a.fee) || 0 }));
-
     if (modal.editing) {
       const updateRes = await updateAgendaEvent(modal.editing.id, data);
       await syncArtistasEvento(modal.editing.id, cleanTitle, form.date, validArtists);
       const linkedLeadId = updateRes.leadId ?? (modal.editing as any).origem_lead_id;
-      if (linkedLeadId) {
-        await syncArtistasParaLead(linkedLeadId, cleanTitle, form.date, validArtists);
-      }
+      if (linkedLeadId) await syncArtistasParaLead(linkedLeadId, cleanTitle, form.date, validArtists);
       showToast("Evento actualizado");
     } else if (isResidencia && residenciaDates.length > 0) {
       const validDates = residenciaDates.filter(d => d.trim());
       for (const d of validDates) {
         const res = await createAgendaEvent({ ...data, date: d });
-        if (res.success && res.id) {
-          await syncArtistasEvento(res.id, cleanTitle, d, validArtists);
-        }
+        if (res.success && res.id) await syncArtistasEvento(res.id, cleanTitle, d, validArtists);
       }
       showToast(`${validDates.length} evento${validDates.length > 1 ? "s" : ""} criado${validDates.length > 1 ? "s" : ""}`);
     } else {
       const res = await createAgendaEvent(data);
-      if (res.success && res.id) {
-        await syncArtistasEvento(res.id, cleanTitle, form.date, validArtists);
-      }
+      if (res.success && res.id) await syncArtistasEvento(res.id, cleanTitle, form.date, validArtists);
       showToast("Evento criado");
     }
     setSaving(false);
@@ -354,7 +345,7 @@ export default function AgendaPage() {
     load();
   };
 
-  // ✅ FIX: handleCancel com try/catch e verificação de sucesso
+  // ✅ FIX: handlers com try/catch
   const handleCancel = async (e: AgendaEvent) => {
     try {
       const res = await cancelAgendaEvent(e.id);
@@ -362,31 +353,20 @@ export default function AgendaPage() {
       await load();
       showToast("Evento cancelado", {
         label: "Undo",
-        fn: async () => {
-          try { await restoreAgendaEvent(e.id); await load(); } catch {}
-          setToast(""); setUndoAction(null);
-        },
+        fn: async () => { try { await restoreAgendaEvent(e.id); await load(); } catch {} setToast(""); setUndoAction(null); },
       });
-    } catch (err) {
-      console.error("handleCancel error:", err);
-      showToast("Erro ao cancelar");
-    }
+    } catch (err) { console.error("handleCancel error:", err); showToast("Erro ao cancelar"); }
   };
 
-  // ✅ FIX: handleRestore com try/catch e verificação de sucesso
   const handleRestore = async (e: AgendaEvent) => {
     try {
       const res = await restoreAgendaEvent(e.id);
       if (!res.success) { showToast("Erro ao repor evento"); return; }
       await load();
       showToast("Evento reposto");
-    } catch (err) {
-      console.error("handleRestore error:", err);
-      showToast("Erro ao repor");
-    }
+    } catch (err) { console.error("handleRestore error:", err); showToast("Erro ao repor"); }
   };
 
-  // ✅ FIX: handleDelete com try/catch e verificação de sucesso
   const handleDelete = async (id: number) => {
     if (!confirm("Eliminar este evento definitivamente?")) return;
     try {
@@ -394,13 +374,9 @@ export default function AgendaPage() {
       if (!res.success) { showToast("Erro ao eliminar"); return; }
       await load();
       showToast("Evento eliminado");
-    } catch (err) {
-      console.error("handleDelete error:", err);
-      showToast("Erro ao eliminar");
-    }
+    } catch (err) { console.error("handleDelete error:", err); showToast("Erro ao eliminar"); }
   };
 
-  // ✅ FIX: handleCancelFromModal com try/catch
   const handleCancelFromModal = async () => {
     if (modal.editing) {
       try {
@@ -411,19 +387,12 @@ export default function AgendaPage() {
         await load();
         showToast("Evento cancelado", {
           label: "Undo",
-          fn: async () => {
-            try { await restoreAgendaEvent(ev.id); await load(); } catch {}
-            setToast(""); setUndoAction(null);
-          },
+          fn: async () => { try { await restoreAgendaEvent(ev.id); await load(); } catch {} setToast(""); setUndoAction(null); },
         });
-      } catch (err) {
-        console.error("handleCancelFromModal error:", err);
-        showToast("Erro ao cancelar");
-      }
+      } catch (err) { console.error("handleCancelFromModal error:", err); showToast("Erro ao cancelar"); }
     }
   };
 
-  // Converter lead em evento real na agenda
   const handleLeadConvert = async (l: Lead) => {
     try {
       const res = await createAgendaEvent({
@@ -431,29 +400,23 @@ export default function AgendaPage() {
         bill: l.value || 0, billing_status: l.status,
         cliente_id: (l as any).cliente_id ?? null,
         cliente_nome: l.cliente_nome, modalidade: l.modalidade,
-        origem_lead_id: l.id,
-        contacto: (l as any).contacto || "", notas: (l as any).notas || "",
+        origem_lead_id: l.id, contacto: (l as any).contacto || "", notas: (l as any).notas || "",
       });
-      if (res.success) { showToast("Lead convertida em evento"); load(); }
-      else showToast("Erro ao converter");
-    } catch (err) {
-      console.error("handleLeadConvert error:", err);
-      showToast("Erro ao converter");
-    }
+      if (res.success) { showToast("Lead convertida em evento"); load(); } else showToast("Erro ao converter");
+    } catch (err) { console.error("handleLeadConvert error:", err); showToast("Erro ao converter"); }
   };
 
-  // Cancelar lead a partir da agenda (redireciona para leads page)
   const handleLeadRemove = (l: Lead) => {
     if (!confirm(`Remover "${l.title}" da vista da agenda?\n(A lead continua nas Leads)`)) return;
     setConfirmedLeads(prev => prev.filter(x => x.id !== l.id));
   };
 
-  // Verifica se um evento e so do Joao (equipa tem apenas azul)
   const isSoJoao = (tipo: string) => {
     const equipa = parseEquipa(tipo);
     return equipa.length > 0 && equipa.every(n => n === "João");
   };
 
+  // ── FILTERED DATA ───────────────────────────────────────────────────────────
   const filtered = events.filter(e => {
     const monthMatch = e.event_date.startsWith(selectedMonth);
     const searchMatch = !search || e.title.toLowerCase().includes(search.toLowerCase()) || (e.tipo || "").toLowerCase().includes(search.toLowerCase());
@@ -470,52 +433,30 @@ export default function AgendaPage() {
     return monthMatch && searchMatch && artistaMatch && clienteMatch && equipaMatch && visibilityMatch;
   });
 
-  // Listas para os dropdowns — baseadas em TODOS os eventos do mês seleccionado
   const allMonthEvents = events.filter(e => e.event_date.startsWith(selectedMonth));
-  const dropdownArtistas = Array.from(new Set(
-    allMonthEvents.flatMap(e => (artistasMap[e.id] || []).map(a => resolveColaboradorNome(a.nome))).filter(Boolean)
-  )).sort();
-  const dropdownClientes = Array.from(new Set(
-    allMonthEvents.map(e => {
-      if (!e.cliente_nome) return '';
-      const c = clientes.find(c => c.nome === e.cliente_nome || (c.alias?.trim() && c.alias.trim() === e.cliente_nome));
-      return c?.alias?.trim() || e.cliente_nome;
-    }).filter(Boolean)
-  )).sort();
-  const dropdownEquipa = EQUIPA_NOMES.filter(n =>
-    allMonthEvents.some(e => parseEquipa(e.tipo || "").includes(n))
-  );
+  const dropdownArtistas = Array.from(new Set(allMonthEvents.flatMap(e => (artistasMap[e.id] || []).map(a => resolveColaboradorNome(a.nome))).filter(Boolean))).sort();
+  const dropdownClientes = Array.from(new Set(allMonthEvents.map(e => {
+    if (!e.cliente_nome) return '';
+    const c = clientes.find(c => c.nome === e.cliente_nome || (c.alias?.trim() && c.alias.trim() === e.cliente_nome));
+    return c?.alias?.trim() || e.cliente_nome;
+  }).filter(Boolean))).sort();
+  const dropdownEquipa = EQUIPA_NOMES.filter(n => allMonthEvents.some(e => parseEquipa(e.tipo || "").includes(n)));
 
   const filteredLeads = confirmedLeads.filter(l => l.event_date.startsWith(selectedMonth));
 
-  // Todos os dias do mês seleccionado para mostrar folgas
   const daysInSelectedMonth = (() => {
     const [y, m] = selectedMonth.split("-").map(Number);
     const count = new Date(y, m, 0).getDate();
     const days: string[] = [];
-    for (let d = 1; d <= count; d++) {
-      days.push(`${selectedMonth}-${String(d).padStart(2, "0")}`);
-    }
+    for (let d = 1; d <= count; d++) days.push(`${selectedMonth}-${String(d).padStart(2, "0")}`);
     return days;
   })();
 
   const eventDates = new Set(filtered.map(e => e.event_date));
   const leadDates = new Set(filteredLeads.map(l => l.event_date));
-
-  // Dias sem nenhum evento nem lead confirmada = Folga
   const folgaDays = !search ? daysInSelectedMonth.filter(d => !eventDates.has(d) && !leadDates.has(d)) : [];
 
-  // Unificar tudo numa lista ordenada por data
-  type Row =
-    | { kind: "event"; date: string; data: AgendaEvent }
-    | { kind: "lead"; date: string; data: Lead }
-    | { kind: "folga"; date: string };
-
-  const timeToMinutes = (t?: string) => {
-    if (!t) return 9999;
-    const m = t.match(/^(\d{1,2}):(\d{2})/);
-    return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : 9999;
-  };
+  type Row = { kind: "event"; date: string; data: AgendaEvent } | { kind: "lead"; date: string; data: Lead } | { kind: "folga"; date: string };
 
   const allRows: Row[] = [
     ...filtered.map(e => ({ kind: "event" as const, date: e.event_date, data: e })),
@@ -528,40 +469,30 @@ export default function AgendaPage() {
     return aTime - bTime;
   });
 
-  const availableMonths = Array.from(new Set([
-    ...events.map(e => e.event_date.slice(0, 7)),
-    ...confirmedLeads.map(l => l.event_date.slice(0, 7)),
-  ])).sort();
+  const availableMonths = Array.from(new Set([...events.map(e => e.event_date.slice(0, 7)), ...confirmedLeads.map(l => l.event_date.slice(0, 7))])).sort();
+
   const monthLabel = (ym: string) => {
     const [y, m] = ym.split("-");
     const d = new Date(Number(y), Number(m) - 1, 1);
     return d.toLocaleDateString("pt-PT", { month: "long", year: "numeric" });
   };
 
-  // ── WhatsApp: abrir modal de seleção de período ───────────────────────────
-  const openWaPeriodModal = () => {
-    setWaPeriodMode("month");
-    setWaCustomStart("");
-    setWaCustomEnd("");
-    setWaPeriodError("");
-    setWaPeriodModal(true);
-  };
+  // ── WHATSAPP ────────────────────────────────────────────────────────────────
+  const openWaPeriodModal = () => { setWaPeriodMode("month"); setWaCustomStart(""); setWaCustomEnd(""); setWaPeriodError(""); setWaPeriodModal(true); };
 
   const WEEKDAYS_PT_LONG = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
+  const TIPO_LABEL: Record<string, string> = {
+    "DJ": "🎧 DJ", "Cantor": "🎤 Cantor", "Cantora": "🎤 Cantora", "Músico": "🎵 Músico",
+    "Pianista": "🎹 Pianista", "Saxofonista": "🎷 Saxofone", "Guitarrista": "🎸 Guitarra",
+    "Baterista": "🥁 Bateria", "Violinista": "🎻 Violino", "Backing Vocal": "🎤 Backing",
+    "Host": "🎙️ Host", "Karaoke": "🎤 Karaoke", "Produtor": "🧑🏽‍💻 Produtor",
+    "Técnico": "🔧 Técnico", "Outro": "🎵",
+  };
+
   const buildAgendaTextForRange = (startDate: string, endDate: string, label: string): string => {
     const lines: string[] = [label, ""];
-    const TIPO_LABEL: Record<string, string> = {
-      "DJ": "🎧 DJ", "Cantor": "🎤 Cantor", "Cantora": "🎤 Cantora",
-      "Músico": "🎵 Músico", "Pianista": "🎹 Pianista", "Saxofonista": "🎷 Saxofone",
-      "Guitarrista": "🎸 Guitarra", "Baterista": "🥁 Bateria", "Violinista": "🎻 Violino",
-      "Backing Vocal": "🎤 Backing", "Host": "🎙️ Host", "Karaoke": "🎤 Karaoke",
-      "Produtor": "🧑🏽‍💻 Produtor", "Técnico": "🔧 Técnico", "Outro": "🎵",
-    };
-    const parseLocalDate = (dateStr: string) => {
-      const [y, m, d] = dateStr.split("-").map(Number);
-      return new Date(y, m - 1, d);
-    };
+    const parseLocalDate = (dateStr: string) => { const [y, m, d] = dateStr.split("-").map(Number); return new Date(y, m - 1, d); };
     const cur = parseLocalDate(startDate);
     const last = parseLocalDate(endDate);
     while (cur <= last) {
@@ -575,38 +506,22 @@ export default function AgendaPage() {
         if (!((userRole === "admin" && userName === "João") || !isSoJoao(e.tipo || ""))) return false;
         const evArtists = artistasMap[e.id] || [];
         if (filterArtista && !evArtists.some(a => resolveColaboradorNome(a.nome).toLowerCase() === filterArtista.toLowerCase())) return false;
-        if (filterCliente && (() => {
-          const cn = e.cliente_nome || '';
-          const c = clientes.find(c => c.nome === cn || (c.alias?.trim() && c.alias.trim() === cn));
-          const display = c?.alias?.trim() || cn;
-          return display.toLowerCase() !== filterCliente.toLowerCase();
-        })()) return false;
+        if (filterCliente && (() => { const cn = e.cliente_nome || ''; const c = clientes.find(c => c.nome === cn || (c.alias?.trim() && c.alias.trim() === cn)); const display = c?.alias?.trim() || cn; return display.toLowerCase() !== filterCliente.toLowerCase(); })()) return false;
         if (filterEquipa && !parseEquipa(e.tipo || "").includes(filterEquipa)) return false;
         return true;
       });
       const dayLeads = confirmedLeads.filter(l => l.event_date === dateStr && !l.cancelled);
       if (dayEvents.length === 0 && dayLeads.length === 0) {
-        lines.push(`*${dd}/${mm} ${wd}*`);
-        lines.push(`⛱️ FOLGA`);
-        lines.push("");
+        lines.push(`*${dd}/${mm} ${wd}*`); lines.push(`⛱️ FOLGA`); lines.push("");
       } else {
         for (const e of dayEvents) {
           const evArtists = artistasMap[e.id] || [];
           const seen = new Set<string>();
-          const icons = evArtists
-            .filter(a => a.nome.trim())
-            .map(a => { const ic = TIPO_ICON[a.tipo] || "🎵"; if (seen.has(ic)) return ""; seen.add(ic); return ic; })
-            .filter(Boolean).join("") || "🎵";
+          const icons = evArtists.filter(a => a.nome.trim()).map(a => { const ic = TIPO_ICON[a.tipo] || "🎵"; if (seen.has(ic)) return ""; seen.add(ic); return ic; }).filter(Boolean).join("") || "🎵";
           const title = (e.title || "").replace(/^\p{Emoji}[\p{Emoji}‍\s]*/u, "").trim();
           const venue = e.venue ? `\n📍 ${e.venue}` : "";
           const time = (e.time_range && e.time_range !== "undefined") ? `\n🕐 ${e.time_range}` : "";
-          const artistLines = evArtists
-            .filter(a => a.nome.trim())
-            .map(a => {
-              const label = TIPO_LABEL[a.tipo] || `🎵 ${a.tipo}`;
-              const fee = parseFloat(a.fee) > 0 ? ` (${Number(a.fee).toLocaleString("pt-PT", { minimumFractionDigits: 0 })}€)` : "";
-              return `   ${label}: ${resolveColaboradorNome(a.nome)}${fee}`;
-            }).join("\n");
+          const artistLines = evArtists.filter(a => a.nome.trim()).map(a => { const l = TIPO_LABEL[a.tipo] || `🎵 ${a.tipo}`; const fee = parseFloat(a.fee) > 0 ? ` (${Number(a.fee).toLocaleString("pt-PT", { minimumFractionDigits: 0 })}€)` : ""; return `   ${l}: ${resolveColaboradorNome(a.nome)}${fee}`; }).join("\n");
           const bill = e.bill ? `\n💶 Faturar: ${Number(e.bill).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€` : "";
           lines.push(`*${dd}/${mm} ${wd} ${icons} ${title}*${venue}${time}`);
           if (artistLines) lines.push(artistLines);
@@ -615,9 +530,8 @@ export default function AgendaPage() {
         }
         for (const l of dayLeads) {
           const status = (l.status || "").toLowerCase();
-          const icon = ["confirmado","adjudicado","faturado","pago"].includes(status) ? "🟢" : status === "cancelado" ? "🔴" : "🟡";
-          lines.push(`*${dd}/${mm} ${wd} ${icon} ${l.title}*`);
-          lines.push("");
+          const icon = ["confirmado", "adjudicado", "faturado", "pago"].includes(status) ? "🟢" : status === "cancelado" ? "🔴" : "🟡";
+          lines.push(`*${dd}/${mm} ${wd} ${icon} ${l.title}*`); lines.push("");
         }
       }
       cur.setDate(cur.getDate() + 1);
@@ -630,45 +544,27 @@ export default function AgendaPage() {
     if (waPeriodMode === "month") {
       const [y, m] = selectedMonth.split("-").map(Number);
       const daysInMonth = new Date(y, m, 0).getDate();
-      startDate = `${selectedMonth}-01`;
-      endDate = `${selectedMonth}-${String(daysInMonth).padStart(2, "0")}`;
+      startDate = `${selectedMonth}-01`; endDate = `${selectedMonth}-${String(daysInMonth).padStart(2, "0")}`;
       const mName = new Date(y, m - 1, 1).toLocaleDateString("pt-PT", { month: "long" });
       label = `*Agenda de ${mName.charAt(0).toUpperCase() + mName.slice(1)}*`;
     } else if (waPeriodMode === "week7") {
-      const today = new Date();
-      const end = new Date(today);
-      end.setDate(today.getDate() + 7);
-      const toLocalDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-      startDate = toLocalDateStr(today);
-      endDate = toLocalDateStr(end);
-      const fmt = (d: Date) => `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
+      const today = new Date(); const end = new Date(today); end.setDate(today.getDate() + 7);
+      const toLocalDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      startDate = toLocalDateStr(today); endDate = toLocalDateStr(end);
+      const fmt = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
       label = `*Agenda de ${fmt(today)} a ${fmt(end)}*`;
     } else {
       if (!waCustomStart || !waCustomEnd) { setWaPeriodError("Preenche as duas datas."); return; }
       if (waCustomEnd < waCustomStart) { setWaPeriodError("Data final não pode ser anterior à inicial."); return; }
-      startDate = waCustomStart;
-      endDate = waCustomEnd;
-      const [, sm, sd] = waCustomStart.split("-");
-      const [, em, ed] = waCustomEnd.split("-");
+      startDate = waCustomStart; endDate = waCustomEnd;
+      const [, sm, sd] = waCustomStart.split("-"); const [, em, ed] = waCustomEnd.split("-");
       label = `*Agenda de ${sd}/${sm} a ${ed}/${em}*`;
     }
     const text = buildAgendaTextForRange(startDate, endDate, label);
-    setWaText(text);
-    setWaCopied(false);
-    setWaPeriodModal(false);
-    setWaModal(true);
+    setWaText(text); setWaCopied(false); setWaPeriodModal(false); setWaModal(true);
     const doCopy = (t: string) => {
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(t).then(() => setWaCopied(true)).catch(() => {
-          const ta = document.createElement("textarea");
-          ta.value = t; document.body.appendChild(ta); ta.select();
-          document.execCommand("copy"); document.body.removeChild(ta); setWaCopied(true);
-        });
-      } else {
-        const ta = document.createElement("textarea");
-        ta.value = t; document.body.appendChild(ta); ta.select();
-        document.execCommand("copy"); document.body.removeChild(ta); setWaCopied(true);
-      }
+      if (navigator.clipboard) { navigator.clipboard.writeText(t).then(() => setWaCopied(true)).catch(() => { const ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); setWaCopied(true); }); }
+      else { const ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); setWaCopied(true); }
     };
     doCopy(text);
   };
@@ -677,9 +573,8 @@ export default function AgendaPage() {
 
   const todayStr = new Date().toISOString().split("T")[0];
   const bsColors: Record<string, string> = {
-    "Contacto": "rgba(245,240,232,0.4)", "Proposta Enviada": C.blue,
-    "Em Negociação": C.amber, "Confirmado": C.green,
-    "Em Adjudicação": C.gold, "Adjudicado": C.gold,
+    "Contacto": "rgba(245,240,232,0.4)", "Proposta Enviada": C.blue, "Em Negociação": C.amber,
+    "Confirmado": C.green, "Em Adjudicação": C.gold, "Adjudicado": C.gold,
     "Faturado": "#A78BFA", "Pago": C.green, "Cancelado": C.red,
   };
 
@@ -688,23 +583,19 @@ export default function AgendaPage() {
     {/* ═══ DESKTOP ═══ */}
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <Nav userName={userName} active="agenda" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
-
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
           <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600 }}>Agenda 2026</p>
           <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-            <button
-              onClick={openWaPeriodModal}
-              style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "#5DCAA5", fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
-            >
+            <button onClick={openWaPeriodModal} style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "#5DCAA5", fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
               WhatsApp
             </button>
             {userRole !== "limited_novalues" && (
-            <button onClick={openCreate} style={addBtnStyle}>
-              <svg width="10" height="10" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
-              Novo Evento
-            </button>
+              <button onClick={openCreate} style={addBtnStyle}>
+                <svg width="10" height="10" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
+                Novo Evento
+              </button>
             )}
           </div>
         </div>
@@ -718,39 +609,13 @@ export default function AgendaPage() {
               </button>
             ))}
           </div>
-          <div style={{ display: "flex", gap: "0", borderBottom: `1px solid ${C.borderDim}` }}>
-            <input
-              value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Pesquisar evento..."
-              style={{ flex: 1, background: "rgba(255,255,255,0.03)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: C.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "0.9rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
-            />
-            <CustomSelect
-              value={filterArtista}
-              onChange={v => setFilterArtista(v)}
-              placeholder="Artista"
-              options={[{ value: "", label: "Artista" }, ...dropdownArtistas.map(a => ({ value: a, label: a }))]}
-              style={{ background: filterArtista ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: filterArtista ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
-            />
-            <CustomSelect
-              value={filterCliente}
-              onChange={v => setFilterCliente(v)}
-              placeholder="Cliente"
-              options={[{ value: "", label: "Cliente" }, ...dropdownClientes.map(c => ({ value: c, label: c }))]}
-              style={{ background: filterCliente ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: filterCliente ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
-            />
-            <CustomSelect
-              value={filterEquipa}
-              onChange={v => setFilterEquipa(v)}
-              placeholder="Equipa"
-              options={[{ value: "", label: "Equipa" }, ...dropdownEquipa.map(n => ({ value: n, label: `${EQUIPA_SYMBOL[n]} ${n}` }))]}
-              style={{ background: filterEquipa ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", color: filterEquipa ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "120px", textTransform: "uppercase" as any }}
-            />
+          <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.borderDim}` }}>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar evento..." style={{ flex: 1, background: "rgba(255,255,255,0.03)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: C.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "0.9rem 1.5rem", letterSpacing: "0.05em", outline: "none" }} />
+            <CustomSelect value={filterArtista} onChange={v => setFilterArtista(v)} placeholder="Artista" options={[{ value: "", label: "Artista" }, ...dropdownArtistas.map(a => ({ value: a, label: a }))]} style={{ background: filterArtista ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: filterArtista ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }} />
+            <CustomSelect value={filterCliente} onChange={v => setFilterCliente(v)} placeholder="Cliente" options={[{ value: "", label: "Cliente" }, ...dropdownClientes.map(c => ({ value: c, label: c }))]} style={{ background: filterCliente ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: filterCliente ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }} />
+            <CustomSelect value={filterEquipa} onChange={v => setFilterEquipa(v)} placeholder="Equipa" options={[{ value: "", label: "Equipa" }, ...dropdownEquipa.map(n => ({ value: n, label: `${EQUIPA_SYMBOL[n]} ${n}` }))]} style={{ background: filterEquipa ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", color: filterEquipa ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "120px", textTransform: "uppercase" as any }} />
             {(filterArtista || filterCliente || filterEquipa) && (
-              <button
-                onClick={() => { setFilterArtista(""); setFilterCliente(""); setFilterEquipa(""); }}
-                style={{ background: "transparent", border: "none", borderLeft: `1px solid ${C.borderDim}`, color: C.textMuted, fontSize: "9px", padding: "0.9rem 1rem", cursor: "pointer", whiteSpace: "nowrap", letterSpacing: "0.2em" }}
-                title="Limpar filtros"
-              >✕</button>
+              <button onClick={() => { setFilterArtista(""); setFilterCliente(""); setFilterEquipa(""); }} style={{ background: "transparent", border: "none", borderLeft: `1px solid ${C.borderDim}`, color: C.textMuted, fontSize: "9px", padding: "0.9rem 1rem", cursor: "pointer", whiteSpace: "nowrap", letterSpacing: "0.2em" }} title="Limpar filtros">✕</button>
             )}
           </div>
           <div style={{ overflowX: "auto" }}>
@@ -763,15 +628,13 @@ export default function AgendaPage() {
                 </tr>
               </thead>
               <tbody>
-                {allRows.map((row, idx) => {
+                {allRows.map((row) => {
                   if (row.kind === "folga") {
                     const isFolgaToday = row.date === todayStr;
                     return (
                       <tr key={`folga-${row.date}`} style={{ opacity: 0.38, background: isFolgaToday ? "rgba(201,169,110,0.04)" : undefined }}>
                         <td style={{ ...tdStyle({ nowrap: true }), color: isFolgaToday ? "#C9A96E" : undefined, fontWeight: isFolgaToday ? 700 : undefined }}>{fmtDate(row.date)}</td>
-                        <td colSpan={8} style={{ ...tdStyle({}), fontSize: "10px", color: C.textMuted, letterSpacing: "0.2em", fontStyle: "italic" }}>
-                          🏝️ Folga
-                        </td>
+                        <td colSpan={8} style={{ ...tdStyle({}), fontSize: "10px", color: C.textMuted, letterSpacing: "0.2em", fontStyle: "italic" }}>🏖️ Folga</td>
                       </tr>
                     );
                   }
@@ -783,167 +646,95 @@ export default function AgendaPage() {
                         <td style={{ ...tdStyle({ nowrap: true }), color: isLeadToday ? C.gold : undefined, fontWeight: isLeadToday ? 700 : undefined }}>{fmtDate(l.event_date)}</td>
                         <td style={{ ...tdStyle({}), maxWidth: "280px" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                              <span style={{ fontSize: "11px" }}>{l.title}</span>
-                            </span>
+                            <span style={{ fontSize: "11px" }}>{l.title}</span>
                             <span style={{ fontSize: "8px", color: C.goldDim, letterSpacing: "0.25em", textTransform: "uppercase" }}>Lead · {l.status}</span>
                           </div>
                         </td>
                         <td style={tdStyle({ muted: true })} colSpan={3}>—</td>
-                        <td style={tdStyle({ muted: true })}>
-                          <span style={{ fontSize: "9px", color: C.textMuted }}>{l.modalidade || "Fatura"}</span>
-                        </td>
-                        <td style={tdStyle({})}>
-                          <StatusBadge color={C.amber} label={l.status || "Confirmado"} />
-                        </td>
-                        <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: C.gold, fontWeight: 600, fontSize: "11px" }}>
-                          {userRole === "limited_novalues" ? "—" : (Number(l.value) > 0 ? `${Number(l.value).toLocaleString("pt-PT")}€` : "—")}
-                        </td>
+                        <td style={tdStyle({ muted: true })}><span style={{ fontSize: "9px", color: C.textMuted }}>{l.modalidade || "Fatura"}</span></td>
+                        <td style={tdStyle({})}><StatusBadge color={C.amber} label={l.status || "Confirmado"} /></td>
+                        <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: C.gold, fontWeight: 600, fontSize: "11px" }}>{userRole === "limited_novalues" ? "—" : (Number(l.value) > 0 ? `${Number(l.value).toLocaleString("pt-PT")}€` : "—")}</td>
                         <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
                           <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end", alignItems: "center" }}>
-                            <button
-                              title="Converter para evento"
-                              onClick={() => handleLeadConvert(l)}
-                              style={{ background: "transparent", border: "none", cursor: "pointer", padding: "5px", color: C.green, fontSize: "9px", letterSpacing: "0.15em", fontFamily: "inherit", fontWeight: 600 }}
-                            >→</button>
+                            <button title="Converter para evento" onClick={() => handleLeadConvert(l)} style={{ background: "transparent", border: "none", cursor: "pointer", padding: "5px", color: C.green, fontSize: "9px", letterSpacing: "0.15em", fontFamily: "inherit", fontWeight: 600 }}>→</button>
                             <IconBtn title="Ocultar da agenda" onClick={() => handleLeadRemove(l)} icon="cancel" danger />
                           </div>
                         </td>
                       </tr>
                     );
                   }
-                  // kind === "event"
                   const e = row.data;
                   const isEventToday = e.event_date === todayStr;
                   return (
-                  <tr key={e.id} style={{ opacity: e.cancelled ? 0.45 : 1, background: isEventToday ? "rgba(201,169,110,0.06)" : undefined, borderLeft: isEventToday ? `3px solid ${C.gold}` : undefined }}>
-                    <td style={{ ...tdStyle({ nowrap: true }), color: isEventToday ? C.gold : undefined, fontWeight: isEventToday ? 700 : undefined }}>{fmtDate(e.event_date)}</td>
-                    <td style={{ ...tdStyle({}), maxWidth: "280px" }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                        <span style={{ textDecoration: e.cancelled ? "line-through" : "none", display: "flex", alignItems: "center", gap: "6px" }}>
-                          {(() => {
-                            const evArtists = artistasMap[e.id] || [];
-                            const icons = artistIcons(evArtists);
-                            return icons
-                              ? <span style={{ fontSize: "13px", letterSpacing: "1px", flexShrink: 0 }}>{icons}</span>
-                              : null;
-                          })()}
-                          <span style={{ fontSize: "11px" }}>{e.title.replace(/^\p{Emoji}[\p{Emoji}\u200d\s]*/u, "")}</span>
-                        </span>
-                        {!!e.cancelled && <span style={{ fontSize: "8px", color: C.red, letterSpacing: "0.2em" }}>[CANCELADO]</span>}
-                      </div>
-                    </td>
-                    <td style={tdStyle({ muted: true, nowrap: true })}>{e.time_range || "—"}</td>
-                    <td style={tdStyle({ muted: true, maxW: "140px" })}>{e.venue || <span style={{ color: C.textMuted }}>—</span>}</td>
-                    <td style={{ ...tdStyle({}), padding: "0.85rem 1rem" }}>
-                      <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", alignItems: "center" }}>
-                        {parseEquipa(e.tipo || "").length > 0
-                          ? parseEquipa(e.tipo || "").map(n => (
-                              <span key={n} title={n} style={{ fontSize: "16px", lineHeight: 1 }}>{EQUIPA_SYMBOL[n]}</span>
-                            ))
-                          : <span style={{ fontSize: "10px", color: C.textMuted }}>—</span>
-                        }
-                      </div>
-                    </td>
-                    <td style={{ ...tdStyle({}), maxWidth: "200px" }}>
-                      {(() => {
-                        const evArtists = (artistasMap[e.id] || []).filter(a => a.nome.trim());
-                        return evArtists.length > 0
-                          ? <span style={{ fontSize: "10px", color: C.textSec, letterSpacing: "0.03em" }}>
-                              {evArtists.map(a => resolveColaboradorNome(a.nome)).join(" · ")}
-                            </span>
-                          : <span style={{ fontSize: "10px", color: C.textMuted }}>—</span>;
-                      })()}
-                    </td>
-                    <td style={tdStyle({ muted: true })}>
-                      {e.modalidade && e.modalidade !== "Fatura" ? (
-                        <span style={{ fontSize: "9px", color: C.amber, letterSpacing: "0.1em" }}>{e.modalidade}</span>
-                      ) : (
-                        <span style={{ fontSize: "9px", color: C.textMuted }}>Fatura</span>
-                      )}
-                    </td>
-                    <td style={tdStyle({})}>
-                      {e.cancelled ? (
-                        <StatusBadge color={C.red} label="Cancelado" />
-                      ) : (() => {
-                        const bs = e.billing_status || "Contacto";
-                        const colorMap: Record<string, string> = {
-                          "Contacto": C.textSec, "Proposta Enviada": C.blue,
-                          "Em Negociação": C.amber, "Confirmado": C.green,
-                          "Em Adjudicação": C.gold, "Adjudicado": C.gold,
-                          "Faturado": "#A78BFA", "Pago": C.green, "Cancelado": C.red,
-                        };
-                        return <StatusBadge color={colorMap[bs] || C.textSec} label={bs} />;
-                      })()}
-                    </td>
-                    <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: C.gold, fontWeight: 600, fontSize: "11px" }}>
-                      {userRole === "limited_novalues" ? "—" : (Number(e.bill) > 0 ? `${Number(e.bill).toLocaleString("pt-PT")}€` : "—")}
-                    </td>
-                    <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
-                      {userRole !== "limited_novalues" && (
-                      <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
-                        <IconBtn title="Editar" onClick={() => openEdit(e)} icon="edit" />
-                        {!e.cancelled
-                          ? <IconBtn title="Cancelar" onClick={() => handleCancel(e)} icon="cancel" danger />
-                          : <IconBtn title="Repor" onClick={() => handleRestore(e)} icon="restore" success />
-                        }
-                        <IconBtn title="Eliminar" onClick={() => handleDelete(e.id)} icon="delete" danger />
-                      </div>
-                      )}
-                    </td>
-                  </tr>
+                    <tr key={e.id} style={{ opacity: e.cancelled ? 0.45 : 1, background: isEventToday ? "rgba(201,169,110,0.06)" : undefined, borderLeft: isEventToday ? `3px solid ${C.gold}` : undefined }}>
+                      <td style={{ ...tdStyle({ nowrap: true }), color: isEventToday ? C.gold : undefined, fontWeight: isEventToday ? 700 : undefined }}>{fmtDate(e.event_date)}</td>
+                      <td style={{ ...tdStyle({}), maxWidth: "280px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <span style={{ textDecoration: e.cancelled ? "line-through" : "none", display: "flex", alignItems: "center", gap: "6px" }}>
+                            {(() => { const evArtists = artistasMap[e.id] || []; const icons = artistIcons(evArtists); return icons ? <span style={{ fontSize: "13px", letterSpacing: "1px", flexShrink: 0 }}>{icons}</span> : null; })()}
+                            <span style={{ fontSize: "11px" }}>{e.title.replace(/^\p{Emoji}[\p{Emoji}\u200d\s]*/u, "")}</span>
+                          </span>
+                          {!!e.cancelled && <span style={{ fontSize: "8px", color: C.red, letterSpacing: "0.2em" }}>[CANCELADO]</span>}
+                        </div>
+                      </td>
+                      <td style={tdStyle({ muted: true, nowrap: true })}>{e.time_range || "—"}</td>
+                      <td style={tdStyle({ muted: true, maxW: "140px" })}>{e.venue || <span style={{ color: C.textMuted }}>—</span>}</td>
+                      <td style={{ ...tdStyle({}), padding: "0.85rem 1rem" }}>
+                        <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", alignItems: "center" }}>
+                          {parseEquipa(e.tipo || "").length > 0 ? parseEquipa(e.tipo || "").map(n => <span key={n} title={n} style={{ fontSize: "16px", lineHeight: 1 }}>{EQUIPA_SYMBOL[n]}</span>) : <span style={{ fontSize: "10px", color: C.textMuted }}>—</span>}
+                        </div>
+                      </td>
+                      <td style={{ ...tdStyle({}), maxWidth: "200px" }}>
+                        {(() => { const evArtists = (artistasMap[e.id] || []).filter(a => a.nome.trim()); return evArtists.length > 0 ? <span style={{ fontSize: "10px", color: C.textSec, letterSpacing: "0.03em" }}>{evArtists.map(a => resolveColaboradorNome(a.nome)).join(" · ")}</span> : <span style={{ fontSize: "10px", color: C.textMuted }}>—</span>; })()}
+                      </td>
+                      <td style={tdStyle({ muted: true })}>{e.modalidade && e.modalidade !== "Fatura" ? <span style={{ fontSize: "9px", color: C.amber, letterSpacing: "0.1em" }}>{e.modalidade}</span> : <span style={{ fontSize: "9px", color: C.textMuted }}>Fatura</span>}</td>
+                      <td style={tdStyle({})}>
+                        {e.cancelled ? <StatusBadge color={C.red} label="Cancelado" /> : (() => { const bs = e.billing_status || "Contacto"; const colorMap: Record<string, string> = { "Contacto": C.textSec, "Proposta Enviada": C.blue, "Em Negociação": C.amber, "Confirmado": C.green, "Em Adjudicação": C.gold, "Adjudicado": C.gold, "Faturado": "#A78BFA", "Pago": C.green, "Cancelado": C.red }; return <StatusBadge color={colorMap[bs] || C.textSec} label={bs} />; })()}
+                      </td>
+                      <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: C.gold, fontWeight: 600, fontSize: "11px" }}>{userRole === "limited_novalues" ? "—" : (Number(e.bill) > 0 ? `${Number(e.bill).toLocaleString("pt-PT")}€` : "—")}</td>
+                      <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
+                        {userRole !== "limited_novalues" && (
+                          <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
+                            <IconBtn title="Editar" onClick={() => openEdit(e)} icon="edit" />
+                            {!e.cancelled ? <IconBtn title="Cancelar" onClick={() => handleCancel(e)} icon="cancel" danger /> : <IconBtn title="Repor" onClick={() => handleRestore(e)} icon="restore" success />}
+                            <IconBtn title="Eliminar" onClick={() => handleDelete(e.id)} icon="delete" danger />
+                          </div>
+                        )}
+                      </td>
+                    </tr>
                   );
                 })}
-                {allRows.length === 0 && (
-                  <tr><td colSpan={9} style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem eventos encontrados</td></tr>
-                )}
+                {allRows.length === 0 && <tr><td colSpan={10} style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem eventos encontrados</td></tr>}
               </tbody>
             </table>
           </div>
         </div>
       </main>
-
-    </div>{/* end desktop */}
+    </div>
 
     {/* ═══ MOBILE ═══ */}
     <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "#F5F0E8", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      {/* Mobile top nav */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(12,11,9,0.97)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
         <span style={{ fontSize: "8px", letterSpacing: "0.35em", color: "rgba(245,240,232,0.2)", textTransform: "uppercase" }}>{userName}</span>
       </div>
 
-      {/* Month pills */}
       <div className="mob-months">
         {availableMonths.map(ym => (
-          <button key={ym} className={`mob-mpill${selectedMonth === ym ? " active" : ""}`} onClick={() => setSelectedMonth(ym)}>
-            {monthLabel(ym).split(" ")[0]}
-          </button>
+          <button key={ym} className={`mob-mpill${selectedMonth === ym ? " active" : ""}`} onClick={() => setSelectedMonth(ym)}>{monthLabel(ym).split(" ")[0]}</button>
         ))}
       </div>
 
-      {/* Search + Add */}
       <div className="mob-topbar">
         <div className="mob-search-wrap">
-          <svg className="mob-search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="7" cy="7" r="5"/><line x1="11" y1="11" x2="15" y2="15"/>
-          </svg>
+          <svg className="mob-search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="7" cy="7" r="5"/><line x1="11" y1="11" x2="15" y2="15"/></svg>
           <input className="mob-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar evento..." />
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
-          <button
-            onClick={openWaPeriodModal}
-            style={{ background: "rgba(93,202,165,0.08)", border: "1px solid rgba(93,202,165,0.2)", color: "#5DCAA5", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px" }}
-            title="Copiar Agenda para WhatsApp"
-          >
+          <button onClick={openWaPeriodModal} style={{ background: "rgba(93,202,165,0.08)", border: "1px solid rgba(93,202,165,0.2)", color: "#5DCAA5", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px" }} title="Copiar Agenda para WhatsApp">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
           </button>
-          {/* Mobile filter button */}
-          <button
-            onClick={() => { setMobFilterOpen(o => !o); setMobFilterCategory(""); }}
-            style={{ background: (filterArtista || filterCliente || filterEquipa) ? "rgba(201,169,110,0.12)" : "rgba(255,255,255,0.05)", border: `1px solid ${(filterArtista || filterCliente || filterEquipa) ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.1)"}`, color: (filterArtista || filterCliente || filterEquipa) ? "#C9A96E" : "rgba(245,240,232,0.4)", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px", display: "flex", alignItems: "center", gap: "4px" }}
-            title="Filtros"
-          >
+          <button onClick={() => { setMobFilterOpen(o => !o); setMobFilterCategory(""); }} style={{ background: (filterArtista || filterCliente || filterEquipa) ? "rgba(201,169,110,0.12)" : "rgba(255,255,255,0.05)", border: `1px solid ${(filterArtista || filterCliente || filterEquipa) ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.1)"}`, color: (filterArtista || filterCliente || filterEquipa) ? "#C9A96E" : "rgba(245,240,232,0.4)", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px", display: "flex", alignItems: "center", gap: "4px" }} title="Filtros">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
             {(filterArtista || filterCliente || filterEquipa) && <span style={{ fontSize: "8px", fontWeight: 700 }}>1</span>}
           </button>
@@ -961,14 +752,10 @@ export default function AgendaPage() {
           {!mobFilterCategory ? (
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
               {(["equipa", "artista", "cliente"] as const).map(cat => (
-                <button key={cat} onClick={() => setMobFilterCategory(cat)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(245,240,232,0.6)", fontSize: "9px", letterSpacing: "0.2em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>
-                  {cat === "equipa" ? "Equipa" : cat === "artista" ? "Artistas" : "Clientes"}
-                </button>
+                <button key={cat} onClick={() => setMobFilterCategory(cat)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(245,240,232,0.6)", fontSize: "9px", letterSpacing: "0.2em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>{cat === "equipa" ? "Equipa" : cat === "artista" ? "Artistas" : "Clientes"}</button>
               ))}
               {(filterArtista || filterCliente || filterEquipa) && (
-                <button onClick={() => { setFilterArtista(""); setFilterCliente(""); setFilterEquipa(""); }} style={{ background: "rgba(226,75,74,0.08)", border: "1px solid rgba(226,75,74,0.2)", color: "#E24B4A", fontSize: "9px", letterSpacing: "0.2em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>
-                  Limpar
-                </button>
+                <button onClick={() => { setFilterArtista(""); setFilterCliente(""); setFilterEquipa(""); }} style={{ background: "rgba(226,75,74,0.08)", border: "1px solid rgba(226,75,74,0.2)", color: "#E24B4A", fontSize: "9px", letterSpacing: "0.2em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Limpar</button>
               )}
             </div>
           ) : mobFilterCategory === "equipa" ? (
@@ -979,9 +766,7 @@ export default function AgendaPage() {
               </div>
               <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                 {dropdownEquipa.map(n => (
-                  <button key={n} onClick={() => setFilterEquipa(filterEquipa === n ? "" : n)} style={{ background: filterEquipa === n ? "rgba(201,169,110,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${filterEquipa === n ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.08)"}`, color: filterEquipa === n ? "#C9A96E" : "rgba(245,240,232,0.5)", fontSize: "9px", letterSpacing: "0.15em", padding: "0.35rem 0.75rem", cursor: "pointer", fontFamily: "inherit" }}>
-                    {EQUIPA_SYMBOL[n]} {n}
-                  </button>
+                  <button key={n} onClick={() => setFilterEquipa(filterEquipa === n ? "" : n)} style={{ background: filterEquipa === n ? "rgba(201,169,110,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${filterEquipa === n ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.08)"}`, color: filterEquipa === n ? "#C9A96E" : "rgba(245,240,232,0.5)", fontSize: "9px", letterSpacing: "0.15em", padding: "0.35rem 0.75rem", cursor: "pointer", fontFamily: "inherit" }}>{EQUIPA_SYMBOL[n]} {n}</button>
                 ))}
                 {dropdownEquipa.length === 0 && <span style={{ fontSize: "10px", color: C.textMuted }}>Sem opções neste mês</span>}
               </div>
@@ -994,9 +779,7 @@ export default function AgendaPage() {
               </div>
               <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                 {dropdownArtistas.map(a => (
-                  <button key={a} onClick={() => setFilterArtista(filterArtista === a ? "" : a)} style={{ background: filterArtista === a ? "rgba(201,169,110,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${filterArtista === a ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.08)"}`, color: filterArtista === a ? "#C9A96E" : "rgba(245,240,232,0.5)", fontSize: "9px", letterSpacing: "0.1em", padding: "0.35rem 0.75rem", cursor: "pointer", fontFamily: "inherit" }}>
-                    {a}
-                  </button>
+                  <button key={a} onClick={() => setFilterArtista(filterArtista === a ? "" : a)} style={{ background: filterArtista === a ? "rgba(201,169,110,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${filterArtista === a ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.08)"}`, color: filterArtista === a ? "#C9A96E" : "rgba(245,240,232,0.5)", fontSize: "9px", letterSpacing: "0.1em", padding: "0.35rem 0.75rem", cursor: "pointer", fontFamily: "inherit" }}>{a}</button>
                 ))}
                 {dropdownArtistas.length === 0 && <span style={{ fontSize: "10px", color: C.textMuted }}>Sem opções neste mês</span>}
               </div>
@@ -1009,9 +792,7 @@ export default function AgendaPage() {
               </div>
               <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                 {dropdownClientes.map(c => (
-                  <button key={c} onClick={() => setFilterCliente(filterCliente === c ? "" : c)} style={{ background: filterCliente === c ? "rgba(201,169,110,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${filterCliente === c ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.08)"}`, color: filterCliente === c ? "#C9A96E" : "rgba(245,240,232,0.5)", fontSize: "9px", letterSpacing: "0.1em", padding: "0.35rem 0.75rem", cursor: "pointer", fontFamily: "inherit" }}>
-                    {c}
-                  </button>
+                  <button key={c} onClick={() => setFilterCliente(filterCliente === c ? "" : c)} style={{ background: filterCliente === c ? "rgba(201,169,110,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${filterCliente === c ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.08)"}`, color: filterCliente === c ? "#C9A96E" : "rgba(245,240,232,0.5)", fontSize: "9px", letterSpacing: "0.1em", padding: "0.35rem 0.75rem", cursor: "pointer", fontFamily: "inherit" }}>{c}</button>
                 ))}
                 {dropdownClientes.length === 0 && <span style={{ fontSize: "10px", color: C.textMuted }}>Sem opções neste mês</span>}
               </div>
@@ -1020,7 +801,7 @@ export default function AgendaPage() {
         </div>
       )}
 
-      {/* ✅ FIX: Mobile list com botões cancelar/repor em cada card */}
+      {/* ✅ FIX: Mobile list com botões cancelar/repor */}
       <div className="mob-list">
         {allRows.length === 0 && <div className="mob-empty">Sem eventos encontrados</div>}
         {allRows.map((row) => {
@@ -1028,13 +809,8 @@ export default function AgendaPage() {
             const fd = new Date(row.date + "T00:00:00");
             return (
               <div key={`folga-${row.date}`} className="mob-card is-folga" style={{ opacity: 0.4 }}>
-                <div className="mob-date-bubble">
-                  <div className="mob-date-day">{fd.getDate()}</div>
-                  <div className="mob-date-weekday">{fd.toLocaleDateString("pt-PT", { weekday: "short" })}</div>
-                </div>
-                <div className="mob-card-body">
-                  <div className="mob-card-title cancelled">🏖️ Folga</div>
-                </div>
+                <div className="mob-date-bubble"><div className="mob-date-day">{fd.getDate()}</div><div className="mob-date-weekday">{fd.toLocaleDateString("pt-PT", { weekday: "short" })}</div></div>
+                <div className="mob-card-body"><div className="mob-card-title cancelled">🏖️ Folga</div></div>
                 <div className="mob-card-right" />
               </div>
             );
@@ -1044,30 +820,20 @@ export default function AgendaPage() {
             const ld = new Date(l.event_date + "T00:00:00");
             return (
               <div key={`lead-${l.id}`} className="mob-card" style={{ borderLeft: "2px solid rgba(201,169,110,0.35)" }}>
-                <div className="mob-date-bubble" onClick={() => userRole !== "limited_novalues" && handleLeadConvert(l)} style={{ cursor: userRole !== "limited_novalues" ? "pointer" : "default" }}>
-                  <div className="mob-date-day">{ld.getDate()}</div>
-                  <div className="mob-date-weekday">{ld.toLocaleDateString("pt-PT", { weekday: "short" })}</div>
-                </div>
+                <div className="mob-date-bubble" onClick={() => userRole !== "limited_novalues" && handleLeadConvert(l)} style={{ cursor: userRole !== "limited_novalues" ? "pointer" : "default" }}><div className="mob-date-day">{ld.getDate()}</div><div className="mob-date-weekday">{ld.toLocaleDateString("pt-PT", { weekday: "short" })}</div></div>
                 <div className="mob-card-body" onClick={() => userRole !== "limited_novalues" && handleLeadConvert(l)} style={{ cursor: userRole !== "limited_novalues" ? "pointer" : "default" }}>
                   <div className="mob-card-title">{l.title}</div>
                   <div className="mob-card-meta" style={{ color: "rgba(201,169,110,0.5)", fontSize: "8px", letterSpacing: "0.2em", textTransform: "uppercase" }}>Lead · {l.status}</div>
                 </div>
                 <div className="mob-card-right" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
-                  {userRole !== "limited_novalues" && Number(l.value) > 0 && (
-                    <span className="mob-card-value">{Number(l.value).toLocaleString("pt-PT")}€</span>
-                  )}
+                  {userRole !== "limited_novalues" && Number(l.value) > 0 && <span className="mob-card-value">{Number(l.value).toLocaleString("pt-PT")}€</span>}
                   <div style={{ display: "flex", gap: "4px", alignItems: "center" }} onClick={e => e.stopPropagation()}>
-                    <button
-                      title="Ocultar da agenda"
-                      onClick={() => handleLeadRemove(l)}
-                      style={{ background: "rgba(245,240,232,0.06)", border: "1px solid rgba(245,240,232,0.1)", color: "rgba(245,240,232,0.35)", fontSize: "10px", padding: "0.3rem 0.5rem", cursor: "pointer", borderRadius: "2px", lineHeight: 1 }}
-                    >✕</button>
+                    <button title="Ocultar da agenda" onClick={() => handleLeadRemove(l)} style={{ background: "rgba(245,240,232,0.06)", border: "1px solid rgba(245,240,232,0.1)", color: "rgba(245,240,232,0.35)", fontSize: "10px", padding: "0.3rem 0.5rem", cursor: "pointer", borderRadius: "2px", lineHeight: 1 }}>✕</button>
                   </div>
                 </div>
               </div>
             );
           }
-          // kind === "event"
           const e = row.data;
           const ed = new Date(e.event_date + "T00:00:00");
           const evArtists = artistasMap[e.id] || [];
@@ -1094,21 +860,13 @@ export default function AgendaPage() {
                 </div>
               </div>
               <div className="mob-card-right" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
-                {userRole !== "limited_novalues" && Number(e.bill) > 0 && (
-                  <span className="mob-card-value">{Number(e.bill).toLocaleString("pt-PT")}€</span>
-                )}
+                {userRole !== "limited_novalues" && Number(e.bill) > 0 && <span className="mob-card-value">{Number(e.bill).toLocaleString("pt-PT")}€</span>}
                 {userRole !== "limited_novalues" && (
                   <div style={{ display: "flex", gap: "4px", alignItems: "center" }} onClick={ev => ev.stopPropagation()}>
                     {!e.cancelled ? (
-                      <button
-                        onClick={() => handleCancel(e)}
-                        style={{ background: "rgba(226,75,74,0.1)", border: "1px solid rgba(226,75,74,0.25)", color: "#E24B4A", fontSize: "9px", letterSpacing: "0.1em", padding: "0.25rem 0.55rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", borderRadius: "2px", fontWeight: 600 }}
-                      >✕</button>
+                      <button onClick={() => handleCancel(e)} style={{ background: "rgba(226,75,74,0.1)", border: "1px solid rgba(226,75,74,0.25)", color: "#E24B4A", fontSize: "9px", letterSpacing: "0.1em", padding: "0.25rem 0.55rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", borderRadius: "2px", fontWeight: 600 }}>✕</button>
                     ) : (
-                      <button
-                        onClick={() => handleRestore(e)}
-                        style={{ background: "rgba(93,202,165,0.1)", border: "1px solid rgba(93,202,165,0.25)", color: "#5DCAA5", fontSize: "9px", letterSpacing: "0.1em", padding: "0.25rem 0.55rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", borderRadius: "2px", fontWeight: 600 }}
-                      >↺</button>
+                      <button onClick={() => handleRestore(e)} style={{ background: "rgba(93,202,165,0.1)", border: "1px solid rgba(93,202,165,0.25)", color: "#5DCAA5", fontSize: "9px", letterSpacing: "0.1em", padding: "0.25rem 0.55rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", borderRadius: "2px", fontWeight: 600 }}>↺</button>
                     )}
                     <svg className="mob-card-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" style={{ cursor: "pointer" }} onClick={() => userRole !== "limited_novalues" && openEdit(e)}><polyline points="6 4 10 8 6 12" /></svg>
                   </div>
@@ -1119,22 +877,18 @@ export default function AgendaPage() {
         })}
       </div>
 
-      {/* Toast */}
       {toast && (
         <div style={{ position: "fixed", bottom: "5.5rem", left: "50%", transform: "translateX(-50%)", background: "rgba(19,17,8,0.95)", border: "1px solid rgba(201,169,110,0.2)", padding: "0.6rem 1.25rem", zIndex: 1000, display: "flex", alignItems: "center", gap: "0.75rem", backdropFilter: "blur(8px)" }}>
           <span style={{ fontSize: "10px", color: C.textPrimary, letterSpacing: "0.1em" }}>{toast}</span>
-          {undoAction && (
-            <button onClick={() => { undoAction.fn(); }} style={{ background: "transparent", border: "none", color: C.gold, fontSize: "9px", letterSpacing: "0.2em", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, textTransform: "uppercase" }}>{undoAction.label}</button>
-          )}
+          {undoAction && <button onClick={() => undoAction.fn()} style={{ background: "transparent", border: "none", color: C.gold, fontSize: "9px", letterSpacing: "0.2em", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, textTransform: "uppercase" }}>{undoAction.label}</button>}
         </div>
       )}
 
       <MobTabBar active="agenda" role={userRole} />
     </div>
 
-    {/* ═══ MODAIS (partilhado desktop+mobile) ═══ */}
+    {/* ═══ MODAIS ═══ */}
 
-    {/* WhatsApp — Modal de Seleção de Período */}
     {waPeriodModal && (
       <div onClick={e => e.target === e.currentTarget && setWaPeriodModal(false)} style={overlayStyle}>
         <div style={{ ...modalStyle, width: "400px", maxWidth: "95vw" }}>
@@ -1145,9 +899,7 @@ export default function AgendaPage() {
           </div>
           <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem" }}>
             {([["month", "Mês actual"], ["week7", "Próximos 7 dias"], ["custom", "Personalizado"]] as const).map(([mode, label]) => (
-              <button key={mode} onClick={() => setWaPeriodMode(mode)} style={{ flex: 1, background: waPeriodMode === mode ? "rgba(201,169,110,0.1)" : "rgba(255,255,255,0.03)", border: `1px solid ${waPeriodMode === mode ? "rgba(201,169,110,0.25)" : "rgba(255,255,255,0.06)"}`, color: waPeriodMode === mode ? "#C9A96E" : "rgba(245,240,232,0.4)", fontSize: "8px", letterSpacing: "0.15em", padding: "0.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", textAlign: "center" }}>
-                {label}
-              </button>
+              <button key={mode} onClick={() => setWaPeriodMode(mode)} style={{ flex: 1, background: waPeriodMode === mode ? "rgba(201,169,110,0.1)" : "rgba(255,255,255,0.03)", border: `1px solid ${waPeriodMode === mode ? "rgba(201,169,110,0.25)" : "rgba(255,255,255,0.06)"}`, color: waPeriodMode === mode ? "#C9A96E" : "rgba(245,240,232,0.4)", fontSize: "8px", letterSpacing: "0.15em", padding: "0.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", textAlign: "center" }}>{label}</button>
             ))}
           </div>
           {waPeriodMode === "custom" && (
@@ -1166,7 +918,6 @@ export default function AgendaPage() {
       </div>
     )}
 
-    {/* WhatsApp — Pré-visualização */}
     {waModal && (
       <div onClick={e => e.target === e.currentTarget && setWaModal(false)} style={overlayStyle}>
         <div style={{ ...modalStyle, width: "520px", maxWidth: "95vw", maxHeight: "85vh", display: "flex", flexDirection: "column" }}>
@@ -1185,14 +936,11 @@ export default function AgendaPage() {
       </div>
     )}
 
-    {/* Modal — Criar / Editar Evento */}
     {modal.open && (
       <div onClick={e => e.target === e.currentTarget && closeModal()} style={overlayStyle}>
         <div style={{ ...modalStyle, width: "680px", maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto" }}>
           <div style={topLineStyle} />
-          <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "2rem" }}>
-            {modal.editing ? "Editar Evento" : "Novo Evento"}
-          </p>
+          <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "2rem" }}>{modal.editing ? "Editar Evento" : "Novo Evento"}</p>
 
           <FormField label="Nome do Evento">
             <input style={inputStyle} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Nome do evento..." />
@@ -1212,13 +960,10 @@ export default function AgendaPage() {
                   <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#1a1710", border: "1px solid rgba(201,169,110,0.18)", zIndex: 1500, maxHeight: "200px", overflowY: "auto" }}>
                     {clientes.filter(c => c.nome.toLowerCase().includes(clienteSearch.toLowerCase())).map(c => (
                       <div key={c.id} onMouseDown={() => { setForm(f => ({ ...f, cliente_nome: c.nome, cliente_id: c.id })); setClienteSearch(c.alias?.trim() || c.nome); setClienteDropOpen(false); }} style={{ padding: "0.6rem 1rem", fontSize: "11px", color: C.textSec, cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.04)" }} onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.08)")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                        {c.alias?.trim() || c.nome}
-                        {c.nif && <span style={{ fontSize: "9px", color: C.textMuted, marginLeft: "8px" }}>{c.nif}</span>}
+                        {c.alias?.trim() || c.nome}{c.nif && <span style={{ fontSize: "9px", color: C.textMuted, marginLeft: "8px" }}>{c.nif}</span>}
                       </div>
                     ))}
-                    <div onMouseDown={() => { setClienteCreating(true); setClienteDropOpen(false); }} style={{ padding: "0.6rem 1rem", fontSize: "10px", color: C.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(201,169,110,0.12)", display: "flex", alignItems: "center", gap: "6px" }} onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.06)")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                      <span>+</span> Criar novo cliente
-                    </div>
+                    <div onMouseDown={() => { setClienteCreating(true); setClienteDropOpen(false); }} style={{ padding: "0.6rem 1rem", fontSize: "10px", color: C.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(201,169,110,0.12)", display: "flex", alignItems: "center", gap: "6px" }} onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.06)")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}><span>+</span> Criar novo cliente</div>
                   </div>
                 )}
               </div>
@@ -1226,45 +971,17 @@ export default function AgendaPage() {
           </FormField>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-            <FormField label="Data do Evento">
-              <input style={inputStyle} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-            </FormField>
-            <FormField label="Hora">
-              <input style={inputStyle} value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} placeholder="20:00-23:00" />
-            </FormField>
+            <FormField label="Data do Evento"><input style={inputStyle} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></FormField>
+            <FormField label="Hora"><input style={inputStyle} value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} placeholder="20:00-23:00" /></FormField>
           </div>
+          <FormField label="Equipa / Tipo"><input style={inputStyle} value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} placeholder="João, Annia, Empresa..." /></FormField>
+          {userRole !== "limited_novalues" && <FormField label="Valor a Faturar (€)"><input style={inputStyle} type="number" value={form.bill} onChange={e => setForm(f => ({ ...f, bill: e.target.value }))} /></FormField>}
+          <FormField label="Estado de Facturação"><CustomSelect value={form.billing_status} onChange={v => setForm(f => ({ ...f, billing_status: v }))} options={BILLING_ESTADOS.map(s => ({ value: s, label: s }))} style={inputStyle} /></FormField>
+          <FormField label="Modalidade de Pagamento"><CustomSelect value={form.modalidade} onChange={v => setForm(f => ({ ...f, modalidade: v }))} options={MODALIDADES.map(m => ({ value: m, label: m }))} style={inputStyle} /></FormField>
+          <FormField label="Local / Venue"><input style={inputStyle} value={form.venue} onChange={e => setForm(f => ({ ...f, venue: e.target.value }))} placeholder="SUD, Hyatt, Epic Sana..." /></FormField>
+          <FormField label="Contacto"><input style={inputStyle} value={form.contacto} onChange={e => setForm(f => ({ ...f, contacto: e.target.value }))} placeholder="Nome ou telefone..." /></FormField>
+          <FormField label="Notas"><input style={inputStyle} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Observações..." /></FormField>
 
-          <FormField label="Equipa / Tipo">
-            <input style={inputStyle} value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} placeholder="João, Annia, Empresa..." />
-          </FormField>
-
-          {userRole !== "limited_novalues" && (
-          <FormField label="Valor a Faturar (€)">
-            <input style={inputStyle} type="number" value={form.bill} onChange={e => setForm(f => ({ ...f, bill: e.target.value }))} />
-          </FormField>
-          )}
-
-          <FormField label="Estado de Facturação">
-            <CustomSelect value={form.billing_status} onChange={v => setForm(f => ({ ...f, billing_status: v }))} options={BILLING_ESTADOS.map(s => ({ value: s, label: s }))} style={inputStyle} />
-          </FormField>
-
-          <FormField label="Modalidade de Pagamento">
-            <CustomSelect value={form.modalidade} onChange={v => setForm(f => ({ ...f, modalidade: v }))} options={MODALIDADES.map(m => ({ value: m, label: m }))} style={inputStyle} />
-          </FormField>
-
-          <FormField label="Local / Venue">
-            <input style={inputStyle} value={form.venue} onChange={e => setForm(f => ({ ...f, venue: e.target.value }))} placeholder="SUD, Hyatt, Epic Sana..." />
-          </FormField>
-
-          <FormField label="Contacto">
-            <input style={inputStyle} value={form.contacto} onChange={e => setForm(f => ({ ...f, contacto: e.target.value }))} placeholder="Nome ou telefone..." />
-          </FormField>
-
-          <FormField label="Notas">
-            <input style={inputStyle} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Observações..." />
-          </FormField>
-
-          {/* Residência toggle (só ao criar) */}
           {!modal.editing && (
             <div style={{ marginTop: "1.25rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
               <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "10px", color: C.textSec, letterSpacing: "0.15em" }}>
@@ -1276,30 +993,25 @@ export default function AgendaPage() {
           {isResidencia && !modal.editing && (
             <div style={{ marginTop: "0.75rem" }}>
               <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.5rem" }}>
-                <input type="date" style={{ ...inputStyle, flex: 1 }} value={residenciaDates[residenciaDates.length - 1] || ""} onChange={e => { const d = e.target.value; setResidenciaDates(prev => { const next = [...prev]; if (next.length > 0) next[next.length - 1] = d; else next.push(d); return next; }); }} />
+                <input type="date" style={{ ...inputStyle, flex: 1 }} value={residenciaDates[residenciaDates.length - 1] || ""} onChange={e => { setResidenciaDates(prev => { const next = [...prev]; if (next.length > 0) next[next.length - 1] = e.target.value; else next.push(e.target.value); return next; }); }} />
                 <button type="button" onClick={() => setResidenciaDates(prev => [...prev, ""])} style={{ ...btnSecStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}>+ Data</button>
               </div>
               {residenciaDates.filter(d => d).map((d, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
                   <span style={{ fontSize: "10px", color: C.textSec }}>{d}</span>
-                  {residenciaDates.length > 1 && (
-                    <button type="button" onClick={() => setResidenciaDates(prev => prev.filter((_, idx) => idx !== i))} style={{ background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: "11px" }}>✕</button>
-                  )}
+                  {residenciaDates.length > 1 && <button type="button" onClick={() => setResidenciaDates(prev => prev.filter((_, idx) => idx !== i))} style={{ background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: "11px" }}>✕</button>}
                 </div>
               ))}
             </div>
           )}
 
-          {/* ── Artistas & Pagamentos ── */}
           <div style={{ marginTop: "1.75rem", borderTop: `1px solid ${C.borderDim}`, paddingTop: "1.5rem" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
               <span style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600 }}>Artistas & Pagamentos</span>
               {totalArtistas > 0 && <span style={{ fontSize: "9px", color: C.amber, letterSpacing: "0.15em", fontWeight: 600 }}>Total: {totalArtistas.toLocaleString("pt-PT")}€</span>}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "6px" }}>
-              {["Nome", "Tipo", "Fee (€)", ""].map(h => (
-                <span key={h} style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600, padding: "0 4px" }}>{h}</span>
-              ))}
+              {["Nome", "Tipo", "Fee (€)", ""].map(h => <span key={h} style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600, padding: "0 4px" }}>{h}</span>)}
             </div>
             {loadingArtists && <div style={{ fontSize: "10px", color: C.textMuted, padding: "0.5rem 0" }}>A carregar artistas...</div>}
             {artists.map((a, i) => (
@@ -1313,77 +1025,59 @@ export default function AgendaPage() {
             <button type="button" onClick={addArtistRow} style={{ background: "transparent", border: "1px dashed rgba(201,169,110,0.2)", color: C.goldDim, fontSize: "9px", letterSpacing: "0.2em", padding: "0.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", width: "100%", marginTop: "0.25rem" }}>+ Artista</button>
           </div>
 
-          {/* Footer */}
           <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "2rem", paddingTop: "1.5rem", borderTop: `1px solid ${C.borderDim}` }}>
-            {modal.editing && (
-              <button onClick={handleCancelFromModal} style={{ ...btnSecStyle, color: C.red, borderColor: "rgba(226,75,74,0.2)" }}>
-                Cancelar Evento
-              </button>
-            )}
+            {modal.editing && <button onClick={handleCancelFromModal} style={{ ...btnSecStyle, color: C.red, borderColor: "rgba(226,75,74,0.2)" }}>Cancelar Evento</button>}
             <button onClick={closeModal} style={btnSecStyle}>Fechar</button>
-            <button onClick={handleSave} disabled={saving} style={{ ...btnPrimStyle, opacity: saving ? 0.6 : 1 }}>
-              {saving ? "A guardar..." : (modal.editing ? "Guardar Alterações" : "Criar Evento")}
-            </button>
+            <button onClick={handleSave} disabled={saving} style={{ ...btnPrimStyle, opacity: saving ? 0.6 : 1 }}>{saving ? "A guardar..." : (modal.editing ? "Guardar Alterações" : "Criar Evento")}</button>
           </div>
         </div>
       </div>
     )}
+    </>
+  );
+}
 
-    {/* ── Componentes partilhados ── */}
-    {/* NOTA: Nav, IconBtn, StatusBadge, FormField, Loading, MobTabBar, tdStyle, addBtnStyle, overlayStyle, modalStyle, inputStyle, btnPrimStyle, btnSecStyle, topLineStyle — mantém os teus originais aqui em baixo, sem alterações */}
-// ── COMPONENTES & ESTILOS PARTILHADOS ────────────────────────────────────────
+// ── COMPONENTES PARTILHADOS (FORA da função principal) ──────────────────────
 
 const tdStyle = (opts?: { nowrap?: boolean; muted?: boolean; maxW?: string }) => ({
-  padding: "0.85rem 1.25rem",
-  fontSize: "11px",
-  letterSpacing: "0.03em",
+  padding: "0.85rem 1.25rem", fontSize: "11px", letterSpacing: "0.03em",
   color: opts?.muted ? C.textSec : C.textPrimary,
   whiteSpace: opts?.nowrap ? "nowrap" as const : undefined,
-  maxWidth: opts?.maxW,
-  borderBottom: `1px solid ${C.borderDim}`,
-  verticalAlign: "top" as const,
+  maxWidth: opts?.maxW, borderBottom: `1px solid ${C.borderDim}`, verticalAlign: "top" as const,
 });
 
 const addBtnStyle: React.CSSProperties = {
   background: "transparent", border: "1px solid rgba(201,169,110,0.3)",
-  color: "#C9A96E", fontSize: "8px", letterSpacing: "0.3em",
-  padding: "0.5rem 1.1rem", cursor: "pointer",
-  fontFamily: "'Montserrat','Helvetica Neue',sans-serif",
-  textTransform: "uppercase", fontWeight: 600,
-  display: "flex", alignItems: "center", gap: "6px",
+  color: "#C9A96E", fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem",
+  cursor: "pointer", fontFamily: "'Montserrat','Helvetica Neue',sans-serif",
+  textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px",
 };
 
 const overlayStyle: React.CSSProperties = {
   position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)",
-  zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center",
-  backdropFilter: "blur(4px)",
+  zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)",
 };
 
 const modalStyle: React.CSSProperties = {
-  background: "#131108", border: "1px solid rgba(201,169,110,0.12)",
-  padding: "2rem", position: "relative",
+  background: "#131108", border: "1px solid rgba(201,169,110,0.12)", padding: "2rem", position: "relative",
 };
 
 const inputStyle: React.CSSProperties = {
-  width: "100%", background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(255,255,255,0.08)", color: "#F5F0E8",
-  fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "11px",
-  padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none",
-  boxSizing: "border-box",
+  width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+  color: "#F5F0E8", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "11px",
+  padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box",
 };
 
 const btnPrimStyle: React.CSSProperties = {
-  background: "#C9A96E", border: "none", color: "#0C0B09",
-  fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700,
-  padding: "0.65rem 1.5rem", cursor: "pointer",
+  background: "#C9A96E", border: "none", color: "#0C0B09", fontSize: "9px",
+  letterSpacing: "0.3em", fontWeight: 700, padding: "0.65rem 1.5rem", cursor: "pointer",
   fontFamily: "'Montserrat','Helvetica Neue',sans-serif", textTransform: "uppercase",
 };
 
 const btnSecStyle: React.CSSProperties = {
   background: "transparent", border: "1px solid rgba(255,255,255,0.08)",
-  color: "rgba(245,240,232,0.35)", fontSize: "9px", letterSpacing: "0.3em",
-  padding: "0.65rem 1.25rem", cursor: "pointer",
-  fontFamily: "'Montserrat','Helvetica Neue',sans-serif", textTransform: "uppercase",
+  color: "rgba(245,240,232,0.35)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.65rem 1.25rem",
+  cursor: "pointer", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", textTransform: "uppercase",
 };
 
 const topLineStyle: React.CSSProperties = {
@@ -1391,7 +1085,6 @@ const topLineStyle: React.CSSProperties = {
   background: "linear-gradient(90deg, transparent, #C9A96E, transparent)",
 };
 
-// ── Nav ───────────────────────────────────────────────────────────────────────
 function Nav({ userName, active, onLogout }: { userName: string; active: string; onLogout: () => void }) {
   const router = useRouter();
   const items = [
@@ -1408,9 +1101,7 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
         <span onClick={() => router.push("/dashboard")} style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.4rem", letterSpacing: "0.4em", color: C.gold, fontWeight: 300, cursor: "pointer" }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {items.map(it => (
-            <button key={it.key} onClick={() => router.push(it.path)} style={{ background: active === it.key ? "rgba(201,169,110,0.08)" : "transparent", border: "none", borderBottom: active === it.key ? `1px solid ${C.gold}` : "1px solid transparent", color: active === it.key ? C.gold : C.textMuted, fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 0.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: active === it.key ? 700 : 400, transition: "all 0.2s" }}>
-              {it.label}
-            </button>
+            <button key={it.key} onClick={() => router.push(it.path)} style={{ background: active === it.key ? "rgba(201,169,110,0.08)" : "transparent", border: "none", borderBottom: active === it.key ? `1px solid ${C.gold}` : "1px solid transparent", color: active === it.key ? C.gold : C.textMuted, fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 0.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: active === it.key ? 700 : 400, transition: "all 0.2s" }}>{it.label}</button>
           ))}
         </div>
       </div>
@@ -1422,7 +1113,6 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
   );
 }
 
-// ── IconBtn ──────────────────────────────────────────────────────────────────
 function IconBtn({ title, onClick, icon, danger, success }: { title: string; onClick: () => void; icon: string; danger?: boolean; success?: boolean }) {
   const color = danger ? C.red : success ? C.green : C.textMuted;
   const hoverBg = danger ? "rgba(226,75,74,0.1)" : success ? "rgba(93,202,165,0.1)" : "rgba(255,255,255,0.06)";
@@ -1434,19 +1124,12 @@ function IconBtn({ title, onClick, icon, danger, success }: { title: string; onC
     delete: <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="2 4 14 4"/><path d="M5 4V2h6v2"/><path d="M3 4l1 10h8l1-10"/><line x1="7" y1="7" x2="7" y2="11"/><line x1="9" y1="7" x2="9" y2="11"/></svg>,
   };
   return (
-    <button
-      title={title}
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{ background: hovered ? hoverBg : "transparent", border: "none", cursor: "pointer", padding: "5px", color, display: "flex", alignItems: "center", transition: "background 0.15s" }}
-    >
+    <button title={title} onClick={onClick} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} style={{ background: hovered ? hoverBg : "transparent", border: "none", cursor: "pointer", padding: "5px", color, display: "flex", alignItems: "center", transition: "background 0.15s" }}>
       {icons[icon] || null}
     </button>
   );
 }
 
-// ── StatusBadge ──────────────────────────────────────────────────────────────
 function StatusBadge({ color, label }: { color: string; label: string }) {
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "9px", letterSpacing: "0.1em", color, fontWeight: 500 }}>
@@ -1456,7 +1139,6 @@ function StatusBadge({ color, label }: { color: string; label: string }) {
   );
 }
 
-// ── FormField ────────────────────────────────────────────────────────────────
 function FormField({ label, style, children }: { label: string; style?: React.CSSProperties; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: "1.25rem", ...style }}>
@@ -1466,7 +1148,6 @@ function FormField({ label, style, children }: { label: string; style?: React.CS
   );
 }
 
-// ── Loading ──────────────────────────────────────────────────────────────────
 function Loading() {
   return (
     <div style={{ minHeight: "100vh", background: "#0C0B09", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1479,7 +1160,6 @@ function Loading() {
   );
 }
 
-// ── MobTabBar ────────────────────────────────────────────────────────────────
 function MobTabBar({ active, role }: { active: string; role: string }) {
   const router = useRouter();
   const tabs = [
