@@ -14,6 +14,7 @@ function extractField(details: string, field: string): string {
   return match ? match[1].trim() : '';
 }
 
+// UUID v4 simples (não requer lib externa)
 function uuidv4(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
     const r = Math.random() * 16 | 0;
@@ -21,47 +22,50 @@ function uuidv4(): string {
   });
 }
 
-// ── SYNC CENTRAL por event_id ─────────────────────────────────────────────────────────
+// ── SYNC CENTRAL por event_id ─────────────────────────────────────────────────
+// Propaga campos partilhados para todos os registos com o mesmo event_id.
+// Não sobrescreve event_id nem id; só os campos de conteúdo.
 async function propagateByEventId(event_id: string, fields: {
   title?: string; event_date?: string; value?: number; status?: string;
   cliente_id?: number | null; cliente_nome?: string; modalidade?: string;
   local?: string; contacto?: string; notas?: string;
   valor_recebido?: number;
 }) {
-  if (!event_id || event_id.trim() === '') return;
+  if (!event_id) return;
   const f = fields;
-
+  // Agenda: actualizar todos os campos presentes
   const agendaUpdates: string[] = [];
   const agendaArgs: (string | number | null)[] = [];
-  if (f.title !== undefined) { agendaUpdates.push('event_name=?'); agendaArgs.push(f.title); }
-  if (f.event_date !== undefined) { agendaUpdates.push('event_date=?'); agendaArgs.push(f.event_date); }
-  if (f.value !== undefined) { agendaUpdates.push('client_cachet=?'); agendaArgs.push(f.value); }
-  if (f.status !== undefined) { agendaUpdates.push('billing_status=?'); agendaArgs.push(f.status); }
-  if (f.cliente_id !== undefined) { agendaUpdates.push('cliente_id=?'); agendaArgs.push(f.cliente_id ?? null); }
-  if (f.cliente_nome !== undefined) { agendaUpdates.push('cliente_nome=?'); agendaArgs.push(f.cliente_nome); }
-  if (f.modalidade !== undefined) { agendaUpdates.push('modalidade=?'); agendaArgs.push(f.modalidade); }
-  if (f.local !== undefined) { agendaUpdates.push('venue=?'); agendaArgs.push(f.local); }
-  if (f.contacto !== undefined) { agendaUpdates.push('contacto=?'); agendaArgs.push(f.contacto); }
-  if (f.notas !== undefined) { agendaUpdates.push('notas=?'); agendaArgs.push(f.notas); }
-  if (f.valor_recebido !== undefined) { agendaUpdates.push('valor_recebido=?'); agendaArgs.push(f.valor_recebido); }
+  if (f.title !== undefined)         { agendaUpdates.push('event_name=?');    agendaArgs.push(f.title); }
+  if (f.event_date !== undefined)    { agendaUpdates.push('event_date=?');    agendaArgs.push(f.event_date); }
+  if (f.value !== undefined)         { agendaUpdates.push('client_cachet=?'); agendaArgs.push(f.value); }
+  if (f.status !== undefined)        { agendaUpdates.push('billing_status=?');agendaArgs.push(f.status); }
+  if (f.cliente_id !== undefined)    { agendaUpdates.push('cliente_id=?');    agendaArgs.push(f.cliente_id ?? null); }
+  if (f.cliente_nome !== undefined)  { agendaUpdates.push('cliente_nome=?');  agendaArgs.push(f.cliente_nome); }
+  if (f.modalidade !== undefined)    { agendaUpdates.push('modalidade=?');    agendaArgs.push(f.modalidade); }
+  if (f.local !== undefined)         { agendaUpdates.push('venue=?');         agendaArgs.push(f.local); }
+  if (f.contacto !== undefined)      { agendaUpdates.push('contacto=?');      agendaArgs.push(f.contacto); }
+  if (f.notas !== undefined)         { agendaUpdates.push('notas=?');         agendaArgs.push(f.notas); }
+  if (f.valor_recebido !== undefined){ agendaUpdates.push('valor_recebido=?');agendaArgs.push(f.valor_recebido); }
   if (agendaUpdates.length > 0) {
     agendaArgs.push(event_id);
     await turso.execute({ sql: `UPDATE agenda SET ${agendaUpdates.join(',')} WHERE event_id=?`, args: agendaArgs });
   }
 
+  // Leads: mesmos campos (com mapeamento de nomes de colunas diferentes)
   const leadsUpdates: string[] = [];
   const leadsArgs: (string | number | null)[] = [];
-  if (f.title !== undefined) { leadsUpdates.push('title=?'); leadsArgs.push(f.title); }
-  if (f.event_date !== undefined) { leadsUpdates.push('event_date=?'); leadsArgs.push(f.event_date); }
-  if (f.value !== undefined) { leadsUpdates.push('value=?'); leadsArgs.push(f.value); }
-  if (f.status !== undefined) { leadsUpdates.push('status=?'); leadsArgs.push(f.status); }
-  if (f.cliente_id !== undefined) { leadsUpdates.push('cliente_id=?'); leadsArgs.push(f.cliente_id ?? null); }
-  if (f.cliente_nome !== undefined) { leadsUpdates.push('client_name=?'); leadsArgs.push(f.cliente_nome); }
-  if (f.modalidade !== undefined) { leadsUpdates.push('modalidade=?'); leadsArgs.push(f.modalidade); }
-  if (f.local !== undefined) { leadsUpdates.push('local=?'); leadsArgs.push(f.local); }
-  if (f.contacto !== undefined) { leadsUpdates.push('contacto=?'); leadsArgs.push(f.contacto); }
-  if (f.notas !== undefined) { leadsUpdates.push('notas=?'); leadsArgs.push(f.notas); }
-  if (f.valor_recebido !== undefined) { leadsUpdates.push('valor_recebido=?'); leadsArgs.push(f.valor_recebido); }
+  if (f.title !== undefined)         { leadsUpdates.push('title=?');         leadsArgs.push(f.title); }
+  if (f.event_date !== undefined)    { leadsUpdates.push('event_date=?');    leadsArgs.push(f.event_date); }
+  if (f.value !== undefined)         { leadsUpdates.push('value=?');         leadsArgs.push(f.value); }
+  if (f.status !== undefined)        { leadsUpdates.push('status=?');        leadsArgs.push(f.status); }
+  if (f.cliente_id !== undefined)    { leadsUpdates.push('cliente_id=?');    leadsArgs.push(f.cliente_id ?? null); }
+  if (f.cliente_nome !== undefined)  { leadsUpdates.push('client_name=?');   leadsArgs.push(f.cliente_nome); }
+  if (f.modalidade !== undefined)    { leadsUpdates.push('modalidade=?');    leadsArgs.push(f.modalidade); }
+  if (f.local !== undefined)         { leadsUpdates.push('local=?');         leadsArgs.push(f.local); }
+  if (f.contacto !== undefined)      { leadsUpdates.push('contacto=?');      leadsArgs.push(f.contacto); }
+  if (f.notas !== undefined)         { leadsUpdates.push('notas=?');         leadsArgs.push(f.notas); }
+  if (f.valor_recebido !== undefined){ leadsUpdates.push('valor_recebido=?');leadsArgs.push(f.valor_recebido); }
   if (leadsUpdates.length > 0) {
     leadsArgs.push(event_id);
     await turso.execute({ sql: `UPDATE leads SET ${leadsUpdates.join(',')} WHERE event_id=?`, args: leadsArgs });
@@ -90,7 +94,6 @@ export async function setupDatabase() {
         email TEXT,
         telefone TEXT,
         notas TEXT,
-        alias TEXT DEFAULT '',
         created_at TEXT DEFAULT (datetime('now'))
       );
 
@@ -102,7 +105,6 @@ export async function setupDatabase() {
         nome TEXT NOT NULL,
         tipo TEXT NOT NULL DEFAULT 'DJ',
         fee REAL NOT NULL DEFAULT 0,
-        colaborador_id INTEGER,
         created_at TEXT DEFAULT (datetime('now'))
       );
 
@@ -118,6 +120,7 @@ export async function setupDatabase() {
         created_at TEXT DEFAULT (datetime('now'))
       );
     `);
+    try { await turso.execute("ALTER TABLE artistas_evento ADD COLUMN colaborador_id INTEGER"); } catch { }
 
     const agendaCols = [
       "billing_status TEXT DEFAULT 'Contacto'",
@@ -134,6 +137,7 @@ export async function setupDatabase() {
       try { await turso.execute(`ALTER TABLE agenda ADD COLUMN ${col}`); } catch { }
     }
 
+    // Garantir tabela leads com todas as colunas necessárias
     try {
       await turso.execute(`CREATE TABLE IF NOT EXISTS leads (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -148,11 +152,9 @@ export async function setupDatabase() {
         cliente_id INTEGER,
         modalidade TEXT DEFAULT 'Fatura',
         valor_recebido REAL DEFAULT 0,
-        event_id TEXT DEFAULT '',
         created_at TEXT DEFAULT (datetime('now'))
       )`);
     } catch { }
-
     const leadsCols = [
       "title TEXT NOT NULL DEFAULT ''",
       "event_date TEXT DEFAULT ''",
@@ -170,9 +172,12 @@ export async function setupDatabase() {
       try { await turso.execute(`ALTER TABLE leads ADD COLUMN ${col}`); } catch { }
     }
 
+    // ── event_id: adicionar colunas e popular pares existentes ───────────────
     try { await turso.execute("ALTER TABLE agenda ADD COLUMN event_id TEXT DEFAULT ''"); } catch { }
     try { await turso.execute("ALTER TABLE leads  ADD COLUMN event_id TEXT DEFAULT ''"); } catch { }
 
+    // Popular event_id para pares já ligados (origem_lead_id FK)
+    // Para cada par agenda↔lead sem event_id, gerar um UUID partilhado
     const unlinkedPairs = await turso.execute(`
       SELECT a.id as agenda_id, a.origem_lead_id as lead_id
       FROM agenda a
@@ -185,6 +190,7 @@ export async function setupDatabase() {
       await turso.execute({ sql: "UPDATE leads  SET event_id=? WHERE id=?", args: [eid, row.lead_id] });
     }
 
+    // Registos de agenda sem par e sem event_id → gerar event_id individual
     await turso.execute(`
       UPDATE agenda SET event_id = (
         lower(hex(randomblob(4))) || '-' ||
@@ -196,7 +202,7 @@ export async function setupDatabase() {
       )
       WHERE event_id IS NULL OR event_id = ''
     `);
-
+    // Registos de leads sem par e sem event_id → gerar event_id individual
     await turso.execute(`
       UPDATE leads SET event_id = (
         lower(hex(randomblob(4))) || '-' ||
@@ -228,25 +234,31 @@ export async function loginUser(name: string) {
 }
 
 import { unstable_noStore as noStore } from "next/cache";
-
+// ^^^ adicionado para forçar sem cache
 export async function getDashboardData(userName: string = 'Admin', clientTodayStr?: string) {
   noStore();
   try {
+    // Recua 1 dia no servidor para agenda (garante eventos do dia actual)
     const serverDate = new Date();
     serverDate.setDate(serverDate.getDate() - 1);
     const todayStr = serverDate.toISOString().split("T")[0];
-    const leadsFromDate = clientTodayStr || new Date().toISOString().split("T")[0];
 
+    // Para leads, usa a data local do browser (passada pelo cliente) ou hoje no servidor
+    // Filtra directamente no SQL: data >= hoje E não Cancelado
+    const leadsFromDate = clientTodayStr || new Date().toISOString().split("T")[0];
     const leadsRes = await turso.execute({
       sql: "SELECT * FROM leads WHERE event_date >= ? AND status != 'Cancelado' ORDER BY event_date ASC",
       args: [leadsFromDate]
     });
 
     let agendaSql = "SELECT * FROM agenda WHERE status != 'Cancelado' AND event_date >= ? ORDER BY event_date ASC LIMIT 200";
+    // Tania e Soraya vêem o calendário completo (igual ao João/Admin)
+    // Larissa mantém restrição anterior (só Public)
     if (userName === 'Larissa') agendaSql = "SELECT * FROM agenda WHERE status != 'Cancelado' AND event_date >= ? AND visibility = 'Public' ORDER BY event_date ASC LIMIT 200";
 
     const agendaAllRes = await turso.execute({ sql: agendaSql, args: [todayStr] });
 
+    // Buscar todos os artistas (nome + tipo) para os eventos do período
     const artistasRes = await turso.execute({
       sql: "SELECT evento_id, nome, tipo FROM artistas_evento ORDER BY evento_id ASC, id ASC",
     });
@@ -257,13 +269,21 @@ export async function getDashboardData(userName: string = 'Admin', clientTodaySt
       if (r.nome) artistasByEvento[eid].push({ nome: r.nome as string, tipo: (r.tipo as string) || 'DJ' });
     }
 
+    // Normaliza qualquer formato de data para YYYY-MM-DD
     function normDate(raw: string): string {
       if (!raw) return '';
       const s = raw.trim();
-      if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) { const [d, m, y] = s.split('/'); return `${y}-${m}-${d}`; }
+      // DD/MM/YYYY → YYYY-MM-DD
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+        const [d, m, y] = s.split('/');
+        return `${y}-${m}-${d}`;
+      }
+      // DD-MM-YYYY → YYYY-MM-DD
       if (/^\d{2}-\d{2}-\d{4}$/.test(s)) {
         const parts = s.split('-');
-        if (parseInt(parts[0]) <= 31 && parseInt(parts[1]) <= 12) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        if (parseInt(parts[0]) <= 31 && parseInt(parts[1]) <= 12) {
+          return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
       }
       return s;
     }
@@ -277,11 +297,12 @@ export async function getDashboardData(userName: string = 'Admin', clientTodaySt
         contacto: r.details ? extractField(r.details, 'Contacto') : (r.contacto || ''),
         notas: r.details ? extractField(r.details, 'Notas') : (r.notas || ''),
         status_icon: r.status_icon || '🔵', value: r.value || 0,
-        status: r.status || 'Contacto',
+        status: r.status || 'Contacto', // explícito para filtros no frontend
         event_date: normDate(r.event_date || ''),
         _raw_date: r.event_date || '',
       })),
       agendaAll: agendaAllRes.rows.map((r: any) => {
+        // Título limpo — sem emoji artificial prefixado
         const eventTitle = (r.event_name as string) || '(sem título)';
         const cleanTitle = eventTitle.replace(/^\p{Emoji}[\p{Emoji}\u200d\s]*/u, '').trim();
         const artistas = artistasByEvento[Number(r.id)] || [];
@@ -297,20 +318,27 @@ export async function getDashboardData(userName: string = 'Admin', clientTodaySt
 export async function getAllAgenda(userName: string = 'Admin') {
   try {
     let sqlQuery = "SELECT * FROM agenda ORDER BY event_date ASC, id ASC";
+    // Larissa mantém restrição anterior (só Public); Soraya e Tânia vêem tudo
     if (userName === 'Larissa') sqlQuery = "SELECT * FROM agenda WHERE visibility = 'Public' ORDER BY event_date ASC, id ASC";
+
     const res = await turso.execute(sqlQuery);
     return {
       success: true,
-      data: res.rows.map((r: any) => ({
-        ...r, id: r.id, title: r.event_name, time_range: r.location || '', venue: r.venue || '',
-        tipo: r.staff_needed || '', bill: r.client_cachet || 0,
-        cancelled: r.status === 'Cancelado' ? 1 : 0,
-        billing_status: r.billing_status || '', cliente_id: r.cliente_id || null,
-        cliente_nome: r.cliente_nome || '', modalidade: r.modalidade || 'Fatura',
-        origem_lead_id: r.origem_lead_id ? Number(r.origem_lead_id) : null,
-        contacto: r.contacto || '', notas: r.notas || '',
-        event_id: (r.event_id as string) || '',
-      })),
+      data: res.rows.map((r: any) => {
+        const eventTitle = r.event_name as string;
+        // Guardar título limpo sem emoji automático
+        const finalTitle = eventTitle;
+        return {
+          ...r, id: r.id, title: finalTitle, time_range: r.location || '', venue: r.venue || '',
+          tipo: r.staff_needed || '', bill: r.client_cachet || 0,
+          cancelled: r.status === 'Cancelado' ? 1 : 0,
+          billing_status: r.billing_status || '', cliente_id: r.cliente_id || null,
+          cliente_nome: r.cliente_nome || '', modalidade: r.modalidade || 'Fatura',
+          origem_lead_id: r.origem_lead_id ? Number(r.origem_lead_id) : null,
+          contacto: r.contacto || '', notas: r.notas || '',
+          event_id: (r.event_id as string) || '',
+        };
+      }),
     };
   } catch (error) {
     console.error("Erro agenda:", error);
@@ -324,11 +352,12 @@ export async function createAgendaEvent(data: {
   origem_lead_id?: number | null; venue?: string; contacto?: string; notas?: string;
 }) {
   try {
+    // Se há origem_lead_id, partilhar o event_id da lead; caso contrário gerar novo
     let eventId = uuidv4();
     if (data.origem_lead_id) {
       const leadRow = await turso.execute({ sql: "SELECT event_id FROM leads WHERE id=?", args: [data.origem_lead_id] });
       const existingEid = (leadRow.rows[0] as any)?.event_id;
-      if (existingEid && existingEid.trim() !== '') eventId = existingEid;
+      if (existingEid) eventId = existingEid;
     }
 
     await turso.execute({
@@ -338,9 +367,14 @@ export async function createAgendaEvent(data: {
     const last = await turso.execute("SELECT last_insert_rowid() as id");
     const newId = Number(last.rows[0].id);
 
+    // Garantir que a lead também tem este event_id
     if (data.origem_lead_id) {
       await turso.execute({ sql: "UPDATE leads SET event_id=? WHERE id=?", args: [eventId, data.origem_lead_id] });
-      const leadArtistas = await turso.execute({ sql: "SELECT nome, tipo, fee FROM artistas_evento WHERE evento_id=?", args: [-data.origem_lead_id] });
+      // Migrar artistas da lead (guardados com evento_id negativo) para este evento
+      const leadArtistas = await turso.execute({
+        sql: "SELECT nome, tipo, fee FROM artistas_evento WHERE evento_id=?",
+        args: [-data.origem_lead_id],
+      });
       for (const a of leadArtistas.rows as any[]) {
         await turso.execute({
           sql: "INSERT INTO artistas_evento (evento_id, evento_nome, evento_data, nome, tipo, fee) VALUES (?, ?, ?, ?, ?, ?)",
@@ -365,11 +399,13 @@ export async function updateAgendaEvent(
       args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.venue || '', data.contacto || '', data.notas || '', id],
     });
 
+    // Obter event_id e origem_lead_id actuais
     const evRow = await turso.execute({ sql: "SELECT event_id, origem_lead_id, event_name, event_date FROM agenda WHERE id=?", args: [id] });
     const evData = evRow.rows[0] as any;
     let leadId = evData?.origem_lead_id ? Number(evData.origem_lead_id) : null;
     let eventId: string = evData?.event_id || '';
 
+    // Auto-link: se ainda não tem FK, tentar encontrar lead com mesmo título+data
     if (!leadId) {
       const normTitle = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
       const match = await turso.execute({
@@ -380,21 +416,24 @@ export async function updateAgendaEvent(
         const matchRow = match.rows[0] as any;
         leadId = Number(matchRow.id);
         await turso.execute({ sql: "UPDATE agenda SET origem_lead_id=? WHERE id=?", args: [leadId, id] });
+        // Partilhar event_id: usar o da lead se existir, senão usar o da agenda
         const leadEid = matchRow.event_id || '';
-        if (leadEid && leadEid.trim() !== '' && !eventId) {
+        if (leadEid && !eventId) {
           eventId = leadEid;
           await turso.execute({ sql: "UPDATE agenda SET event_id=? WHERE id=?", args: [eventId, id] });
-        } else if (eventId && (!leadEid || leadEid.trim() === '')) {
+        } else if (eventId && !leadEid) {
           await turso.execute({ sql: "UPDATE leads SET event_id=? WHERE id=?", args: [eventId, leadId] });
         }
       }
     }
 
-    if (!eventId || eventId.trim() === '') {
+    // Se não tem event_id ainda, gerar um
+    if (!eventId) {
       eventId = uuidv4();
       await turso.execute({ sql: "UPDATE agenda SET event_id=? WHERE id=?", args: [eventId, id] });
     }
 
+    // Propagar todos os campos para todos os registos com o mesmo event_id
     await propagateByEventId(eventId, {
       title: data.title, event_date: data.date, value: data.bill,
       status: data.billing_status || 'Contacto',
@@ -403,10 +442,12 @@ export async function updateAgendaEvent(
       local: data.venue || '', contacto: data.contacto || '', notas: data.notas || '',
     });
 
+    // Fallback: se há leadId mas a lead ainda não tem event_id (dados antigos), sync directo por id
     if (leadId) {
       const leadCheck = await turso.execute({ sql: "SELECT event_id FROM leads WHERE id=?", args: [leadId] });
       const leadEid = (leadCheck.rows[0] as any)?.event_id || '';
-      if (!leadEid || leadEid.trim() === '' || leadEid !== eventId) {
+      if (!leadEid || leadEid !== eventId) {
+        // Dar o event_id correcto à lead e fazer sync directo
         await turso.execute({ sql: "UPDATE leads SET event_id=? WHERE id=?", args: [eventId, leadId] });
         await turso.execute({
           sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, local=?, contacto=?, notas=? WHERE id=?",
@@ -425,39 +466,23 @@ export async function updateAgendaEvent(
 export async function cancelAgendaEvent(id: number) {
   try {
     await turso.execute({ sql: "UPDATE agenda SET status='Cancelado' WHERE id=?", args: [id] });
-    try {
-      const row = await turso.execute({ sql: "SELECT event_id FROM agenda WHERE id=?", args: [id] });
-      const eid = (row.rows[0] as any)?.event_id;
-      if (eid && eid.trim() !== '') {
-        await turso.execute({ sql: "UPDATE leads SET status='Cancelado' WHERE event_id=?", args: [eid] });
-      }
-    } catch (propErr) {
-      console.error("Cancel propagate warning:", propErr);
-    }
+    // Propagar cancelamento para a lead ligada via event_id
+    const row = await turso.execute({ sql: "SELECT event_id FROM agenda WHERE id=?", args: [id] });
+    const eid = (row.rows[0] as any)?.event_id;
+    if (eid) await turso.execute({ sql: "UPDATE leads SET status='Cancelado' WHERE event_id=?", args: [eid] });
     return { success: true };
-  } catch (error) {
-    console.error("cancelAgendaEvent error:", error);
-    return { success: false, message: String(error) };
-  }
+  } catch { return { success: false }; }
 }
 
 export async function restoreAgendaEvent(id: number) {
   try {
     await turso.execute({ sql: "UPDATE agenda SET status='Confirmado' WHERE id=?", args: [id] });
-    try {
-      const row = await turso.execute({ sql: "SELECT event_id FROM agenda WHERE id=?", args: [id] });
-      const eid = (row.rows[0] as any)?.event_id;
-      if (eid && eid.trim() !== '') {
-        await turso.execute({ sql: "UPDATE leads SET status='Contacto' WHERE event_id=? AND status='Cancelado'", args: [eid] });
-      }
-    } catch (propErr) {
-      console.error("Restore propagate warning:", propErr);
-    }
+    // Propagar restauro para a lead ligada via event_id
+    const row = await turso.execute({ sql: "SELECT event_id FROM agenda WHERE id=?", args: [id] });
+    const eid = (row.rows[0] as any)?.event_id;
+    if (eid) await turso.execute({ sql: "UPDATE leads SET status='Contacto' WHERE event_id=? AND status='Cancelado'", args: [eid] });
     return { success: true };
-  } catch (error) {
-    console.error("restoreAgendaEvent error:", error);
-    return { success: false, message: String(error) };
-  }
+  } catch { return { success: false }; }
 }
 
 export async function deleteAgendaEvent(id: number) {
@@ -465,10 +490,7 @@ export async function deleteAgendaEvent(id: number) {
     await turso.execute({ sql: "DELETE FROM agenda WHERE id=?", args: [id] });
     await turso.execute({ sql: "DELETE FROM artistas_evento WHERE evento_id=?", args: [id] });
     return { success: true };
-  } catch (error) {
-    console.error("deleteAgendaEvent error:", error);
-    return { success: false, message: String(error) };
-  }
+  } catch { return { success: false }; }
 }
 
 // ── ARTISTAS POR EVENTO ───────────────────────────────────────────────────────
@@ -489,6 +511,7 @@ export async function getAllArtistasAgenda(): Promise<{ success: boolean; data: 
   }
 }
 
+// Sync artistas de um evento de agenda para o lado da lead (evento_id negativo)
 export async function syncArtistasParaLead(leadId: number, eventoNome: string, eventoData: string, artistas: { nome: string; tipo: string; fee: number }[]) {
   try {
     await turso.execute({ sql: "DELETE FROM artistas_evento WHERE evento_id=?", args: [-leadId] });
@@ -508,7 +531,10 @@ export async function syncArtistasParaLead(leadId: number, eventoNome: string, e
 
 export async function getArtistasEvento(eventoId: number) {
   try {
-    const res = await turso.execute({ sql: "SELECT * FROM artistas_evento WHERE evento_id=? ORDER BY id ASC", args: [eventoId] });
+    const res = await turso.execute({
+      sql: "SELECT * FROM artistas_evento WHERE evento_id=? ORDER BY id ASC",
+      args: [eventoId],
+    });
     return {
       success: true,
       data: res.rows.map((r: any) => ({
@@ -540,10 +566,14 @@ export async function syncArtistasEvento(eventoId: number, eventoNome: string, e
   }
 }
 
+// Sync artistas de uma lead para o evento de agenda ligado (por origem_lead_id)
 export async function syncArtistasParaAgenda(leadId: number, eventoNome: string, eventoData: string, artistas: { nome: string; tipo: string; fee: number }[]) {
   try {
-    const linked = await turso.execute({ sql: "SELECT id FROM agenda WHERE origem_lead_id=?", args: [leadId] });
-    if (!linked.rows.length) return { success: true };
+    const linked = await turso.execute({
+      sql: "SELECT id FROM agenda WHERE origem_lead_id=?",
+      args: [leadId],
+    });
+    if (!linked.rows.length) return { success: true }; // sem evento ligado, nada a fazer
     const agendaEventId = Number((linked.rows[0] as any).id);
     await turso.execute({ sql: "DELETE FROM artistas_evento WHERE evento_id=?", args: [agendaEventId] });
     for (const a of artistas) {
@@ -559,6 +589,8 @@ export async function syncArtistasParaAgenda(leadId: number, eventoNome: string,
     return { success: false };
   }
 }
+
+
 
 export async function getAllPagamentos() {
   try {
@@ -583,7 +615,10 @@ export async function getAllPagamentos() {
 
 export async function updatePagamento(id: number, data: { nome: string; tipo: string; fee: number }) {
   try {
-    await turso.execute({ sql: "UPDATE artistas_evento SET nome=?, tipo=?, fee=? WHERE id=?", args: [data.nome, data.tipo, data.fee, id] });
+    await turso.execute({
+      sql: "UPDATE artistas_evento SET nome=?, tipo=?, fee=? WHERE id=?",
+      args: [data.nome, data.tipo, data.fee, id],
+    });
     return { success: true };
   } catch { return { success: false }; }
 }
@@ -641,7 +676,7 @@ export async function createLead(data: {
   try {
     const eventId = uuidv4();
     await turso.execute({
-      sql: "INSERT INTO leads (title, event_date, value, status, cliente_id, client_name, modalidade, local, contacto, notas, event_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      sql: "INSERT INTO leads (title, event_date, value, status, cliente_id, client_name, modalidade, local, contacto, notas, event_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', data.contacto || '', data.notas || '', eventId],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
@@ -662,13 +697,15 @@ export async function updateLead(
       args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', data.contacto || '', data.notas || '', id],
     });
 
+    // Garantir que esta lead tem event_id
     const leadRow = await turso.execute({ sql: "SELECT event_id FROM leads WHERE id=?", args: [id] });
     let eventId: string = (leadRow.rows[0] as any)?.event_id || '';
-    if (!eventId || eventId.trim() === '') {
+    if (!eventId) {
       eventId = uuidv4();
       await turso.execute({ sql: "UPDATE leads SET event_id=? WHERE id=?", args: [eventId, id] });
     }
 
+    // Propagar todos os campos via event_id (inclui agenda ligada)
     await propagateByEventId(eventId, {
       title: data.title, event_date: data.event_date, value: data.value,
       status: data.status, cliente_id: data.cliente_id ?? null,
@@ -676,10 +713,14 @@ export async function updateLead(
       local: data.local || '', contacto: data.contacto || '', notas: data.notas || '',
     });
 
-    const linkedByFk = await turso.execute({ sql: "SELECT id, event_id FROM agenda WHERE origem_lead_id=?", args: [id] });
+    // Fallback: sync directo para eventos de agenda ligados por origem_lead_id que ainda não têm event_id
+    const linkedByFk = await turso.execute({
+      sql: "SELECT id, event_id FROM agenda WHERE origem_lead_id=?",
+      args: [id],
+    });
     for (const row of linkedByFk.rows as any[]) {
       const agEid = (row as any).event_id || '';
-      if (!agEid || agEid.trim() === '' || agEid !== eventId) {
+      if (!agEid || agEid !== eventId) {
         await turso.execute({ sql: "UPDATE agenda SET event_id=? WHERE id=?", args: [eventId, (row as any).id] });
         await turso.execute({
           sql: "UPDATE agenda SET event_name=?, event_date=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, venue=?, contacto=?, notas=? WHERE id=?",
@@ -688,18 +729,21 @@ export async function updateLead(
       }
     }
 
+    // Auto-link + sync para eventos antigos sem origem_lead_id (match por data+título)
     const normTitle = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
     const unlinked = await turso.execute({
       sql: "SELECT id, event_id FROM agenda WHERE (origem_lead_id IS NULL OR origem_lead_id != ?) AND event_date=? AND LOWER(TRIM(event_name))=?",
       args: [id, data.event_date, normTitle(data.title)],
     });
     for (const row of unlinked.rows as any[]) {
+      // Ligar e partilhar event_id
       await turso.execute({
         sql: "UPDATE agenda SET origem_lead_id=?, event_id=?, event_name=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, venue=?, contacto=?, notas=? WHERE id=?",
         args: [id, eventId, data.title, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', data.contacto || '', data.notas || '', row.id],
       });
     }
 
+    // Sync artistas: lead (evento_id negativo) → evento de agenda ligado
     const linkedEv = await turso.execute({ sql: "SELECT id FROM agenda WHERE origem_lead_id=?", args: [id] });
     if (linkedEv.rows.length > 0) {
       const agendaEventId = Number((linkedEv.rows[0] as any).id);
@@ -725,55 +769,38 @@ export async function updateLead(
 export async function cancelLead(id: number) {
   try {
     await turso.execute({ sql: "UPDATE leads SET status='Cancelado' WHERE id=?", args: [id] });
-    try {
-      const row = await turso.execute({ sql: "SELECT event_id FROM leads WHERE id=?", args: [id] });
-      const eid = (row.rows[0] as any)?.event_id;
-      if (eid && eid.trim() !== '') {
-        await turso.execute({ sql: "UPDATE agenda SET billing_status='Cancelado', status='Cancelado' WHERE event_id=?", args: [eid] });
-      }
-    } catch (propErr) {
-      console.error("Cancel lead propagate warning:", propErr);
-    }
+    // Propagar cancelamento para evento de agenda ligado via event_id
+    const row = await turso.execute({ sql: "SELECT event_id FROM leads WHERE id=?", args: [id] });
+    const eid = (row.rows[0] as any)?.event_id;
+    if (eid) await turso.execute({ sql: "UPDATE agenda SET billing_status='Cancelado', status='Cancelado' WHERE event_id=?", args: [eid] });
     return { success: true };
-  } catch (error) {
-    console.error("cancelLead error:", error);
-    return { success: false, message: String(error) };
-  }
+  } catch { return { success: false }; }
 }
 
 export async function restoreLead(id: number) {
   try {
     await turso.execute({ sql: "UPDATE leads SET status='Contacto' WHERE id=?", args: [id] });
-    try {
-      const row = await turso.execute({ sql: "SELECT event_id FROM leads WHERE id=?", args: [id] });
-      const eid = (row.rows[0] as any)?.event_id;
-      if (eid && eid.trim() !== '') {
-        await turso.execute({ sql: "UPDATE agenda SET status='Confirmado', billing_status='Contacto' WHERE event_id=? AND status='Cancelado'", args: [eid] });
-      }
-    } catch (propErr) {
-      console.error("Restore lead propagate warning:", propErr);
-    }
+    // Propagar restauro para evento de agenda ligado via event_id
+    const row = await turso.execute({ sql: "SELECT event_id FROM leads WHERE id=?", args: [id] });
+    const eid = (row.rows[0] as any)?.event_id;
+    if (eid) await turso.execute({ sql: "UPDATE agenda SET status='Confirmado', billing_status='Contacto' WHERE event_id=? AND status='Cancelado'", args: [eid] });
     return { success: true };
-  } catch (error) {
-    console.error("restoreLead error:", error);
-    return { success: false, message: String(error) };
-  }
+  } catch { return { success: false }; }
 }
 
 export async function deleteLead(id: number) {
   try {
     await turso.execute({ sql: "DELETE FROM leads WHERE id=?", args: [id] });
     return { success: true };
-  } catch (error) {
-    console.error("deleteLead error:", error);
-    return { success: false, message: String(error) };
-  }
+  } catch { return { success: false }; }
 }
 
 // ── CLIENTES ──────────────────────────────────────────────────────────────────
 
 export async function getAllClientes() {
   try {
+    // Ensure alias column exists
+    try { await turso.execute("ALTER TABLE clientes ADD COLUMN alias TEXT DEFAULT ''"); } catch {}
     const res = await turso.execute("SELECT * FROM clientes ORDER BY nome ASC");
     return { success: true, data: res.rows.map((r: any) => ({ ...r })) };
   } catch (error) {
@@ -803,38 +830,30 @@ export async function updateCliente(id: number, data: { nome: string; nif?: stri
       args: [data.nome, data.nif || '', data.email || '', data.telefone || '', data.notas || '', data.alias || '', id],
     });
     return { success: true };
-  } catch (error) {
-    console.error("updateCliente error:", error);
-    return { success: false, message: String(error) };
-  }
+  } catch { return { success: false }; }
 }
 
 export async function deleteCliente(id: number) {
   try {
     await turso.execute({ sql: "DELETE FROM clientes WHERE id=?", args: [id] });
     return { success: true };
-  } catch (error) {
-    console.error("deleteCliente error:", error);
-    return { success: false, message: String(error) };
-  }
+  } catch { return { success: false }; }
 }
 
 // ── FATURAÇÃO ─────────────────────────────────────────────────────────────────
 
 export async function getFaturacaoData() {
   try {
-    // Cancelado removido — quando se cancela, desaparece da faturação
-    const ESTADOS_FATURACAO = ['Confirmado', 'Em Adjudicação', 'Adjudicado', 'Faturado', 'Pago'];
+    const ESTADOS_FATURACAO = ['Confirmado', 'Em Adjudicação', 'Adjudicado', 'Faturado', 'Pago', 'Cancelado'];
     const placeholders = ESTADOS_FATURACAO.map(() => '?').join(',');
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
     const agendaRes = await turso.execute({
       sql: `SELECT id, event_name, event_date, client_cachet, billing_status, cliente_id, cliente_nome, status, modalidade, COALESCE(valor_recebido, 0) as valor_recebido, origem_lead_id
             FROM agenda
             WHERE billing_status IN (${placeholders})
               AND COALESCE(cliente_nome, '') != ''
-              AND (event_date <= ? OR billing_status IN ('Faturado', 'Pago'))
-              AND billing_status != 'Cancelado'
+              AND (event_date <= ? OR billing_status IN ('Faturado', 'Pago', 'Cancelado'))
             ORDER BY event_date ASC`,
       args: [...ESTADOS_FATURACAO, today],
     });
@@ -844,8 +863,7 @@ export async function getFaturacaoData() {
             FROM leads
             WHERE status IN (${placeholders})
               AND COALESCE(client_name, '') != ''
-              AND (event_date <= ? OR event_date IS NULL OR event_date = '' OR status IN ('Faturado', 'Pago'))
-              AND status != 'Cancelado'
+              AND (event_date <= ? OR event_date IS NULL OR event_date = '' OR status IN ('Faturado', 'Pago', 'Cancelado'))
             ORDER BY event_date ASC`,
       args: [...ESTADOS_FATURACAO, today],
     });
@@ -860,11 +878,27 @@ export async function getFaturacaoData() {
       origem_lead_id: r.origem_lead_id ? Number(r.origem_lead_id) : null,
     }));
 
+    // Deduplicação Lead → Agenda:
+    // Critério primário: origem_lead_id (FK directa — imune a mudanças de título)
+    // Critério fallback (leads antigas sem FK): data+título OU data+valor
     function normTitle(s: string) { return s.toLowerCase().replace(/\s+/g, ' ').trim(); }
+
     const agendaLinkedLeadIds = new Set(agendaItems.filter(i => i.origem_lead_id).map(i => i.origem_lead_id!));
     const agendaTitleKeys = new Set(agendaItems.map(i => `${i.data}||${normTitle(i.descricao)}`));
-    const agendaTerminalDateVal = new Set(agendaItems.filter(i => i.billing_status === 'Pago' || i.billing_status === 'Faturado').filter(i => i.valor > 0).map(i => `${i.data}||${i.valor}`));
-    const agendaAllDateVal = new Set(agendaItems.filter(i => i.valor > 0).map(i => `${i.data}||${i.valor}`));
+
+    // Agenda items com estado terminal (Pago/Faturado) por date+valor — para suprimir leads duplicadas
+    const agendaTerminalDateVal = new Set(
+      agendaItems
+        .filter(i => i.billing_status === 'Pago' || i.billing_status === 'Faturado')
+        .filter(i => i.valor > 0)
+        .map(i => `${i.data}||${i.valor}`)
+    );
+    // Todos os agenda date+valor (para dedup geral, independente de estado)
+    const agendaAllDateVal = new Set(
+      agendaItems
+        .filter(i => i.valor > 0)
+        .map(i => `${i.data}||${i.valor}`)
+    );
 
     const leadsItems = leadsRes.rows
       .map((r: any) => ({
@@ -876,21 +910,28 @@ export async function getFaturacaoData() {
         valor_recebido: Number(r.valor_recebido) || 0,
       }))
       .filter(l => {
+        // Critério primário: lead já tem evento na agenda com origem_lead_id = l.id
         if (agendaLinkedLeadIds.has(l.id)) return false;
+        // Fallback: Excluir lead se já existe evento de Agenda com mesmo título exacto na mesma data
         if (agendaTitleKeys.has(`${l.data}||${normTitle(l.descricao)}`)) return false;
+        // Fallback: Excluir lead se já existe evento de Agenda com mesmo date+valor
         if (l.valor > 0 && agendaAllDateVal.has(`${l.data}||${l.valor}`)) return false;
+        // Fallback: Excluir lead se evento correspondente na Agenda já está Pago ou Faturado
         if (l.valor > 0 && agendaTerminalDateVal.has(`${l.data}||${l.valor}`)) return false;
         return true;
       });
 
     const allItems = [...agendaItems, ...leadsItems];
 
+    // Fetch clientes to resolve aliases and normalise grouping keys
     const clientesRes = await turso.execute("SELECT id, nome, alias FROM clientes ORDER BY nome ASC");
     const clientesMap: Record<number, { nome: string; alias: string }> = {};
     for (const c of clientesRes.rows as any[]) {
       clientesMap[Number(c.id)] = { nome: c.nome as string, alias: (c.alias as string) || '' };
     }
 
+    // Group key: prefer cliente_id (immune to typos), fallback to trimmed name
+    // Display key: alias if set, otherwise nome
     function groupKey(item: typeof allItems[number]): string {
       if (item.cliente_id) return `id:${item.cliente_id}`;
       return `nome:${item.cliente_nome.trim()}`;
@@ -912,6 +953,7 @@ export async function getFaturacaoData() {
       grouped[key].push(item);
     }
 
+    // Re-key by display name for frontend compatibility
     const groupedByDisplay: Record<string, typeof allItems> = {};
     for (const [key, items] of Object.entries(grouped)) {
       const display = groupedDisplayKey[key];
@@ -926,6 +968,7 @@ export async function getFaturacaoData() {
   }
 }
 
+// Helper: dado um agenda id, devolve o lead_id ligado (por FK ou por auto-link título+data)
 async function resolveLinkedLeadId(agendaId: number): Promise<number | null> {
   const row = await turso.execute({ sql: "SELECT origem_lead_id, event_name, event_date FROM agenda WHERE id=?", args: [agendaId] });
   if (!row.rows.length) return null;
@@ -950,12 +993,12 @@ export async function updateItemBillingStatus(origem: 'agenda' | 'lead', id: num
       await turso.execute({ sql: "UPDATE agenda SET billing_status=? WHERE id=?", args: [billing_status, id] });
       const row = await turso.execute({ sql: "SELECT event_id FROM agenda WHERE id=?", args: [id] });
       const eid = (row.rows[0] as any)?.event_id;
-      if (eid && eid.trim() !== '') await propagateByEventId(eid, { status: billing_status });
+      if (eid) await propagateByEventId(eid, { status: billing_status });
     } else {
       await turso.execute({ sql: "UPDATE leads SET status=? WHERE id=?", args: [billing_status, id] });
       const row = await turso.execute({ sql: "SELECT event_id FROM leads WHERE id=?", args: [id] });
       const eid = (row.rows[0] as any)?.event_id;
-      if (eid && eid.trim() !== '') await propagateByEventId(eid, { status: billing_status });
+      if (eid) await propagateByEventId(eid, { status: billing_status });
     }
     return { success: true };
   } catch (error) {
@@ -970,12 +1013,12 @@ export async function updateValorRecebido(origem: 'agenda' | 'lead', id: number,
       await turso.execute({ sql: "UPDATE agenda SET valor_recebido=? WHERE id=?", args: [valor, id] });
       const row = await turso.execute({ sql: "SELECT event_id FROM agenda WHERE id=?", args: [id] });
       const eid = (row.rows[0] as any)?.event_id;
-      if (eid && eid.trim() !== '') await propagateByEventId(eid, { valor_recebido: valor });
+      if (eid) await propagateByEventId(eid, { valor_recebido: valor });
     } else {
       await turso.execute({ sql: "UPDATE leads SET valor_recebido=? WHERE id=?", args: [valor, id] });
       const row = await turso.execute({ sql: "SELECT event_id FROM leads WHERE id=?", args: [id] });
       const eid = (row.rows[0] as any)?.event_id;
-      if (eid && eid.trim() !== '') await propagateByEventId(eid, { valor_recebido: valor });
+      if (eid) await propagateByEventId(eid, { valor_recebido: valor });
     }
     return { success: true };
   } catch (error) {
@@ -1001,6 +1044,7 @@ export async function setupColaboradores() {
         created_at TEXT DEFAULT (datetime('now'))
       )
     `);
+    // Adicionar coluna colaborador_id a artistas_evento se não existir
     try { await turso.execute("ALTER TABLE artistas_evento ADD COLUMN colaborador_id INTEGER"); } catch { }
     return { success: true };
   } catch (error) {
@@ -1031,11 +1075,14 @@ export async function getAllColaboradores() {
   }
 }
 
-export async function createColaborador(data: { nome: string; contacto?: string; email?: string; iban?: string; skills?: string; notas?: string }) {
+export async function createColaborador(data: {
+  nome: string; contacto?: string; email?: string; iban?: string;
+  skills?: string; notas?: string; ativo?: number;
+}) {
   try {
     await turso.execute({
-      sql: "INSERT INTO colaboradores (nome, contacto, email, iban, skills, notas) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      args: [data.nome, data.contacto || '', data.email || '', data.iban || '', data.skills || '', data.notas || ''],
+      sql: "INSERT INTO colaboradores (nome, contacto, email, iban, skills, notas, ativo) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      args: [data.nome, data.contacto || '', data.email || '', data.iban || '', data.skills || '', data.notas || '', data.ativo ?? 1],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
     return { success: true, id: Number(last.rows[0].id) };
@@ -1045,7 +1092,10 @@ export async function createColaborador(data: { nome: string; contacto?: string;
   }
 }
 
-export async function updateColaborador(id: number, data: { nome: string; contacto?: string; email?: string; iban?: string; skills?: string; notas?: string; ativo?: number }) {
+export async function updateColaborador(id: number, data: {
+  nome: string; contacto?: string; email?: string; iban?: string;
+  skills?: string; notas?: string; ativo?: number;
+}) {
   try {
     await turso.execute({
       sql: "UPDATE colaboradores SET nome=?, contacto=?, email=?, iban=?, skills=?, notas=?, ativo=? WHERE id=?",
@@ -1054,49 +1104,123 @@ export async function updateColaborador(id: number, data: { nome: string; contac
     return { success: true };
   } catch (error) {
     console.error("Erro update colaborador:", error);
-    return { success: false, message: "Erro ao atualizar colaborador." };
+    return { success: false };
   }
 }
 
-export async function deleteColaborador(id: number) {
+export async function toggleColaboradorAtivo(id: number, ativo: number) {
   try {
-    await turso.execute({ sql: "DELETE FROM colaboradores WHERE id=?", args: [id] });
+    await turso.execute({ sql: "UPDATE colaboradores SET ativo=? WHERE id=?", args: [ativo, id] });
     return { success: true };
-  } catch (error) {
-    console.error("Erro delete colaborador:", error);
-    return { success: false, message: "Erro ao eliminar colaborador." };
-  }
+  } catch { return { success: false }; }
 }
 
-// ── SYNC ALL EXISTING DATA ────────────────────────────────────────────────────
+// ── SYNC INICIAL: agenda ganha, propaga para leads ────────────────────────────
+// Chamado ao abrir Agenda ou Leads. Percorre todos os pares ligados e corrige
+// qualquer diferença — agenda é a fonte de verdade neste sync inicial.
+// Após esta passagem os dados ficam alinhados e o sync normal trata do resto.
 export async function syncAllExistingData() {
   try {
-    const agendaRes = await turso.execute(`
-      SELECT a.id, a.event_id, a.origem_lead_id, a.event_name, a.event_date, a.client_cachet, a.billing_status,
-             a.cliente_id, a.cliente_nome, a.modalidade, a.venue, a.contacto, a.notas, a.valor_recebido
+    // Buscar todos os eventos de agenda que têm origem_lead_id
+    const pairs = await turso.execute(`
+      SELECT
+        a.id            as agenda_id,
+        a.event_id      as agenda_eid,
+        a.origem_lead_id as lead_id,
+        a.event_name    as a_title,
+        a.event_date    as a_date,
+        a.client_cachet as a_value,
+        a.billing_status as a_status,
+        a.cliente_id    as a_cliente_id,
+        a.cliente_nome  as a_cliente_nome,
+        a.modalidade    as a_modalidade,
+        a.venue         as a_venue,
+        a.contacto      as a_contacto,
+        a.notas         as a_notas,
+        l.event_id      as lead_eid,
+        l.title         as l_title,
+        l.event_date    as l_date,
+        l.value         as l_value,
+        l.status        as l_status,
+        l.cliente_id    as l_cliente_id,
+        l.client_name   as l_cliente_nome,
+        l.modalidade    as l_modalidade,
+        l.local         as l_venue,
+        l.contacto      as l_contacto,
+        l.notas         as l_notas
       FROM agenda a
+      INNER JOIN leads l ON l.id = a.origem_lead_id
       WHERE a.origem_lead_id IS NOT NULL
     `);
 
-    for (const row of agendaRes.rows as any[]) {
-      const leadId = row.origem_lead_id;
-      const eid = row.event_id;
-      if (!leadId || !eid || eid.trim() === '') continue;
+    let synced = 0;
 
-      const leadRow = await turso.execute({ sql: "SELECT * FROM leads WHERE id=?", args: [leadId] });
-      if (!leadRow.rows.length) continue;
-      const lead = leadRow.rows[0] as any;
+    for (const row of pairs.rows as any[]) {
+      // Garantir event_id partilhado
+      let eid: string = row.agenda_eid || row.lead_eid || '';
+      if (!eid) {
+        eid = uuidv4();
+      }
+      // Sempre actualizar event_id nos dois lados (idempotente se já igual)
+      if (row.agenda_eid !== eid) {
+        await turso.execute({ sql: "UPDATE agenda SET event_id=? WHERE id=?", args: [eid, row.agenda_id] });
+      }
+      if (row.lead_eid !== eid) {
+        await turso.execute({ sql: "UPDATE leads SET event_id=? WHERE id=?", args: [eid, row.lead_id] });
+      }
 
-      if (!lead.title || lead.title.trim() === '') {
+      // Verificar se há alguma diferença (agenda é fonte de verdade)
+      const needsSync =
+        row.a_title        !== row.l_title       ||
+        row.a_date         !== row.l_date        ||
+        String(row.a_value || 0) !== String(row.l_value || 0) ||
+        (row.a_status      || '') !== (row.l_status      || '') ||
+        (row.a_cliente_id  ?? null) != (row.l_cliente_id ?? null) ||
+        (row.a_cliente_nome|| '') !== (row.l_cliente_nome|| '') ||
+        (row.a_modalidade  || '') !== (row.l_modalidade  || '') ||
+        (row.a_venue       || '') !== (row.l_venue       || '') ||
+        (row.a_contacto    || '') !== (row.l_contacto    || '') ||
+        (row.a_notas       || '') !== (row.l_notas       || '');
+
+      if (needsSync) {
         await turso.execute({
-          sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, local=?, contacto=?, notas=? WHERE id=?",
-          args: [row.event_name, row.event_date, row.client_cachet, row.billing_status, row.cliente_id, row.cliente_nome, row.modalidade, row.venue, row.contacto, row.notas, leadId],
+          sql: `UPDATE leads SET
+            title=?, event_date=?, value=?, status=?,
+            cliente_id=?, client_name=?, modalidade=?,
+            local=?, contacto=?, notas=?
+            WHERE id=?`,
+          args: [
+            row.a_title, row.a_date, row.a_value, row.a_status,
+            row.a_cliente_id ?? null, row.a_cliente_nome || '', row.a_modalidade || 'Fatura',
+            row.a_venue || '', row.a_contacto || '', row.a_notas || '',
+            row.lead_id,
+          ],
         });
+        synced++;
       }
     }
-    return { success: true };
+
+    // Registos sem par: garantir que têm event_id individual
+    await turso.execute(`
+      UPDATE agenda SET event_id = (
+        lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' ||
+        substr(lower(hex(randomblob(2))),2) || '-' ||
+        substr('89ab', abs(random()) % 4 + 1, 1) ||
+        substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))
+      ) WHERE event_id IS NULL OR event_id = ''
+    `);
+    await turso.execute(`
+      UPDATE leads SET event_id = (
+        lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' ||
+        substr(lower(hex(randomblob(2))),2) || '-' ||
+        substr('89ab', abs(random()) % 4 + 1, 1) ||
+        substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))
+      ) WHERE event_id IS NULL OR event_id = ''
+    `);
+
+    return { success: true, synced, total: pairs.rows.length };
   } catch (error) {
     console.error("Erro syncAllExistingData:", error);
-    return { success: false, message: "Erro no sync de dados." };
+    return { success: false, synced: 0, total: 0 };
   }
 }
