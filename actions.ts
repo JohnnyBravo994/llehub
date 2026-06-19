@@ -590,8 +590,6 @@ export async function syncArtistasParaAgenda(leadId: number, eventoNome: string,
   }
 }
 
-
-
 export async function getAllPagamentos() {
   try {
     const res = await turso.execute(
@@ -1222,5 +1220,76 @@ export async function syncAllExistingData() {
   } catch (error) {
     console.error("Erro syncAllExistingData:", error);
     return { success: false, synced: 0, total: 0 };
+  }
+}
+
+// ── TROCA DE EVENTOS ──────────────────────────────────────────────────────────
+
+export async function swapAgendaEvents(idA: number, idB: number) {
+  try {
+    // Buscar os dois eventos
+    const resA = await turso.execute({ sql: "SELECT * FROM agenda WHERE id=?", args: [idA] });
+    const resB = await turso.execute({ sql: "SELECT * FROM agenda WHERE id=?", args: [idB] });
+
+    if (!resA.rows.length || !resB.rows.length) {
+      return { success: false, message: "Um ou ambos os eventos não foram encontrados." };
+    }
+
+    const evA = resA.rows[0] as any;
+    const evB = resB.rows[0] as any;
+
+    // Função auxiliar para formatar as datas para a anotação da troca (DD/MM)
+    const formatData = (d: string) => {
+      if (!d) return '';
+      const parts = d.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
+      return d;
+    };
+
+    const dateA = evA.event_date as string;
+    const dateB = evB.event_date as string;
+
+    const notaTrocaA = `\n(troca de ${formatData(dateA)})`;
+    const notaTrocaB = `\n(troca de ${formatData(dateB)})`;
+
+    const newNotasA = ((evA.notas as string) || '') + notaTrocaB;
+    const newNotasB = ((evB.notas as string) || '') + notaTrocaA;
+
+    // Atualizar Evento A (recebe a dateB e adiciona notaTrocaB)
+    await updateAgendaEvent(idA, {
+      title: evA.event_name as string, 
+      date: dateB, 
+      time: (evA.location as string) || '', 
+      tipo: (evA.staff_needed as string) || '',
+      bill: Number(evA.client_cachet) || 0, 
+      billing_status: evA.billing_status as string, 
+      cliente_id: evA.cliente_id ? Number(evA.cliente_id) : null,
+      cliente_nome: (evA.cliente_nome as string) || '', 
+      modalidade: (evA.modalidade as string) || '', 
+      venue: (evA.venue as string) || '',
+      contacto: (evA.contacto as string) || '', 
+      notas: newNotasA.trim()
+    });
+
+    // Atualizar Evento B (recebe a dateA e adiciona notaTrocaA)
+    await updateAgendaEvent(idB, {
+      title: evB.event_name as string, 
+      date: dateA, 
+      time: (evB.location as string) || '', 
+      tipo: (evB.staff_needed as string) || '',
+      bill: Number(evB.client_cachet) || 0, 
+      billing_status: evB.billing_status as string, 
+      cliente_id: evB.cliente_id ? Number(evB.cliente_id) : null,
+      cliente_nome: (evB.cliente_nome as string) || '', 
+      modalidade: (evB.modalidade as string) || '', 
+      venue: (evB.venue as string) || '',
+      contacto: (evB.contacto as string) || '', 
+      notas: newNotasB.trim()
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Erro ao efetuar troca de eventos:", error);
+    return { success: false, message: "Erro de servidor ao efetuar a troca." };
   }
 }
