@@ -614,22 +614,23 @@ export default function AgendaPage() {
       });
       const dayLeads = confirmedLeads.filter(l => l.event_date === dateStr && !l.cancelled);
 
-      // Dias sem nenhum evento/lead são omitidos (sem "FOLGA")
-      if (dayEvents.length > 0 || dayLeads.length > 0) {
+      // Dias sem nenhum evento/lead = Folga
+      if (dayEvents.length === 0 && dayLeads.length === 0) {
+        lines.push(`*${dd}/${mm} (${wd}-feira)* ⛱️ Folga`);
+        lines.push("");
+      } else {
         const dateLabel = `*${dd}/${mm} (${wd}-feira)*`;
         const totalItems = dayEvents.length + dayLeads.length;
 
         const eventLineFor = (e: AgendaEvent): string => {
-          const evArtists = artistasMap[e.id] || [];
-          const seen = new Set<string>();
-          const icons = evArtists
-            .filter(a => a.nome.trim())
-            .map(a => { const ic = TIPO_ICON[a.tipo] || ""; if (!ic || seen.has(ic)) return ""; seen.add(ic); return ic; })
-            .filter(Boolean).join("");
-          const title = (e.title || "").replace(/^\p{Emoji}[\p{Emoji}‍\s]*/u, "").trim();
+          const evArtists = (artistasMap[e.id] || []).filter(a => a.nome.trim());
+          const title = (e.title || "").trim();
+          const venue = (e.venue || "").trim();
           const trocaNota = getTrocaNota(e.notas || "");
           const anotacao = trocaNota ? ` (${trocaNota})` : "";
-          return `💖${icons} ${title}${anotacao}`;
+          const titleLine = venue ? `${title} — ${venue}${anotacao}` : `${title}${anotacao}`;
+          const artistLines = evArtists.map(a => `  * ${a.nome} | ${a.tipo}`).join("\n");
+          return artistLines ? `${titleLine}\n${artistLines}` : titleLine;
         };
         const leadLineFor = (l: Lead): string => {
           const status = (l.status || "").toLowerCase();
@@ -637,9 +638,18 @@ export default function AgendaPage() {
           return `${icon} ${l.title}`;
         };
 
-        if (totalItems === 1) {
-          const onlyLine = dayEvents.length === 1 ? eventLineFor(dayEvents[0]) : leadLineFor(dayLeads[0]);
-          lines.push(`${dateLabel} ${onlyLine}`);
+        if (totalItems === 1 && dayLeads.length === 1) {
+          lines.push(`${dateLabel} ${leadLineFor(dayLeads[0])}`);
+        } else if (totalItems === 1 && dayEvents.length === 1) {
+          const evLine = eventLineFor(dayEvents[0]);
+          const evParts = evLine.split("\n");
+          if (evParts.length === 1) {
+            lines.push(`${dateLabel} ${evLine}`);
+          } else {
+            lines.push(dateLabel);
+            lines.push("");
+            lines.push(evLine);
+          }
         } else {
           lines.push(dateLabel);
           lines.push("");
@@ -803,7 +813,7 @@ export default function AgendaPage() {
                       <tr key={`folga-${row.date}`} style={{ opacity: 0.38, background: isFolgaToday ? "rgba(201,169,110,0.04)" : undefined }}>
                         <td style={{ ...tdStyle({ nowrap: true }), color: isFolgaToday ? "#C9A96E" : undefined, fontWeight: isFolgaToday ? 700 : undefined }}>{fmtDate(row.date)}</td>
                         <td colSpan={8} style={{ ...tdStyle({}), fontSize: "10px", color: C.textMuted, letterSpacing: "0.2em", fontStyle: "italic" }}>
-                          🏝️ Folga
+                          ⛱️ Folga
                         </td>
                       </tr>
                     );
@@ -1042,7 +1052,7 @@ export default function AgendaPage() {
                   <div className="mob-date-weekday">{d.toLocaleDateString("pt-PT",{weekday:"short"})}</div>
                 </div>
                 <div className="mob-card-body">
-                  <div className="mob-card-title" style={{opacity:0.35}}>🏝️ Folga</div>
+                  <div className="mob-card-title" style={{opacity:0.35}}>⛱️ Folga</div>
                 </div>
               </div>
             );
