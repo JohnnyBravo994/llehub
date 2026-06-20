@@ -473,7 +473,11 @@ export async function cancelAgendaEvent(id: number): Promise<{ success: boolean;
     return { success: true };
   } catch (error) {
     console.error("Erro ao cancelar evento:", error);
-    return { success: false, message: error instanceof Error ? error.message : "Erro ao cancelar evento." };
+    let msg = "Erro desconhecido.";
+    if (error instanceof Error) msg = error.message;
+    else if (typeof error === "string") msg = error;
+    else { try { msg = JSON.stringify(error); } catch { msg = String(error); } }
+    return { success: false, message: msg };
   }
 }
 

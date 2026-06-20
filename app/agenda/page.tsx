@@ -199,11 +199,11 @@ export default function AgendaPage() {
   const [residenciaDates, setResidenciaDates] = useState<string[]>([]);
   const [trocaNovaData, setTrocaNovaData] = useState("");
 
-  const showToast = (msg: string, undo?: { label: string; fn: () => void }) => {
+  const showToast = (msg: string, undo?: { label: string; fn: () => void }, durationMs: number = 4000) => {
     if (toastTimer) clearTimeout(toastTimer);
     setToast(msg);
     setUndoAction(undo || null);
-    const t = setTimeout(() => { setToast(""); setUndoAction(null); }, 4000);
+    const t = setTimeout(() => { setToast(""); setUndoAction(null); }, durationMs);
     setToastTimer(t);
   };
 
@@ -361,7 +361,8 @@ export default function AgendaPage() {
     try {
       const res: { success: boolean; message?: string } = await cancelAgendaEvent(e.id);
       if (!res.success) {
-        showToast(res.message ? `Erro: ${res.message}` : "Erro ao cancelar evento");
+        console.error("Falha ao cancelar evento", { id: e.id, res });
+        showToast(res.message ? `Erro: ${res.message}` : "Erro ao cancelar evento (ver consola)", undefined, 10000);
         return;
       }
       await load();
@@ -387,7 +388,8 @@ export default function AgendaPage() {
       try {
         const res: { success: boolean; message?: string } = await cancelAgendaEvent(ev.id);
         if (!res.success) {
-          showToast(res.message ? `Erro: ${res.message}` : "Erro ao cancelar evento");
+          console.error("Falha ao cancelar evento", { id: ev.id, res });
+          showToast(res.message ? `Erro: ${res.message}` : "Erro ao cancelar evento (ver consola)", undefined, 10000);
           return;
         }
         closeModal(); await load();
@@ -1554,10 +1556,10 @@ export default function AgendaPage() {
         </div>
       )}
 
-      <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "#1a1408", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "1rem" }}>
-        <span>{toast}</span>
+      <div style={{ position: "fixed", bottom: "2rem", right: "2rem", maxWidth: "420px", background: "#1a1408", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: toast.length > 40 ? "0.02em" : "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: toast.length > 40 ? "none" : "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "1rem" }}>
+        <span style={{ wordBreak: "break-word", userSelect: "text" }}>{toast}</span>
         {undoAction && (
-          <button onClick={undoAction.fn} style={{ background: "rgba(201,169,110,0.15)", border: "1px solid rgba(201,169,110,0.3)", color: C.gold, fontSize: "9px", letterSpacing: "0.3em", padding: "0.3rem 0.75rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
+          <button onClick={undoAction.fn} style={{ background: "rgba(201,169,110,0.15)", border: "1px solid rgba(201,169,110,0.3)", color: C.gold, fontSize: "9px", letterSpacing: "0.3em", padding: "0.3rem 0.75rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, flexShrink: 0 }}>
             {undoAction.label}
           </button>
         )}
