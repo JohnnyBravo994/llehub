@@ -463,7 +463,7 @@ export async function updateAgendaEvent(
   }
 }
 
-export async function cancelAgendaEvent(id: number) {
+export async function cancelAgendaEvent(id: number): Promise<{ success: boolean; message?: string }> {
   try {
     await turso.execute({ sql: "UPDATE agenda SET status='Cancelado' WHERE id=?", args: [id] });
     // Propagar cancelamento para a lead ligada via event_id
@@ -477,7 +477,7 @@ export async function cancelAgendaEvent(id: number) {
   }
 }
 
-export async function restoreAgendaEvent(id: number) {
+export async function restoreAgendaEvent(id: number): Promise<{ success: boolean; message?: string }> {
   try {
     await turso.execute({ sql: "UPDATE agenda SET status='Confirmado' WHERE id=?", args: [id] });
     // Propagar restauro para a lead ligada via event_id
