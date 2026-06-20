@@ -359,7 +359,7 @@ export default function AgendaPage() {
     if (cancellingId === e.id) return;
     setCancellingId(e.id);
     try {
-      const res = await cancelAgendaEvent(e.id);
+      const res: { success: boolean; message?: string } = await cancelAgendaEvent(e.id);
       if (!res.success) {
         showToast(res.message ? `Erro: ${res.message}` : "Erro ao cancelar evento");
         return;
@@ -385,7 +385,7 @@ export default function AgendaPage() {
       const ev = modal.editing;
       setCancellingId(ev.id);
       try {
-        const res = await cancelAgendaEvent(ev.id);
+        const res: { success: boolean; message?: string } = await cancelAgendaEvent(ev.id);
         if (!res.success) {
           showToast(res.message ? `Erro: ${res.message}` : "Erro ao cancelar evento");
           return;
