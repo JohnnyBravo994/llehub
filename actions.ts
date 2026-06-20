@@ -471,7 +471,10 @@ export async function cancelAgendaEvent(id: number) {
     const eid = (row.rows[0] as any)?.event_id;
     if (eid) await turso.execute({ sql: "UPDATE leads SET status='Cancelado' WHERE event_id=?", args: [eid] });
     return { success: true };
-  } catch { return { success: false }; }
+  } catch (error) {
+    console.error("Erro ao cancelar evento:", error);
+    return { success: false, message: error instanceof Error ? error.message : "Erro ao cancelar evento." };
+  }
 }
 
 export async function restoreAgendaEvent(id: number) {
@@ -482,7 +485,10 @@ export async function restoreAgendaEvent(id: number) {
     const eid = (row.rows[0] as any)?.event_id;
     if (eid) await turso.execute({ sql: "UPDATE leads SET status='Contacto' WHERE event_id=? AND status='Cancelado'", args: [eid] });
     return { success: true };
-  } catch { return { success: false }; }
+  } catch (error) {
+    console.error("Erro ao repor evento:", error);
+    return { success: false, message: error instanceof Error ? error.message : "Erro ao repor evento." };
+  }
 }
 
 export async function deleteAgendaEvent(id: number) {

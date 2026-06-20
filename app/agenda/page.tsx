@@ -197,11 +197,7 @@ export default function AgendaPage() {
   const [clienteCreating, setClienteCreating] = useState(false);
   const [isResidencia, setIsResidencia] = useState(false);
   const [residenciaDates, setResidenciaDates] = useState<string[]>([]);
-  // ── Trocas: estado do modal de troca entre dois eventos ──────────────────
-  const [trocaModal, setTrocaModal] = useState(false);
-  const [trocaOrigemId, setTrocaOrigemId] = useState<number | null>(null);
-  const [trocaDestinoId, setTrocaDestinoId] = useState<number | null>(null);
-  const [trocaSaving, setTrocaSaving] = useState(false);
+  const [trocaNovaData, setTrocaNovaData] = useState("");
 
   const showToast = (msg: string, undo?: { label: string; fn: () => void }) => {
     if (toastTimer) clearTimeout(toastTimer);
@@ -304,6 +300,7 @@ export default function AgendaPage() {
     setArtists([emptyArtist()]);
     setIsResidencia(false);
     setResidenciaDates([]);
+    setTrocaNovaData("");
   };
 
   // Artist table helpers
@@ -362,7 +359,11 @@ export default function AgendaPage() {
     if (cancellingId === e.id) return;
     setCancellingId(e.id);
     try {
-      await cancelAgendaEvent(e.id);
+      const res = await cancelAgendaEvent(e.id);
+      if (!res.success) {
+        showToast(res.message ? `Erro: ${res.message}` : "Erro ao cancelar evento");
+        return;
+      }
       await load();
       showToast("Evento cancelado", {
         label: "Undo",
@@ -384,7 +385,11 @@ export default function AgendaPage() {
       const ev = modal.editing;
       setCancellingId(ev.id);
       try {
-        await cancelAgendaEvent(ev.id);
+        const res = await cancelAgendaEvent(ev.id);
+        if (!res.success) {
+          showToast(res.message ? `Erro: ${res.message}` : "Erro ao cancelar evento");
+          return;
+        }
         closeModal(); await load();
         showToast("Evento cancelado", {
           label: "Undo",
@@ -417,19 +422,9 @@ export default function AgendaPage() {
     setConfirmedLeads(prev => prev.filter(x => x.id !== l.id));
   };
 
-  // ── Trocas: troca o conteúdo (título, artistas, fee, local, etc.) entre dois
-  // eventos existentes, mantendo a data de cada um. Não apaga nem duplica nada —
-  // só troca os campos e adiciona uma anotação de troca em "notas".
-  const openTrocaModal = () => {
-    setTrocaOrigemId(null);
-    setTrocaDestinoId(null);
-    setTrocaModal(true);
-  };
-  const closeTrocaModal = () => {
-    setTrocaModal(false);
-    setTrocaOrigemId(null);
-    setTrocaDestinoId(null);
-  };
+  // ── Trocas: regista que um evento mudou de dia por troca com outra pessoa
+  // (ex: SUD), guardando o dia original como anotação em "notas". Não cria
+  // nem apaga eventos — só atualiza a data do evento existente.
   // Extrai a anotação de troca (se existir) do campo notas, sem perder o resto do texto
   const TROCA_TAG_RE = /\[TROCA:([^\]]*)\]/;
   const stripTrocaTag = (notas: string) => (notas || "").replace(TROCA_TAG_RE, "").trim();
@@ -437,52 +432,47 @@ export default function AgendaPage() {
     const m = TROCA_TAG_RE.exec(notas || "");
     return m ? m[1].trim() : null;
   };
-  const handleExecutarTroca = async () => {
-    if (!trocaOrigemId || !trocaDestinoId || trocaOrigemId === trocaDestinoId) return;
-    const origem = events.find(e => e.id === trocaOrigemId);
-    const destino = events.find(e => e.id === trocaDestinoId);
-    if (!origem || !destino) return;
-    setTrocaSaving(true);
-    try {
-      const fmtData = (d: string) => {
-        const [y, m, dd] = d.split("-");
-        return `${dd}/${m}`;
-      };
-      const origemArtistas = artistasMap[origem.id] || [];
-      const destinoArtistas = artistasMap[destino.id] || [];
-
-      const notaParaOrigem = `[TROCA:troca com evento de ${fmtData(destino.event_date)}]`;
-      const notaParaDestino = `[TROCA:troca com evento de ${fmtData(origem.event_date)}]`;
-
-      // Cada evento mantém a sua própria data; troca-se o resto do conteúdo.
-      await updateAgendaEvent(origem.id, {
-        title: destino.title, date: origem.event_date, time: destino.time_range || "",
-        tipo: destino.tipo || "", bill: Number(destino.bill) || 0,
-        billing_status: destino.billing_status, cliente_nome: destino.cliente_nome,
-        modalidade: destino.modalidade, venue: destino.venue || "",
-        contacto: destino.contacto || "",
-        notas: `${stripTrocaTag(destino.notas || "")} ${notaParaOrigem}`.trim(),
-      });
-      await updateAgendaEvent(destino.id, {
-        title: origem.title, date: destino.event_date, time: origem.time_range || "",
-        tipo: origem.tipo || "", bill: Number(origem.bill) || 0,
-        billing_status: origem.billing_status, cliente_nome: origem.cliente_nome,
-        modalidade: origem.modalidade, venue: origem.venue || "",
-        contacto: origem.contacto || "",
-        notas: `${stripTrocaTag(origem.notas || "")} ${notaParaDestino}`.trim(),
-      });
-      // Trocar também os artistas associados a cada evento
-      await syncArtistasEvento(origem.id, destino.title, origem.event_date, destinoArtistas.map(a => ({ nome: a.nome, tipo: a.tipo, fee: parseFloat(String(a.fee)) || 0 })));
-      await syncArtistasEvento(destino.id, origem.title, destino.event_date, origemArtistas.map(a => ({ nome: a.nome, tipo: a.tipo, fee: parseFloat(String(a.fee)) || 0 })));
-
-      showToast("Troca registada");
-      closeTrocaModal();
+  const fmtDataPt = (d: string) => {
+    const [, m, dd] = d.split("-");
+    return `${dd}/${m}`;
+  };
+  // Aplica a troca: muda a data do evento para novaData e regista o dia original na nota
+  const handleAplicarTroca = async (ev: AgendaEvent, novaData: string) => {
+    if (!novaData || novaData === ev.event_date) return;
+    const diaOriginal = fmtDataPt(ev.event_date);
+    const notaTroca = `[TROCA:troca, dia original ${diaOriginal}]`;
+    const notasBase = stripTrocaTag(ev.notas || "");
+    const res = await updateAgendaEvent(ev.id, {
+      title: ev.title, date: novaData, time: ev.time_range || "",
+      tipo: ev.tipo || "", bill: Number(ev.bill) || 0,
+      billing_status: ev.billing_status, cliente_nome: ev.cliente_nome,
+      modalidade: ev.modalidade, venue: ev.venue || "",
+      contacto: ev.contacto || "",
+      notas: `${notasBase} ${notaTroca}`.trim(),
+    });
+    if (res.success) {
+      showToast(`Evento movido para ${fmtDataPt(novaData)} (troca registada)`);
+      closeModal();
       await load();
-    } catch (err) {
-      console.error("Erro na troca:", err);
+    } else {
       showToast("Erro ao registar troca");
-    } finally {
-      setTrocaSaving(false);
+    }
+  };
+  // Remove a anotação de troca, sem alterar mais nada
+  const handleRemoverNotaTroca = async (ev: AgendaEvent) => {
+    const novasNotas = stripTrocaTag(ev.notas || "");
+    const res = await updateAgendaEvent(ev.id, {
+      title: ev.title, date: ev.event_date, time: ev.time_range || "",
+      tipo: ev.tipo || "", bill: Number(ev.bill) || 0,
+      billing_status: ev.billing_status, cliente_nome: ev.cliente_nome,
+      modalidade: ev.modalidade, venue: ev.venue || "",
+      contacto: ev.contacto || "",
+      notas: novasNotas,
+    });
+    if (res.success) {
+      showToast("Anotação de troca removida");
+      setModal(m => m.editing ? { ...m, editing: { ...m.editing, notas: novasNotas } } : m);
+      await load();
     }
   };
 
@@ -737,15 +727,6 @@ export default function AgendaPage() {
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
               WhatsApp
             </button>
-            {userRole !== "limited_novalues" && (
-            <button
-              onClick={openTrocaModal}
-              style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.2)", color: C.gold, fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 01-4 4H3"/></svg>
-              Trocas
-            </button>
-            )}
             {userRole !== "limited_novalues" && (
             <button onClick={openCreate} style={addBtnStyle}>
               <svg width="10" height="10" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
@@ -1130,6 +1111,24 @@ export default function AgendaPage() {
                   ? <span className="mob-card-value">{Number(e.bill).toLocaleString("pt-PT")}€</span>
                   : <span className="mob-card-value muted">—</span>
                 }
+                {userRole !== "limited_novalues" && (
+                  e.cancelled
+                    ? <button
+                        onClick={(ev) => { ev.stopPropagation(); handleRestore(e); }}
+                        title="Repor"
+                        style={{ background: "transparent", border: "none", color: "#5DCAA5", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-9" /></svg>
+                      </button>
+                    : <button
+                        onClick={(ev) => { ev.stopPropagation(); handleCancel(e); }}
+                        disabled={cancellingId === e.id}
+                        title="Cancelar"
+                        style={{ background: "transparent", border: "none", color: "#E24B4A", cursor: cancellingId === e.id ? "default" : "pointer", padding: "4px", display: "flex", alignItems: "center", opacity: cancellingId === e.id ? 0.4 : 1 }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><circle cx="8" cy="8" r="6" /><path d="M5 5l6 6M11 5l-6 6" /></svg>
+                      </button>
+                )}
                 <svg className="mob-card-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 4 10 8 6 12"/></svg>
               </div>
             </div>
@@ -1218,58 +1217,6 @@ export default function AgendaPage() {
                 }}
                 style={{ background: "#5DCAA5", border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}
               >Copiar novamente</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Trocas — Modal de troca entre dois eventos */}
-      {trocaModal && (
-        <div onClick={e => e.target === e.currentTarget && closeTrocaModal()} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "#131108", border: "1px solid rgba(201,169,110,0.12)", padding: "2rem", width: "460px", maxWidth: "95vw", position: "relative" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-              <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.6)", textTransform: "uppercase", fontWeight: 600 }}>Trocar Eventos</p>
-              <button onClick={closeTrocaModal} style={{ background: "transparent", border: "none", color: "rgba(245,240,232,0.3)", cursor: "pointer", fontSize: "16px" }}>✕</button>
-            </div>
-            <p style={{ fontSize: "10px", color: "rgba(245,240,232,0.4)", letterSpacing: "0.04em", marginBottom: "1.25rem", lineHeight: "1.6" }}>
-              Escolhe os dois eventos a trocar. As datas mantêm-se; o resto do conteúdo (artista, local, fee, notas) troca entre eles.
-            </p>
-            <FormField label="Evento de Origem">
-              <select
-                value={trocaOrigemId ?? ""}
-                onChange={e => setTrocaOrigemId(e.target.value ? Number(e.target.value) : null)}
-                style={inputStyle}
-              >
-                <option value="">Selecionar evento...</option>
-                {events.filter(e => !e.cancelled).map(e => (
-                  <option key={e.id} value={e.id}>
-                    {e.event_date.split("-").reverse().slice(0, 2).join("/")} — {e.title}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-            <FormField label="Evento de Destino">
-              <select
-                value={trocaDestinoId ?? ""}
-                onChange={e => setTrocaDestinoId(e.target.value ? Number(e.target.value) : null)}
-                style={inputStyle}
-              >
-                <option value="">Selecionar evento...</option>
-                {events.filter(e => !e.cancelled && e.id !== trocaOrigemId).map(e => (
-                  <option key={e.id} value={e.id}>
-                    {e.event_date.split("-").reverse().slice(0, 2).join("/")} — {e.title}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1.25rem" }}>
-              <button onClick={closeTrocaModal} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(245,240,232,0.35)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Cancelar</button>
-              <button
-                onClick={handleExecutarTroca}
-                disabled={!trocaOrigemId || !trocaDestinoId || trocaOrigemId === trocaDestinoId || trocaSaving}
-                style={{ background: "#C9A96E", border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: (!trocaOrigemId || !trocaDestinoId || trocaOrigemId === trocaDestinoId || trocaSaving) ? 0.4 : 1 }}
-              >{trocaSaving ? "A trocar..." : "Confirmar Troca"}</button>
             </div>
           </div>
         </div>
@@ -1561,6 +1508,40 @@ export default function AgendaPage() {
                 </>
               )}
             </div>
+
+            {modal.editing && !modal.editing.cancelled && (
+              <div style={{ marginTop: "1.5rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.4em", color: "rgba(245,240,232,0.22)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Troca de Dia</label>
+                {getTrocaNota(modal.editing.notas || "") ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", background: "rgba(201,169,110,0.06)", border: "1px solid rgba(201,169,110,0.18)", padding: "0.65rem 0.85rem" }}>
+                    <span style={{ fontSize: "10px", color: C.gold, letterSpacing: "0.03em" }}>
+                      🔁 {getTrocaNota(modal.editing.notas || "")}
+                    </span>
+                    <button
+                      onClick={() => handleRemoverNotaTroca(modal.editing as AgendaEvent)}
+                      style={{ background: "transparent", border: "none", color: "rgba(245,240,232,0.35)", fontSize: "8px", letterSpacing: "0.2em", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", flexShrink: 0 }}
+                    >Remover</button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
+                    <input
+                      type="date"
+                      value={trocaNovaData}
+                      onChange={e => setTrocaNovaData(e.target.value)}
+                      style={{ ...inputStyle, flex: 1 }}
+                    />
+                    <button
+                      onClick={() => { if (trocaNovaData) { handleAplicarTroca(modal.editing as AgendaEvent, trocaNovaData); setTrocaNovaData(""); } }}
+                      disabled={!trocaNovaData}
+                      style={{ ...btnSecStyle, padding: "0.7rem 1.1rem", flexShrink: 0, opacity: !trocaNovaData ? 0.4 : 1, color: C.gold, borderColor: "rgba(201,169,110,0.25)" }}
+                    >Registar troca</button>
+                  </div>
+                )}
+                <p style={{ fontSize: "9px", color: "rgba(245,240,232,0.3)", letterSpacing: "0.02em", marginTop: "0.6rem", lineHeight: "1.5" }}>
+                  Usa isto quando o evento mudou de dia por troca com outra pessoa (ex: SUD). O evento passa para o novo dia e fica anotado o dia original.
+                </p>
+              </div>
+            )}
 
             <div style={{ display: "flex", gap: "1rem", marginTop: "2rem", justifyContent: "flex-end" }}>
               <button onClick={closeModal} style={btnSecStyle}>Fechar</button>
