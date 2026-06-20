@@ -197,6 +197,11 @@ export default function AgendaPage() {
   const [clienteCreating, setClienteCreating] = useState(false);
   const [isResidencia, setIsResidencia] = useState(false);
   const [residenciaDates, setResidenciaDates] = useState<string[]>([]);
+  // ── Trocas: estado do modal de troca entre dois eventos ──────────────────
+  const [trocaModal, setTrocaModal] = useState(false);
+  const [trocaOrigemId, setTrocaOrigemId] = useState<number | null>(null);
+  const [trocaDestinoId, setTrocaDestinoId] = useState<number | null>(null);
+  const [trocaSaving, setTrocaSaving] = useState(false);
 
   const showToast = (msg: string, undo?: { label: string; fn: () => void }) => {
     if (toastTimer) clearTimeout(toastTimer);
@@ -293,7 +298,13 @@ export default function AgendaPage() {
     setLoadingArtists(false);
   };
 
-  const closeModal = () => setModal({ open: false, editing: null });
+  const closeModal = () => {
+    setModal({ open: false, editing: null });
+    setForm(emptyForm);
+    setArtists([emptyArtist()]);
+    setIsResidencia(false);
+    setResidenciaDates([]);
+  };
 
   // Artist table helpers
   const addArtistRow = () => setArtists(prev => [...prev, emptyArtist()]);
@@ -346,13 +357,20 @@ export default function AgendaPage() {
     load();
   };
 
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
   const handleCancel = async (e: AgendaEvent) => {
-    await cancelAgendaEvent(e.id);
-    load();
-    showToast("Evento cancelado", {
-      label: "Undo",
-      fn: async () => { await restoreAgendaEvent(e.id); setToast(""); setUndoAction(null); load(); },
-    });
+    if (cancellingId === e.id) return;
+    setCancellingId(e.id);
+    try {
+      await cancelAgendaEvent(e.id);
+      await load();
+      showToast("Evento cancelado", {
+        label: "Undo",
+        fn: async () => { await restoreAgendaEvent(e.id); setToast(""); setUndoAction(null); load(); },
+      });
+    } finally {
+      setCancellingId(null);
+    }
   };
   const handleRestore = async (e: AgendaEvent) => {
     await restoreAgendaEvent(e.id); showToast("Evento reposto"); load();
@@ -362,14 +380,19 @@ export default function AgendaPage() {
     await deleteAgendaEvent(id); showToast("Evento eliminado"); load();
   };
   const handleCancelFromModal = async () => {
-    if (modal.editing) {
+    if (modal.editing && !cancellingId) {
       const ev = modal.editing;
-      await cancelAgendaEvent(ev.id);
-      closeModal(); load();
-      showToast("Evento cancelado", {
-        label: "Undo",
-        fn: async () => { await restoreAgendaEvent(ev.id); setToast(""); setUndoAction(null); load(); },
-      });
+      setCancellingId(ev.id);
+      try {
+        await cancelAgendaEvent(ev.id);
+        closeModal(); await load();
+        showToast("Evento cancelado", {
+          label: "Undo",
+          fn: async () => { await restoreAgendaEvent(ev.id); setToast(""); setUndoAction(null); load(); },
+        });
+      } finally {
+        setCancellingId(null);
+      }
     }
   };
 
@@ -392,6 +415,75 @@ export default function AgendaPage() {
     if (!confirm(`Remover "${l.title}" da vista da agenda?\n(A lead continua nas Leads)`)) return;
     // Esconde localmente sem alterar a BD — basta retirar do state
     setConfirmedLeads(prev => prev.filter(x => x.id !== l.id));
+  };
+
+  // ── Trocas: troca o conteúdo (título, artistas, fee, local, etc.) entre dois
+  // eventos existentes, mantendo a data de cada um. Não apaga nem duplica nada —
+  // só troca os campos e adiciona uma anotação de troca em "notas".
+  const openTrocaModal = () => {
+    setTrocaOrigemId(null);
+    setTrocaDestinoId(null);
+    setTrocaModal(true);
+  };
+  const closeTrocaModal = () => {
+    setTrocaModal(false);
+    setTrocaOrigemId(null);
+    setTrocaDestinoId(null);
+  };
+  // Extrai a anotação de troca (se existir) do campo notas, sem perder o resto do texto
+  const TROCA_TAG_RE = /\[TROCA:([^\]]*)\]/;
+  const stripTrocaTag = (notas: string) => (notas || "").replace(TROCA_TAG_RE, "").trim();
+  const getTrocaNota = (notas: string): string | null => {
+    const m = TROCA_TAG_RE.exec(notas || "");
+    return m ? m[1].trim() : null;
+  };
+  const handleExecutarTroca = async () => {
+    if (!trocaOrigemId || !trocaDestinoId || trocaOrigemId === trocaDestinoId) return;
+    const origem = events.find(e => e.id === trocaOrigemId);
+    const destino = events.find(e => e.id === trocaDestinoId);
+    if (!origem || !destino) return;
+    setTrocaSaving(true);
+    try {
+      const fmtData = (d: string) => {
+        const [y, m, dd] = d.split("-");
+        return `${dd}/${m}`;
+      };
+      const origemArtistas = artistasMap[origem.id] || [];
+      const destinoArtistas = artistasMap[destino.id] || [];
+
+      const notaParaOrigem = `[TROCA:troca com evento de ${fmtData(destino.event_date)}]`;
+      const notaParaDestino = `[TROCA:troca com evento de ${fmtData(origem.event_date)}]`;
+
+      // Cada evento mantém a sua própria data; troca-se o resto do conteúdo.
+      await updateAgendaEvent(origem.id, {
+        title: destino.title, date: origem.event_date, time: destino.time_range || "",
+        tipo: destino.tipo || "", bill: Number(destino.bill) || 0,
+        billing_status: destino.billing_status, cliente_nome: destino.cliente_nome,
+        modalidade: destino.modalidade, venue: destino.venue || "",
+        contacto: destino.contacto || "",
+        notas: `${stripTrocaTag(destino.notas || "")} ${notaParaOrigem}`.trim(),
+      });
+      await updateAgendaEvent(destino.id, {
+        title: origem.title, date: destino.event_date, time: origem.time_range || "",
+        tipo: origem.tipo || "", bill: Number(origem.bill) || 0,
+        billing_status: origem.billing_status, cliente_nome: origem.cliente_nome,
+        modalidade: origem.modalidade, venue: origem.venue || "",
+        contacto: origem.contacto || "",
+        notas: `${stripTrocaTag(origem.notas || "")} ${notaParaDestino}`.trim(),
+      });
+      // Trocar também os artistas associados a cada evento
+      await syncArtistasEvento(origem.id, destino.title, origem.event_date, destinoArtistas.map(a => ({ nome: a.nome, tipo: a.tipo, fee: parseFloat(String(a.fee)) || 0 })));
+      await syncArtistasEvento(destino.id, origem.title, destino.event_date, origemArtistas.map(a => ({ nome: a.nome, tipo: a.tipo, fee: parseFloat(String(a.fee)) || 0 })));
+
+      showToast("Troca registada");
+      closeTrocaModal();
+      await load();
+    } catch (err) {
+      console.error("Erro na troca:", err);
+      showToast("Erro ao registar troca");
+    } finally {
+      setTrocaSaving(false);
+    }
   };
 
   // Verifica se um evento e so do Joao (equipa tem apenas azul)
@@ -502,13 +594,6 @@ export default function AgendaPage() {
 
   const buildAgendaTextForRange = (startDate: string, endDate: string, label: string): string => {
     const lines: string[] = [label, ""];
-    const TIPO_LABEL: Record<string, string> = {
-      "DJ": "🎧 DJ", "Cantor": "🎤 Cantor", "Cantora": "🎤 Cantora",
-      "Músico": "🎵 Músico", "Pianista": "🎹 Pianista", "Saxofonista": "🎷 Saxofone",
-      "Guitarrista": "🎸 Guitarra", "Baterista": "🥁 Bateria", "Violinista": "🎻 Violino",
-      "Backing Vocal": "🎤 Backing", "Host": "🎙️ Host", "Karaoke": "🎤 Karaoke",
-      "Produtor": "🧑🏽‍💻 Produtor", "Técnico": "🔧 Técnico", "Outro": "🎵",
-    };
     const parseLocalDate = (dateStr: string) => {
       const [y, m, d] = dateStr.split("-").map(Number);
       return new Date(y, m - 1, d);
@@ -536,40 +621,40 @@ export default function AgendaPage() {
         return true;
       });
       const dayLeads = confirmedLeads.filter(l => l.event_date === dateStr && !l.cancelled);
-      if (dayEvents.length === 0 && dayLeads.length === 0) {
-        lines.push(`*${dd}/${mm} ${wd}*`);
-        lines.push(`⛱️ FOLGA`);
-        lines.push("");
-      } else {
-        for (const e of dayEvents) {
+
+      // Dias sem nenhum evento/lead são omitidos (sem "FOLGA")
+      if (dayEvents.length > 0 || dayLeads.length > 0) {
+        const dateLabel = `*${dd}/${mm} (${wd}-feira)*`;
+        const totalItems = dayEvents.length + dayLeads.length;
+
+        const eventLineFor = (e: AgendaEvent): string => {
           const evArtists = artistasMap[e.id] || [];
           const seen = new Set<string>();
           const icons = evArtists
             .filter(a => a.nome.trim())
-            .map(a => { const ic = TIPO_ICON[a.tipo] || "🎵"; if (seen.has(ic)) return ""; seen.add(ic); return ic; })
-            .filter(Boolean).join("") || "🎵";
+            .map(a => { const ic = TIPO_ICON[a.tipo] || ""; if (!ic || seen.has(ic)) return ""; seen.add(ic); return ic; })
+            .filter(Boolean).join("");
           const title = (e.title || "").replace(/^\p{Emoji}[\p{Emoji}‍\s]*/u, "").trim();
-          const venue = e.venue ? `\n📍 ${e.venue}` : "";
-          const time = (e.time_range && e.time_range !== "undefined") ? `\n🕐 ${e.time_range}` : "";
-          const artistLines = evArtists
-            .filter(a => a.nome.trim())
-            .map(a => {
-              const label = TIPO_LABEL[a.tipo] || `🎵 ${a.tipo}`;
-              const fee = parseFloat(a.fee) > 0 ? ` (${Number(a.fee).toLocaleString("pt-PT", { minimumFractionDigits: 0 })}€)` : "";
-              return `   ${label}: ${resolveColaboradorNome(a.nome)}${fee}`;
-            }).join("\n");
-          const bill = e.bill ? `\n💶 Faturar: ${Number(e.bill).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€` : "";
-          lines.push(`*${dd}/${mm} ${wd} ${icons} ${title}*${venue}${time}`);
-          if (artistLines) lines.push(artistLines);
-          if (bill) lines.push(bill);
-          lines.push("");
-        }
-        for (const l of dayLeads) {
+          const trocaNota = getTrocaNota(e.notas || "");
+          const anotacao = trocaNota ? ` (${trocaNota})` : "";
+          return `💖${icons} ${title}${anotacao}`;
+        };
+        const leadLineFor = (l: Lead): string => {
           const status = (l.status || "").toLowerCase();
           const icon = ["confirmado","adjudicado","faturado","pago"].includes(status) ? "🟢" : status === "cancelado" ? "🔴" : "🟡";
-          lines.push(`*${dd}/${mm} ${wd} ${icon} ${l.title}*`);
+          return `${icon} ${l.title}`;
+        };
+
+        if (totalItems === 1) {
+          const onlyLine = dayEvents.length === 1 ? eventLineFor(dayEvents[0]) : leadLineFor(dayLeads[0]);
+          lines.push(`${dateLabel} ${onlyLine}`);
+        } else {
+          lines.push(dateLabel);
           lines.push("");
+          for (const e of dayEvents) lines.push(eventLineFor(e));
+          for (const l of dayLeads) lines.push(leadLineFor(l));
         }
+        lines.push("");
       }
       cur.setDate(cur.getDate() + 1);
     }
@@ -652,6 +737,15 @@ export default function AgendaPage() {
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
               WhatsApp
             </button>
+            {userRole !== "limited_novalues" && (
+            <button
+              onClick={openTrocaModal}
+              style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.2)", color: C.gold, fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 01-4 4H3"/></svg>
+              Trocas
+            </button>
+            )}
             {userRole !== "limited_novalues" && (
             <button onClick={openCreate} style={addBtnStyle}>
               <svg width="10" height="10" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
@@ -840,7 +934,7 @@ export default function AgendaPage() {
                       <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
                         <IconBtn title="Editar" onClick={() => openEdit(e)} icon="edit" />
                         {!e.cancelled
-                          ? <IconBtn title="Cancelar" onClick={() => handleCancel(e)} icon="cancel" danger />
+                          ? <IconBtn title="Cancelar" onClick={() => handleCancel(e)} icon="cancel" danger disabled={cancellingId === e.id} />
                           : <IconBtn title="Repor" onClick={() => handleRestore(e)} icon="restore" success />
                         }
                         <IconBtn title="Eliminar" onClick={() => handleDelete(e.id)} icon="delete" danger />
@@ -1124,6 +1218,58 @@ export default function AgendaPage() {
                 }}
                 style={{ background: "#5DCAA5", border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}
               >Copiar novamente</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Trocas — Modal de troca entre dois eventos */}
+      {trocaModal && (
+        <div onClick={e => e.target === e.currentTarget && closeTrocaModal()} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "#131108", border: "1px solid rgba(201,169,110,0.12)", padding: "2rem", width: "460px", maxWidth: "95vw", position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+              <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.6)", textTransform: "uppercase", fontWeight: 600 }}>Trocar Eventos</p>
+              <button onClick={closeTrocaModal} style={{ background: "transparent", border: "none", color: "rgba(245,240,232,0.3)", cursor: "pointer", fontSize: "16px" }}>✕</button>
+            </div>
+            <p style={{ fontSize: "10px", color: "rgba(245,240,232,0.4)", letterSpacing: "0.04em", marginBottom: "1.25rem", lineHeight: "1.6" }}>
+              Escolhe os dois eventos a trocar. As datas mantêm-se; o resto do conteúdo (artista, local, fee, notas) troca entre eles.
+            </p>
+            <FormField label="Evento de Origem">
+              <select
+                value={trocaOrigemId ?? ""}
+                onChange={e => setTrocaOrigemId(e.target.value ? Number(e.target.value) : null)}
+                style={inputStyle}
+              >
+                <option value="">Selecionar evento...</option>
+                {events.filter(e => !e.cancelled).map(e => (
+                  <option key={e.id} value={e.id}>
+                    {e.event_date.split("-").reverse().slice(0, 2).join("/")} — {e.title}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            <FormField label="Evento de Destino">
+              <select
+                value={trocaDestinoId ?? ""}
+                onChange={e => setTrocaDestinoId(e.target.value ? Number(e.target.value) : null)}
+                style={inputStyle}
+              >
+                <option value="">Selecionar evento...</option>
+                {events.filter(e => !e.cancelled && e.id !== trocaOrigemId).map(e => (
+                  <option key={e.id} value={e.id}>
+                    {e.event_date.split("-").reverse().slice(0, 2).join("/")} — {e.title}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1.25rem" }}>
+              <button onClick={closeTrocaModal} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(245,240,232,0.35)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Cancelar</button>
+              <button
+                onClick={handleExecutarTroca}
+                disabled={!trocaOrigemId || !trocaDestinoId || trocaOrigemId === trocaDestinoId || trocaSaving}
+                style={{ background: "#C9A96E", border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: (!trocaOrigemId || !trocaDestinoId || trocaOrigemId === trocaDestinoId || trocaSaving) ? 0.4 : 1 }}
+              >{trocaSaving ? "A trocar..." : "Confirmar Troca"}</button>
             </div>
           </div>
         </div>
@@ -1490,7 +1636,7 @@ function StatusBadge({ color, label }: { color: string; label: string }) {
   );
 }
 
-function IconBtn({ title, onClick, icon, danger, success }: { title: string; onClick: () => void; icon: string; danger?: boolean; success?: boolean }) {
+function IconBtn({ title, onClick, icon, danger, success, disabled }: { title: string; onClick: () => void; icon: string; danger?: boolean; success?: boolean; disabled?: boolean }) {
   const icons: Record<string, React.ReactNode> = {
     edit: <svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><path d="M11 2l3 3-9 9H2v-3l9-9z" /></svg>,
     cancel: <svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><circle cx="8" cy="8" r="6" /><path d="M5 5l6 6M11 5l-6 6" /></svg>,
@@ -1499,7 +1645,7 @@ function IconBtn({ title, onClick, icon, danger, success }: { title: string; onC
   };
   const color = danger ? "#E24B4A" : success ? "#5DCAA5" : "rgba(245,240,232,0.35)";
   return (
-    <button title={title} onClick={onClick} style={{ background: "transparent", border: "none", cursor: "pointer", padding: "5px", color, transition: "color 0.15s" }}>
+    <button title={title} onClick={onClick} disabled={disabled} style={{ background: "transparent", border: "none", cursor: disabled ? "default" : "pointer", padding: "5px", color, opacity: disabled ? 0.4 : 1, transition: "color 0.15s" }}>
       {icons[icon]}
     </button>
   );
