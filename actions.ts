@@ -316,6 +316,7 @@ export async function getDashboardData(userName: string = 'Admin', clientTodaySt
 }
 
 export async function getAllAgenda(userName: string = 'Admin') {
+  noStore();
   try {
     let sqlQuery = "SELECT * FROM agenda ORDER BY event_date ASC, id ASC";
     // Larissa mantém restrição anterior (só Public); Soraya e Tânia vêem tudo
@@ -465,7 +466,7 @@ export async function updateAgendaEvent(
 
 export async function cancelAgendaEvent(id: number): Promise<{ success: boolean; message?: string }> {
   try {
-    await turso.execute({ sql: "UPDATE agenda SET status='Cancelado' WHERE id=?", args: [id] });
+    await turso.execute({ sql: "UPDATE agenda SET status='Cancelado', billing_status='Cancelado' WHERE id=?", args: [id] });
     // Propagar cancelamento para a lead ligada via event_id
     const row = await turso.execute({ sql: "SELECT event_id FROM agenda WHERE id=?", args: [id] });
     const eid = (row.rows[0] as any)?.event_id;
@@ -483,7 +484,7 @@ export async function cancelAgendaEvent(id: number): Promise<{ success: boolean;
 
 export async function restoreAgendaEvent(id: number): Promise<{ success: boolean; message?: string }> {
   try {
-    await turso.execute({ sql: "UPDATE agenda SET status='Confirmado' WHERE id=?", args: [id] });
+    await turso.execute({ sql: "UPDATE agenda SET status='Confirmado', billing_status='Confirmado' WHERE id=?", args: [id] });
     // Propagar restauro para a lead ligada via event_id
     const row = await turso.execute({ sql: "SELECT event_id FROM agenda WHERE id=?", args: [id] });
     const eid = (row.rows[0] as any)?.event_id;
@@ -653,6 +654,7 @@ export async function addPagamento(data: { evento_id: number; evento_nome: strin
 // ── LEADS ─────────────────────────────────────────────────────────────────────
 
 export async function getAllLeads() {
+  noStore();
   try {
     const res = await turso.execute("SELECT l.*, (SELECT a.id FROM agenda a WHERE a.origem_lead_id = l.id LIMIT 1) as agenda_event_id FROM leads l ORDER BY COALESCE(l.event_date, '9999-99-99') ASC, l.id ASC");
     return {
@@ -808,6 +810,7 @@ export async function deleteLead(id: number) {
 // ── CLIENTES ──────────────────────────────────────────────────────────────────
 
 export async function getAllClientes() {
+  noStore();
   try {
     // Ensure alias column exists
     try { await turso.execute("ALTER TABLE clientes ADD COLUMN alias TEXT DEFAULT ''"); } catch {}
