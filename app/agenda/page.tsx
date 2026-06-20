@@ -624,11 +624,16 @@ export default function AgendaPage() {
 
         const eventLineFor = (e: AgendaEvent): string => {
           const evArtists = (artistasMap[e.id] || []).filter(a => a.nome.trim());
+          const seen = new Set<string>();
+          const icons = evArtists
+            .map(a => { const ic = TIPO_ICON[a.tipo] || ""; if (!ic || seen.has(ic)) return ""; seen.add(ic); return ic; })
+            .filter(Boolean).join("");
           const title = (e.title || "").trim();
           const venue = (e.venue || "").trim();
           const trocaNota = getTrocaNota(e.notas || "");
           const anotacao = trocaNota ? ` (${trocaNota})` : "";
-          const titleLine = venue ? `${title} — ${venue}${anotacao}` : `${title}${anotacao}`;
+          const prefix = icons ? `${icons} ` : "";
+          const titleLine = venue ? `${prefix}${title} — ${venue}${anotacao}` : `${prefix}${title}${anotacao}`;
           const artistLines = evArtists.map(a => `  * ${a.nome} | ${a.tipo}`).join("\n");
           return artistLines ? `${titleLine}\n${artistLines}` : titleLine;
         };
