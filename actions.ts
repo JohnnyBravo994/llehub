@@ -1237,3 +1237,177 @@ export async function syncAllExistingData() {
     return { success: false, synced: 0, total: 0 };
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MATERIAIS — catálogo de equipamento + controlo de saídas/entradas
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function setupMateriais() {
+  try {
+    await turso.execute(`
+      CREATE TABLE IF NOT EXISTS materiais (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        categoria TEXT DEFAULT '',
+        imagem TEXT DEFAULT '',
+        quantidade_total INTEGER NOT NULL DEFAULT 1,
+        notas TEXT DEFAULT '',
+        ativo INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+    await turso.execute(`
+      CREATE TABLE IF NOT EXISTS material_movimentos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        material_id INTEGER NOT NULL,
+        material_nome TEXT NOT NULL DEFAULT '',
+        material_imagem TEXT DEFAULT '',
+        quantidade INTEGER NOT NULL DEFAULT 1,
+        quantidade_devolvida INTEGER NOT NULL DEFAULT 0,
+        origem TEXT NOT NULL DEFAULT 'Loja',
+        origem_detalhe TEXT DEFAULT '',
+        evento TEXT DEFAULT '',
+        responsavel TEXT DEFAULT '',
+        notas TEXT DEFAULT '',
+        data_saida TEXT DEFAULT (datetime('now')),
+        data_volta TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+    return { success: true };
+  } catch (error) {
+    console.error("Erro setup materiais:", error);
+    return { success: false };
+  }
+}
+
+export async function getAllMateriais() {
+  try {
+    const res = await turso.execute("SELECT * FROM materiais ORDER BY nome ASC");
+    return {
+      success: true,
+      data: res.rows.map((r: any) => ({
+        id: Number(r.id),
+        nome: r.nome as string,
+        categoria: (r.categoria as string) || '',
+        imagem: (r.imagem as string) || '',
+        quantidade_total: Number(r.quantidade_total) || 0,
+        notas: (r.notas as string) || '',
+        ativo: r.ativo === 1 || r.ativo === true ? 1 : 0,
+      })),
+    };
+  } catch (error) {
+    console.error("Erro getAllMateriais:", error);
+    return { success: false, data: [] };
+  }
+}
+
+export async function createMaterial(data: {
+  nome: string; categoria?: string; imagem?: string; quantidade_total?: number; notas?: string;
+}) {
+  try {
+    await turso.execute({
+      sql: "INSERT INTO materiais (nome, categoria, imagem, quantidade_total, notas) VALUES (?, ?, ?, ?, ?)",
+      args: [data.nome, data.categoria || '', data.imagem || '', data.quantidade_total ?? 1, data.notas || ''],
+    });
+    const last = await turso.execute("SELECT last_insert_rowid() as id");
+    return { success: true, id: Number(last.rows[0].id) };
+  } catch (error) {
+    console.error("Erro criar material:", error);
+    return { success: false, message: "Erro ao criar material." };
+  }
+}
+
+export async function updateMaterial(id: number, data: {
+  nome: string; categoria?: string; imagem?: string; quantidade_total?: number; notas?: string;
+}) {
+  try {
+    await turso.execute({
+      sql: "UPDATE materiais SET nome=?, categoria=?, imagem=?, quantidade_total=?, notas=? WHERE id=?",
+      args: [data.nome, data.categoria || '', data.imagem || '', data.quantidade_total ?? 1, data.notas || '', id],
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Erro update material:", error);
+    return { success: false };
+  }
+}
+
+export async function toggleMaterialAtivo(id: number, ativo: number) {
+  try {
+    await turso.execute({ sql: "UPDATE materiais SET ativo=? WHERE id=?", args: [ativo, id] });
+    return { success: true };
+  } catch { return { success: false }; }
+}
+
+export async function getMovimentosMateriais() {
+  try {
+    const res = await turso.execute("SELECT * FROM material_movimentos ORDER BY data_saida DESC");
+    return {
+      success: true,
+      data: res.rows.map((r: any) => ({
+        id: Number(r.id),
+        material_id: Number(r.material_id),
+        material_nome: (r.material_nome as string) || '',
+        material_imagem: (r.material_imagem as string) || '',
+        quantidade: Number(r.quantidade) || 0,
+        quantidade_devolvida: Number(r.quantidade_devolvida) || 0,
+        origem: (r.origem as string) || 'Loja',
+        origem_detalhe: (r.origem_detalhe as string) || '',
+        evento: (r.evento as string) || '',
+        responsavel: (r.responsavel as string) || '',
+        notas: (r.notas as string) || '',
+        data_saida: (r.data_saida as string) || '',
+        data_volta: (r.data_volta as string) || null,
+      })),
+    };
+  } catch (error) {
+    console.error("Erro getMovimentosMateriais:", error);
+    return { success: false, data: [] };
+  }
+}
+
+export async function registarSaidaMaterial(data: {
+  material_id: number; material_nome: string; material_imagem?: string;
+  quantidade: number; origem: string; origem_detalhe?: string;
+  evento?: string; responsavel?: string; notas?: string;
+}) {
+  try {
+    await turso.execute({
+      sql: `INSERT INTO material_movimentos
+        (material_id, material_nome, material_imagem, quantidade, quantidade_devolvida, origem, origem_detalhe, evento, responsavel, notas, data_saida)
+        VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, datetime('now'))`,
+      args: [
+        data.material_id, data.material_nome, data.material_imagem || '',
+        data.quantidade, data.origem, data.origem_detalhe || '',
+        data.evento || '', data.responsavel || '', data.notas || '',
+      ],
+    });
+    const last = await turso.execute("SELECT last_insert_rowid() as id");
+    return { success: true, id: Number(last.rows[0].id) };
+  } catch (error) {
+    console.error("Erro registar saída material:", error);
+    return { success: false, message: "Erro ao registar saída." };
+  }
+}
+
+export async function registarVoltaMaterial(id: number, quantidade_devolvida: number, quantidade_total: number) {
+  try {
+    const fechado = quantidade_devolvida >= quantidade_total;
+    await turso.execute({
+      sql: `UPDATE material_movimentos SET quantidade_devolvida=?, data_volta=? WHERE id=?`,
+      args: [quantidade_devolvida, fechado ? new Date().toISOString().slice(0, 19).replace('T', ' ') : null, id],
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Erro registar volta material:", error);
+    return { success: false };
+  }
+}
+
+export async function deleteMovimentoMaterial(id: number) {
+  try {
+    await turso.execute({ sql: "DELETE FROM material_movimentos WHERE id=?", args: [id] });
+    return { success: true };
+  } catch { return { success: false }; }
+}

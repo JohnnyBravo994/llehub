@@ -627,7 +627,10 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     { href: "/clientes", label: "Clientes" },
   ];
   const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/clientes"];
-  const links = role === "admin" ? allLinks : allLinks.filter(l => !restrictedHrefs.includes(l.href));
+  const links = [
+    ...(role === "admin" ? allLinks : allLinks.filter(l => !restrictedHrefs.includes(l.href))),
+    ...(role !== "limited_novalues" ? [{ href: "/materiais", label: "Materiais" }] : []),
+  ];
   return (
     <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid rgba(255,255,255,0.05)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
@@ -701,6 +704,11 @@ function MobTabBar({ active, role }: { active: string; role: string }) {
   ];
 
   // Páginas no drawer "Mais" (admin only)
+  const materiaisTab = { href: "/materiais", label: "Materiais", id: "materiais", icon: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a4 4 0 018 0v2"/>
+    </svg>
+  )};
   const maisTabs = role === "admin" ? [
     { href: "/clientes", label: "Clientes", id: "clientes", icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -718,7 +726,8 @@ function MobTabBar({ active, role }: { active: string; role: string }) {
         <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
       </svg>
     )},
-  ] : [];
+    materiaisTab,
+  ] : role !== "limited_novalues" ? [materiaisTab] : [];
 
   const activeInMais = maisTabs.some(t => t.id === active);
 
@@ -771,7 +780,7 @@ function MobTabBar({ active, role }: { active: string; role: string }) {
           </a>
         ))}
         {/* Botão "Mais" — só para admin */}
-        {role === "admin" && (
+        {maisTabs.length > 0 && (
           <button
             onClick={() => setMaisOpen(v => !v)}
             className={`mob-tab${activeInMais ? " active" : ""}`}
