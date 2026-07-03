@@ -77,6 +77,8 @@ import {
   cancelAgendaEvent, restoreAgendaEvent, deleteAgendaEvent,
   getArtistasEvento, syncArtistasEvento, getAllArtistasAgenda, syncArtistasParaLead,
   getAllClientes, createCliente, getAllLeads, syncAllExistingData,
+  setupMateriais, getAllMateriais, getMovimentosMateriais, registarSaidaMaterial,
+  registarVoltaMaterial, deleteMovimentoMaterial,
 } from "../actions";
 
 interface AgendaEvent {
@@ -101,6 +103,20 @@ interface ArtistRow {
 interface Cliente {
   id: number; nome: string; nif?: string; alias?: string;
 }
+
+interface MaterialItem {
+  id: number; nome: string; categoria: string; imagem: string;
+  quantidade_total: number; notas: string; ativo: number;
+}
+
+interface MaterialMovimento {
+  id: number; material_id: number; material_nome: string; material_imagem: string;
+  quantidade: number; quantidade_devolvida: number;
+  origem: string; origem_detalhe: string; evento: string; evento_id: number | null;
+  responsavel: string; notas: string; data_saida: string; data_volta: string | null;
+}
+
+const MATERIAL_ORIGENS = ["Loja", "João", "Annia", "Outro"];
 
 const BILLING_ESTADOS = ["Contacto", "Proposta Enviada", "Em Negociação", "Confirmado", "Em Adjudicação", "Adjudicado", "Faturado", "Pago", "Cancelado"];
 
@@ -198,6 +214,12 @@ export default function AgendaPage() {
   const [isResidencia, setIsResidencia] = useState(false);
   const [residenciaDates, setResidenciaDates] = useState<string[]>([]);
   const [trocaNovaData, setTrocaNovaData] = useState("");
+  const [materiais, setMateriais] = useState<MaterialItem[]>([]);
+  const [movimentosMateriais, setMovimentosMateriais] = useState<MaterialMovimento[]>([]);
+  const [materialModal, setMaterialModal] = useState<{ open: boolean; event: AgendaEvent | null }>({ open: false, event: null });
+  const emptyReservaForm = { material_id: 0, quantidade: 1, origem: "Loja", origem_detalhe: "", notas: "" };
+  const [reservaForm, setReservaForm] = useState(emptyReservaForm);
+  const [reservaSaving, setReservaSaving] = useState(false);
 
   const showToast = (msg: string, undo?: { label: string; fn: () => void }, durationMs: number = 4000) => {
     if (toastTimer) clearTimeout(toastTimer);
@@ -238,6 +260,13 @@ export default function AgendaPage() {
     setLoading(false);
   }, []);
 
+  const loadMateriais = useCallback(async () => {
+    await setupMateriais();
+    const [mr, movr] = await Promise.all([getAllMateriais(), getMovimentosMateriais()]);
+    if (mr.success) setMateriais(mr.data as MaterialItem[]);
+    if (movr.success) setMovimentosMateriais(movr.data as MaterialMovimento[]);
+  }, []);
+
   const [userRole, setUserRole] = useState("");
 
   useEffect(() => {
@@ -253,8 +282,49 @@ export default function AgendaPage() {
       });
     }
     load();
+    loadMateriais();
     setTimeout(() => setMounted(true), 100);
-  }, [load]);
+  }, [load, loadMateriais]);
+
+  const materiaisAtivos = materiais.filter(m => m.ativo === 1);
+
+  const openMaterialModal = (e: AgendaEvent) => {
+    setReservaForm(emptyReservaForm);
+    setMaterialModal({ open: true, event: e });
+  };
+  const closeMaterialModal = () => setMaterialModal({ open: false, event: null });
+
+  const materiaisDoEvento = (eventoId: number) => movimentosMateriais.filter(m => m.evento_id === eventoId);
+  const materiaisPendentesDoEvento = (eventoId: number) => materiaisDoEvento(eventoId).filter(m => m.quantidade_devolvida < m.quantidade);
+
+  const handleReservarMaterial = async () => {
+    if (!materialModal.event) return;
+    const mat = materiais.find(m => m.id === reservaForm.material_id);
+    if (!mat) { showToast("Escolhe um material"); return; }
+    if (reservaForm.quantidade < 1) { showToast("Quantidade inválida"); return; }
+    if (reservaForm.origem === "Outro" && !reservaForm.origem_detalhe.trim()) { showToast("Especifica para onde vai"); return; }
+    setReservaSaving(true);
+    await registarSaidaMaterial({
+      material_id: mat.id, material_nome: mat.nome, material_imagem: mat.imagem,
+      quantidade: reservaForm.quantidade, origem: reservaForm.origem, origem_detalhe: reservaForm.origem_detalhe,
+      evento: materialModal.event.title, evento_id: materialModal.event.id,
+      responsavel: userName, notas: reservaForm.notas,
+    });
+    setReservaForm(emptyReservaForm);
+    await loadMateriais();
+    setReservaSaving(false);
+    showToast(`Material reservado: ${mat.nome}`);
+  };
+
+  const handleRemoverReservaMaterial = async (id: number) => {
+    await deleteMovimentoMaterial(id);
+    await loadMateriais();
+  };
+
+  const handleMaterialVoltou = async (mov: MaterialMovimento) => {
+    await registarVoltaMaterial(mov.id, mov.quantidade, mov.quantidade);
+    await loadMateriais();
+  };
 
   const openCreate = () => {
     setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
@@ -930,6 +1000,12 @@ export default function AgendaPage() {
                     <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
                       {userRole !== "limited_novalues" && (
                       <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
+                        <IconBtn
+                          title={materiaisPendentesDoEvento(e.id).length > 0 ? `${materiaisPendentesDoEvento(e.id).length} material(is) reservado(s)` : "Reservar material"}
+                          onClick={() => openMaterialModal(e)}
+                          icon="material"
+                          success={materiaisPendentesDoEvento(e.id).length > 0}
+                        />
                         <IconBtn title="Editar" onClick={() => openEdit(e)} icon="edit" />
                         {!e.cancelled
                           ? <IconBtn title="Cancelar" onClick={() => handleCancel(e)} icon="cancel" danger disabled={cancellingId === e.id} />
@@ -1128,6 +1204,15 @@ export default function AgendaPage() {
                   ? <span className="mob-card-value">{Number(e.bill).toLocaleString("pt-PT")}€</span>
                   : <span className="mob-card-value muted">—</span>
                 }
+                {userRole !== "limited_novalues" && (
+                  <button
+                    onClick={(ev) => { ev.stopPropagation(); openMaterialModal(e); }}
+                    title="Material"
+                    style={{ background: "transparent", border: "none", color: materiaisPendentesDoEvento(e.id).length > 0 ? "#5DCAA5" : "rgba(245,240,232,0.35)", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="1.8"><rect x="2" y="5" width="12" height="9" rx="1.2" /><path d="M5.5 5V3.5a2 2 0 014 0V5" /></svg>
+                  </button>
+                )}
                 {userRole !== "limited_novalues" && (
                   e.cancelled
                     ? <button
@@ -1571,6 +1656,71 @@ export default function AgendaPage() {
         </div>
       )}
 
+      {/* ── Modal: Reservar Material ── */}
+      {materialModal.open && materialModal.event && (
+        <div onClick={e => e.target === e.currentTarget && closeMaterialModal()} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", zIndex: 1150, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "#131108", border: `1px solid ${C.border}`, padding: "2rem", width: "480px", maxWidth: "95vw", maxHeight: "88vh", overflowY: "auto", position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
+              <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.6)", textTransform: "uppercase", fontWeight: 600 }}>Material do Evento</p>
+              <button onClick={closeMaterialModal} style={{ background: "transparent", border: "none", color: "rgba(245,240,232,0.3)", cursor: "pointer", fontSize: "16px" }}>✕</button>
+            </div>
+            <p style={{ fontSize: "12px", color: C.textPrimary, marginBottom: "1.25rem" }}>{materialModal.event.title}</p>
+
+            {materiaisDoEvento(materialModal.event.id).length > 0 && (
+              <div style={{ marginBottom: "1.25rem", display: "flex", flexDirection: "column", gap: "6px" }}>
+                {materiaisDoEvento(materialModal.event.id).map(mov => {
+                  const devolvido = mov.quantidade_devolvida >= mov.quantidade;
+                  return (
+                    <div key={mov.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "0.55rem 0.75rem", background: "rgba(255,255,255,0.03)", border: `1px solid ${C.borderDim}` }}>
+                      <span style={{ flex: 1, fontSize: "11px", color: C.textPrimary }}>{mov.material_nome} <span style={{ color: C.textMuted }}>×{mov.quantidade}</span></span>
+                      <span style={{ fontSize: "9px", color: devolvido ? C.green : C.amber, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                        {devolvido ? "Devolvido" : `Com ${mov.origem === "Outro" && mov.origem_detalhe ? mov.origem_detalhe : mov.origem}`}
+                      </span>
+                      {!devolvido && (
+                        <button onClick={() => handleMaterialVoltou(mov)} title="Marcar como devolvido" style={{ background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: C.green, fontSize: "8px", padding: "4px 8px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Voltou</button>
+                      )}
+                      <button onClick={() => handleRemoverReservaMaterial(mov.id)} title="Remover" style={{ background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: "13px" }}>×</button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <p style={{ fontSize: "8px", letterSpacing: "0.3em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Reservar novo material</p>
+
+            <div style={{ marginBottom: "0.85rem" }}>
+              <select style={{ ...inputStyle, cursor: "pointer" }} value={reservaForm.material_id} onChange={(e: any) => setReservaForm(f => ({ ...f, material_id: Number(e.target.value) }))}>
+                <option value={0}>Selecionar material...</option>
+                {materiaisAtivos.map(m => <option key={m.id} value={m.id}>{m.nome}{m.categoria ? ` · ${m.categoria}` : ""}</option>)}
+              </select>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "0.75rem", marginBottom: "0.85rem" }}>
+              <input type="number" min={1} style={inputStyle} value={reservaForm.quantidade} onChange={(e: any) => setReservaForm(f => ({ ...f, quantidade: Math.max(1, Number(e.target.value) || 1) }))} />
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                {MATERIAL_ORIGENS.map(o => (
+                  <button key={o} onClick={() => setReservaForm(f => ({ ...f, origem: o }))} style={{
+                    background: reservaForm.origem === o ? "rgba(201,169,110,0.18)" : "rgba(255,255,255,0.04)",
+                    border: `1px solid ${reservaForm.origem === o ? "rgba(201,169,110,0.4)" : "rgba(255,255,255,0.1)"}`,
+                    color: reservaForm.origem === o ? C.gold : C.textMuted,
+                    fontSize: "10px", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit",
+                  }}>{o}</button>
+                ))}
+              </div>
+            </div>
+            {reservaForm.origem === "Outro" && (
+              <input style={{ ...inputStyle, marginBottom: "0.85rem" }} placeholder="Especificar..." value={reservaForm.origem_detalhe} onChange={(e: any) => setReservaForm(f => ({ ...f, origem_detalhe: e.target.value }))} />
+            )}
+
+            <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
+              <button onClick={closeMaterialModal} style={btnSecStyle}>Fechar</button>
+              <button onClick={handleReservarMaterial} disabled={reservaSaving || !reservaForm.material_id} style={{ ...btnPrimStyle, opacity: !reservaForm.material_id ? 0.5 : 1 }}>{reservaSaving ? "A reservar..." : "Reservar"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ position: "fixed", bottom: "2rem", right: "2rem", maxWidth: "420px", background: "#1a1408", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: toast.length > 40 ? "0.02em" : "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: toast.length > 40 ? "none" : "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "1rem" }}>
         <span style={{ wordBreak: "break-word", userSelect: "text" }}>{toast}</span>
         {undoAction && (
@@ -1643,6 +1793,7 @@ function IconBtn({ title, onClick, icon, danger, success, disabled }: { title: s
     cancel: <svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><circle cx="8" cy="8" r="6" /><path d="M5 5l6 6M11 5l-6 6" /></svg>,
     restore: <svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-9" /></svg>,
     delete: <svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="3 6 4 14 12 14 13 6" /><path d="M2 6h12M10 6V4H6v2" /></svg>,
+    material: <svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="1.8"><rect x="2" y="5" width="12" height="9" rx="1.2" /><path d="M5.5 5V3.5a2 2 0 014 0V5" /></svg>,
   };
   const color = danger ? "#E24B4A" : success ? "#5DCAA5" : "rgba(245,240,232,0.35)";
   return (

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   getAllMateriais, createMaterial, updateMaterial, toggleMaterialAtivo,
   getMovimentosMateriais, registarSaidaMaterial, registarVoltaMaterial, deleteMovimentoMaterial,
-  setupMateriais,
+  setupMateriais, getEventosParaMateriais,
 } from "../actions";
 
 interface Material {
@@ -16,9 +16,14 @@ interface Material {
 interface Movimento {
   id: number; material_id: number; material_nome: string; material_imagem: string;
   quantidade: number; quantidade_devolvida: number;
-  origem: string; origem_detalhe: string; evento: string; responsavel: string; notas: string;
+  origem: string; origem_detalhe: string; evento: string; evento_id: number | null; responsavel: string; notas: string;
   data_saida: string; data_volta: string | null;
 }
+
+interface EventoOpcao { id: number; title: string; date: string; }
+
+const PESSOAL = "Pessoal";
+const SEL_PESSOAL = "pessoal";
 
 const C = {
   gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009",
@@ -27,11 +32,11 @@ const C = {
   green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
 };
 
-const CATEGORIAS = ["Som", "Luz", "DJ / Cabine", "Microfones", "Estrutura", "Decoração", "Outro"];
+const CATEGORIAS = ["Som", "Luz", "DJ / Cabine", "Microfones", "Estrutura", "Decoração", "Roupa", "Outro"];
 const ORIGENS = ["Loja", "João", "Annia", "Outro"];
 
 const emptyMaterialForm = { nome: "", categoria: "", imagem: "", quantidade_total: 1, notas: "" };
-const emptySaidaForm = { material_id: 0, quantidade: 1, origem: "Loja", origem_detalhe: "", evento: "", notas: "" };
+const emptySaidaForm = { material_id: 0, quantidade: 1, origem: "Loja", origem_detalhe: "", evento_sel: SEL_PESSOAL, evento: "", evento_id: null as number | null, notas: "" };
 
 function fmtDateTime(s: string) {
   if (!s) return "—";
@@ -79,12 +84,49 @@ function origemLabel(m: Movimento) {
   return m.origem === "Outro" && m.origem_detalhe ? m.origem_detalhe : m.origem;
 }
 
+function fmtDateShort(s: string) {
+  if (!s) return "";
+  const d = new Date(s + "T00:00:00");
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("pt-PT", { day: "2-digit", month: "short" });
+}
+
+// Agrupa movimentos por evento (ligado à agenda), texto legado, ou "Pessoal"
+function agruparPorEvento(movs: Movimento[], eventos: EventoOpcao[]) {
+  const eventosMap = new Map(eventos.map(e => [e.id, e]));
+  const groups = new Map<string, { key: string; label: string; date: string; isPessoal: boolean; items: Movimento[] }>();
+  for (const mov of movs) {
+    let key: string, label: string, date = "";
+    if (mov.evento_id) {
+      const ev = eventosMap.get(mov.evento_id);
+      key = `ev-${mov.evento_id}`;
+      label = ev?.title || mov.evento || `Evento #${mov.evento_id}`;
+      date = ev?.date || "";
+    } else if (mov.evento && mov.evento.trim() && mov.evento.trim() !== PESSOAL) {
+      key = `legacy-${mov.evento.trim().toLowerCase()}`;
+      label = mov.evento.trim();
+    } else {
+      key = "pessoal";
+      label = PESSOAL;
+    }
+    if (!groups.has(key)) groups.set(key, { key, label, date, isPessoal: key === "pessoal", items: [] });
+    groups.get(key)!.items.push(mov);
+  }
+  return Array.from(groups.values()).sort((a, b) => {
+    if (a.isPessoal !== b.isPessoal) return a.isPessoal ? 1 : -1;
+    if (a.date && b.date) return a.date.localeCompare(b.date);
+    if (a.date !== b.date) return a.date ? -1 : 1;
+    return a.label.localeCompare(b.label);
+  });
+}
+
 export default function MateriaisPage() {
   const router = useRouter();
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("admin");
   const [materiais, setMateriais] = useState<Material[]>([]);
   const [movimentos, setMovimentos] = useState<Movimento[]>([]);
+  const [eventos, setEventos] = useState<EventoOpcao[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [tab, setTab] = useState<"fora" | "historico" | "catalogo">("fora");
@@ -105,9 +147,10 @@ export default function MateriaisPage() {
 
   const load = useCallback(async () => {
     await setupMateriais();
-    const [mr, movr] = await Promise.all([getAllMateriais(), getMovimentosMateriais()]);
+    const [mr, movr, evr] = await Promise.all([getAllMateriais(), getMovimentosMateriais(), getEventosParaMateriais()]);
     if (mr.success) setMateriais(mr.data as Material[]);
     if (movr.success) setMovimentos(movr.data as Movimento[]);
+    if (evr.success) setEventos(evr.data as EventoOpcao[]);
     setLoading(false);
   }, []);
 
@@ -125,6 +168,9 @@ export default function MateriaisPage() {
   const materiaisAtivos = materiais.filter(m => m.ativo === 1);
   const movimentosAbertos = movimentos.filter(m => m.quantidade_devolvida < m.quantidade);
   const movimentosFechados = movimentos.filter(m => m.quantidade_devolvida >= m.quantidade);
+  const foraAgrupados = agruparPorEvento(movimentosAbertos, eventos);
+  const totalUnidades = materiaisAtivos.reduce((s, m) => s + m.quantidade_total, 0);
+  const totalFora = movimentosAbertos.reduce((s, m) => s + (m.quantidade - m.quantidade_devolvida), 0);
 
   function pendenteAtualDoMaterial(materialId: number) {
     return movimentosAbertos
@@ -144,11 +190,15 @@ export default function MateriaisPage() {
     if (!mat) { showToast("Escolhe um material"); return; }
     if (saidaForm.quantidade < 1) { showToast("Quantidade inválida"); return; }
     if (saidaForm.origem === "Outro" && !saidaForm.origem_detalhe.trim()) { showToast("Especifica para onde vai"); return; }
+    const isPessoal = saidaForm.evento_sel === SEL_PESSOAL;
+    const eventoSelecionado = isPessoal ? null : eventos.find(e => String(e.id) === saidaForm.evento_sel) || null;
     setSaving(true);
     await registarSaidaMaterial({
       material_id: mat.id, material_nome: mat.nome, material_imagem: mat.imagem,
       quantidade: saidaForm.quantidade, origem: saidaForm.origem, origem_detalhe: saidaForm.origem_detalhe,
-      evento: saidaForm.evento, responsavel: userName, notas: saidaForm.notas,
+      evento: isPessoal ? PESSOAL : (eventoSelecionado?.title || ""),
+      evento_id: isPessoal ? null : (eventoSelecionado?.id ?? null),
+      responsavel: userName, notas: saidaForm.notas,
     });
     showToast(`Saída registada: ${mat.nome}`);
     closeSaida();
@@ -269,6 +319,19 @@ export default function MateriaisPage() {
           </div>
         </div>
 
+        <div style={{ display: "flex", gap: "1.5rem", marginBottom: "1.25rem", flexWrap: "wrap" }}>
+          {[
+            { label: "Materiais ativos", value: materiaisAtivos.length },
+            { label: "Unidades totais", value: totalUnidades },
+            { label: "Unidades fora", value: totalFora, color: totalFora > 0 ? C.amber : undefined },
+          ].map(s => (
+            <div key={s.label} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <span style={{ fontSize: "16px", fontWeight: 700, color: s.color || C.textPrimary }}>{s.value}</span>
+              <span style={{ fontSize: "8px", letterSpacing: "0.2em", color: C.textMuted, textTransform: "uppercase" }}>{s.label}</span>
+            </div>
+          ))}
+        </div>
+
         <div style={{ display: "flex", borderBottom: `1px solid ${C.borderDim}`, marginBottom: "1.5rem" }}>
           <TabBtn id="fora" label="Fora" count={movimentosAbertos.length} />
           <TabBtn id="historico" label="Histórico" count={movimentosFechados.length} />
@@ -276,40 +339,54 @@ export default function MateriaisPage() {
         </div>
 
         {tab === "fora" && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(340px,1fr))", gap: "0.75rem" }}>
-            {movimentosAbertos.map(mov => {
-              const pendente = mov.quantidade - mov.quantidade_devolvida;
-              const dias = diasFora(mov.data_saida);
-              return (
-                <div key={mov.id} style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "1rem", display: "flex", gap: "0.85rem" }}>
-                  <MaterialThumb src={mov.material_imagem} size={56} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
-                      <span style={{ fontSize: "12px", fontWeight: 600 }}>{mov.material_nome}</span>
-                      <span style={{ fontSize: "12px", fontWeight: 700, color: C.amber, whiteSpace: "nowrap" }}>×{pendente}</span>
-                    </div>
-                    <div style={{ fontSize: "10px", color: C.textSec, marginTop: "2px" }}>
-                      Com <span style={{ color: C.gold }}>{origemLabel(mov)}</span> · {dias === 0 ? "hoje" : dias === 1 ? "há 1 dia" : `há ${dias} dias`}
-                    </div>
-                    {mov.evento && <div style={{ fontSize: "10px", color: C.textMuted, marginTop: "1px" }}>{mov.evento}</div>}
-                    <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px" }}>Saída: {fmtDateTime(mov.data_saida)} · {mov.responsavel}</div>
-                    <div style={{ display: "flex", gap: "6px", marginTop: "0.6rem", alignItems: "center" }}>
-                      <button onClick={() => handleVoltou(mov)} style={{ background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: C.green, fontSize: "9px", letterSpacing: "0.15em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
-                      {pendente > 1 && (
-                        <>
-                          <input type="number" min={1} max={pendente} value={voltaQty[mov.id] ?? 1}
-                            onChange={e => setVoltaQty(v => ({ ...v, [mov.id]: Math.max(1, Math.min(pendente, Number(e.target.value) || 1)) }))}
-                            style={{ width: "44px", background: "rgba(255,255,255,0.05)", border: `1px solid ${C.border}`, color: C.textPrimary, fontSize: "10px", padding: "5px", textAlign: "center", outline: "none" }} />
-                          <button onClick={() => handleVoltou(mov, voltaQty[mov.id] ?? 1)} style={{ ...btnSecStyle, padding: "5px 10px", fontSize: "8px" }}>Parcial</button>
-                        </>
-                      )}
-                      <button onClick={() => handleDeleteMovimento(mov.id)} title="Apagar registo" style={{ marginLeft: "auto", background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: "13px" }}>×</button>
-                    </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            {foraAgrupados.map(group => (
+              <div key={group.key} style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1.1rem", borderBottom: `1px solid ${C.borderDim}`, background: "rgba(201,169,110,0.04)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{ fontSize: "9px", letterSpacing: "0.2em", fontWeight: 700, color: group.isPessoal ? C.textSec : C.gold, textTransform: "uppercase" }}>
+                      {group.isPessoal ? "👤 Pessoal" : `🎪 ${group.label}`}
+                    </span>
+                    {group.date && <span style={{ fontSize: "9px", color: C.textMuted, letterSpacing: "0.1em" }}>{fmtDateShort(group.date)}</span>}
                   </div>
+                  <span style={{ fontSize: "9px", color: C.textMuted, background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: "8px" }}>{group.items.length} {group.items.length === 1 ? "item" : "itens"}</span>
                 </div>
-              );
-            })}
-            {movimentosAbertos.length === 0 && <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "3rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Nada fora de momento — tudo na loja</div>}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: "0.6rem", padding: "0.85rem" }}>
+                  {group.items.map(mov => {
+                    const pendente = mov.quantidade - mov.quantidade_devolvida;
+                    const dias = diasFora(mov.data_saida);
+                    return (
+                      <div key={mov.id} style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${C.borderDim}`, padding: "0.85rem", display: "flex", gap: "0.75rem" }}>
+                        <MaterialThumb src={mov.material_imagem} size={48} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+                            <span style={{ fontSize: "12px", fontWeight: 600 }}>{mov.material_nome}</span>
+                            <span style={{ fontSize: "12px", fontWeight: 700, color: C.amber, whiteSpace: "nowrap" }}>×{pendente}</span>
+                          </div>
+                          <div style={{ fontSize: "10px", color: C.textSec, marginTop: "2px" }}>
+                            Com <span style={{ color: C.gold }}>{origemLabel(mov)}</span> · {dias === 0 ? "hoje" : dias === 1 ? "há 1 dia" : `há ${dias} dias`}
+                          </div>
+                          <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px" }}>Saída: {fmtDateTime(mov.data_saida)} · {mov.responsavel}</div>
+                          <div style={{ display: "flex", gap: "6px", marginTop: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
+                            <button onClick={() => handleVoltou(mov)} style={{ background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: C.green, fontSize: "9px", letterSpacing: "0.15em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
+                            {pendente > 1 && (
+                              <>
+                                <input type="number" min={1} max={pendente} value={voltaQty[mov.id] ?? 1}
+                                  onChange={e => setVoltaQty(v => ({ ...v, [mov.id]: Math.max(1, Math.min(pendente, Number(e.target.value) || 1)) }))}
+                                  style={{ width: "44px", background: "rgba(255,255,255,0.05)", border: `1px solid ${C.border}`, color: C.textPrimary, fontSize: "10px", padding: "5px", textAlign: "center", outline: "none" }} />
+                                <button onClick={() => handleVoltou(mov, voltaQty[mov.id] ?? 1)} style={{ ...btnSecStyle, padding: "5px 10px", fontSize: "8px" }}>Parcial</button>
+                              </>
+                            )}
+                            <button onClick={() => handleDeleteMovimento(mov.id)} title="Apagar registo" style={{ marginLeft: "auto", background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: "13px" }}>×</button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            {movimentosAbertos.length === 0 && <div style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Nada fora de momento — tudo na loja</div>}
           </div>
         )}
 
@@ -398,26 +475,54 @@ export default function MateriaisPage() {
         <TabBtn id="catalogo" label="Catálogo" count={materiaisAtivos.length} />
       </div>
 
-      <div className="mob-list">
-        {tab === "fora" && movimentosAbertos.map(mov => {
-          const pendente = mov.quantidade - mov.quantidade_devolvida;
-          const dias = diasFora(mov.data_saida);
-          return (
-            <div key={mov.id} style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: "0.75rem" }}>
-              <MaterialThumb src={mov.material_imagem} size={48} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: "12px", fontWeight: 600 }}>{mov.material_nome}</span>
-                  <span style={{ fontSize: "12px", fontWeight: 700, color: "#EF9F27" }}>×{pendente}</span>
-                </div>
-                <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.45)", marginTop: "2px" }}>
-                  Com <span style={{ color: "#C9A96E" }}>{origemLabel(mov)}</span> · {dias === 0 ? "hoje" : `há ${dias}d`}
-                </div>
-                <button onClick={() => handleVoltou(mov)} style={{ marginTop: "0.5rem", background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: "#5DCAA5", fontSize: "10px", letterSpacing: "0.1em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
-              </div>
+      {tab === "fora" && (
+        <div style={{ display: "flex", gap: "1.25rem", padding: "0.85rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+          {[
+            { label: "Ativos", value: materiaisAtivos.length },
+            { label: "Total", value: totalUnidades },
+            { label: "Fora", value: totalFora, color: totalFora > 0 ? "#EF9F27" : undefined },
+          ].map(s => (
+            <div key={s.label} style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+              <span style={{ fontSize: "14px", fontWeight: 700, color: s.color || "#F5F0E8" }}>{s.value}</span>
+              <span style={{ fontSize: "7px", letterSpacing: "0.15em", color: "rgba(245,240,232,0.3)", textTransform: "uppercase" }}>{s.label}</span>
             </div>
-          );
-        })}
+          ))}
+        </div>
+      )}
+
+      <div className="mob-list">
+        {tab === "fora" && foraAgrupados.map(group => (
+          <div key={group.key} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.7rem 1.1rem", background: "rgba(201,169,110,0.05)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "9px", letterSpacing: "0.15em", fontWeight: 700, color: group.isPessoal ? "rgba(245,240,232,0.45)" : "#C9A96E", textTransform: "uppercase" }}>
+                  {group.isPessoal ? "👤 Pessoal" : `🎪 ${group.label}`}
+                </span>
+                {group.date && <span style={{ fontSize: "9px", color: "rgba(245,240,232,0.25)" }}>{fmtDateShort(group.date)}</span>}
+              </div>
+              <span style={{ fontSize: "9px", color: "rgba(245,240,232,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 7px", borderRadius: "8px" }}>{group.items.length}</span>
+            </div>
+            {group.items.map(mov => {
+              const pendente = mov.quantidade - mov.quantidade_devolvida;
+              const dias = diasFora(mov.data_saida);
+              return (
+                <div key={mov.id} style={{ padding: "0.9rem 1.1rem", borderTop: "1px solid rgba(255,255,255,0.03)", display: "flex", gap: "0.75rem" }}>
+                  <MaterialThumb src={mov.material_imagem} size={48} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: "12px", fontWeight: 600 }}>{mov.material_nome}</span>
+                      <span style={{ fontSize: "12px", fontWeight: 700, color: "#EF9F27" }}>×{pendente}</span>
+                    </div>
+                    <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.45)", marginTop: "2px" }}>
+                      Com <span style={{ color: "#C9A96E" }}>{origemLabel(mov)}</span> · {dias === 0 ? "hoje" : `há ${dias}d`}
+                    </div>
+                    <button onClick={() => handleVoltou(mov)} style={{ marginTop: "0.5rem", background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: "#5DCAA5", fontSize: "10px", letterSpacing: "0.1em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
         {tab === "fora" && movimentosAbertos.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "rgba(245,240,232,0.2)", letterSpacing: "0.2em" }}>Nada fora — tudo na loja</div>}
 
         {tab === "historico" && movimentosFechados.map(mov => (
@@ -465,12 +570,12 @@ export default function MateriaisPage() {
       <>
         <div className="mob-page-desktop" onClick={e => e.target === e.currentTarget && closeSaida()} style={overlayStyle}>
           <div style={modalStyle}><div style={topLineStyle} />
-            <SaidaModalContent {...{ materiais: materiaisAtivos, saidaForm, setSaidaForm, saving, closeSaida, handleRegistarSaida, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C, MaterialThumb }} />
+            <SaidaModalContent {...{ materiais: materiaisAtivos, eventos, saidaForm, setSaidaForm, saving, closeSaida, handleRegistarSaida, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C, MaterialThumb }} />
           </div>
         </div>
         <div className="mob-shell" onClick={e => e.target === e.currentTarget && closeSaida()} style={overlayBottomStyle}>
           <div style={modalMobStyle}><div style={topLineStyle} />
-            <SaidaModalContent {...{ materiais: materiaisAtivos, saidaForm, setSaidaForm, saving, closeSaida, handleRegistarSaida, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C, MaterialThumb }} />
+            <SaidaModalContent {...{ materiais: materiaisAtivos, eventos, saidaForm, setSaidaForm, saving, closeSaida, handleRegistarSaida, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C, MaterialThumb }} />
           </div>
         </div>
       </>
@@ -499,7 +604,7 @@ export default function MateriaisPage() {
   );
 }
 
-function SaidaModalContent({ materiais, saidaForm, setSaidaForm, saving, closeSaida, handleRegistarSaida, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C, MaterialThumb }: any) {
+function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving, closeSaida, handleRegistarSaida, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C, MaterialThumb }: any) {
   const selected = materiais.find((m: Material) => m.id === saidaForm.material_id);
   return (
     <>
@@ -543,8 +648,13 @@ function SaidaModalContent({ materiais, saidaForm, setSaidaForm, saving, closeSa
       </div>
 
       <div style={{ marginBottom: "1rem" }}>
-        <label style={labelStyle}>Evento / Local (opcional)</label>
-        <input style={inputStyle} placeholder="Ex: Casamento Quinta da Pacheca..." value={saidaForm.evento} onChange={(e: any) => setSaidaForm((f: any) => ({ ...f, evento: e.target.value }))} />
+        <label style={labelStyle}>Para evento ou pessoal?</label>
+        <select style={{ ...inputStyle, cursor: "pointer" }} value={saidaForm.evento_sel} onChange={(e: any) => setSaidaForm((f: any) => ({ ...f, evento_sel: e.target.value }))}>
+          <option value="pessoal">👤 Pessoal (sem evento)</option>
+          {eventos.map((ev: EventoOpcao) => (
+            <option key={ev.id} value={String(ev.id)}>{ev.date ? `${fmtDateShort(ev.date)} · ` : ""}{ev.title}</option>
+          ))}
+        </select>
       </div>
 
       <div style={{ marginBottom: "1.5rem" }}>
