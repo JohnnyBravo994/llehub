@@ -109,7 +109,7 @@ html.light-theme .mob-tabbar {
   transition: color 0.15s;
 }
 html.light-theme .mob-tab-icon {
-  color: rgba(26,20,16,0.4);
+  color: rgba(26,20,16,0.65);
 }
 .mob-tab-label {
   font-family: 'Montserrat', sans-serif;
@@ -120,7 +120,7 @@ html.light-theme .mob-tab-icon {
   transition: color 0.15s;
 }
 html.light-theme .mob-tab-label {
-  color: rgba(26,20,16,0.4);
+  color: rgba(26,20,16,0.65);
 }
 .mob-tab.active .mob-tab-icon,
 .mob-tab.active .mob-tab-label { color: #C9A96E; }
@@ -247,7 +247,7 @@ html.light-theme .mob-months {
 }
 html.light-theme .mob-mpill {
   border: 1px solid rgba(26,20,16,0.18);
-  color: rgba(26,20,16,0.45);
+  color: rgba(26,20,16,0.75);
 }
 .mob-mpill.active {
   background: rgba(201,169,110,0.10);
@@ -319,7 +319,8 @@ html.light-theme .mob-card:active { background: rgba(139,111,71,0.05); }
   white-space: nowrap;
 }
 html.light-theme .mob-date-day {
-  color: rgba(26,20,16,0.65);
+  color: #1a1410;
+  font-weight: 400;
 }
 .mob-date-weekday {
   font-size: 8.5px;
@@ -329,12 +330,13 @@ html.light-theme .mob-date-day {
   margin-top: 1px;
 }
 html.light-theme .mob-date-weekday {
-  color: rgba(26,20,16,0.35);
+  color: rgba(26,20,16,0.85);
+  font-weight: 500;
 }
 .mob-card.is-today .mob-date-day { color: #C9A96E; }
 html.light-theme .mob-card.is-today .mob-date-day { color: #8B6F47; }
 .mob-card.is-today .mob-date-weekday { color: rgba(201,169,110,0.55); }
-html.light-theme .mob-card.is-today .mob-date-weekday { color: rgba(139,111,71,0.55); }
+html.light-theme .mob-card.is-today .mob-date-weekday { color: rgba(139,111,71,0.85); }
 
 /* Card body */
 .mob-card-body {
