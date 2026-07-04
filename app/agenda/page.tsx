@@ -1095,6 +1095,13 @@ export default function AgendaPage() {
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           <button
+            onClick={() => setLightTheme(!lightTheme)}
+            title={lightTheme ? "Mudar para tema escuro" : "Mudar para tema claro"}
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(245,240,232,0.4)", fontSize: "10px", padding: "0.5rem 0.5rem", cursor: "pointer", borderRadius: "2px", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            {lightTheme ? "🌙" : "☀️"}
+          </button>
+          <button
             onClick={openWaPeriodModal}
             style={{ background: "rgba(93,202,165,0.08)", border: "1px solid rgba(93,202,165,0.2)", color: "#5DCAA5", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px" }}
             title="Copiar Agenda para WhatsApp"
