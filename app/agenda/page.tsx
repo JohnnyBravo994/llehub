@@ -333,12 +333,12 @@ export default function AgendaPage() {
     if (reservaForm.quantidade < 1) { showToast("Quantidade inválida"); return; }
     if (reservaForm.origem === "Outro" && !reservaForm.origem_detalhe.trim()) { showToast("Especifica para onde vai"); return; }
     setReservaSaving(true);
-    await registarSaidaMaterial({
+    const res = await registarSaidaMaterial({
       material_id: mat.id, material_nome: mat.nome, material_imagem: mat.imagem,
       quantidade: reservaForm.quantidade, origem: reservaForm.origem, origem_detalhe: reservaForm.origem_detalhe,
       evento: materialModal.event.title, evento_id: materialModal.event.id,
       responsavel: userName, notas: reservaForm.notas,
-    });
+    } as any);
     setReservaForm(emptyReservaForm);
     await loadMateriais();
     setReservaSaving(false);
