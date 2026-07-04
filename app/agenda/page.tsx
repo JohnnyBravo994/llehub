@@ -159,10 +159,10 @@ const C = {
 
 // Light theme colors
 const C_Light = {
-  gold: "#8B6F47", goldDim: "#6B5837", surface: "#F5F5F5",
-  border: "rgba(0,0,0,0.1)", borderDim: "rgba(0,0,0,0.08)",
-  textPrimary: "#1a1a1a", textSec: "rgba(26,26,26,0.6)", textMuted: "rgba(26,26,26,0.4)",
-  green: "#4a9d7f", amber: "#D47E1F", blue: "#6B8CB8", red: "#C63D38",
+  gold: "#8B6F47", goldDim: "#6B5837", surface: "#F8F3ED",
+  border: "rgba(26,20,16,0.18)", borderDim: "rgba(26,20,16,0.12)",
+  textPrimary: "#1a1410", textSec: "rgba(26,20,16,0.65)", textMuted: "rgba(26,20,16,0.45)",
+  green: "#3d8066", amber: "#B8660D", blue: "#5B7A9F", red: "#A13232",
 };
 
 // Helper to get colors based on theme
@@ -832,8 +832,8 @@ export default function AgendaPage() {
   return (
     <>
     {/* ═══ DESKTOP ═══ */}
-    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: lightTheme ? "#FFFFFF" : "#0C0B09", color: lightTheme ? "#1a1a1a" : Colors.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <Nav userName={userName} active="agenda" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
+    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: lightTheme ? "#FFFBF7" : "#0C0B09", color: lightTheme ? Colors.textPrimary : Colors.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
+      <Nav userName={userName} active="agenda" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} lightTheme={lightTheme} />
 
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
@@ -854,7 +854,7 @@ export default function AgendaPage() {
               WhatsApp
             </button>
             {userRole !== "limited_novalues" && (
-            <button onClick={openCreate} style={addBtnStyle}>
+            <button onClick={openCreate} style={createAddBtnStyle(lightTheme)}>
               <svg width="10" height="10" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
               Novo Evento
             </button>
@@ -925,8 +925,8 @@ export default function AgendaPage() {
                     const isFolgaToday = row.date === todayStr;
                     return (
                       <tr key={`folga-${row.date}`} style={{ opacity: 0.38, background: isFolgaToday ? "rgba(201,169,110,0.04)" : undefined }}>
-                        <td style={{ ...tdStyle({ nowrap: true }), color: isFolgaToday ? "#C9A96E" : undefined, fontWeight: isFolgaToday ? 700 : undefined }}>{fmtDate(row.date)}</td>
-                        <td colSpan={8} style={{ ...tdStyle({}), fontSize: "10px", color: Colors.textMuted, letterSpacing: "0.2em", fontStyle: "italic" }}>
+                        <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), color: isFolgaToday ? "#C9A96E" : undefined, fontWeight: isFolgaToday ? 700 : undefined }}>{fmtDate(row.date)}</td>
+                        <td colSpan={8} style={{ ...createTdStyle(lightTheme, {}), fontSize: "10px", color: Colors.textMuted, letterSpacing: "0.2em", fontStyle: "italic" }}>
                           ⛱️ Folga
                         </td>
                       </tr>
@@ -937,8 +937,8 @@ export default function AgendaPage() {
                     const isLeadToday = l.event_date === todayStr;
                     return (
                       <tr key={`lead-${l.id}`} style={{ background: isLeadToday ? "rgba(201,169,110,0.07)" : "rgba(201,169,110,0.04)", borderLeft: isLeadToday ? `3px solid ${Colors.gold}` : `2px solid rgba(201,169,110,0.35)` }}>
-                        <td style={{ ...tdStyle({ nowrap: true }), color: isLeadToday ? Colors.gold : undefined, fontWeight: isLeadToday ? 700 : undefined }}>{fmtDate(l.event_date)}</td>
-                        <td style={{ ...tdStyle({}), maxWidth: "280px" }}>
+                        <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), color: isLeadToday ? Colors.gold : undefined, fontWeight: isLeadToday ? 700 : undefined }}>{fmtDate(l.event_date)}</td>
+                        <td style={{ ...createTdStyle(lightTheme, {}), maxWidth: "280px" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                             <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                               <span style={{ fontSize: "11px" }}>{l.title}</span>
@@ -946,14 +946,14 @@ export default function AgendaPage() {
                             <span style={{ fontSize: "8px", color: Colors.goldDim, letterSpacing: "0.25em", textTransform: "uppercase" }}>Lead · {l.status}</span>
                           </div>
                         </td>
-                        <td style={tdStyle({ muted: true })} colSpan={3}>—</td>
-                        <td style={tdStyle({ muted: true })}>
+                        <td style={createTdStyle(lightTheme, { muted: true })} colSpan={3}>—</td>
+                        <td style={createTdStyle(lightTheme, { muted: true })}>
                           <span style={{ fontSize: "9px", color: Colors.textMuted }}>{l.modalidade || "Fatura"}</span>
                         </td>
-                        <td style={tdStyle({})}>
+                        <td style={createTdStyle(lightTheme, {})}>
                           <StatusBadge color={Colors.amber} label={l.status || "Confirmado"} />
                         </td>
-                        <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "11px" }}>
+                        <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "11px" }}>
                           {userRole === "limited_novalues" ? "—" : (Number(l.value) > 0 ? `${Number(l.value).toLocaleString("pt-PT")}€` : "—")}
                         </td>
                         <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
@@ -974,8 +974,8 @@ export default function AgendaPage() {
                   const isEventToday = e.event_date === todayStr;
                   return (
                   <tr key={e.id} style={{ opacity: e.cancelled ? 0.45 : 1, background: isEventToday ? "rgba(201,169,110,0.06)" : undefined, borderLeft: isEventToday ? `3px solid ${Colors.gold}` : undefined }}>
-                    <td style={{ ...tdStyle({ nowrap: true }), color: isEventToday ? Colors.gold : undefined, fontWeight: isEventToday ? 700 : undefined }}>{fmtDate(e.event_date)}</td>
-                    <td style={{ ...tdStyle({}), maxWidth: "280px" }}>
+                    <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), color: isEventToday ? Colors.gold : undefined, fontWeight: isEventToday ? 700 : undefined }}>{fmtDate(e.event_date)}</td>
+                    <td style={{ ...createTdStyle(lightTheme, {}), maxWidth: "280px" }}>
                       <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                         <span style={{ textDecoration: e.cancelled ? "line-through" : "none", display: "flex", alignItems: "center", gap: "6px" }}>
                           {(() => {
@@ -990,9 +990,9 @@ export default function AgendaPage() {
                         {!!e.cancelled && <span style={{ fontSize: "8px", color: Colors.red, letterSpacing: "0.2em" }}>[CANCELADO]</span>}
                       </div>
                     </td>
-                    <td style={tdStyle({ muted: true, nowrap: true })}>{e.time_range || "—"}</td>
-                    <td style={tdStyle({ muted: true, maxW: "140px" })}>{e.venue || <span style={{ color: Colors.textMuted }}>—</span>}</td>
-                    <td style={{ ...tdStyle({}), padding: "0.85rem 1rem" }}>
+                    <td style={createTdStyle(lightTheme, { muted: true, nowrap: true })}>{e.time_range || "—"}</td>
+                    <td style={createTdStyle(lightTheme, { muted: true, maxW: "140px" })}>{e.venue || <span style={{ color: Colors.textMuted }}>—</span>}</td>
+                    <td style={{ ...createTdStyle(lightTheme, {}), padding: "0.85rem 1rem" }}>
                       <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", alignItems: "center" }}>
                         {parseEquipa(e.tipo || "").length > 0
                           ? parseEquipa(e.tipo || "").map(n => (
@@ -1002,7 +1002,7 @@ export default function AgendaPage() {
                         }
                       </div>
                     </td>
-                    <td style={{ ...tdStyle({}), maxWidth: "200px" }}>
+                    <td style={{ ...createTdStyle(lightTheme, {}), maxWidth: "200px" }}>
                       {(() => {
                         const evArtists = (artistasMap[e.id] || []).filter(a => a.nome.trim());
                         return evArtists.length > 0
@@ -1012,14 +1012,14 @@ export default function AgendaPage() {
                           : <span style={{ fontSize: "10px", color: Colors.textMuted }}>—</span>;
                       })()}
                     </td>
-                    <td style={tdStyle({ muted: true })}>
+                    <td style={createTdStyle(lightTheme, { muted: true })}>
                       {e.modalidade && e.modalidade !== "Fatura" ? (
                         <span style={{ fontSize: "9px", color: Colors.amber, letterSpacing: "0.1em" }}>{e.modalidade}</span>
                       ) : (
                         <span style={{ fontSize: "9px", color: Colors.textMuted }}>Fatura</span>
                       )}
                     </td>
-                    <td style={tdStyle({})}>
+                    <td style={createTdStyle(lightTheme, {})}>
                       {e.cancelled ? (
                         <StatusBadge color={Colors.red} label="Cancelado" />
                       ) : (() => {
@@ -1033,7 +1033,7 @@ export default function AgendaPage() {
                         return <StatusBadge color={colorMap[bs] || Colors.textSec} label={bs} />;
                       })()}
                     </td>
-                    <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "11px" }}>
+                    <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "11px" }}>
                       {userRole === "limited_novalues" ? "—" : (Number(e.bill) > 0 ? `${Number(e.bill).toLocaleString("pt-PT")}€` : "—")}
                     </td>
                     <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
@@ -1781,9 +1781,10 @@ export default function AgendaPage() {
 
 // ── Shared components ─────────────────────────────────────────────────────────
 
-function Nav({ userName, active, onLogout }: { userName: string; active: string; onLogout: () => void }) {
+function Nav({ userName, active, onLogout, lightTheme }: { userName: string; active: string; onLogout: () => void; lightTheme: boolean }) {
   const stored = typeof window !== "undefined" ? localStorage.getItem("lle_user") : null;
   const role = stored ? JSON.parse(stored).role : "admin";
+  const isDark = !lightTheme;
   const allLinks = [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/agenda", label: "Agenda" },
@@ -1798,19 +1799,26 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     ...(role === "admin" ? allLinks : allLinks.filter(l => !restrictedHrefs.includes(l.href))),
     ...(role !== "limited_novalues" ? [{ href: "/materiais", label: "Materiais" }] : []),
   ];
+  const navBg = isDark ? "rgba(12,11,9,0.95)" : "rgba(255,251,247,0.95)";
+  const navBorder = isDark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(26,20,16,0.12)";
+  const textMuted = isDark ? "rgba(245,240,232,0.45)" : "rgba(26,20,16,0.45)";
+  const textVeryMuted = isDark ? "rgba(245,240,232,0.22)" : "rgba(26,20,16,0.25)";
+  const buttonBorder = isDark ? "1px solid rgba(201,169,110,0.12)" : "1px solid rgba(139,111,71,0.2)";
+  const goldColor = isDark ? "#C9A96E" : "#8B6F47";
+  
   return (
-    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid rgba(255,255,255,0.05)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
+    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: navBorder, position: "sticky", top: 0, zIndex: 100, background: navBg, backdropFilter: "blur(12px)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
+        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: goldColor, fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "#C9A96E" : "rgba(245,240,232,0.45)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
+            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? goldColor : textMuted, textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "rgba(245,240,232,0.22)", textTransform: "uppercase" }}>{userName}</span>
-        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "rgba(245,240,232,0.22)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
+        <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: textVeryMuted, textTransform: "uppercase" }}>{userName}</span>
+        <button onClick={onLogout} style={{ background: "transparent", border: buttonBorder, color: textVeryMuted, fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
       </div>
     </nav>
   );
@@ -1858,8 +1866,42 @@ function FormField({ label, children, style }: { label: string; children: React.
   );
 }
 
-const addBtnStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "#8a7350", fontSize: "8px", letterSpacing: "0.35em", padding: "0.5rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s" };
-const tdStyle = ({ muted, nowrap, maxW }: { muted?: boolean; nowrap?: boolean; maxW?: string }): React.CSSProperties => ({ fontSize: "12px", color: muted ? "rgba(245,240,232,0.45)" : "#F5F0E8", padding: "0.85rem 1.25rem", borderBottom: "1px solid rgba(255,255,255,0.05)", whiteSpace: nowrap ? "nowrap" : undefined, maxWidth: maxW, overflow: maxW ? "hidden" : undefined, textOverflow: maxW ? "ellipsis" : undefined });
+const createAddBtnStyle = (lightTheme: boolean): React.CSSProperties => {
+  const isDark = !lightTheme;
+  return {
+    background: "transparent",
+    border: isDark ? "1px solid rgba(201,169,110,0.12)" : "1px solid rgba(139,111,71,0.2)",
+    color: isDark ? "#8a7350" : "#6B5837",
+    fontSize: "8px",
+    letterSpacing: "0.35em",
+    padding: "0.5rem 1.25rem",
+    cursor: "pointer",
+    fontFamily: "inherit",
+    textTransform: "uppercase",
+    fontWeight: 600,
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    transition: "all 0.2s"
+  };
+};
+
+// Helper dinâmico para criar tdStyle baseado no tema
+const createTdStyle = (lightTheme: boolean, { muted, nowrap, maxW }: { muted?: boolean; nowrap?: boolean; maxW?: string }): React.CSSProperties => {
+  const isDark = !lightTheme;
+  return {
+    fontSize: "12px",
+    color: muted 
+      ? (isDark ? "rgba(245,240,232,0.45)" : "rgba(26,20,16,0.55)")
+      : (isDark ? "#F5F0E8" : "#1a1410"),
+    padding: "0.85rem 1.25rem",
+    borderBottom: isDark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(26,20,16,0.12)",
+    whiteSpace: nowrap ? "nowrap" : undefined,
+    maxWidth: maxW,
+    overflow: maxW ? "hidden" : undefined,
+    textOverflow: maxW ? "ellipsis" : undefined
+  };
+};
 const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)" };
 const modalStyle: React.CSSProperties = { background: "#131108", border: "1px solid rgba(201,169,110,0.12)", padding: "clamp(1.25rem, 4vw, 2.5rem)", width: "640px", maxWidth: "96vw", maxHeight: "92dvh", overflowY: "auto", position: "relative" };
 const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" };
