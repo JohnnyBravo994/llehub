@@ -1411,3 +1411,22 @@ export async function deleteMovimentoMaterial(id: number) {
     return { success: true };
   } catch { return { success: false }; }
 }
+
+export async function getEventosParaMateriais() {
+  try {
+    const res = await turso.execute(
+      "SELECT id, event_name, event_date, status FROM agenda WHERE status != 'Cancelado' ORDER BY event_date ASC"
+    );
+    return {
+      success: true,
+      data: res.rows.map((r: any) => ({
+        id: Number(r.id),
+        title: (r.event_name as string) || '',
+        date: (r.event_date as string) || '',
+      })),
+    };
+  } catch (error) {
+    console.error("Erro getEventosParaMateriais:", error);
+    return { success: false, data: [] };
+  }
+}
