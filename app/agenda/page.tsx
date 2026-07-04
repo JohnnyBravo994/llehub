@@ -149,12 +149,24 @@ function artistIcons(artistas: ArtistRow[]): string {
     .join("");
 }
 
+// Color constants - will be adapted for light theme by JS
 const C = {
   gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009",
   border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
   textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
   green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
 };
+
+// Light theme colors
+const C_Light = {
+  gold: "#8B6F47", goldDim: "#6B5837", surface: "#F5F5F5",
+  border: "rgba(0,0,0,0.1)", borderDim: "rgba(0,0,0,0.08)",
+  textPrimary: "#1a1a1a", textSec: "rgba(26,26,26,0.6)", textMuted: "rgba(26,26,26,0.4)",
+  green: "#4a9d7f", amber: "#D47E1F", blue: "#6B8CB8", red: "#C63D38",
+};
+
+// Helper to get colors based on theme
+const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
 
 function fmtDate(s: string) {
   if (!s) return "—";
@@ -206,6 +218,12 @@ export default function AgendaPage() {
   const [mobFilterOpen, setMobFilterOpen] = useState(false);
   const [mobFilterCategory, setMobFilterCategory] = useState<"" | "equipa" | "artista" | "cliente">("");
   const [mounted, setMounted] = useState(false);
+  const [lightTheme, setLightTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('lle_light_theme') === 'true';
+    }
+    return false;
+  });
   const [confirmedLeads, setConfirmedLeads] = useState<Lead[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [clienteSearch, setClienteSearch] = useState("");
@@ -285,6 +303,17 @@ export default function AgendaPage() {
     loadMateriais();
     setTimeout(() => setMounted(true), 100);
   }, [load, loadMateriais]);
+
+  // Apply light theme to html element
+  useEffect(() => {
+    const html = document.documentElement;
+    if (lightTheme) {
+      html.classList.add('light-theme');
+    } else {
+      html.classList.remove('light-theme');
+    }
+    localStorage.setItem('lle_light_theme', lightTheme ? 'true' : 'false');
+  }, [lightTheme]);
 
   const materiaisAtivos = materiais.filter(m => m.ativo === 1);
 
@@ -669,7 +698,7 @@ export default function AgendaPage() {
       const dateStr = `${yyyy}-${mm}-${dd}`;
       const wd = WEEKDAYS_PT_LONG[cur.getDay()];
       const dayEvents = events.filter(e => {
-        if (e.event_date !== dateStr || e.cancelled) return false;
+        if (e.event_date !== dateStr) return false;
         if (!((userRole === "admin" && userName === "João") || !isSoJoao(e.tipo || ""))) return false;
         const evArtists = artistasMap[e.id] || [];
         if (filterArtista && !evArtists.some(a => resolveColaboradorNome(a.nome).toLowerCase() === filterArtista.toLowerCase())) return false;
@@ -682,7 +711,7 @@ export default function AgendaPage() {
         if (filterEquipa && !parseEquipa(e.tipo || "").includes(filterEquipa)) return false;
         return true;
       });
-      const dayLeads = confirmedLeads.filter(l => l.event_date === dateStr && !l.cancelled);
+      const dayLeads = confirmedLeads.filter(l => l.event_date === dateStr);
 
       // Dias sem nenhum evento/lead = Folga
       if (dayEvents.length === 0 && dayLeads.length === 0) {
@@ -702,8 +731,9 @@ export default function AgendaPage() {
           const venue = (e.venue || "").trim();
           const trocaNota = getTrocaNota(e.notas || "");
           const anotacao = trocaNota ? ` (${trocaNota})` : "";
+          const canceladoTag = e.cancelled ? " 🔴 [CANCELADO]" : "";
           const prefix = icons ? `${icons} ` : "";
-          const titleLine = venue ? `${prefix}${title} — ${venue}${anotacao}` : `${prefix}${title}${anotacao}`;
+          const titleLine = venue ? `${prefix}${title} — ${venue}${anotacao}${canceladoTag}` : `${prefix}${title}${anotacao}${canceladoTag}`;
           const artistLines = evArtists.map(a => `  * ${a.nome} | ${a.tipo}`).join("\n");
           return artistLines ? `${titleLine}\n${artistLines}` : titleLine;
         };
@@ -790,23 +820,32 @@ export default function AgendaPage() {
   if (loading) return <Loading />;
 
   const todayStr = new Date().toISOString().split("T")[0];
+  // Get colors based on current theme
+  const Colors = getColors(lightTheme);
   const bsColors: Record<string, string> = {
-    "Contacto": "rgba(245,240,232,0.4)", "Proposta Enviada": C.blue,
-    "Em Negociação": C.amber, "Confirmado": C.green,
-    "Em Adjudicação": C.gold, "Adjudicado": C.gold,
-    "Faturado": "#A78BFA", "Pago": C.green, "Cancelado": C.red,
+    "Contacto": "rgba(245,240,232,0.4)", "Proposta Enviada": Colors.blue,
+    "Em Negociação": Colors.amber, "Confirmado": Colors.green,
+    "Em Adjudicação": Colors.gold, "Adjudicado": Colors.gold,
+    "Faturado": "#A78BFA", "Pago": Colors.green, "Cancelado": Colors.red,
   };
 
   return (
     <>
     {/* ═══ DESKTOP ═══ */}
-    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
+    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: lightTheme ? "#FFFFFF" : "#0C0B09", color: lightTheme ? "#1a1a1a" : Colors.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <Nav userName={userName} active="agenda" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
 
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-          <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600 }}>Agenda 2026</p>
+          <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.textSec, textTransform: "uppercase", fontWeight: 600 }}>Agenda 2026</p>
           <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+            <button
+              onClick={() => setLightTheme(!lightTheme)}
+              title={lightTheme ? "Mudar para tema escuro" : "Mudar para tema claro"}
+              style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.2)", color: Colors.textMuted, fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
+            >
+              {lightTheme ? "🌙 Escuro" : "☀️ Claro"}
+            </button>
             <button
               onClick={openWaPeriodModal}
               style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "#5DCAA5", fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
@@ -823,20 +862,20 @@ export default function AgendaPage() {
           </div>
         </div>
 
-        <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative" }}>
+        <div style={{ background: Colors.surface, border: `1px solid ${Colors.borderDim}`, position: "relative" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
-          <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.borderDim}`, overflowX: "auto" }}>
+          <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${Colors.borderDim}`, overflowX: "auto" }}>
             {availableMonths.map(ym => (
-              <button key={ym} onClick={() => setSelectedMonth(ym)} style={{ background: selectedMonth === ym ? "rgba(201,169,110,0.08)" : "transparent", border: "none", borderRight: `1px solid ${C.borderDim}`, borderBottom: selectedMonth === ym ? `1px solid ${C.gold}` : "none", color: selectedMonth === ym ? C.gold : C.textMuted, fontSize: "8px", letterSpacing: "0.3em", padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize", fontWeight: selectedMonth === ym ? 700 : 400, whiteSpace: "nowrap", transition: "all 0.2s" }}>
+              <button key={ym} onClick={() => setSelectedMonth(ym)} style={{ background: selectedMonth === ym ? "rgba(201,169,110,0.08)" : "transparent", border: "none", borderRight: `1px solid ${Colors.borderDim}`, borderBottom: selectedMonth === ym ? `1px solid ${Colors.gold}` : "none", color: selectedMonth === ym ? Colors.gold : Colors.textMuted, fontSize: "8px", letterSpacing: "0.3em", padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize", fontWeight: selectedMonth === ym ? 700 : 400, whiteSpace: "nowrap", transition: "all 0.2s" }}>
                 {monthLabel(ym)}
               </button>
             ))}
           </div>
-          <div style={{ display: "flex", gap: "0", borderBottom: `1px solid ${C.borderDim}` }}>
+          <div style={{ display: "flex", gap: "0", borderBottom: `1px solid ${Colors.borderDim}` }}>
             <input
               value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Pesquisar evento..."
-              style={{ flex: 1, background: "rgba(255,255,255,0.03)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: C.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "0.9rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
+              style={{ flex: 1, background: "rgba(255,255,255,0.03)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: Colors.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "0.9rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
             />
             {/* Artista dropdown */}
             <CustomSelect
@@ -844,7 +883,7 @@ export default function AgendaPage() {
               onChange={v => setFilterArtista(v)}
               placeholder="Artista"
               options={[{ value: "", label: "Artista" }, ...dropdownArtistas.map(a => ({ value: a, label: a }))]}
-              style={{ background: filterArtista ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: filterArtista ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
+              style={{ background: filterArtista ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: filterArtista ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
             />
             {/* Cliente dropdown */}
             <CustomSelect
@@ -852,7 +891,7 @@ export default function AgendaPage() {
               onChange={v => setFilterCliente(v)}
               placeholder="Cliente"
               options={[{ value: "", label: "Cliente" }, ...dropdownClientes.map(c => ({ value: c, label: c }))]}
-              style={{ background: filterCliente ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: filterCliente ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
+              style={{ background: filterCliente ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: filterCliente ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
             />
             {/* Equipa dropdown */}
             <CustomSelect
@@ -860,13 +899,13 @@ export default function AgendaPage() {
               onChange={v => setFilterEquipa(v)}
               placeholder="Equipa"
               options={[{ value: "", label: "Equipa" }, ...dropdownEquipa.map(n => ({ value: n, label: `${EQUIPA_SYMBOL[n]} ${n}` }))]}
-              style={{ background: filterEquipa ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", color: filterEquipa ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "120px", textTransform: "uppercase" as any }}
+              style={{ background: filterEquipa ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", color: filterEquipa ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "120px", textTransform: "uppercase" as any }}
             />
             {/* Clear filters — só aparece se houver algum filtro activo */}
             {(filterArtista || filterCliente || filterEquipa) && (
               <button
                 onClick={() => { setFilterArtista(""); setFilterCliente(""); setFilterEquipa(""); }}
-                style={{ background: "transparent", border: "none", borderLeft: `1px solid ${C.borderDim}`, color: C.textMuted, fontSize: "9px", padding: "0.9rem 1rem", cursor: "pointer", whiteSpace: "nowrap", letterSpacing: "0.2em" }}
+                style={{ background: "transparent", border: "none", borderLeft: `1px solid ${Colors.borderDim}`, color: Colors.textMuted, fontSize: "9px", padding: "0.9rem 1rem", cursor: "pointer", whiteSpace: "nowrap", letterSpacing: "0.2em" }}
                 title="Limpar filtros"
               >✕</button>
             )}
@@ -876,7 +915,7 @@ export default function AgendaPage() {
               <thead>
                 <tr>
                   {["Data", "Evento", "Hora", "Local", "Equipa", "Artistas", "Modalidade", "Estado", "Faturação", "Ações"].map((h, i) => (
-                    <th key={h} style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${C.border}`, textAlign: i >= 8 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
+                    <th key={h} style={{ fontSize: "7px", letterSpacing: "0.4em", color: Colors.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${Colors.border}`, textAlign: i >= 8 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -887,7 +926,7 @@ export default function AgendaPage() {
                     return (
                       <tr key={`folga-${row.date}`} style={{ opacity: 0.38, background: isFolgaToday ? "rgba(201,169,110,0.04)" : undefined }}>
                         <td style={{ ...tdStyle({ nowrap: true }), color: isFolgaToday ? "#C9A96E" : undefined, fontWeight: isFolgaToday ? 700 : undefined }}>{fmtDate(row.date)}</td>
-                        <td colSpan={8} style={{ ...tdStyle({}), fontSize: "10px", color: C.textMuted, letterSpacing: "0.2em", fontStyle: "italic" }}>
+                        <td colSpan={8} style={{ ...tdStyle({}), fontSize: "10px", color: Colors.textMuted, letterSpacing: "0.2em", fontStyle: "italic" }}>
                           ⛱️ Folga
                         </td>
                       </tr>
@@ -897,24 +936,24 @@ export default function AgendaPage() {
                     const l = row.data;
                     const isLeadToday = l.event_date === todayStr;
                     return (
-                      <tr key={`lead-${l.id}`} style={{ background: isLeadToday ? "rgba(201,169,110,0.07)" : "rgba(201,169,110,0.04)", borderLeft: isLeadToday ? `3px solid ${C.gold}` : `2px solid rgba(201,169,110,0.35)` }}>
-                        <td style={{ ...tdStyle({ nowrap: true }), color: isLeadToday ? C.gold : undefined, fontWeight: isLeadToday ? 700 : undefined }}>{fmtDate(l.event_date)}</td>
+                      <tr key={`lead-${l.id}`} style={{ background: isLeadToday ? "rgba(201,169,110,0.07)" : "rgba(201,169,110,0.04)", borderLeft: isLeadToday ? `3px solid ${Colors.gold}` : `2px solid rgba(201,169,110,0.35)` }}>
+                        <td style={{ ...tdStyle({ nowrap: true }), color: isLeadToday ? Colors.gold : undefined, fontWeight: isLeadToday ? 700 : undefined }}>{fmtDate(l.event_date)}</td>
                         <td style={{ ...tdStyle({}), maxWidth: "280px" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                             <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                               <span style={{ fontSize: "11px" }}>{l.title}</span>
                             </span>
-                            <span style={{ fontSize: "8px", color: C.goldDim, letterSpacing: "0.25em", textTransform: "uppercase" }}>Lead · {l.status}</span>
+                            <span style={{ fontSize: "8px", color: Colors.goldDim, letterSpacing: "0.25em", textTransform: "uppercase" }}>Lead · {l.status}</span>
                           </div>
                         </td>
                         <td style={tdStyle({ muted: true })} colSpan={3}>—</td>
                         <td style={tdStyle({ muted: true })}>
-                          <span style={{ fontSize: "9px", color: C.textMuted }}>{l.modalidade || "Fatura"}</span>
+                          <span style={{ fontSize: "9px", color: Colors.textMuted }}>{l.modalidade || "Fatura"}</span>
                         </td>
                         <td style={tdStyle({})}>
-                          <StatusBadge color={C.amber} label={l.status || "Confirmado"} />
+                          <StatusBadge color={Colors.amber} label={l.status || "Confirmado"} />
                         </td>
-                        <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: C.gold, fontWeight: 600, fontSize: "11px" }}>
+                        <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "11px" }}>
                           {userRole === "limited_novalues" ? "—" : (Number(l.value) > 0 ? `${Number(l.value).toLocaleString("pt-PT")}€` : "—")}
                         </td>
                         <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
@@ -922,7 +961,7 @@ export default function AgendaPage() {
                             <button
                               title="Converter para evento"
                               onClick={() => handleLeadConvert(l)}
-                              style={{ background: "transparent", border: "none", cursor: "pointer", padding: "5px", color: C.green, fontSize: "9px", letterSpacing: "0.15em", fontFamily: "inherit", fontWeight: 600 }}
+                              style={{ background: "transparent", border: "none", cursor: "pointer", padding: "5px", color: Colors.green, fontSize: "9px", letterSpacing: "0.15em", fontFamily: "inherit", fontWeight: 600 }}
                             >→</button>
                             <IconBtn title="Ocultar da agenda" onClick={() => handleLeadRemove(l)} icon="cancel" danger />
                           </div>
@@ -934,8 +973,8 @@ export default function AgendaPage() {
                   const e = row.data;
                   const isEventToday = e.event_date === todayStr;
                   return (
-                  <tr key={e.id} style={{ opacity: e.cancelled ? 0.45 : 1, background: isEventToday ? "rgba(201,169,110,0.06)" : undefined, borderLeft: isEventToday ? `3px solid ${C.gold}` : undefined }}>
-                    <td style={{ ...tdStyle({ nowrap: true }), color: isEventToday ? C.gold : undefined, fontWeight: isEventToday ? 700 : undefined }}>{fmtDate(e.event_date)}</td>
+                  <tr key={e.id} style={{ opacity: e.cancelled ? 0.45 : 1, background: isEventToday ? "rgba(201,169,110,0.06)" : undefined, borderLeft: isEventToday ? `3px solid ${Colors.gold}` : undefined }}>
+                    <td style={{ ...tdStyle({ nowrap: true }), color: isEventToday ? Colors.gold : undefined, fontWeight: isEventToday ? 700 : undefined }}>{fmtDate(e.event_date)}</td>
                     <td style={{ ...tdStyle({}), maxWidth: "280px" }}>
                       <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                         <span style={{ textDecoration: e.cancelled ? "line-through" : "none", display: "flex", alignItems: "center", gap: "6px" }}>
@@ -948,18 +987,18 @@ export default function AgendaPage() {
                           })()}
                           <span style={{ fontSize: "11px" }}>{e.title.replace(/^\p{Emoji}[\p{Emoji}\u200d\s]*/u, "")}</span>
                         </span>
-                        {!!e.cancelled && <span style={{ fontSize: "8px", color: C.red, letterSpacing: "0.2em" }}>[CANCELADO]</span>}
+                        {!!e.cancelled && <span style={{ fontSize: "8px", color: Colors.red, letterSpacing: "0.2em" }}>[CANCELADO]</span>}
                       </div>
                     </td>
                     <td style={tdStyle({ muted: true, nowrap: true })}>{e.time_range || "—"}</td>
-                    <td style={tdStyle({ muted: true, maxW: "140px" })}>{e.venue || <span style={{ color: C.textMuted }}>—</span>}</td>
+                    <td style={tdStyle({ muted: true, maxW: "140px" })}>{e.venue || <span style={{ color: Colors.textMuted }}>—</span>}</td>
                     <td style={{ ...tdStyle({}), padding: "0.85rem 1rem" }}>
                       <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", alignItems: "center" }}>
                         {parseEquipa(e.tipo || "").length > 0
                           ? parseEquipa(e.tipo || "").map(n => (
                               <span key={n} title={n} style={{ fontSize: "16px", lineHeight: 1 }}>{EQUIPA_SYMBOL[n]}</span>
                             ))
-                          : <span style={{ fontSize: "10px", color: C.textMuted }}>—</span>
+                          : <span style={{ fontSize: "10px", color: Colors.textMuted }}>—</span>
                         }
                       </div>
                     </td>
@@ -967,34 +1006,34 @@ export default function AgendaPage() {
                       {(() => {
                         const evArtists = (artistasMap[e.id] || []).filter(a => a.nome.trim());
                         return evArtists.length > 0
-                          ? <span style={{ fontSize: "10px", color: C.textSec, letterSpacing: "0.03em" }}>
+                          ? <span style={{ fontSize: "10px", color: Colors.textSec, letterSpacing: "0.03em" }}>
                               {evArtists.map(a => resolveColaboradorNome(a.nome)).join(" · ")}
                             </span>
-                          : <span style={{ fontSize: "10px", color: C.textMuted }}>—</span>;
+                          : <span style={{ fontSize: "10px", color: Colors.textMuted }}>—</span>;
                       })()}
                     </td>
                     <td style={tdStyle({ muted: true })}>
                       {e.modalidade && e.modalidade !== "Fatura" ? (
-                        <span style={{ fontSize: "9px", color: C.amber, letterSpacing: "0.1em" }}>{e.modalidade}</span>
+                        <span style={{ fontSize: "9px", color: Colors.amber, letterSpacing: "0.1em" }}>{e.modalidade}</span>
                       ) : (
-                        <span style={{ fontSize: "9px", color: C.textMuted }}>Fatura</span>
+                        <span style={{ fontSize: "9px", color: Colors.textMuted }}>Fatura</span>
                       )}
                     </td>
                     <td style={tdStyle({})}>
                       {e.cancelled ? (
-                        <StatusBadge color={C.red} label="Cancelado" />
+                        <StatusBadge color={Colors.red} label="Cancelado" />
                       ) : (() => {
                         const bs = e.billing_status || "Contacto";
                         const colorMap: Record<string, string> = {
-                          "Contacto": C.textSec, "Proposta Enviada": C.blue,
-                          "Em Negociação": C.amber, "Confirmado": C.green,
-                          "Em Adjudicação": C.gold, "Adjudicado": C.gold,
-                          "Faturado": "#A78BFA", "Pago": C.green, "Cancelado": C.red,
+                          "Contacto": Colors.textSec, "Proposta Enviada": Colors.blue,
+                          "Em Negociação": Colors.amber, "Confirmado": Colors.green,
+                          "Em Adjudicação": Colors.gold, "Adjudicado": Colors.gold,
+                          "Faturado": "#A78BFA", "Pago": Colors.green, "Cancelado": Colors.red,
                         };
-                        return <StatusBadge color={colorMap[bs] || C.textSec} label={bs} />;
+                        return <StatusBadge color={colorMap[bs] || Colors.textSec} label={bs} />;
                       })()}
                     </td>
-                    <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: C.gold, fontWeight: 600, fontSize: "11px" }}>
+                    <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "11px" }}>
                       {userRole === "limited_novalues" ? "—" : (Number(e.bill) > 0 ? `${Number(e.bill).toLocaleString("pt-PT")}€` : "—")}
                     </td>
                     <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
@@ -1019,7 +1058,7 @@ export default function AgendaPage() {
                   );
                 })}
                 {allRows.length === 0 && (
-                  <tr><td colSpan={9} style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem eventos encontrados</td></tr>
+                  <tr><td colSpan={9} style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: Colors.textMuted, letterSpacing: "0.2em" }}>Sem eventos encontrados</td></tr>
                 )}
               </tbody>
             </table>
@@ -1174,7 +1213,7 @@ export default function AgendaPage() {
           const isToday = e.event_date === todayStr;
           const evArtists = (artistasMap[e.id] || []).filter((a:any) => a.nome.trim());
           const bs = e.billing_status || "Contacto";
-          const bsColor = e.cancelled ? C.red : (bsColors[bs] || "rgba(245,240,232,0.3)");
+          const bsColor = e.cancelled ? Colors.red : (bsColors[bs] || "rgba(245,240,232,0.3)");
           return (
             <div key={e.id} className={`mob-card${isToday ? " is-today" : ""}${e.cancelled ? " is-folga" : ""}`}>
               <div className="mob-date-bubble">
@@ -1330,7 +1369,7 @@ export default function AgendaPage() {
           <div style={{ ...modalStyle, width: "640px" }}>
             <div style={topLineStyle} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
-              <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, margin: 0 }}>
+              <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.goldDim, textTransform: "uppercase", fontWeight: 600, margin: 0 }}>
                 {modal.editing ? "Editar Evento" : "Novo Evento"}
               </p>
               {!modal.editing && (
@@ -1339,8 +1378,8 @@ export default function AgendaPage() {
                   onClick={() => setIsResidencia(r => !r)}
                   style={{
                     background: isResidencia ? "rgba(201,169,110,0.12)" : "transparent",
-                    border: `1px solid ${isResidencia ? C.gold : "rgba(255,255,255,0.08)"}`,
-                    color: isResidencia ? C.gold : C.textMuted,
+                    border: `1px solid ${isResidencia ? Colors.gold : "rgba(255,255,255,0.08)"}`,
+                    color: isResidencia ? Colors.gold : Colors.textMuted,
                     fontSize: "8px", letterSpacing: "0.3em", padding: "0.4rem 0.9rem",
                     cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600,
                     display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s",
@@ -1374,7 +1413,7 @@ export default function AgendaPage() {
                           <button
                             type="button"
                             onClick={() => setResidenciaDates(prev => prev.filter((_, idx) => idx !== i))}
-                            style={{ background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
+                            style={{ background: "transparent", border: "none", color: Colors.textMuted, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
                           >
                             <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2"><line x1="1" y1="1" x2="11" y2="11" /><line x1="11" y1="1" x2="1" y2="11" /></svg>
                           </button>
@@ -1492,19 +1531,19 @@ export default function AgendaPage() {
                                 setClienteSearch((c as any).alias?.trim() || c.nome);
                                 setClienteDropOpen(false);
                               }}
-                              style={{ padding: "0.6rem 1rem", fontSize: "11px", color: C.textSec, cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                              style={{ padding: "0.6rem 1rem", fontSize: "11px", color: Colors.textSec, cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.04)" }}
                               onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.08)")}
                               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                             >
                               {(c as any).alias?.trim() || c.nome}
-                              {(c as any).alias?.trim() && <span style={{ fontSize: "9px", color: C.textMuted, marginLeft: "8px" }}>{c.nome}</span>}
-                              {c.nif && !((c as any).alias?.trim()) && <span style={{ fontSize: "9px", color: C.textMuted, marginLeft: "8px" }}>{c.nif}</span>}
+                              {(c as any).alias?.trim() && <span style={{ fontSize: "9px", color: Colors.textMuted, marginLeft: "8px" }}>{c.nome}</span>}
+                              {c.nif && !((c as any).alias?.trim()) && <span style={{ fontSize: "9px", color: Colors.textMuted, marginLeft: "8px" }}>{c.nif}</span>}
                             </div>
                           ))
                         }
                         <div
                           onMouseDown={() => { setClienteCreating(true); setClienteDropOpen(false); }}
-                          style={{ padding: "0.6rem 1rem", fontSize: "10px", color: C.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(201,169,110,0.12)", display: "flex", alignItems: "center", gap: "6px" }}
+                          style={{ padding: "0.6rem 1rem", fontSize: "10px", color: Colors.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(201,169,110,0.12)", display: "flex", alignItems: "center", gap: "6px" }}
                           onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.06)")}
                           onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                         >
@@ -1550,24 +1589,24 @@ export default function AgendaPage() {
             </div>
 
             {/* ── Artistas ── */}
-            <div style={{ marginTop: "1.75rem", borderTop: `1px solid ${C.borderDim}`, paddingTop: "1.5rem" }}>
+            <div style={{ marginTop: "1.75rem", borderTop: `1px solid ${Colors.borderDim}`, paddingTop: "1.5rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-                <span style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600 }}>Artistas & Pagamentos</span>
+                <span style={{ fontSize: "7px", letterSpacing: "0.4em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600 }}>Artistas & Pagamentos</span>
                 {totalArtistas > 0 && (
-                  <span style={{ fontSize: "9px", color: C.amber, letterSpacing: "0.15em", fontWeight: 600 }}>
+                  <span style={{ fontSize: "9px", color: Colors.amber, letterSpacing: "0.15em", fontWeight: 600 }}>
                     Total: {userRole === "limited_novalues" ? "—" : `${totalArtistas.toLocaleString("pt-PT")}€`}
                   </span>
                 )}
               </div>
 
               {loadingArtists ? (
-                <p style={{ fontSize: "10px", color: C.textMuted, textAlign: "center", padding: "1rem" }}>A carregar...</p>
+                <p style={{ fontSize: "10px", color: Colors.textMuted, textAlign: "center", padding: "1rem" }}>A carregar...</p>
               ) : (
                 <>
                   {/* Table header */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "6px" }}>
                     {["Nome", "Tipo", "Fee (€)", ""].map(h => (
-                      <span key={h} style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600, padding: "0 4px" }}>{h}</span>
+                      <span key={h} style={{ fontSize: "7px", letterSpacing: "0.3em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600, padding: "0 4px" }}>{h}</span>
                     ))}
                   </div>
                   {artists.map((a, i) => (
@@ -1596,7 +1635,7 @@ export default function AgendaPage() {
                       />
                       <button
                         onClick={() => removeArtistRow(i)}
-                        style={{ background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                        style={{ background: "transparent", border: "none", color: Colors.textMuted, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center", justifyContent: "center" }}
                         title="Remover"
                       >
                         <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2"><line x1="1" y1="1" x2="11" y2="11" /><line x1="11" y1="1" x2="1" y2="11" /></svg>
@@ -1616,7 +1655,7 @@ export default function AgendaPage() {
                 <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.4em", color: "rgba(245,240,232,0.22)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Troca de Dia</label>
                 {getTrocaNota(modal.editing.notas || "") ? (
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", background: "rgba(201,169,110,0.06)", border: "1px solid rgba(201,169,110,0.18)", padding: "0.65rem 0.85rem" }}>
-                    <span style={{ fontSize: "10px", color: C.gold, letterSpacing: "0.03em" }}>
+                    <span style={{ fontSize: "10px", color: Colors.gold, letterSpacing: "0.03em" }}>
                       🔁 {getTrocaNota(modal.editing.notas || "")}
                     </span>
                     <button
@@ -1635,7 +1674,7 @@ export default function AgendaPage() {
                     <button
                       onClick={() => { if (trocaNovaData) { handleAplicarTroca(modal.editing as AgendaEvent, trocaNovaData); setTrocaNovaData(""); } }}
                       disabled={!trocaNovaData}
-                      style={{ ...btnSecStyle, padding: "0.7rem 1.1rem", flexShrink: 0, opacity: !trocaNovaData ? 0.4 : 1, color: C.gold, borderColor: "rgba(201,169,110,0.25)" }}
+                      style={{ ...btnSecStyle, padding: "0.7rem 1.1rem", flexShrink: 0, opacity: !trocaNovaData ? 0.4 : 1, color: Colors.gold, borderColor: "rgba(201,169,110,0.25)" }}
                     >Registar troca</button>
                   </div>
                 )}
@@ -1659,35 +1698,35 @@ export default function AgendaPage() {
       {/* ── Modal: Reservar Material ── */}
       {materialModal.open && materialModal.event && (
         <div onClick={e => e.target === e.currentTarget && closeMaterialModal()} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", zIndex: 1150, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "#131108", border: `1px solid ${C.border}`, padding: "2rem", width: "480px", maxWidth: "95vw", maxHeight: "88vh", overflowY: "auto", position: "relative" }}>
+          <div style={{ background: "#131108", border: `1px solid ${Colors.border}`, padding: "2rem", width: "480px", maxWidth: "95vw", maxHeight: "88vh", overflowY: "auto", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
               <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.6)", textTransform: "uppercase", fontWeight: 600 }}>Material do Evento</p>
               <button onClick={closeMaterialModal} style={{ background: "transparent", border: "none", color: "rgba(245,240,232,0.3)", cursor: "pointer", fontSize: "16px" }}>✕</button>
             </div>
-            <p style={{ fontSize: "12px", color: C.textPrimary, marginBottom: "1.25rem" }}>{materialModal.event.title}</p>
+            <p style={{ fontSize: "12px", color: Colors.textPrimary, marginBottom: "1.25rem" }}>{materialModal.event.title}</p>
 
             {materiaisDoEvento(materialModal.event.id).length > 0 && (
               <div style={{ marginBottom: "1.25rem", display: "flex", flexDirection: "column", gap: "6px" }}>
                 {materiaisDoEvento(materialModal.event.id).map(mov => {
                   const devolvido = mov.quantidade_devolvida >= mov.quantidade;
                   return (
-                    <div key={mov.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "0.55rem 0.75rem", background: "rgba(255,255,255,0.03)", border: `1px solid ${C.borderDim}` }}>
-                      <span style={{ flex: 1, fontSize: "11px", color: C.textPrimary }}>{mov.material_nome} <span style={{ color: C.textMuted }}>×{mov.quantidade}</span></span>
-                      <span style={{ fontSize: "9px", color: devolvido ? C.green : C.amber, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                    <div key={mov.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "0.55rem 0.75rem", background: "rgba(255,255,255,0.03)", border: `1px solid ${Colors.borderDim}` }}>
+                      <span style={{ flex: 1, fontSize: "11px", color: Colors.textPrimary }}>{mov.material_nome} <span style={{ color: Colors.textMuted }}>×{mov.quantidade}</span></span>
+                      <span style={{ fontSize: "9px", color: devolvido ? Colors.green : Colors.amber, letterSpacing: "0.1em", textTransform: "uppercase" }}>
                         {devolvido ? "Devolvido" : `Com ${mov.origem === "Outro" && mov.origem_detalhe ? mov.origem_detalhe : mov.origem}`}
                       </span>
                       {!devolvido && (
-                        <button onClick={() => handleMaterialVoltou(mov)} title="Marcar como devolvido" style={{ background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: C.green, fontSize: "8px", padding: "4px 8px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Voltou</button>
+                        <button onClick={() => handleMaterialVoltou(mov)} title="Marcar como devolvido" style={{ background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: Colors.green, fontSize: "8px", padding: "4px 8px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Voltou</button>
                       )}
-                      <button onClick={() => handleRemoverReservaMaterial(mov.id)} title="Remover" style={{ background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: "13px" }}>×</button>
+                      <button onClick={() => handleRemoverReservaMaterial(mov.id)} title="Remover" style={{ background: "transparent", border: "none", color: Colors.textMuted, cursor: "pointer", fontSize: "13px" }}>×</button>
                     </div>
                   );
                 })}
               </div>
             )}
 
-            <p style={{ fontSize: "8px", letterSpacing: "0.3em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Reservar novo material</p>
+            <p style={{ fontSize: "8px", letterSpacing: "0.3em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Reservar novo material</p>
 
             <div style={{ marginBottom: "0.85rem" }}>
               <select style={{ ...inputStyle, cursor: "pointer" }} value={reservaForm.material_id} onChange={(e: any) => setReservaForm(f => ({ ...f, material_id: Number(e.target.value) }))}>
@@ -1703,7 +1742,7 @@ export default function AgendaPage() {
                   <button key={o} onClick={() => setReservaForm(f => ({ ...f, origem: o }))} style={{
                     background: reservaForm.origem === o ? "rgba(201,169,110,0.18)" : "rgba(255,255,255,0.04)",
                     border: `1px solid ${reservaForm.origem === o ? "rgba(201,169,110,0.4)" : "rgba(255,255,255,0.1)"}`,
-                    color: reservaForm.origem === o ? C.gold : C.textMuted,
+                    color: reservaForm.origem === o ? Colors.gold : Colors.textMuted,
                     fontSize: "10px", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit",
                   }}>{o}</button>
                 ))}
@@ -1721,10 +1760,10 @@ export default function AgendaPage() {
         </div>
       )}
 
-      <div style={{ position: "fixed", bottom: "2rem", right: "2rem", maxWidth: "420px", background: "#1a1408", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: toast.length > 40 ? "0.02em" : "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: toast.length > 40 ? "none" : "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "1rem" }}>
+      <div style={{ position: "fixed", bottom: "2rem", right: "2rem", maxWidth: "420px", background: "#1a1408", border: `1px solid ${Colors.border}`, color: Colors.gold, fontSize: "10px", letterSpacing: toast.length > 40 ? "0.02em" : "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: toast.length > 40 ? "none" : "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "1rem" }}>
         <span style={{ wordBreak: "break-word", userSelect: "text" }}>{toast}</span>
         {undoAction && (
-          <button onClick={undoAction.fn} style={{ background: "rgba(201,169,110,0.15)", border: "1px solid rgba(201,169,110,0.3)", color: C.gold, fontSize: "9px", letterSpacing: "0.3em", padding: "0.3rem 0.75rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, flexShrink: 0 }}>
+          <button onClick={undoAction.fn} style={{ background: "rgba(201,169,110,0.15)", border: "1px solid rgba(201,169,110,0.3)", color: Colors.gold, fontSize: "9px", letterSpacing: "0.3em", padding: "0.3rem 0.75rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, flexShrink: 0 }}>
             {undoAction.label}
           </button>
         )}

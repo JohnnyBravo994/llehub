@@ -1274,34 +1274,10 @@ export async function setupMateriais() {
         created_at TEXT DEFAULT (datetime('now'))
       )
     `);
-    // Migração: liga o movimento a um evento da agenda (ou fica null = pessoal)
-    try {
-      await turso.execute(`ALTER TABLE material_movimentos ADD COLUMN evento_id INTEGER`);
-    } catch { /* coluna já existe */ }
     return { success: true };
   } catch (error) {
     console.error("Erro setup materiais:", error);
     return { success: false };
-  }
-}
-
-// Lista leve de eventos da agenda para selecionar no picker de materiais
-export async function getEventosParaMateriais() {
-  try {
-    const res = await turso.execute(
-      "SELECT id, event_name, event_date, status FROM agenda WHERE status != 'Cancelado' ORDER BY event_date ASC"
-    );
-    return {
-      success: true,
-      data: res.rows.map((r: any) => ({
-        id: Number(r.id),
-        title: (r.event_name as string) || '',
-        date: (r.event_date as string) || '',
-      })),
-    };
-  } catch (error) {
-    console.error("Erro getEventosParaMateriais:", error);
-    return { success: false, data: [] };
   }
 }
 
@@ -1379,7 +1355,6 @@ export async function getMovimentosMateriais() {
         origem: (r.origem as string) || 'Loja',
         origem_detalhe: (r.origem_detalhe as string) || '',
         evento: (r.evento as string) || '',
-        evento_id: r.evento_id !== null && r.evento_id !== undefined ? Number(r.evento_id) : null,
         responsavel: (r.responsavel as string) || '',
         notas: (r.notas as string) || '',
         data_saida: (r.data_saida as string) || '',
@@ -1395,17 +1370,17 @@ export async function getMovimentosMateriais() {
 export async function registarSaidaMaterial(data: {
   material_id: number; material_nome: string; material_imagem?: string;
   quantidade: number; origem: string; origem_detalhe?: string;
-  evento?: string; evento_id?: number | null; responsavel?: string; notas?: string;
+  evento?: string; responsavel?: string; notas?: string;
 }) {
   try {
     await turso.execute({
       sql: `INSERT INTO material_movimentos
-        (material_id, material_nome, material_imagem, quantidade, quantidade_devolvida, origem, origem_detalhe, evento, evento_id, responsavel, notas, data_saida)
-        VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+        (material_id, material_nome, material_imagem, quantidade, quantidade_devolvida, origem, origem_detalhe, evento, responsavel, notas, data_saida)
+        VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, datetime('now'))`,
       args: [
         data.material_id, data.material_nome, data.material_imagem || '',
         data.quantidade, data.origem, data.origem_detalhe || '',
-        data.evento || '', data.evento_id ?? null, data.responsavel || '', data.notas || '',
+        data.evento || '', data.responsavel || '', data.notas || '',
       ],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");

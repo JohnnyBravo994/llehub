@@ -6,9 +6,30 @@
   padding: 0;
 }
 
+/* ─────────────────────────────────────────────────────
+   THEME VARIABLES — Suporta tema escuro (padrão) e claro
+   ───────────────────────────────────────────────────── */
+:root {
+  --theme-bg: #0C0B09;
+  --theme-text: #F5F0E8;
+  --theme-text-muted: rgba(245,240,232,0.4);
+  --theme-border: rgba(255,255,255,0.05);
+  --theme-surface: #131108;
+  --theme-accent: #C9A96E;
+}
+
+html.light-theme {
+  --theme-bg: #FFFFFF;
+  --theme-text: #1a1a1a;
+  --theme-text-muted: rgba(26,26,26,0.6);
+  --theme-border: rgba(0,0,0,0.1);
+  --theme-surface: #F5F5F5;
+  --theme-accent: #8B6F47;
+}
+
 html, body {
-  background: #0C0B09;
-  color: #F5F0E8;
+  background: var(--theme-bg);
+  color: var(--theme-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -645,11 +666,17 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* ── Desktop legibilidade: aumentar ligeiramente fontes das tabelas ── */
 @media (min-width: 769px) {
   /* Células de tabela na agenda e leads */
-  .mob-page-desktop table td { font-size: 12px !important; }
+  .mob-page-desktop table td { font-size: 14px !important; }
   /* Títulos de eventos/leads nas tabelas */
-  .mob-page-desktop table td span[style*="font-size: 11px"] { font-size: 12px; }
+  .mob-page-desktop table td span[style*="font-size: 11px"] { font-size: 13px; }
   /* Botões de navegação de meses */
-  .mob-page-desktop button[style*="letterSpacing"] { font-size: 9px; }
+  .mob-page-desktop button[style*="letterSpacing"] { font-size: 10px; }
+  
+  /* Fontes aumentadas para melhor legibilidade (especialmente para utilizadores mais velhos) */
+  .mob-page-desktop input { font-size: 13px !important; }
+  .mob-page-desktop button { font-size: 10px !important; }
+  .mob-page-desktop p { font-size: 13px !important; }
+  .mob-page-desktop span { font-size: 13px !important; }
 }
 
 /* ═══════════════════════════════════════════════════
