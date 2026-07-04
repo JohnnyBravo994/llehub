@@ -1370,17 +1370,17 @@ export async function getMovimentosMateriais() {
 export async function registarSaidaMaterial(data: {
   material_id: number; material_nome: string; material_imagem?: string;
   quantidade: number; origem: string; origem_detalhe?: string;
-  evento?: string; responsavel?: string; notas?: string;
+  evento?: string; evento_id?: number | null; responsavel?: string; notas?: string;
 }) {
   try {
     await turso.execute({
       sql: `INSERT INTO material_movimentos
-        (material_id, material_nome, material_imagem, quantidade, quantidade_devolvida, origem, origem_detalhe, evento, responsavel, notas, data_saida)
-        VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, datetime('now'))`,
+        (material_id, material_nome, material_imagem, quantidade, quantidade_devolvida, origem, origem_detalhe, evento, evento_id, responsavel, notas, data_saida)
+        VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, datetime('now'))`,
       args: [
         data.material_id, data.material_nome, data.material_imagem || '',
         data.quantidade, data.origem, data.origem_detalhe || '',
-        data.evento || '', data.responsavel || '', data.notas || '',
+        data.evento || '', data.evento_id ?? null, data.responsavel || '', data.notas || '',
       ],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");

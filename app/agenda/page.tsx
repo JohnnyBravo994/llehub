@@ -338,7 +338,7 @@ export default function AgendaPage() {
       quantidade: reservaForm.quantidade, origem: reservaForm.origem, origem_detalhe: reservaForm.origem_detalhe,
       evento: materialModal.event.title, evento_id: materialModal.event.id,
       responsavel: userName, notas: reservaForm.notas,
-    } as any);
+    });
     setReservaForm(emptyReservaForm);
     await loadMateriais();
     setReservaSaving(false);
