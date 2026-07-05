@@ -157,12 +157,12 @@ const C = {
   green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
 };
 
-// Light theme colors
+// Light theme colors - 100% contrast, document-style
 const C_Light = {
-  gold: "#8B6F47", goldDim: "#6B5837", surface: "#F8F3ED",
-  border: "rgba(26,20,16,0.18)", borderDim: "rgba(26,20,16,0.12)",
-  textPrimary: "#1a1410", textSec: "rgba(26,20,16,0.65)", textMuted: "rgba(26,20,16,0.45)",
-  green: "#3d8066", amber: "#B8660D", blue: "#5B7A9F", red: "#A13232",
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
+  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000",
 };
 
 // Helper to get colors based on theme
@@ -1799,26 +1799,26 @@ function Nav({ userName, active, onLogout, lightTheme }: { userName: string; act
     ...(role === "admin" ? allLinks : allLinks.filter(l => !restrictedHrefs.includes(l.href))),
     ...(role !== "limited_novalues" ? [{ href: "/materiais", label: "Materiais" }] : []),
   ];
-  const navBg = isDark ? "rgba(12,11,9,0.95)" : "rgba(255,251,247,0.95)";
-  const navBorder = isDark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(26,20,16,0.12)";
-  const textMuted = isDark ? "rgba(245,240,232,0.45)" : "rgba(26,20,16,0.45)";
-  const textVeryMuted = isDark ? "rgba(245,240,232,0.22)" : "rgba(26,20,16,0.25)";
-  const buttonBorder = isDark ? "1px solid rgba(201,169,110,0.12)" : "1px solid rgba(139,111,71,0.2)";
-  const goldColor = isDark ? "#C9A96E" : "#8B6F47";
+  const navBg = isDark ? "rgba(12,11,9,0.95)" : "#FFFFFF";
+  const navBorder = isDark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.12)";
+  const textMuted = isDark ? "rgba(245,240,232,0.45)" : "#000000";
+  const textVeryMuted = isDark ? "rgba(245,240,232,0.22)" : "rgba(0,0,0,0.55)";
+  const buttonBorder = isDark ? "1px solid rgba(201,169,110,0.12)" : "1px solid rgba(0,0,0,0.2)";
+  const goldColor = isDark ? "#C9A96E" : "#000000";
   
   return (
     <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: navBorder, position: "sticky", top: 0, zIndex: 100, background: navBg, backdropFilter: "blur(12px)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: goldColor, fontWeight: 300 }}>LLE</span>
+        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: goldColor, fontWeight: lightTheme ? 700 : 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? goldColor : textMuted, textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
+            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: active === l.href.slice(1) ? (lightTheme ? 700 : 600) : (lightTheme ? 600 : 500), color: active === l.href.slice(1) ? goldColor : textMuted, textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: textVeryMuted, textTransform: "uppercase" }}>{userName}</span>
-        <button onClick={onLogout} style={{ background: "transparent", border: buttonBorder, color: textVeryMuted, fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
+        <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: textVeryMuted, textTransform: "uppercase", fontWeight: lightTheme ? 600 : 400 }}>{userName}</span>
+        <button onClick={onLogout} style={{ background: "transparent", border: buttonBorder, color: textVeryMuted, fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: lightTheme ? 700 : 600 }}>SAIR</button>
       </div>
     </nav>
   );
@@ -1870,15 +1870,15 @@ const createAddBtnStyle = (lightTheme: boolean): React.CSSProperties => {
   const isDark = !lightTheme;
   return {
     background: "transparent",
-    border: isDark ? "1px solid rgba(201,169,110,0.12)" : "1px solid rgba(139,111,71,0.2)",
-    color: isDark ? "#8a7350" : "#6B5837",
+    border: isDark ? "1px solid rgba(201,169,110,0.12)" : "1px solid rgba(0,0,0,0.2)",
+    color: isDark ? "#8a7350" : "#000000",
     fontSize: "8px",
     letterSpacing: "0.35em",
     padding: "0.5rem 1.25rem",
     cursor: "pointer",
     fontFamily: "inherit",
     textTransform: "uppercase",
-    fontWeight: 600,
+    fontWeight: lightTheme ? 700 : 600,
     display: "flex",
     alignItems: "center",
     gap: "6px",
@@ -1891,11 +1891,12 @@ const createTdStyle = (lightTheme: boolean, { muted, nowrap, maxW }: { muted?: b
   const isDark = !lightTheme;
   return {
     fontSize: "12px",
-    color: muted 
-      ? (isDark ? "rgba(245,240,232,0.45)" : "rgba(26,20,16,0.55)")
-      : (isDark ? "#F5F0E8" : "#1a1410"),
+    color: isDark
+      ? (muted ? "rgba(245,240,232,0.45)" : "#F5F0E8")
+      : (muted ? "rgba(0,0,0,0.75)" : "#000000"),
+    fontWeight: lightTheme ? 500 : undefined,
     padding: "0.85rem 1.25rem",
-    borderBottom: isDark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(26,20,16,0.12)",
+    borderBottom: isDark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.12)",
     whiteSpace: nowrap ? "nowrap" : undefined,
     maxWidth: maxW,
     overflow: maxW ? "hidden" : undefined,
