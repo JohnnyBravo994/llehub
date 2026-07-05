@@ -839,6 +839,7 @@ export default function AgendaPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
           <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.textSec, textTransform: "uppercase", fontWeight: 600 }}>Agenda 2026</p>
           <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+            <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
             <button
               onClick={() => setLightTheme(!lightTheme)}
               title={lightTheme ? "Mudar para tema escuro" : "Mudar para tema claro"}
@@ -1094,13 +1095,7 @@ export default function AgendaPage() {
           <input className="mob-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar evento..." />
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
-          <button
-            onClick={() => setLightTheme(!lightTheme)}
-            title={lightTheme ? "Mudar para tema escuro" : "Mudar para tema claro"}
-            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(245,240,232,0.4)", fontSize: "10px", padding: "0.5rem 0.5rem", cursor: "pointer", borderRadius: "2px", display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
-            {lightTheme ? "🌙" : "☀️"}
-          </button>
+          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.5rem 0.5rem" }} />
           <button
             onClick={openWaPeriodModal}
             style={{ background: "rgba(93,202,165,0.08)", border: "1px solid rgba(93,202,165,0.2)", color: "#5DCAA5", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px" }}

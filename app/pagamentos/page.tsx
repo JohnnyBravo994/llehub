@@ -82,7 +82,6 @@ export default function PagamentosPage() {
   const [editForm, setEditForm] = useState({ nome: "", tipo: "DJ", fee: 0 });
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
-  const [mounted, setMounted] = useState(false);
   const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [addModal, setAddModal] = useState<{ open: boolean; evento_id: number; evento_nome: string; evento_data: string } | null>(null);
@@ -208,7 +207,7 @@ export default function PagamentosPage() {
     <>
     {/* ═══ DESKTOP ═══ */}
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      {<Nav userName={userName} active="pagamentos" onLogout={={() => { localStorage.removeItem("lle_user"); router.push("/");  lightTheme={lightTheme} }}/>
+      <Nav userName={userName} active="pagamentos" onLogout={={() => { localStorage.removeItem("lle_user"); router.push("/");   }} />
 
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1200px", margin: "0 auto" }}>
 
@@ -358,7 +357,7 @@ export default function PagamentosPage() {
                             </td>
                             <td style={tds({})}>
                               {isEditing
-                                ? <input value={editForm.nome} onChange={e => setEditForm(f => ({ ...f, nome: e.target.value }))} style={{ ...inlineInput, width: "140px"  lightTheme={lightTheme} }}/>
+                                ? <input value={editForm.nome} onChange={e => setEditForm(f => ({ ...f, nome: e.target.value }))} style={{ ...inlineInput, width: "140px"   }} />
                                 : <span style={{ fontSize: "11px", color: isAnnia ? C.green : C.textPrimary }}>{resolveNome(p.nome)}</span>
                               }
                             </td>
@@ -370,7 +369,7 @@ export default function PagamentosPage() {
                             </td>
                             <td style={{ ...tds({}), textAlign: "right" }}>
                               {isEditing
-                                ? <input type="number" value={editForm.fee} onChange={e => setEditForm(f => ({ ...f, fee: parseFloat(e.target.value) || 0 }))} style={{ ...inlineInput, width: "80px", textAlign: "right"  lightTheme={lightTheme} }}/>
+                                ? <input type="number" value={editForm.fee} onChange={e => setEditForm(f => ({ ...f, fee: parseFloat(e.target.value) || 0 }))} style={{ ...inlineInput, width: "80px", textAlign: "right"   }} />
                                 : <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                                     <span style={{ color: isAnnia ? C.green : C.gold, fontWeight: 600 }}>{p.fee.toLocaleString("pt-PT")}€</span>
                                     {isAnnia && <span style={{ fontSize: "7px", letterSpacing: "0.2em", color: C.green, background: "rgba(95,202,165,0.12)", padding: "1px 5px", fontWeight: 600 }}>LUCRO</span>}
@@ -519,13 +518,15 @@ export default function PagamentosPage() {
     <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "#F5F0E8", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(255,255,255,0.05)", background:"rgba(12,11,9,0.97)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
         <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"#C9A96E", fontWeight:300 }}>LLE</span>
-        <span style={{ fontSize:"8px", letterSpacing:"0.35em", color:"rgba(245,240,232,0.2)", textTransform:"uppercase" }}>{userName}</span>
+        <div style={{ display:"flex", gap:"0.6rem", alignItems:"center" }}>
+          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.5rem 0.5rem" }} />
+          <span style={{ fontSize:"8px", letterSpacing:"0.35em", color:"rgba(245,240,232,0.2)", textTransform:"uppercase" }}>{userName}</span>
+        </div>
       </div>
 
       {/* Year selector */}
       <div style={{ display:"flex", gap:0, borderBottom:"1px solid rgba(255,255,255,0.05)", overflowX:"auto", flexShrink:0 }}>
         {years.map(y => (
-            <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
           <button key={y} onClick={() => setSelectedYear(y)} style={{ flex:1, background: selectedYear===y ? "rgba(201,169,110,0.08)" : "transparent", border:"none", borderBottom: selectedYear===y ? "2px solid #C9A96E" : "2px solid transparent", color: selectedYear===y ? "#C9A96E" : "rgba(245,240,232,0.3)", fontFamily:"'Montserrat',sans-serif", fontSize:"11px", letterSpacing:"0.2em", padding:"0.7rem", cursor:"pointer" }}>{y}</button>
         ))}
       </div>
@@ -733,7 +734,7 @@ function MobTabBar({ active, role }: { active: string; role: string }) {
         boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
       }}>
         {/* Handle */}
-        <div style={{ width: "36px", height: "3px", background: "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem"  lightTheme={lightTheme} }}/>
+        <div style={{ width: "36px", height: "3px", background: "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem"   }} />
         <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.4)", textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "0 0.5rem" }}>
           {maisTabs.map(t => (

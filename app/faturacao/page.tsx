@@ -67,7 +67,6 @@ export default function FaturacaoPage() {
   const [grouped, setGrouped] = useState<Record<string, FatItem[]>>({});
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
   const [toast, setToast] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("Por Faturar");
   const [search, setSearch] = useState("");
@@ -227,7 +226,7 @@ export default function FaturacaoPage() {
     <>
     {/* ═══ DESKTOP ═══ */}
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      {<Nav userName={userName} active="faturacao" onLogout={={() => { localStorage.removeItem("lle_user"); router.push("/");  lightTheme={lightTheme} }}/>
+      <Nav userName={userName} active="faturacao" onLogout={={() => { localStorage.removeItem("lle_user"); router.push("/");  }} />
 
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
 
@@ -257,7 +256,7 @@ export default function FaturacaoPage() {
             { label: "Recebido", valor: totalRecebido, color: C.green },
           ].map(({ label, valor, color }) => (
             <div key={label} style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "1.5rem 2rem", position: "relative" }}>
-              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: `linear-gradient(90deg, transparent, ${color}44, transparent)`  lightTheme={lightTheme} }}/>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: `linear-gradient(90deg, transparent, ${color}44, transparent)`  }} />
               <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim, marginBottom: "0.75rem", textTransform: "uppercase" }}>{label}</p>
               <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "2rem", color, lineHeight: 1, fontWeight: 300 }}>{fmtEuro(valor)}</p>
             </div>
@@ -267,7 +266,7 @@ export default function FaturacaoPage() {
         {/* FATURADO — banner compacto, só aparece se houver */}
         {totalFaturado > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "2rem", padding: "0.7rem 1.25rem", background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.18)", borderTop: "none" }}>
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: C.purple, flexShrink: 0  lightTheme={lightTheme} }}/>
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: C.purple, flexShrink: 0  }} />
             <span style={{ fontSize: "8px", letterSpacing: "0.35em", color: C.purple, textTransform: "uppercase", fontWeight: 600 }}>Faturado · aguarda pagamento</span>
             <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.1rem", color: C.purple, fontWeight: 300, marginLeft: "auto", letterSpacing: "0.05em" }}>{fmtEuro(totalFaturado)}</span>
           </div>
@@ -377,7 +376,7 @@ export default function FaturacaoPage() {
                           onMouseLeave={e => { if (!selectedItems.has(`${item.origem}-${item.id}`)) e.currentTarget.style.background = "transparent"; }}
                         >
                           {/* Checkbox */}
-                          <input type="checkbox" checked={selectedItems.has(`${item.origem}-${item.id}`)} onChange={() => toggleItem(`${item.origem}-${item.id}`)} style={{ accentColor: C.gold, cursor: "pointer", width: "14px", height: "14px"  lightTheme={lightTheme} }}/>
+                          <input type="checkbox" checked={selectedItems.has(`${item.origem}-${item.id}`)} onChange={() => toggleItem(`${item.origem}-${item.id}`)} style={{ accentColor: C.gold, cursor: "pointer", width: "14px", height: "14px"  }} />
                           {/* Descrição + origem */}
                           <div>
                             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -426,7 +425,7 @@ export default function FaturacaoPage() {
 
                           {/* Status badge */}
                           <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "8px", letterSpacing: "0.2em", padding: "4px 10px", fontWeight: 600, textTransform: "uppercase", background: `${cfg.color}14`, color: cfg.color, whiteSpace: "nowrap" }}>
-                            <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: cfg.dot, flexShrink: 0  lightTheme={lightTheme} }}/>
+                            <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: cfg.dot, flexShrink: 0  }} />
                             {item.billing_status}
                           </span>
 
@@ -480,10 +479,13 @@ export default function FaturacaoPage() {
     <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "#F5F0E8", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(255,255,255,0.05)", background:"rgba(12,11,9,0.97)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
         <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"#C9A96E", fontWeight:300 }}>LLE</span>
-        <button onClick={() => setClienteModal(true)} className="mob-fab" style={{width:"auto", padding:"0 0.9rem", gap:6, borderRadius:8}}>
-          <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
-          <span style={{fontSize:"9px", letterSpacing:"0.2em", fontFamily:"'Montserrat',sans-serif", fontWeight:600}}>Cliente</span>
-        </button>
+        <div style={{ display:"flex", gap:"0.6rem", alignItems:"center" }}>
+          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.5rem 0.5rem" }} />
+          <button onClick={() => setClienteModal(true)} className="mob-fab" style={{width:"auto", padding:"0 0.9rem", gap:6, borderRadius:8}}>
+            <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
+            <span style={{fontSize:"9px", letterSpacing:"0.2em", fontFamily:"'Montserrat',sans-serif", fontWeight:600}}>Cliente</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -596,7 +598,7 @@ export default function FaturacaoPage() {
                       <div className="mob-card-title">{item.titulo || item.descricao}</div>
                       <div className="mob-card-badges">
                         <span className="mob-badge" style={{background:`${bc}18`,color:bc}}>
-                          <span className="mob-badge-dot" style={{background:bc}}/>
+                          <span className="mob-badge-dot" style={{background:bc}} />
                           {item.billing_status}
                         </span>
                       </div>
@@ -758,7 +760,7 @@ function MobTabBar({ active, role }: { active: string; role: string }) {
         boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
       }}>
         {/* Handle */}
-        <div style={{ width: "36px", height: "3px", background: "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem"  lightTheme={lightTheme} }}/>
+        <div style={{ width: "36px", height: "3px", background: "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem"  }} />
         <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.4)", textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "0 0.5rem" }}>
           {maisTabs.map(t => (

@@ -32,7 +32,6 @@ export default function ClientesPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [mounted, setMounted] = useState(false);
   const [modal, setModal] = useState<{ open: boolean; editing: Cliente | null }>({ open: false, editing: null });
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -156,7 +155,7 @@ export default function ClientesPage() {
     <>
     {/* ═══ DESKTOP ═══ */}
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <Nav userName={userName} active="clientes" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} lightTheme={lightTheme} />
+      <Nav userName={userName} active="clientes" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");  }} />
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
@@ -235,8 +234,11 @@ export default function ClientesPage() {
     <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "#F5F0E8", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(12,11,9,0.97)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
-        <span style={{ fontSize: "8px", letterSpacing: "0.35em", color: "rgba(245,240,232,0.2)", textTransform: "uppercase" }}>Clientes</span>
-        <span style={{ fontSize: "8px", letterSpacing: "0.2em", color: "rgba(245,240,232,0.2)", textTransform: "uppercase" }}>{userName}</span>
+        <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
+          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.5rem 0.5rem" }} />
+          <span style={{ fontSize: "8px", letterSpacing: "0.35em", color: "rgba(245,240,232,0.2)", textTransform: "uppercase" }}>Clientes</span>
+          <span style={{ fontSize: "8px", letterSpacing: "0.2em", color: "rgba(245,240,232,0.2)", textTransform: "uppercase" }}>{userName}</span>
+        </div>
       </div>
 
       <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", gap: "0.5rem", flexShrink: 0 }}>
@@ -547,7 +549,7 @@ function MobTabBar({ active, role }: { active: string; role: string }) {
         boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
       }}>
         {/* Handle */}
-        <div style={{ width: "36px", height: "3px", background: "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem"  lightTheme={lightTheme} }}/>
+        <div style={{ width: "36px", height: "3px", background: "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem"  }}/>
         <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.4)", textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "0 0.5rem" }}>
           {maisTabs.map(t => (
