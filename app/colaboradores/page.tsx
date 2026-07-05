@@ -1,5 +1,8 @@
 "use client";
 
+import { useTheme } from "../useTheme";
+import { ThemeSwitcher } from "../ThemeSwitcher";
+
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -40,6 +43,7 @@ function stringToSkills(s: string): string[] {
 }
 
 export default function ColaboradoresPage() {
+  const { lightTheme, setLightTheme, mounted } = useTheme();
   const router = useRouter();
   const [userName, setUserName] = useState("");
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
@@ -181,12 +185,13 @@ export default function ColaboradoresPage() {
     <>
     {/* ═══ DESKTOP ═══ */}
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <Nav userName={userName} active="colaboradores" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
+      {<Nav userName={userName} active="colaboradores" onLogout={={() => { localStorage.removeItem("lle_user"); router.push("/");  lightTheme={lightTheme} }}/>
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
           <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600 }}>Colaboradores</p>
+            <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
           <button onClick={openCreate} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.gold, fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <svg width="10" height="10" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
             Novo Colaborador
@@ -195,7 +200,7 @@ export default function ColaboradoresPage() {
 
         {/* Filters */}
         <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative", marginBottom: "0" }}>
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" />/>
           <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.borderDim}` }}>
             <input
               value={search} onChange={e => setSearch(e.target.value)}
@@ -615,7 +620,7 @@ function MobTabBar({ active, role }: { active: string; role: string }) {
         boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
       }}>
         {/* Handle */}
-        <div style={{ width: "36px", height: "3px", background: "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem" }} />
+        <div style={{ width: "36px", height: "3px", background: "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem"  lightTheme={lightTheme} }}/>
         <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.4)", textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "0 0.5rem" }}>
           {maisTabs.map(t => (

@@ -1,6 +1,8 @@
 "use client";
 
 import { MODALIDADES } from "../constants";
+import { useTheme } from "../useTheme";
+import { ThemeSwitcher } from "../ThemeSwitcher";
 import React, { useEffect, useState, useCallback, useRef } from "react";
 
 // ── CustomSelect — cross-browser dropdown (substitui <select> nativo) ─────────
@@ -130,6 +132,7 @@ const updateArtist = (setArtists: React.Dispatch<React.SetStateAction<ArtistRow[
 
 export default function LeadsPage() {
   const router = useRouter();
+  const { lightTheme, setLightTheme, mounted } = useTheme();
   const [userName, setUserName] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -529,7 +532,7 @@ export default function LeadsPage() {
     <>
     {/* ═══ DESKTOP ═══ */}
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <Nav userName={userName} active="leads" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
+      <Nav userName={userName} active="leads" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} lightTheme={lightTheme} />
 
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
@@ -538,6 +541,7 @@ export default function LeadsPage() {
             {leads.length > 0 && <span style={{ color: C.textMuted, marginLeft: "0.75rem" }}>({leads.length} total)</span>}
           </p>
           <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+            <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
             <button
               onClick={openWaMonthModal}
               style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "#5DCAA5", fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}

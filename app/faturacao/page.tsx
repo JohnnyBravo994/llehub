@@ -1,5 +1,8 @@
 "use client";
 
+import { useTheme } from "../useTheme";
+import { ThemeSwitcher } from "../ThemeSwitcher";
+
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -58,6 +61,7 @@ function displayClienteName(nome: string, clienteInfo?: { alias?: string }) {
 }
 
 export default function FaturacaoPage() {
+  const { lightTheme, setLightTheme, mounted } = useTheme();
   const router = useRouter();
   const [userName, setUserName] = useState("");
   const [grouped, setGrouped] = useState<Record<string, FatItem[]>>({});
@@ -223,7 +227,7 @@ export default function FaturacaoPage() {
     <>
     {/* ═══ DESKTOP ═══ */}
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <Nav userName={userName} active="faturacao" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
+      {<Nav userName={userName} active="faturacao" onLogout={={() => { localStorage.removeItem("lle_user"); router.push("/");  lightTheme={lightTheme} }}/>
 
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
 
@@ -238,6 +242,7 @@ export default function FaturacaoPage() {
               Eventos e leads a partir do estado <span style={{ color: C.green }}>Confirmado</span>
             </p>
           </div>
+            <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
           <button onClick={() => setClienteModal(true)} style={addBtnStyle}>
             <svg width="10" height="10" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
             Novo Cliente
@@ -252,7 +257,7 @@ export default function FaturacaoPage() {
             { label: "Recebido", valor: totalRecebido, color: C.green },
           ].map(({ label, valor, color }) => (
             <div key={label} style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "1.5rem 2rem", position: "relative" }}>
-              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: `linear-gradient(90deg, transparent, ${color}44, transparent)` }} />
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: `linear-gradient(90deg, transparent, ${color}44, transparent)`  lightTheme={lightTheme} }}/>
               <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim, marginBottom: "0.75rem", textTransform: "uppercase" }}>{label}</p>
               <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "2rem", color, lineHeight: 1, fontWeight: 300 }}>{fmtEuro(valor)}</p>
             </div>
@@ -262,7 +267,7 @@ export default function FaturacaoPage() {
         {/* FATURADO — banner compacto, só aparece se houver */}
         {totalFaturado > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "2rem", padding: "0.7rem 1.25rem", background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.18)", borderTop: "none" }}>
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: C.purple, flexShrink: 0 }} />
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: C.purple, flexShrink: 0  lightTheme={lightTheme} }}/>
             <span style={{ fontSize: "8px", letterSpacing: "0.35em", color: C.purple, textTransform: "uppercase", fontWeight: 600 }}>Faturado · aguarda pagamento</span>
             <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.1rem", color: C.purple, fontWeight: 300, marginLeft: "auto", letterSpacing: "0.05em" }}>{fmtEuro(totalFaturado)}</span>
           </div>
@@ -326,7 +331,7 @@ export default function FaturacaoPage() {
 
               return (
                 <div key={clienteNome} style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative" }}>
-                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" />/>
 
                   {/* Card Header */}
                   <div
@@ -372,7 +377,7 @@ export default function FaturacaoPage() {
                           onMouseLeave={e => { if (!selectedItems.has(`${item.origem}-${item.id}`)) e.currentTarget.style.background = "transparent"; }}
                         >
                           {/* Checkbox */}
-                          <input type="checkbox" checked={selectedItems.has(`${item.origem}-${item.id}`)} onChange={() => toggleItem(`${item.origem}-${item.id}`)} style={{ accentColor: C.gold, cursor: "pointer", width: "14px", height: "14px" }} />
+                          <input type="checkbox" checked={selectedItems.has(`${item.origem}-${item.id}`)} onChange={() => toggleItem(`${item.origem}-${item.id}`)} style={{ accentColor: C.gold, cursor: "pointer", width: "14px", height: "14px"  lightTheme={lightTheme} }}/>
                           {/* Descrição + origem */}
                           <div>
                             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -421,7 +426,7 @@ export default function FaturacaoPage() {
 
                           {/* Status badge */}
                           <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "8px", letterSpacing: "0.2em", padding: "4px 10px", fontWeight: 600, textTransform: "uppercase", background: `${cfg.color}14`, color: cfg.color, whiteSpace: "nowrap" }}>
-                            <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: cfg.dot, flexShrink: 0 }} />
+                            <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: cfg.dot, flexShrink: 0  lightTheme={lightTheme} }}/>
                             {item.billing_status}
                           </span>
 
@@ -531,6 +536,7 @@ export default function FaturacaoPage() {
             disabled={!bulkStatus}
             style={{ background: bulkStatus ? C.gold : "rgba(255,255,255,0.04)", border: "none", color: bulkStatus ? "#0C0B09" : C.textMuted, fontSize: "9px", letterSpacing: "0.25em", fontWeight: 700, padding: "0.5rem 0.9rem", cursor: bulkStatus ? "pointer" : "default", fontFamily: "inherit", textTransform: "uppercase", whiteSpace: "nowrap", borderRadius: "2px" }}
           >Aplicar</button>
+            <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
           <button onClick={() => setSelectedItems(new Set())} style={{ background: "transparent", border: "none", color: C.textMuted, fontSize: "16px", cursor: "pointer", padding: "0 4px", lineHeight: "1" }}>✕</button>
         </div>
       )}
@@ -752,7 +758,7 @@ function MobTabBar({ active, role }: { active: string; role: string }) {
         boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
       }}>
         {/* Handle */}
-        <div style={{ width: "36px", height: "3px", background: "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem" }} />
+        <div style={{ width: "36px", height: "3px", background: "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem"  lightTheme={lightTheme} }}/>
         <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.4)", textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "0 0.5rem" }}>
           {maisTabs.map(t => (

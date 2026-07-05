@@ -1,5 +1,8 @@
 "use client";
 
+import { useTheme } from "../useTheme";
+import { ThemeSwitcher } from "../ThemeSwitcher";
+
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -121,6 +124,7 @@ function agruparPorEvento(movs: Movimento[], eventos: EventoOpcao[]) {
 }
 
 export default function MateriaisPage() {
+  const { lightTheme, setLightTheme, mounted } = useTheme();
   const router = useRouter();
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("admin");
@@ -298,7 +302,7 @@ export default function MateriaisPage() {
 
   const MaterialThumb = ({ src, size = 44 }: { src: string; size?: number }) => (
     src
-      ? <img src={src} alt="" style={{ width: size, height: size, objectFit: "cover", border: `1px solid ${C.border}`, flexShrink: 0 }} />
+      ? <img src={src} alt="" style={{ width: size, height: size, objectFit: "cover", border: `1px solid ${C.border}`, flexShrink: 0  lightTheme={lightTheme} }}/>
       : <div style={{ width: size, height: size, background: "rgba(255,255,255,0.04)", border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <svg width={size * 0.45} height={size * 0.45} viewBox="0 0 24 24" fill="none" stroke={C.textMuted} strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
         </div>
@@ -308,12 +312,13 @@ export default function MateriaisPage() {
     <>
     {/* ═══ DESKTOP ═══ */}
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <Nav userName={userName} active="materiais" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
+      {<Nav userName={userName} active="materiais" onLogout={={() => { localStorage.removeItem("lle_user"); router.push("/");  lightTheme={lightTheme} }}/>
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
           <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600 }}>Materiais</p>
           <div style={{ display: "flex", gap: "0.6rem" }}>
+            <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
             <button onClick={openCreateMaterial} style={btnSecStyle}>+ Novo Material</button>
             <button onClick={() => openSaida()} style={btnPrimStyle}>+ Registar Saída</button>
           </div>
@@ -373,7 +378,7 @@ export default function MateriaisPage() {
                               <>
                                 <input type="number" min={1} max={pendente} value={voltaQty[mov.id] ?? 1}
                                   onChange={e => setVoltaQty(v => ({ ...v, [mov.id]: Math.max(1, Math.min(pendente, Number(e.target.value) || 1)) }))}
-                                  style={{ width: "44px", background: "rgba(255,255,255,0.05)", border: `1px solid ${C.border}`, color: C.textPrimary, fontSize: "10px", padding: "5px", textAlign: "center", outline: "none" }} />
+                                  style={{ width: "44px", background: "rgba(255,255,255,0.05)", border: `1px solid ${C.border}`, color: C.textPrimary, fontSize: "10px", padding: "5px", textAlign: "center", outline: "none"  lightTheme={lightTheme} }}/>
                                 <button onClick={() => handleVoltou(mov, voltaQty[mov.id] ?? 1)} style={{ ...btnSecStyle, padding: "5px 10px", fontSize: "8px" }}>Parcial</button>
                               </>
                             )}
@@ -433,7 +438,7 @@ export default function MateriaisPage() {
                 <div key={m.id} style={{ background: C.surface, border: `1px solid ${C.borderDim}`, overflow: "hidden" }}>
                   <div style={{ width: "100%", aspectRatio: "1.3/1", background: "rgba(255,255,255,0.03)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {m.imagem
-                      ? <img src={m.imagem} alt={m.nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ? <img src={m.imagem} alt={m.nome} style={{ width: "100%", height: "100%", objectFit: "cover"  lightTheme={lightTheme} }}/>
                       : <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={C.textMuted} strokeWidth="1.4"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>}
                   </div>
                   <div style={{ padding: "0.85rem" }}>
@@ -570,12 +575,12 @@ export default function MateriaisPage() {
       <>
         <div className="mob-page-desktop" onClick={e => e.target === e.currentTarget && closeSaida()} style={overlayStyle}>
           <div style={modalStyle}><div style={topLineStyle} />
-            <SaidaModalContent {...{ materiais: materiaisAtivos, eventos, saidaForm, setSaidaForm, saving, closeSaida, handleRegistarSaida, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C, MaterialThumb }} />
+            <SaidaModalContent {...{ materiais: materiaisAtivos, eventos, saidaForm, setSaidaForm, saving, closeSaida, handleRegistarSaida, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C, MaterialThumb  lightTheme={lightTheme} }}/>
           </div>
         </div>
         <div className="mob-shell" onClick={e => e.target === e.currentTarget && closeSaida()} style={overlayBottomStyle}>
           <div style={modalMobStyle}><div style={topLineStyle} />
-            <SaidaModalContent {...{ materiais: materiaisAtivos, eventos, saidaForm, setSaidaForm, saving, closeSaida, handleRegistarSaida, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C, MaterialThumb }} />
+            <SaidaModalContent {...{ materiais: materiaisAtivos, eventos, saidaForm, setSaidaForm, saving, closeSaida, handleRegistarSaida, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C, MaterialThumb  lightTheme={lightTheme} }}/>
           </div>
         </div>
       </>
@@ -586,12 +591,12 @@ export default function MateriaisPage() {
       <>
         <div className="mob-page-desktop" onClick={e => e.target === e.currentTarget && closeMaterialModal()} style={overlayStyle}>
           <div style={modalStyle}><div style={topLineStyle} />
-            <MaterialModalContent {...{ materialForm, setMaterialForm, materialModal, saving, imgUploading, closeMaterialModal, handleSaveMaterial, handleImageUpload, fileInputRef, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C }} />
+            <MaterialModalContent {...{ materialForm, setMaterialForm, materialModal, saving, imgUploading, closeMaterialModal, handleSaveMaterial, handleImageUpload, fileInputRef, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C  lightTheme={lightTheme} }}/>
           </div>
         </div>
         <div className="mob-shell" onClick={e => e.target === e.currentTarget && closeMaterialModal()} style={overlayBottomStyle}>
           <div style={modalMobStyle}><div style={topLineStyle} />
-            <MaterialModalContent {...{ materialForm, setMaterialForm, materialModal, saving, imgUploading, closeMaterialModal, handleSaveMaterial, handleImageUpload, fileInputRef, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C }} />
+            <MaterialModalContent {...{ materialForm, setMaterialForm, materialModal, saving, imgUploading, closeMaterialModal, handleSaveMaterial, handleImageUpload, fileInputRef, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C  lightTheme={lightTheme} }}/>
           </div>
         </div>
       </>
@@ -686,14 +691,14 @@ function MaterialModalContent({ materialForm, setMaterialForm, materialModal, sa
           {imgUploading
             ? <span style={{ fontSize: "10px", color: C.textMuted, letterSpacing: "0.2em" }}>A processar...</span>
             : materialForm.imagem
-              ? <img src={materialForm.imagem} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ? <img src={materialForm.imagem} alt="" style={{ width: "100%", height: "100%", objectFit: "cover"  lightTheme={lightTheme} }}/>
               : <div style={{ textAlign: "center" }}>
                   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.textMuted} strokeWidth="1.4" style={{ marginBottom: "6px" }}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
                   <div style={{ fontSize: "9px", color: C.textMuted, letterSpacing: "0.15em" }}>Toca para adicionar foto</div>
                 </div>}
         </div>
         <input ref={fileInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
-          onChange={(e: any) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); }} />
+          onChange={(e: any) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f);  lightTheme={lightTheme} }}/>
       </div>
 
       <div style={{ marginBottom: "1rem" }}>
@@ -824,7 +829,7 @@ function MobTabBar({ active, role }: { active: string; role: string }) {
   return (
     <>
       {maisOpen && (
-        <div onClick={() => setMaisOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 199, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(2px)" }} />
+        <div onClick={() => setMaisOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 199, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(2px)"  lightTheme={lightTheme} }}/>
       )}
 
       <div style={{
@@ -836,7 +841,7 @@ function MobTabBar({ active, role }: { active: string; role: string }) {
         paddingBottom: "0.5rem",
         boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
       }}>
-        <div style={{ width: "36px", height: "3px", background: "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem" }} />
+        <div style={{ width: "36px", height: "3px", background: "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem"  lightTheme={lightTheme} }}/>
         <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.4)", textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "0 0.5rem" }}>
           {maisTabs.map(t => (
