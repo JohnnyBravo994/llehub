@@ -67,6 +67,7 @@ function toDateStr(d: Date) {
 export default function Dashboard() {
   const router = useRouter();
   const [userName, setUserName] = useState("");
+  const { lightTheme, setLightTheme, mounted } = useTheme();
   const [currentTime, setCurrentTime] = useState("");
   const [currentDate, setCurrentDate] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -99,7 +100,6 @@ export default function Dashboard() {
     tick();
     const iv = setInterval(tick, 1000);
     load();
-    setTimeout(() => setMounted(true), 100);
     return () => clearInterval(iv);
   }, [load]);
 
@@ -154,7 +154,7 @@ export default function Dashboard() {
     <>
     {/* ═══ DESKTOP ═══ */}
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat', sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <Nav userName={userName} active="dashboard" onLogout={={() => { localStorage.removeItem("lle_user"); router.push("/");  }} />
+      <Nav userName={userName} active="dashboard" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");  }} />
 
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
 
@@ -170,7 +170,7 @@ export default function Dashboard() {
           </div>
 
           <div style={{ background: "linear-gradient(135deg, #1a1408 0%, #110f07 100%)", border: `1px solid ${C.border}`, padding: "2rem", position: "relative" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" />/>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
             <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim, marginBottom: "1.25rem" }}>EVENTOS DE HOJE</p>
             {todayEvs.length > 0 ? (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "0.75rem" }}>
@@ -203,7 +203,7 @@ export default function Dashboard() {
 
         {/* ROW 2: PRÓXIMOS 7 DIAS */}
         <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "2rem", marginBottom: "1.5rem", position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" />/>
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
             <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim }}>PRÓXIMOS 7 DIAS</p>
             <a href="/agenda" style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.goldDim, textDecoration: "none", textTransform: "uppercase" }}>Ver agenda →</a>

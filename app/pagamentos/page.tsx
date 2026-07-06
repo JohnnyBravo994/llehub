@@ -140,7 +140,6 @@ export default function PagamentosPage() {
     if (parsed.role !== "admin") { router.push("/agenda"); return; }
     setUserName(parsed.name);
     load();
-    setTimeout(() => setMounted(true), 100);
   }, [load]);
 
   const filtered = pagamentos.filter(p => p.evento_data.startsWith(selectedYear));
@@ -207,7 +206,7 @@ export default function PagamentosPage() {
     <>
     {/* ═══ DESKTOP ═══ */}
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <Nav userName={userName} active="pagamentos" onLogout={={() => { localStorage.removeItem("lle_user"); router.push("/");   }} />
+      <Nav userName={userName} active="pagamentos" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");   }} />
 
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1200px", margin: "0 auto" }}>
 
@@ -335,7 +334,7 @@ export default function PagamentosPage() {
 
                 {/* Table */}
                 <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative" }}>
-                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E44, transparent)" />/>
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E44, transparent)" }} />
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>

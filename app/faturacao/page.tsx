@@ -103,7 +103,6 @@ export default function FaturacaoPage() {
     if (parsed.role !== "admin") { router.push("/agenda"); return; }
     setUserName(parsed.name);
     setupDatabase().then(() => load());
-    setTimeout(() => setMounted(true), 100);
   }, [load]);
 
   async function handleStatusChange(item: FatItem, newStatus: string) {
@@ -226,7 +225,7 @@ export default function FaturacaoPage() {
     <>
     {/* ═══ DESKTOP ═══ */}
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <Nav userName={userName} active="faturacao" onLogout={={() => { localStorage.removeItem("lle_user"); router.push("/");  }} />
+      <Nav userName={userName} active="faturacao" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");  }} />
 
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
 
@@ -330,7 +329,7 @@ export default function FaturacaoPage() {
 
               return (
                 <div key={clienteNome} style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative" }}>
-                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" />/>
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
 
                   {/* Card Header */}
                   <div

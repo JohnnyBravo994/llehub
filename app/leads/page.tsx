@@ -195,7 +195,6 @@ export default function LeadsPage() {
       });
     }
     setupDatabase().then(() => load());
-    setTimeout(() => setMounted(true), 100);
   }, [load]);
 
   const resetClienteState = () => {
@@ -531,7 +530,7 @@ export default function LeadsPage() {
     <>
     {/* ═══ DESKTOP ═══ */}
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <Nav userName={userName} active="leads" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} lightTheme={lightTheme} />
+      <Nav userName={userName} active="leads" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
 
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>

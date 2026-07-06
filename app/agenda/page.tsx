@@ -4,6 +4,7 @@ import { ARTIST_TIPOS, MODALIDADES, resolveColaboradorNome } from "../constants"
 import { useEffect, useState, useCallback, useRef } from "react";
 import React from "react";
 import { useRouter } from "next/navigation";
+import { ThemeSwitcher } from "../ThemeSwitcher";
 
 // ── CustomSelect — cross-browser dropdown (substitui <select> nativo) ─────────
 function CustomSelect({

@@ -165,7 +165,6 @@ export default function MateriaisPage() {
     setUserName(parsed.name);
     setUserRole(parsed.role || "admin");
     load();
-    setTimeout(() => setMounted(true), 100);
   }, [load]);
 
   const materiaisAtivos = materiais.filter(m => m.ativo === 1);
@@ -311,7 +310,7 @@ export default function MateriaisPage() {
     <>
     {/* ═══ DESKTOP ═══ */}
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <Nav userName={userName} active="materiais" onLogout={={() => { localStorage.removeItem("lle_user"); router.push("/");   }} />
+      <Nav userName={userName} active="materiais" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");   }} />
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
