@@ -1,6 +1,6 @@
 "use client";
 
-import { MODALIDADES } from "../constants";
+import { ARTIST_TIPOS, MODALIDADES } from "../constants";
 import { useTheme } from "../useTheme";
 import { ThemeSwitcher } from "../ThemeSwitcher";
 import React, { useEffect, useState, useCallback, useRef } from "react";
@@ -76,7 +76,7 @@ import { useRouter } from "next/navigation";
 import {
   getAllLeads, createLead, updateLead,
   cancelLead, restoreLead, deleteLead,
-  getAllClientes, createCliente, createAgendaEvent,
+  getAllClientes, createCliente, createAgendaEvent, getAllColaboradores,
   syncArtistasEvento, getArtistasEvento, setupDatabase, syncArtistasParaAgenda,
   syncAllExistingData,
 } from "../actions";
@@ -90,6 +90,10 @@ interface Lead {
 }
 
 interface Cliente { id: number; nome: string; nif?: string; alias?: string; }
+interface Colaborador {
+  id: number; nome: string; contacto?: string; email?: string; iban?: string;
+  skills?: string; notas?: string; ativo: number;
+}
 
 function displayClienteNome(lead: { cliente_id?: number | null; cliente_nome?: string }, clientes: Cliente[]): string {
   if (lead.cliente_id) {
@@ -102,10 +106,9 @@ function displayClienteNome(lead: { cliente_id?: number | null; cliente_nome?: s
   }
   return lead.cliente_nome || '';
 }
-interface ArtistRow { nome: string; tipo: string; fee: string; }
+interface ArtistRow { id?: number; colaborador_id?: number | null; nome: string; tipo: string; fee: string; }
 
-const ARTIST_TIPOS = ["DJ", "Singer", "Dancer", "Sax", "Guitar", "Bass", "Drums", "Piano", "Fire", "Host", "Actor", "Produtor", "Guarda-Roupa", "Animador"];
-const emptyArtist = (): ArtistRow => ({ nome: "", tipo: "DJ", fee: "" });
+const emptyArtist = (): ArtistRow => ({ colaborador_id: null, nome: "", tipo: "DJ", fee: "" });
 
 const C = {
   gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009", pageBg: "#0C0B09",
@@ -130,6 +133,23 @@ function fmtDate(s: string) {
   return d.toLocaleDateString("pt-PT", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+function normalizeText(v: string) {
+  return v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+}
+
+function tipoFromSkills(skills?: string) {
+  const first = (skills || "").split(",").map(s => s.trim()).filter(Boolean)[0] || "";
+  const map: Record<string, string> = {
+    "Cantor/a": "Singer", "DJ": "DJ", "Saxofonista": "Sax", "Violinista": "Violino",
+    "Pianista": "Piano", "Guitarrista": "Guitar", "Baterista": "Drums", "Percussionista": "Percussão",
+    "Bailarino/a": "Dancer", "Ator/Host": "Host", "Animador/a": "Animador",
+    "Produtor/Coordenador": "Produtor", "Técnico de Som": "Produtor", "Técnico de Luz": "Produtor",
+    "Makeup & Hair": "Guarda-Roupa", "Assistente de Guarda-Roupa": "Guarda-Roupa", "Coreógrafo/a": "Coreógrafa",
+  };
+  const mapped = map[first] || first || "DJ";
+  return ARTIST_TIPOS.includes(mapped) ? mapped : "DJ";
+}
+
 const STATUS_OPTIONS = ["Contacto", "Proposta Enviada", "Em Negociação", "Confirmado", "Em Adjudicação", "Adjudicado", "Faturado", "Pago", "Cancelado"];
 const emptyForm = { title: "", event_date: "", value: "0", status: "Contacto", local: "", contacto: "", notas: "", cliente_nome: "", cliente_id: null as number | null, modalidade: "Fatura" };
 
@@ -147,6 +167,7 @@ export default function LeadsPage() {
   const [userName, setUserName] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<{ open: boolean; editing: Lead | null }>({ open: false, editing: null });
@@ -173,7 +194,7 @@ export default function LeadsPage() {
   };
 
   const load = useCallback(async () => {
-    const [r, cr] = await Promise.all([getAllLeads(), getAllClientes()]);
+    const [r, cr, colr] = await Promise.all([getAllLeads(), getAllClientes(), getAllColaboradores()]);
     if (r.success) {
       setLeads(r.data as Lead[]);
       // Auto-colapsar meses já passados
@@ -188,6 +209,7 @@ export default function LeadsPage() {
       setCollapsedMonths(pastMonths);
     }
     if (cr.success) setClientes(cr.data as Cliente[]);
+    if (colr.success) setColaboradores(colr.data as Colaborador[]);
     setLoading(false);
   }, []);
 
@@ -207,6 +229,37 @@ export default function LeadsPage() {
     }
     setupDatabase().then(() => load());
   }, [load]);
+
+  const colaboradoresAtivos = colaboradores.filter(c => c.ativo === 1);
+  const findColaboradorByNome = (nome: string) => colaboradoresAtivos.find(c => normalizeText(c.nome) === normalizeText(nome));
+  const findColaboradorById = (id?: number | null) => id ? colaboradores.find(c => c.id === id) : undefined;
+  const normalizeArtistRow = (a: any): ArtistRow => {
+    const col = findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome || "");
+    return {
+      id: a.id,
+      colaborador_id: col?.id ?? a.colaborador_id ?? null,
+      nome: col?.nome || a.nome || "",
+      tipo: a.tipo || (col ? tipoFromSkills(col.skills) : "DJ"),
+      fee: String(a.fee ?? ""),
+    };
+  };
+
+  const updateArtistNome = (i: number, nome: string) => {
+    const col = findColaboradorByNome(nome);
+    setArtists(prev => prev.map((a, idx) => idx === i ? {
+      ...a,
+      colaborador_id: col?.id ?? null,
+      nome: col?.nome || nome,
+      tipo: col ? tipoFromSkills(col.skills) : a.tipo,
+    } : a));
+  };
+
+  const validArtistsPayload = () => artists.filter(a => a.nome.trim()).map(a => ({
+    colaborador_id: a.colaborador_id ?? findColaboradorByNome(a.nome)?.id ?? null,
+    nome: a.nome.trim(),
+    tipo: a.tipo,
+    fee: parseFloat(a.fee) || 0,
+  }));
 
   const resetClienteState = () => {
     setClienteSearch("");
@@ -242,14 +295,14 @@ export default function LeadsPage() {
       if (agendaId) {
         const res = await getArtistasEvento(agendaId);
         if (res.success && res.data.length > 0) {
-          loaded = res.data.map(a => ({ nome: a.nome, tipo: a.tipo, fee: String(a.fee) }));
+          loaded = res.data.map(normalizeArtistRow);
         }
       }
       // Fallback: artistas guardados directamente na lead (evento_id negativo)
       if (loaded.length === 0) {
         const res = await getArtistasEvento(-l.id);
         if (res.success && res.data.length > 0) {
-          loaded = res.data.map(a => ({ nome: a.nome, tipo: a.tipo, fee: String(a.fee) }));
+          loaded = res.data.map(normalizeArtistRow);
         }
       }
       setArtists(loaded.length > 0 ? loaded : [emptyArtist()]);
@@ -275,6 +328,7 @@ export default function LeadsPage() {
       local: form.local || "",
       contacto: form.contacto || "", notas: form.notas || "",
     };
+    const validArtists = validArtistsPayload();
     if (modal.editing) {
       const previousStatus = modal.editing.status || "";
       const saveResult = await updateLead(modal.editing.id, data);
@@ -284,17 +338,14 @@ export default function LeadsPage() {
         return;
       }
       // Save artistas linked to this lead (stored as lead id, will be synced)
-      const validArtists = artists.filter(a => a.nome.trim()).map(a => ({ ...a, fee: parseFloat(a.fee) || 0 }));
-      if (validArtists.length > 0) {
-        await syncArtistasEvento(modal.editing.id * -1, form.title.trim(), form.event_date, validArtists);
-        // Sync artistas para o evento de agenda ligado (se existir)
-        await syncArtistasParaAgenda(modal.editing.id, form.title.trim(), form.event_date, validArtists);
-      }
+      await syncArtistasEvento(modal.editing.id * -1, form.title.trim(), form.event_date, validArtists);
+      // Sync artistas para o evento de agenda ligado (se existir)
+      await syncArtistasParaAgenda(modal.editing.id, form.title.trim(), form.event_date, validArtists);
       // Auto-importar para Agenda se passou para estado confirmado/avançado
       const isNowAdvanced = AGENDA_AUTO_STATUSES.includes(form.status);
       const wasAlreadyAdvanced = AGENDA_AUTO_STATUSES.includes(previousStatus);
       if (isNowAdvanced && !wasAlreadyAdvanced) {
-        await createAgendaEvent({
+        const agendaRes = await createAgendaEvent({
           title: form.title.trim(),
           date: form.event_date,
           time: "",
@@ -309,15 +360,21 @@ export default function LeadsPage() {
           contacto: form.contacto || "",
           notas: form.notas || "",
         });
+        if (agendaRes.success && agendaRes.id) {
+          await syncArtistasEvento(agendaRes.id, form.title.trim(), form.event_date, validArtists);
+        }
         showToast("Lead actualizada · Evento criado na Agenda");
       } else {
         showToast("Lead actualizada");
       }
     } else {
       const res = await createLead(data);
+      if (res.success && res.id) {
+        await syncArtistasEvento(res.id * -1, form.title.trim(), form.event_date, validArtists);
+      }
       // Se criar directamente com estado avançado, também importa
       if (AGENDA_AUTO_STATUSES.includes(form.status)) {
-        await createAgendaEvent({
+        const agendaRes = await createAgendaEvent({
           title: form.title.trim(),
           date: form.event_date,
           time: "",
@@ -331,6 +388,9 @@ export default function LeadsPage() {
           contacto: form.contacto || "",
           notas: form.notas || "",
         });
+        if (agendaRes.success && agendaRes.id) {
+          await syncArtistasEvento(agendaRes.id, form.title.trim(), form.event_date, validArtists);
+        }
         showToast("Lead criada · Evento criado na Agenda");
       } else {
         showToast("Lead criada");
@@ -361,6 +421,9 @@ export default function LeadsPage() {
     });
     setConverting(false);
     if (res.success) {
+      if (res.id) {
+        await syncArtistasEvento(res.id, form.title.trim(), form.event_date, validArtistsPayload());
+      }
       showToast("Evento criado na Agenda");
       closeModal();
       load();
@@ -947,12 +1010,16 @@ export default function LeadsPage() {
                   <span key={h} style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600, padding: "0 4px" }}>{h}</span>
                 ))}
               </div>
+              <datalist id="leads-colaboradores-list">
+                {colaboradoresAtivos.map(c => <option key={c.id} value={c.nome}>{c.skills || "Colaborador"}</option>)}
+              </datalist>
               {artists.map((a, i) => (
                 <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
                   <input
                     value={a.nome}
-                    onChange={e => updateArtist(setArtists, i, "nome", e.target.value)}
-                    placeholder="Nome do artista..."
+                    list="leads-colaboradores-list"
+                    onChange={e => updateArtistNome(i, e.target.value)}
+                    placeholder="Escolher colaborador..."
                     style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
                   />
                   <CustomSelect

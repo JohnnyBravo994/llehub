@@ -372,14 +372,15 @@ export async function createAgendaEvent(data: {
     if (data.origem_lead_id) {
       await turso.execute({ sql: "UPDATE leads SET event_id=? WHERE id=?", args: [eventId, data.origem_lead_id] });
       // Migrar artistas da lead (guardados com evento_id negativo) para este evento
+      await ensureArtistasColaboradorIdColumn();
       const leadArtistas = await turso.execute({
-        sql: "SELECT nome, tipo, fee FROM artistas_evento WHERE evento_id=?",
+        sql: "SELECT nome, tipo, fee, colaborador_id FROM artistas_evento WHERE evento_id=?",
         args: [-data.origem_lead_id],
       });
       for (const a of leadArtistas.rows as any[]) {
         await turso.execute({
-          sql: "INSERT INTO artistas_evento (evento_id, evento_nome, evento_data, nome, tipo, fee) VALUES (?, ?, ?, ?, ?, ?)",
-          args: [newId, data.title, data.date, a.nome, a.tipo, a.fee],
+          sql: "INSERT INTO artistas_evento (evento_id, evento_nome, evento_data, colaborador_id, nome, tipo, fee) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          args: [newId, data.title, data.date, a.colaborador_id ?? null, a.nome, a.tipo, a.fee],
         });
       }
     }
@@ -506,14 +507,21 @@ export async function deleteAgendaEvent(id: number) {
 
 // ── ARTISTAS POR EVENTO ───────────────────────────────────────────────────────
 
-export async function getAllArtistasAgenda(): Promise<{ success: boolean; data: Record<number, { id: number; nome: string; tipo: string; fee: number }[]> }> {
+type ArtistaPayload = { nome: string; tipo: string; fee: number; colaborador_id?: number | null };
+
+async function ensureArtistasColaboradorIdColumn() {
+  try { await turso.execute("ALTER TABLE artistas_evento ADD COLUMN colaborador_id INTEGER"); } catch { }
+}
+
+export async function getAllArtistasAgenda(): Promise<{ success: boolean; data: Record<number, { id: number; nome: string; tipo: string; fee: number; colaborador_id: number | null }[]> }> {
   try {
-    const res = await turso.execute("SELECT id, evento_id, nome, tipo, fee FROM artistas_evento ORDER BY evento_id ASC, id ASC");
-    const map: Record<number, { id: number; nome: string; tipo: string; fee: number }[]> = {};
+    await ensureArtistasColaboradorIdColumn();
+    const res = await turso.execute("SELECT id, evento_id, nome, tipo, fee, colaborador_id FROM artistas_evento ORDER BY evento_id ASC, id ASC");
+    const map: Record<number, { id: number; nome: string; tipo: string; fee: number; colaborador_id: number | null }[]> = {};
     for (const r of res.rows as any[]) {
       const eid = Number(r.evento_id);
       if (!map[eid]) map[eid] = [];
-      map[eid].push({ id: Number(r.id), nome: r.nome as string, tipo: r.tipo as string, fee: Number(r.fee) });
+      map[eid].push({ id: Number(r.id), nome: r.nome as string, tipo: r.tipo as string, fee: Number(r.fee), colaborador_id: r.colaborador_id == null ? null : Number(r.colaborador_id) });
     }
     return { success: true, data: map };
   } catch (error) {
@@ -523,14 +531,15 @@ export async function getAllArtistasAgenda(): Promise<{ success: boolean; data: 
 }
 
 // Sync artistas de um evento de agenda para o lado da lead (evento_id negativo)
-export async function syncArtistasParaLead(leadId: number, eventoNome: string, eventoData: string, artistas: { nome: string; tipo: string; fee: number }[]) {
+export async function syncArtistasParaLead(leadId: number, eventoNome: string, eventoData: string, artistas: ArtistaPayload[]) {
   try {
+    await ensureArtistasColaboradorIdColumn();
     await turso.execute({ sql: "DELETE FROM artistas_evento WHERE evento_id=?", args: [-leadId] });
     for (const a of artistas) {
       if (!a.nome.trim()) continue;
       await turso.execute({
-        sql: "INSERT INTO artistas_evento (evento_id, evento_nome, evento_data, nome, tipo, fee) VALUES (?, ?, ?, ?, ?, ?)",
-        args: [-leadId, eventoNome, eventoData, a.nome.trim(), a.tipo, a.fee],
+        sql: "INSERT INTO artistas_evento (evento_id, evento_nome, evento_data, colaborador_id, nome, tipo, fee) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        args: [-leadId, eventoNome, eventoData, a.colaborador_id ?? null, a.nome.trim(), a.tipo, a.fee],
       });
     }
     return { success: true };
@@ -542,6 +551,7 @@ export async function syncArtistasParaLead(leadId: number, eventoNome: string, e
 
 export async function getArtistasEvento(eventoId: number) {
   try {
+    await ensureArtistasColaboradorIdColumn();
     const res = await turso.execute({
       sql: "SELECT * FROM artistas_evento WHERE evento_id=? ORDER BY id ASC",
       args: [eventoId],
@@ -551,6 +561,7 @@ export async function getArtistasEvento(eventoId: number) {
       data: res.rows.map((r: any) => ({
         id: Number(r.id), evento_id: Number(r.evento_id),
         evento_nome: r.evento_nome as string, evento_data: r.evento_data as string,
+        colaborador_id: r.colaborador_id == null ? null : Number(r.colaborador_id),
         nome: r.nome as string, tipo: r.tipo as string, fee: Number(r.fee),
       }))
     };
@@ -560,14 +571,15 @@ export async function getArtistasEvento(eventoId: number) {
   }
 }
 
-export async function syncArtistasEvento(eventoId: number, eventoNome: string, eventoData: string, artistas: { nome: string; tipo: string; fee: number }[]) {
+export async function syncArtistasEvento(eventoId: number, eventoNome: string, eventoData: string, artistas: ArtistaPayload[]) {
   try {
+    await ensureArtistasColaboradorIdColumn();
     await turso.execute({ sql: "DELETE FROM artistas_evento WHERE evento_id=?", args: [eventoId] });
     for (const a of artistas) {
       if (!a.nome.trim()) continue;
       await turso.execute({
-        sql: "INSERT INTO artistas_evento (evento_id, evento_nome, evento_data, nome, tipo, fee) VALUES (?, ?, ?, ?, ?, ?)",
-        args: [eventoId, eventoNome, eventoData, a.nome.trim(), a.tipo, a.fee],
+        sql: "INSERT INTO artistas_evento (evento_id, evento_nome, evento_data, colaborador_id, nome, tipo, fee) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        args: [eventoId, eventoNome, eventoData, a.colaborador_id ?? null, a.nome.trim(), a.tipo, a.fee],
       });
     }
     return { success: true };
@@ -578,8 +590,9 @@ export async function syncArtistasEvento(eventoId: number, eventoNome: string, e
 }
 
 // Sync artistas de uma lead para o evento de agenda ligado (por origem_lead_id)
-export async function syncArtistasParaAgenda(leadId: number, eventoNome: string, eventoData: string, artistas: { nome: string; tipo: string; fee: number }[]) {
+export async function syncArtistasParaAgenda(leadId: number, eventoNome: string, eventoData: string, artistas: ArtistaPayload[]) {
   try {
+    await ensureArtistasColaboradorIdColumn();
     const linked = await turso.execute({
       sql: "SELECT id FROM agenda WHERE origem_lead_id=?",
       args: [leadId],
@@ -590,8 +603,8 @@ export async function syncArtistasParaAgenda(leadId: number, eventoNome: string,
     for (const a of artistas) {
       if (!a.nome.trim()) continue;
       await turso.execute({
-        sql: "INSERT INTO artistas_evento (evento_id, evento_nome, evento_data, nome, tipo, fee) VALUES (?, ?, ?, ?, ?, ?)",
-        args: [agendaEventId, eventoNome, eventoData, a.nome.trim(), a.tipo, a.fee],
+        sql: "INSERT INTO artistas_evento (evento_id, evento_nome, evento_data, colaborador_id, nome, tipo, fee) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        args: [agendaEventId, eventoNome, eventoData, a.colaborador_id ?? null, a.nome.trim(), a.tipo, a.fee],
       });
     }
     return { success: true };
@@ -613,6 +626,7 @@ export async function getAllPagamentos() {
       data: res.rows.map((r: any) => ({
         id: Number(r.id), evento_id: Number(r.evento_id),
         evento_nome: r.evento_nome as string, evento_data: r.evento_data as string,
+        colaborador_id: r.colaborador_id == null ? null : Number(r.colaborador_id),
         nome: r.nome as string, tipo: r.tipo as string, fee: Number(r.fee),
         evento_status: r.evento_status as string,
         evento_cachet: Number(r.evento_cachet) || 0,

@@ -77,7 +77,7 @@ import {
   getAllAgenda, createAgendaEvent, updateAgendaEvent,
   cancelAgendaEvent, restoreAgendaEvent, deleteAgendaEvent,
   getArtistasEvento, syncArtistasEvento, getAllArtistasAgenda, syncArtistasParaLead,
-  getAllClientes, createCliente, getAllLeads, syncAllExistingData,
+  getAllClientes, createCliente, getAllLeads, getAllColaboradores, syncAllExistingData,
   setupMateriais, getAllMateriais, getMovimentosMateriais, registarSaidaMaterial,
   registarVoltaMaterial, deleteMovimentoMaterial,
 } from "../actions";
@@ -98,11 +98,16 @@ interface Lead {
 const CONFIRMED_STATUSES = ["Confirmado", "Em Adjudicação", "Adjudicado", "Pago"];
 
 interface ArtistRow {
-  id?: number; nome: string; tipo: string; fee: string;
+  id?: number; colaborador_id?: number | null; nome: string; tipo: string; fee: string;
 }
 
 interface Cliente {
   id: number; nome: string; nif?: string; alias?: string;
+}
+
+interface Colaborador {
+  id: number; nome: string; contacto?: string; email?: string; iban?: string;
+  skills?: string; notas?: string; ativo: number;
 }
 
 interface MaterialItem {
@@ -183,7 +188,24 @@ function artistsSummary(artists: ArtistRow[]) {
 }
 
 const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura", venue: "", contacto: "", notas: "" };
-const emptyArtist = (): ArtistRow => ({ nome: "", tipo: "DJ", fee: "" });
+const emptyArtist = (): ArtistRow => ({ colaborador_id: null, nome: "", tipo: "DJ", fee: "" });
+
+function normalizeText(v: string) {
+  return v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+}
+
+function tipoFromSkills(skills?: string) {
+  const first = (skills || "").split(",").map(s => s.trim()).filter(Boolean)[0] || "";
+  const map: Record<string, string> = {
+    "Cantor/a": "Singer", "DJ": "DJ", "Saxofonista": "Sax", "Violinista": "Violino",
+    "Pianista": "Piano", "Guitarrista": "Guitar", "Baterista": "Drums", "Percussionista": "Percussão",
+    "Bailarino/a": "Dancer", "Ator/Host": "Host", "Animador/a": "Animador",
+    "Produtor/Coordenador": "Produtor", "Técnico de Som": "Produtor", "Técnico de Luz": "Produtor",
+    "Makeup & Hair": "Guarda-Roupa", "Assistente de Guarda-Roupa": "Guarda-Roupa", "Coreógrafo/a": "Coreógrafa",
+  };
+  const mapped = map[first] || first || "DJ";
+  return ARTIST_TIPOS.includes(mapped) ? mapped : "DJ";
+}
 
 export default function AgendaPage() {
   const router = useRouter();
@@ -227,6 +249,7 @@ export default function AgendaPage() {
   });
   const [confirmedLeads, setConfirmedLeads] = useState<Lead[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [clienteSearch, setClienteSearch] = useState("");
   const [clienteDropOpen, setClienteDropOpen] = useState(false);
   const [clienteCreating, setClienteCreating] = useState(false);
@@ -249,10 +272,11 @@ export default function AgendaPage() {
   };
 
   const load = useCallback(async () => {
-    const [r, ar, cr, lr] = await Promise.all([getAllAgenda(), getAllArtistasAgenda(), getAllClientes(), getAllLeads()]);
+    const [r, ar, cr, lr, colr] = await Promise.all([getAllAgenda(), getAllArtistasAgenda(), getAllClientes(), getAllLeads(), getAllColaboradores()]);
     if (r.success) setEvents(r.data as AgendaEvent[]);
-    if (ar.success) setArtistasMap(Object.fromEntries(Object.entries(ar.data as Record<number, any[]>).map(([k, v]) => [k, v.map((a: any) => ({ ...a, fee: String(a.fee ?? "") }))])));
+    if (ar.success) setArtistasMap(Object.fromEntries(Object.entries(ar.data as Record<number, any[]>).map(([k, v]) => [k, v.map((a: any) => ({ ...a, colaborador_id: a.colaborador_id ?? null, fee: String(a.fee ?? "") }))])));
     if (cr.success) setClientes(cr.data as Cliente[]);
+    if (colr.success) setColaboradores(colr.data as Colaborador[]);
     if (lr.success) {
       const stripEmoji = (s: string) => s.replace(/[\p{Emoji}\u200d\ufe0f]+/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
       const agendaEvents = r.success ? (r.data as AgendaEvent[]) : [];
@@ -356,6 +380,30 @@ export default function AgendaPage() {
     await loadMateriais();
   };
 
+  const colaboradoresAtivos = colaboradores.filter(c => c.ativo === 1);
+  const findColaboradorByNome = (nome: string) => colaboradoresAtivos.find(c => normalizeText(c.nome) === normalizeText(nome));
+  const findColaboradorById = (id?: number | null) => id ? colaboradores.find(c => c.id === id) : undefined;
+  const normalizeArtistRow = (a: any): ArtistRow => {
+    const col = findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome || "");
+    return {
+      id: a.id,
+      colaborador_id: col?.id ?? a.colaborador_id ?? null,
+      nome: col?.nome || a.nome || "",
+      tipo: a.tipo || (col ? tipoFromSkills(col.skills) : "DJ"),
+      fee: String(a.fee ?? ""),
+    };
+  };
+
+  const updateArtistNome = (i: number, nome: string) => {
+    const col = findColaboradorByNome(nome);
+    setArtists(prev => prev.map((a, idx) => idx === i ? {
+      ...a,
+      colaborador_id: col?.id ?? null,
+      nome: col?.nome || nome,
+      tipo: col ? tipoFromSkills(col.skills) : a.tipo,
+    } : a));
+  };
+
   const openCreate = () => {
     setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
     setArtists([emptyArtist()]);
@@ -387,7 +435,7 @@ export default function AgendaPage() {
     setLoadingArtists(true);
     const r = await getArtistasEvento(e.id);
     if (r.success && r.data.length > 0) {
-      setArtists(r.data.map((a: any) => ({ id: a.id, nome: a.nome, tipo: a.tipo, fee: String(a.fee) })));
+      setArtists(r.data.map(normalizeArtistRow));
     } else {
       setArtists([emptyArtist()]);
     }
@@ -422,7 +470,12 @@ export default function AgendaPage() {
       venue: form.venue || "",
       contacto: form.contacto || "", notas: form.notas || "",
     };
-    const validArtists = artists.filter(a => a.nome.trim()).map(a => ({ ...a, fee: parseFloat(a.fee) || 0 }));
+    const validArtists = artists.filter(a => a.nome.trim()).map(a => ({
+      colaborador_id: a.colaborador_id ?? findColaboradorByNome(a.nome)?.id ?? null,
+      nome: a.nome.trim(),
+      tipo: a.tipo,
+      fee: parseFloat(a.fee) || 0,
+    }));
 
     if (modal.editing) {
       const updateRes = await updateAgendaEvent(modal.editing.id, data);
@@ -1607,12 +1660,16 @@ export default function AgendaPage() {
                       <span key={h} style={{ fontSize: "7px", letterSpacing: "0.3em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600, padding: "0 4px" }}>{h}</span>
                     ))}
                   </div>
+                  <datalist id="agenda-colaboradores-list">
+                    {colaboradoresAtivos.map(c => <option key={c.id} value={c.nome}>{c.skills || "Colaborador"}</option>)}
+                  </datalist>
                   {artists.map((a, i) => (
                     <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
                       <input
                         value={a.nome}
-                        onChange={e => updateArtist(i, "nome", e.target.value)}
-                        placeholder="Nome do artista..."
+                        list="agenda-colaboradores-list"
+                        onChange={e => updateArtistNome(i, e.target.value)}
+                        placeholder="Escolher colaborador..."
                         style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
                       />
                       <CustomSelect
