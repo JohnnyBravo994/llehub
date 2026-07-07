@@ -16,11 +16,60 @@ interface Colaborador {
 }
 
 const C = {
-  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009",
-  border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
-  textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
-  green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
+
+const C_Light = {
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
+  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
 };
+
+const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
+  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009",
+
+const C_Light = {
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
+  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
+};
+
+  border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
+
+const C_Light = {
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
+  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
+};
+
+  textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
+
+const C_Light = {
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
+  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
+};
+
+  green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
+
+const C_Light = {
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
+  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
+};
+
+};
+
+const C_Light = {
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
+  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
+};
+
 
 const ALL_SKILLS = [
   "Cantor/a", "DJ", "Saxofonista", "Violinista", "Pianista", "Guitarrista",
@@ -137,12 +186,12 @@ export default function ColaboradoresPage() {
     display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)",
   };
   const modalStyle: React.CSSProperties = {
-    background: "#131108", border: `1px solid ${C.border}`,
+    background: "#131108", border: `1px solid ${Colors.border}`,
     padding: "2.5rem", width: "540px", maxWidth: "95vw", maxHeight: "90vh",
     overflowY: "auto", position: "relative",
   };
   const modalMobStyle: React.CSSProperties = {
-    background: "#131108", borderTop: `1px solid ${C.border}`,
+    background: "#131108", borderTop: `1px solid ${Colors.border}`,
     width: "100%", maxHeight: "92dvh", overflowY: "auto",
     padding: "1.5rem 1.25rem", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))",
     borderRadius: "12px 12px 0 0", position: "relative",
@@ -153,28 +202,28 @@ export default function ColaboradoresPage() {
   };
   const labelStyle: React.CSSProperties = {
     display: "block", fontSize: "7px", letterSpacing: "0.4em",
-    color: C.textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.5rem",
+    color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.5rem",
   };
   const inputStyle: React.CSSProperties = {
     width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid rgba(255,255,255,0.08)`,
-    color: C.textPrimary, fontFamily: "'Montserrat',sans-serif", fontSize: "11px",
+    color: Colors.textPrimary, fontFamily: "'Montserrat',sans-serif", fontSize: "11px",
     padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box",
   };
   const btnPrimStyle: React.CSSProperties = {
-    background: C.gold, border: "none", color: "#0C0B09",
+    background: Colors.gold, border: "none", color: "#0C0B09",
     fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700,
     padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase",
   };
   const btnSecStyle: React.CSSProperties = {
-    background: "transparent", border: `1px solid ${C.border}`, color: C.textSec,
+    background: "transparent", border: `1px solid ${Colors.border}`, color: Colors.textSec,
     fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600,
     padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase",
   };
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0C0B09" }}>
-        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: C.gold, fontWeight: 300 }}>LLE</span>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: lightTheme ? "#FFFBF7" : "#0C0B09" }}>
+        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: Colors.gold, fontWeight: 300 }}>LLE</span>
       </div>
     );
   }
@@ -182,39 +231,39 @@ export default function ColaboradoresPage() {
   return (
     <>
     {/* ═══ DESKTOP ═══ */}
-    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
+    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: lightTheme ? "#FFFBF7" : "#0C0B09", color: Colors.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <Nav userName={userName} active="colaboradores" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");  }} />
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-          <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600 }}>Colaboradores</p>
+          <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.textSec, textTransform: "uppercase", fontWeight: 600 }}>Colaboradores</p>
             <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
-          <button onClick={openCreate} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.gold, fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <button onClick={openCreate} style={{ background: "transparent", border: `1px solid ${Colors.border}`, color: Colors.gold, fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <svg width="10" height="10" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
             Novo Colaborador
           </button>
         </div>
 
         {/* Filters */}
-        <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative", marginBottom: "0" }}>
+        <div style={{ background: Colors.surface, border: `1px solid ${Colors.borderDim}`, position: "relative", marginBottom: "0" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
-          <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.borderDim}` }}>
+          <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${Colors.borderDim}` }}>
             <input
               value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Pesquisar por nome..."
-              style={{ flex: 1, background: "rgba(255,255,255,0.03)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: C.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "0.9rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
+              style={{ flex: 1, background: "rgba(255,255,255,0.03)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: Colors.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "0.9rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
             />
             <select
               value={filterSkill} onChange={e => setFilterSkill(e.target.value)}
-              style={{ background: filterSkill ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: filterSkill ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", appearance: "none" as any, minWidth: "150px", textTransform: "uppercase" }}
+              style={{ background: filterSkill ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: filterSkill ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", appearance: "none" as any, minWidth: "150px", textTransform: "uppercase" }}
             >
               <option value="">Função / Skill</option>
               {ALL_SKILLS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
             <button
               onClick={() => setShowInactive(v => !v)}
-              style={{ background: showInactive ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", color: showInactive ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", cursor: "pointer", whiteSpace: "nowrap", textTransform: "uppercase" }}
+              style={{ background: showInactive ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", color: showInactive ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", cursor: "pointer", whiteSpace: "nowrap", textTransform: "uppercase" }}
             >
               {showInactive ? "✓ " : ""}Inativos
             </button>
@@ -226,7 +275,7 @@ export default function ColaboradoresPage() {
               <thead>
                 <tr>
                   {["Nome", "Contacto", "Email", "IBAN", "Funções / Skills", "Notas", "Estado", "Ações"].map((h, i) => (
-                    <th key={h} style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${C.border}`, textAlign: i >= 6 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
+                    <th key={h} style={{ fontSize: "7px", letterSpacing: "0.4em", color: Colors.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${Colors.border}`, textAlign: i >= 6 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -238,28 +287,28 @@ export default function ColaboradoresPage() {
                     <td style={tdS({ muted: true })}>{c.email || "—"}</td>
                     <td style={tdS({ muted: true, nowrap: true })}>
                       {c.iban
-                        ? <span style={{ fontFamily: "monospace", fontSize: "10px", color: C.textSec }}>{c.iban}</span>
-                        : <span style={{ color: C.textMuted }}>—</span>}
+                        ? <span style={{ fontFamily: "monospace", fontSize: "10px", color: Colors.textSec }}>{c.iban}</span>
+                        : <span style={{ color: Colors.textMuted }}>—</span>}
                     </td>
                     <td style={{ ...tdS({}), maxWidth: "220px" }}>
                       {stringToSkills(c.skills).length > 0
                         ? <div style={{ display: "flex", flexWrap: "wrap", gap: "3px" }}>
                             {stringToSkills(c.skills).map(s => (
-                              <span key={s} style={{ fontSize: "8px", background: "rgba(201,169,110,0.1)", color: C.gold, padding: "2px 6px", letterSpacing: "0.1em" }}>{s}</span>
+                              <span key={s} style={{ fontSize: "8px", background: "rgba(201,169,110,0.1)", color: Colors.gold, padding: "2px 6px", letterSpacing: "0.1em" }}>{s}</span>
                             ))}
                           </div>
-                        : <span style={{ color: C.textMuted, fontSize: "10px" }}>—</span>}
+                        : <span style={{ color: Colors.textMuted, fontSize: "10px" }}>—</span>}
                     </td>
                     <td style={{ ...tdS({ muted: true }), maxWidth: "180px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.notas || "—"}</td>
                     <td style={{ ...tdS({}), textAlign: "right" }}>
-                      <span style={{ fontSize: "8px", letterSpacing: "0.2em", color: c.ativo === 1 ? C.green : C.textMuted, fontWeight: 600, textTransform: "uppercase" }}>
+                      <span style={{ fontSize: "8px", letterSpacing: "0.2em", color: c.ativo === 1 ? Colors.green : Colors.textMuted, fontWeight: 600, textTransform: "uppercase" }}>
                         {c.ativo === 1 ? "Ativo" : "Inativo"}
                       </span>
                     </td>
                     <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
                       <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
                         <button onClick={() => openEdit(c)} title="Editar" style={iconBtnStyle}><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M11 2l3 3-9 9H2v-3L11 2z" /></svg></button>
-                        <button onClick={() => handleToggleAtivo(c)} title={c.ativo === 1 ? "Marcar Inativo" : "Marcar Ativo"} style={{ ...iconBtnStyle, color: c.ativo === 1 ? C.textMuted : C.green }}>
+                        <button onClick={() => handleToggleAtivo(c)} title={c.ativo === 1 ? "Marcar Inativo" : "Marcar Ativo"} style={{ ...iconBtnStyle, color: c.ativo === 1 ? Colors.textMuted : Colors.green }}>
                           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
                             {c.ativo === 1 ? <path d="M12 4L6 10 4 8" /> : <circle cx="8" cy="8" r="6" />}
                           </svg>
@@ -269,7 +318,7 @@ export default function ColaboradoresPage() {
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={8} style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem colaboradores encontrados</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: Colors.textMuted, letterSpacing: "0.2em" }}>Sem colaboradores encontrados</td></tr>
                 )}
               </tbody>
             </table>
@@ -277,7 +326,7 @@ export default function ColaboradoresPage() {
         </div>
 
         {/* Count */}
-        <div style={{ marginTop: "0.75rem", fontSize: "8px", letterSpacing: "0.3em", color: C.textMuted, textTransform: "uppercase" }}>
+        <div style={{ marginTop: "0.75rem", fontSize: "8px", letterSpacing: "0.3em", color: Colors.textMuted, textTransform: "uppercase" }}>
           {filtered.length} {filtered.length === 1 ? "colaborador" : "colaboradores"}
           {!showInactive && colaboradores.filter(c => c.ativo === 0).length > 0 && (
             <span style={{ marginLeft: "1rem" }}>· {colaboradores.filter(c => c.ativo === 0).length} inativos ocultos</span>
@@ -369,10 +418,10 @@ export default function ColaboradoresPage() {
           <div style={modalMobStyle}>
             <div style={topLineStyle} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-              <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600 }}>
+              <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.goldDim, textTransform: "uppercase", fontWeight: 600 }}>
                 {modal.editing ? "Editar Colaborador" : "Novo Colaborador"}
               </p>
-              <button onClick={closeModal} style={{ background: "none", border: "none", color: C.textMuted, fontSize: "20px", cursor: "pointer", lineHeight: 1 }}>×</button>
+              <button onClick={closeModal} style={{ background: "none", border: "none", color: Colors.textMuted, fontSize: "20px", cursor: "pointer", lineHeight: 1 }}>×</button>
             </div>
 
             <div style={{ marginBottom: "1rem" }}>
@@ -398,7 +447,7 @@ export default function ColaboradoresPage() {
                   <button key={s} onClick={() => toggleSkill(s)} style={{
                     background: form.skills.includes(s) ? "rgba(201,169,110,0.18)" : "rgba(255,255,255,0.04)",
                     border: `1px solid ${form.skills.includes(s) ? "rgba(201,169,110,0.4)" : "rgba(255,255,255,0.1)"}`,
-                    color: form.skills.includes(s) ? C.gold : C.textMuted,
+                    color: form.skills.includes(s) ? Colors.gold : Colors.textMuted,
                     fontSize: "11px", padding: "8px 12px", cursor: "pointer", fontFamily: "inherit",
                     minHeight: "36px",
                   }}>{s}</button>
@@ -414,7 +463,7 @@ export default function ColaboradoresPage() {
               <button onClick={() => setForm(f => ({ ...f, ativo: f.ativo === 1 ? 0 : 1 }))} style={{
                 background: form.ativo === 1 ? "rgba(93,202,165,0.12)" : "rgba(255,255,255,0.04)",
                 border: `1px solid ${form.ativo === 1 ? "rgba(93,202,165,0.3)" : "rgba(255,255,255,0.08)"}`,
-                color: form.ativo === 1 ? C.green : C.textMuted, fontSize: "10px", letterSpacing: "0.15em",
+                color: form.ativo === 1 ? Colors.green : Colors.textMuted, fontSize: "10px", letterSpacing: "0.15em",
                 padding: "8px 16px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600,
               }}>{form.ativo === 1 ? "● Ativo" : "○ Inativo"}</button>
             </div>
@@ -428,7 +477,7 @@ export default function ColaboradoresPage() {
     )}
 
     {/* Toast */}
-    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "#1a1408", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
+    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "#1a1408", border: `1px solid ${Colors.border}`, color: Colors.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
       {toast}
     </div>
     </>
@@ -438,7 +487,7 @@ export default function ColaboradoresPage() {
 function ColabModalContent({ form, setForm, modal, saving, closeModal, handleSave, toggleSkill, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C, ALL_SKILLS }: any) {
   return (
     <>
-      <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "1.5rem" }}>
+      <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "1.5rem" }}>
         {modal.editing ? "Editar Colaborador" : "Novo Colaborador"}
       </p>
       <div style={{ marginBottom: "1rem" }}>
@@ -466,7 +515,7 @@ function ColabModalContent({ form, setForm, modal, saving, closeModal, handleSav
             <button key={s} onClick={() => toggleSkill(s)} style={{
               background: form.skills.includes(s) ? "rgba(201,169,110,0.18)" : "rgba(255,255,255,0.03)",
               border: `1px solid ${form.skills.includes(s) ? "rgba(201,169,110,0.4)" : "rgba(255,255,255,0.08)"}`,
-              color: form.skills.includes(s) ? C.gold : C.textMuted,
+              color: form.skills.includes(s) ? Colors.gold : Colors.textMuted,
               fontSize: "8px", letterSpacing: "0.15em", padding: "4px 8px",
               cursor: "pointer", fontFamily: "inherit", textTransform: "none" as any,
             }}>{s}</button>
@@ -482,7 +531,7 @@ function ColabModalContent({ form, setForm, modal, saving, closeModal, handleSav
         <button onClick={() => setForm((f: any) => ({ ...f, ativo: f.ativo === 1 ? 0 : 1 }))} style={{
           background: form.ativo === 1 ? "rgba(93,202,165,0.12)" : "rgba(255,255,255,0.04)",
           border: `1px solid ${form.ativo === 1 ? "rgba(93,202,165,0.3)" : "rgba(255,255,255,0.08)"}`,
-          color: form.ativo === 1 ? C.green : C.textMuted,
+          color: form.ativo === 1 ? Colors.green : Colors.textMuted,
           fontSize: "8px", letterSpacing: "0.2em", padding: "5px 12px",
           cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" as any, fontWeight: 600,
         }}>{form.ativo === 1 ? "● Ativo" : "○ Inativo"}</button>

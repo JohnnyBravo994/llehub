@@ -35,6 +35,15 @@ const C = {
   green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
 };
 
+const C_Light = {
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
+  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000",
+};
+
+const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
+
 const CATEGORIAS = ["Som", "Luz", "DJ / Cabine", "Microfones", "Estrutura", "Decoração", "Roupa", "Outro"];
 const ORIGENS = ["Loja", "João", "Annia", "Outro"];
 
@@ -270,18 +279,21 @@ export default function MateriaisPage() {
   // ── Styles ─────────────────────────────────────────────────────────────
   const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
   const overlayBottomStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)" };
-  const modalStyle: React.CSSProperties = { background: "#131108", border: `1px solid ${C.border}`, padding: "2.5rem", width: "480px", maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", position: "relative" };
-  const modalMobStyle: React.CSSProperties = { background: "#131108", borderTop: `1px solid ${C.border}`, width: "100%", maxHeight: "92dvh", overflowY: "auto", padding: "1.5rem 1.25rem", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))", borderRadius: "12px 12px 0 0", position: "relative" };
+  const modalStyle: React.CSSProperties = { background: "#131108", border: `1px solid ${Colors.border}`, padding: "2.5rem", width: "480px", maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", position: "relative" };
+  const modalMobStyle: React.CSSProperties = { background: "#131108", borderTop: `1px solid ${Colors.border}`, width: "100%", maxHeight: "92dvh", overflowY: "auto", padding: "1.5rem 1.25rem", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))", borderRadius: "12px 12px 0 0", position: "relative" };
   const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" };
-  const labelStyle: React.CSSProperties = { display: "block", fontSize: "7px", letterSpacing: "0.4em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.5rem" };
-  const inputStyle: React.CSSProperties = { width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid rgba(255,255,255,0.08)`, color: C.textPrimary, fontFamily: "'Montserrat',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
-  const btnPrimStyle: React.CSSProperties = { background: C.gold, border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-  const btnSecStyle: React.CSSProperties = { background: "transparent", border: `1px solid ${C.border}`, color: C.textSec, fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+  const labelStyle: React.CSSProperties = { display: "block", fontSize: "7px", letterSpacing: "0.4em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.5rem" };
+  const inputStyle: React.CSSProperties = { width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid rgba(255,255,255,0.08)`, color: Colors.textPrimary, fontFamily: "'Montserrat',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
+  const btnPrimStyle: React.CSSProperties = { background: Colors.gold, border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+  const btnSecStyle: React.CSSProperties = { background: "transparent", border: `1px solid ${Colors.border}`, color: Colors.textSec, fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+
+  // Get colors based on current theme
+  const Colors = getColors(lightTheme);
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0C0B09" }}>
-        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: C.gold, fontWeight: 300 }}>LLE</span>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: lightTheme ? "#FFFBF7" : "#0C0B09" }}>
+        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: Colors.gold, fontWeight: 300 }}>LLE</span>
       </div>
     );
   }
@@ -289,32 +301,32 @@ export default function MateriaisPage() {
   const TabBtn = ({ id, label, count }: { id: "fora" | "historico" | "catalogo"; label: string; count?: number }) => (
     <button onClick={() => setTab(id)} style={{
       background: tab === id ? "rgba(201,169,110,0.1)" : "transparent",
-      border: "none", borderBottom: tab === id ? `2px solid ${C.gold}` : "2px solid transparent",
-      color: tab === id ? C.gold : C.textSec, fontSize: "9px", letterSpacing: "0.25em", fontWeight: 600,
+      border: "none", borderBottom: tab === id ? `2px solid ${Colors.gold}` : "2px solid transparent",
+      color: tab === id ? Colors.gold : Colors.textSec, fontSize: "9px", letterSpacing: "0.25em", fontWeight: 600,
       padding: "0.85rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase",
       display: "flex", alignItems: "center", gap: "6px",
     }}>
-      {label}{typeof count === "number" && <span style={{ background: tab === id ? "rgba(201,169,110,0.2)" : "rgba(255,255,255,0.06)", color: tab === id ? C.gold : C.textMuted, fontSize: "9px", padding: "1px 6px", borderRadius: "8px" }}>{count}</span>}
+      {label}{typeof count === "number" && <span style={{ background: tab === id ? "rgba(201,169,110,0.2)" : "rgba(255,255,255,0.06)", color: tab === id ? Colors.gold : Colors.textMuted, fontSize: "9px", padding: "1px 6px", borderRadius: "8px" }}>{count}</span>}
     </button>
   );
 
   const MaterialThumb = ({ src, size = 44 }: { src: string; size?: number }) => (
     src
-      ? <img src={src} alt="" style={{ width: size, height: size, objectFit: "cover", border: `1px solid ${C.border}`, flexShrink: 0   }} />
-      : <div style={{ width: size, height: size, background: "rgba(255,255,255,0.04)", border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <svg width={size * 0.45} height={size * 0.45} viewBox="0 0 24 24" fill="none" stroke={C.textMuted} strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
+      ? <img src={src} alt="" style={{ width: size, height: size, objectFit: "cover", border: `1px solid ${Colors.border}`, flexShrink: 0   }} />
+      : <div style={{ width: size, height: size, background: "rgba(255,255,255,0.04)", border: `1px solid ${Colors.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <svg width={size * 0.45} height={size * 0.45} viewBox="0 0 24 24" fill="none" stroke={Colors.textMuted} strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
         </div>
   );
 
   return (
     <>
     {/* ═══ DESKTOP ═══ */}
-    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
+    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: lightTheme ? "#FFFBF7" : "#0C0B09", color: Colors.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <Nav userName={userName} active="materiais" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");   }} />
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
-          <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600 }}>Materiais</p>
+          <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.textSec, textTransform: "uppercase", fontWeight: 600 }}>Materiais</p>
           <div style={{ display: "flex", gap: "0.6rem" }}>
             <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
             <button onClick={openCreateMaterial} style={btnSecStyle}>+ Novo Material</button>
@@ -326,16 +338,16 @@ export default function MateriaisPage() {
           {[
             { label: "Materiais ativos", value: materiaisAtivos.length },
             { label: "Unidades totais", value: totalUnidades },
-            { label: "Unidades fora", value: totalFora, color: totalFora > 0 ? C.amber : undefined },
+            { label: "Unidades fora", value: totalFora, color: totalFora > 0 ? Colors.amber : undefined },
           ].map(s => (
             <div key={s.label} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-              <span style={{ fontSize: "16px", fontWeight: 700, color: s.color || C.textPrimary }}>{s.value}</span>
-              <span style={{ fontSize: "8px", letterSpacing: "0.2em", color: C.textMuted, textTransform: "uppercase" }}>{s.label}</span>
+              <span style={{ fontSize: "16px", fontWeight: 700, color: s.color || Colors.textPrimary }}>{s.value}</span>
+              <span style={{ fontSize: "8px", letterSpacing: "0.2em", color: Colors.textMuted, textTransform: "uppercase" }}>{s.label}</span>
             </div>
           ))}
         </div>
 
-        <div style={{ display: "flex", borderBottom: `1px solid ${C.borderDim}`, marginBottom: "1.5rem" }}>
+        <div style={{ display: "flex", borderBottom: `1px solid ${Colors.borderDim}`, marginBottom: "1.5rem" }}>
           <TabBtn id="fora" label="Fora" count={movimentosAbertos.length} />
           <TabBtn id="historico" label="Histórico" count={movimentosFechados.length} />
           <TabBtn id="catalogo" label="Catálogo" count={materiaisAtivos.length} />
@@ -344,43 +356,43 @@ export default function MateriaisPage() {
         {tab === "fora" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
             {foraAgrupados.map(group => (
-              <div key={group.key} style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1.1rem", borderBottom: `1px solid ${C.borderDim}`, background: "rgba(201,169,110,0.04)" }}>
+              <div key={group.key} style={{ background: Colors.surface, border: `1px solid ${Colors.border}` }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1.1rem", borderBottom: `1px solid ${Colors.borderDim}`, background: "rgba(201,169,110,0.04)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span style={{ fontSize: "9px", letterSpacing: "0.2em", fontWeight: 700, color: group.isPessoal ? C.textSec : C.gold, textTransform: "uppercase" }}>
+                    <span style={{ fontSize: "9px", letterSpacing: "0.2em", fontWeight: 700, color: group.isPessoal ? Colors.textSec : Colors.gold, textTransform: "uppercase" }}>
                       {group.isPessoal ? "👤 Pessoal" : `🎪 ${group.label}`}
                     </span>
-                    {group.date && <span style={{ fontSize: "9px", color: C.textMuted, letterSpacing: "0.1em" }}>{fmtDateShort(group.date)}</span>}
+                    {group.date && <span style={{ fontSize: "9px", color: Colors.textMuted, letterSpacing: "0.1em" }}>{fmtDateShort(group.date)}</span>}
                   </div>
-                  <span style={{ fontSize: "9px", color: C.textMuted, background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: "8px" }}>{group.items.length} {group.items.length === 1 ? "item" : "itens"}</span>
+                  <span style={{ fontSize: "9px", color: Colors.textMuted, background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: "8px" }}>{group.items.length} {group.items.length === 1 ? "item" : "itens"}</span>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: "0.6rem", padding: "0.85rem" }}>
                   {group.items.map(mov => {
                     const pendente = mov.quantidade - mov.quantidade_devolvida;
                     const dias = diasFora(mov.data_saida);
                     return (
-                      <div key={mov.id} style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${C.borderDim}`, padding: "0.85rem", display: "flex", gap: "0.75rem" }}>
+                      <div key={mov.id} style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${Colors.borderDim}`, padding: "0.85rem", display: "flex", gap: "0.75rem" }}>
                         <MaterialThumb src={mov.material_imagem} size={48} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
                             <span style={{ fontSize: "12px", fontWeight: 600 }}>{mov.material_nome}</span>
-                            <span style={{ fontSize: "12px", fontWeight: 700, color: C.amber, whiteSpace: "nowrap" }}>×{pendente}</span>
+                            <span style={{ fontSize: "12px", fontWeight: 700, color: Colors.amber, whiteSpace: "nowrap" }}>×{pendente}</span>
                           </div>
-                          <div style={{ fontSize: "10px", color: C.textSec, marginTop: "2px" }}>
-                            Com <span style={{ color: C.gold }}>{origemLabel(mov)}</span> · {dias === 0 ? "hoje" : dias === 1 ? "há 1 dia" : `há ${dias} dias`}
+                          <div style={{ fontSize: "10px", color: Colors.textSec, marginTop: "2px" }}>
+                            Com <span style={{ color: Colors.gold }}>{origemLabel(mov)}</span> · {dias === 0 ? "hoje" : dias === 1 ? "há 1 dia" : `há ${dias} dias`}
                           </div>
-                          <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px" }}>Saída: {fmtDateTime(mov.data_saida)} · {mov.responsavel}</div>
+                          <div style={{ fontSize: "9px", color: Colors.textMuted, marginTop: "2px" }}>Saída: {fmtDateTime(mov.data_saida)} · {mov.responsavel}</div>
                           <div style={{ display: "flex", gap: "6px", marginTop: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
-                            <button onClick={() => handleVoltou(mov)} style={{ background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: C.green, fontSize: "9px", letterSpacing: "0.15em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
+                            <button onClick={() => handleVoltou(mov)} style={{ background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: Colors.green, fontSize: "9px", letterSpacing: "0.15em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
                             {pendente > 1 && (
                               <>
                                 <input type="number" min={1} max={pendente} value={voltaQty[mov.id] ?? 1}
                                   onChange={e => setVoltaQty(v => ({ ...v, [mov.id]: Math.max(1, Math.min(pendente, Number(e.target.value) || 1)) }))}
-                                  style={{ width: "44px", background: "rgba(255,255,255,0.05)", border: `1px solid ${C.border}`, color: C.textPrimary, fontSize: "10px", padding: "5px", textAlign: "center", outline: "none"   }} />
+                                  style={{ width: "44px", background: "rgba(255,255,255,0.05)", border: `1px solid ${Colors.border}`, color: Colors.textPrimary, fontSize: "10px", padding: "5px", textAlign: "center", outline: "none"   }} />
                                 <button onClick={() => handleVoltou(mov, voltaQty[mov.id] ?? 1)} style={{ ...btnSecStyle, padding: "5px 10px", fontSize: "8px" }}>Parcial</button>
                               </>
                             )}
-                            <button onClick={() => handleDeleteMovimento(mov.id)} title="Apagar registo" style={{ marginLeft: "auto", background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: "13px" }}>×</button>
+                            <button onClick={() => handleDeleteMovimento(mov.id)} title="Apagar registo" style={{ marginLeft: "auto", background: "transparent", border: "none", color: Colors.textMuted, cursor: "pointer", fontSize: "13px" }}>×</button>
                           </div>
                         </div>
                       </div>
@@ -389,39 +401,39 @@ export default function MateriaisPage() {
                 </div>
               </div>
             ))}
-            {movimentosAbertos.length === 0 && <div style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Nada fora de momento — tudo na loja</div>}
+            {movimentosAbertos.length === 0 && <div style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: Colors.textMuted, letterSpacing: "0.2em" }}>Nada fora de momento — tudo na loja</div>}
           </div>
         )}
 
         {tab === "historico" && (
-          <div style={{ background: C.surface, border: `1px solid ${C.borderDim}` }}>
+          <div style={{ background: Colors.surface, border: `1px solid ${Colors.borderDim}` }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
                   {["Material", "Qtd", "Foi para", "Saiu em", "Voltou em", "Ações"].map((h, i) => (
-                    <th key={h} style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1rem", borderBottom: `1px solid ${C.border}`, textAlign: i === 5 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
+                    <th key={h} style={{ fontSize: "7px", letterSpacing: "0.3em", color: Colors.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1rem", borderBottom: `1px solid ${Colors.border}`, textAlign: i === 5 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {movimentosFechados.map(mov => (
                   <tr key={mov.id}>
-                    <td style={{ fontSize: "11px", padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}`, display: "flex", alignItems: "center", gap: "8px" }}>
+                    <td style={{ fontSize: "11px", padding: "0.7rem 1rem", borderBottom: `1px solid ${Colors.borderDim}`, display: "flex", alignItems: "center", gap: "8px" }}>
                       <MaterialThumb src={mov.material_imagem} size={28} />{mov.material_nome}
                     </td>
-                    <td style={{ fontSize: "11px", color: C.textSec, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}` }}>{mov.quantidade}</td>
-                    <td style={{ fontSize: "11px", color: C.textSec, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}` }}>{origemLabel(mov)}</td>
-                    <td style={{ fontSize: "10px", color: C.textMuted, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}`, whiteSpace: "nowrap" }}>{fmtDateTime(mov.data_saida)}</td>
-                    <td style={{ fontSize: "10px", color: C.green, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}`, whiteSpace: "nowrap" }}>{mov.data_volta ? fmtDateTime(mov.data_volta) : "—"}</td>
-                    <td style={{ padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}`, textAlign: "right" }}>
-                      <button onClick={() => handleDeleteMovimento(mov.id)} title="Apagar" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.06)", color: C.textMuted, padding: "4px 7px", cursor: "pointer" }}>
+                    <td style={{ fontSize: "11px", color: Colors.textSec, padding: "0.7rem 1rem", borderBottom: `1px solid ${Colors.borderDim}` }}>{mov.quantidade}</td>
+                    <td style={{ fontSize: "11px", color: Colors.textSec, padding: "0.7rem 1rem", borderBottom: `1px solid ${Colors.borderDim}` }}>{origemLabel(mov)}</td>
+                    <td style={{ fontSize: "10px", color: Colors.textMuted, padding: "0.7rem 1rem", borderBottom: `1px solid ${Colors.borderDim}`, whiteSpace: "nowrap" }}>{fmtDateTime(mov.data_saida)}</td>
+                    <td style={{ fontSize: "10px", color: Colors.green, padding: "0.7rem 1rem", borderBottom: `1px solid ${Colors.borderDim}`, whiteSpace: "nowrap" }}>{mov.data_volta ? fmtDateTime(mov.data_volta) : "—"}</td>
+                    <td style={{ padding: "0.7rem 1rem", borderBottom: `1px solid ${Colors.borderDim}`, textAlign: "right" }}>
+                      <button onClick={() => handleDeleteMovimento(mov.id)} title="Apagar" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.06)", color: Colors.textMuted, padding: "4px 7px", cursor: "pointer" }}>
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 4h10M6 4V2.5h4V4M4 4l.5 9.5A1 1 0 005.5 14.5h5A1 1 0 0011.5 13.5L12 4" /></svg>
                       </button>
                     </td>
                   </tr>
                 ))}
                 {movimentosFechados.length === 0 && (
-                  <tr><td colSpan={6} style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem histórico ainda</td></tr>
+                  <tr><td colSpan={6} style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: Colors.textMuted, letterSpacing: "0.2em" }}>Sem histórico ainda</td></tr>
                 )}
               </tbody>
             </table>
@@ -433,25 +445,25 @@ export default function MateriaisPage() {
             {materiaisAtivos.map(m => {
               const fora = pendenteAtualDoMaterial(m.id);
               return (
-                <div key={m.id} style={{ background: C.surface, border: `1px solid ${C.borderDim}`, overflow: "hidden" }}>
+                <div key={m.id} style={{ background: Colors.surface, border: `1px solid ${Colors.borderDim}`, overflow: "hidden" }}>
                   <div style={{ width: "100%", aspectRatio: "1.3/1", background: "rgba(255,255,255,0.03)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {m.imagem
                       ? <img src={m.imagem} alt={m.nome} style={{ width: "100%", height: "100%", objectFit: "cover"   }} />
-                      : <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={C.textMuted} strokeWidth="1.4"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>}
+                      : <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={Colors.textMuted} strokeWidth="1.4"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>}
                   </div>
                   <div style={{ padding: "0.85rem" }}>
                     <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "2px" }}>{m.nome}</div>
-                    {m.categoria && <div style={{ fontSize: "9px", color: C.gold, letterSpacing: "0.1em", marginBottom: "4px" }}>{m.categoria}</div>}
-                    <div style={{ fontSize: "10px", color: C.textSec }}>
-                      Total: <b style={{ color: C.textPrimary }}>{m.quantidade_total}</b>
-                      {fora > 0 && <span style={{ color: C.amber }}> · {fora} fora</span>}
+                    {m.categoria && <div style={{ fontSize: "9px", color: Colors.gold, letterSpacing: "0.1em", marginBottom: "4px" }}>{m.categoria}</div>}
+                    <div style={{ fontSize: "10px", color: Colors.textSec }}>
+                      Total: <b style={{ color: Colors.textPrimary }}>{m.quantidade_total}</b>
+                      {fora > 0 && <span style={{ color: Colors.amber }}> · {fora} fora</span>}
                     </div>
                     <div style={{ display: "flex", gap: "6px", marginTop: "0.6rem" }}>
                       <button onClick={() => openSaida(m.id)} style={{ ...btnSecStyle, flex: 1, padding: "6px 8px", fontSize: "8px" }}>Registar Saída</button>
-                      <button onClick={() => openEditMaterial(m)} title="Editar" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.06)", color: C.textMuted, padding: "6px 8px", cursor: "pointer" }}>
+                      <button onClick={() => openEditMaterial(m)} title="Editar" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.06)", color: Colors.textMuted, padding: "6px 8px", cursor: "pointer" }}>
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M11 2l3 3-9 9H2v-3L11 2z" /></svg>
                       </button>
-                      <button onClick={() => handleToggleMaterialAtivo(m)} title="Arquivar" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.06)", color: C.red, padding: "6px 8px", cursor: "pointer" }}>
+                      <button onClick={() => handleToggleMaterialAtivo(m)} title="Arquivar" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.06)", color: Colors.red, padding: "6px 8px", cursor: "pointer" }}>
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 4h10M6 4V2.5h4V4M4 4l.5 9.5A1 1 0 005.5 14.5h5A1 1 0 0011.5 13.5L12 4" /></svg>
                       </button>
                     </div>
@@ -459,7 +471,7 @@ export default function MateriaisPage() {
                 </div>
               );
             })}
-            {materiaisAtivos.length === 0 && <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "3rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem material no catálogo — cria o primeiro</div>}
+            {materiaisAtivos.length === 0 && <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "3rem", fontSize: "11px", color: Colors.textMuted, letterSpacing: "0.2em" }}>Sem material no catálogo — cria o primeiro</div>}
           </div>
         )}
       </main>
@@ -603,7 +615,7 @@ export default function MateriaisPage() {
       </>
     )}
 
-    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "#1a1408", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
+    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "#1a1408", border: `1px solid ${Colors.border}`, color: Colors.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
       {toast}
     </div>
     </>
@@ -614,7 +626,7 @@ function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving
   const selected = materiais.find((m: Material) => m.id === saidaForm.material_id);
   return (
     <>
-      <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "1.5rem" }}>Registar Saída</p>
+      <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "1.5rem" }}>Registar Saída</p>
 
       <div style={{ marginBottom: "1rem" }}>
         <label style={labelStyle}>Material *</label>
@@ -625,9 +637,9 @@ function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving
       </div>
 
       {selected && (
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem", padding: "0.6rem", background: "rgba(255,255,255,0.02)", border: `1px solid ${C.borderDim}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem", padding: "0.6rem", background: "rgba(255,255,255,0.02)", border: `1px solid ${Colors.borderDim}` }}>
           <MaterialThumb src={selected.imagem} size={36} />
-          <span style={{ fontSize: "10px", color: C.textSec }}>Total no catálogo: <b style={{ color: C.textPrimary }}>{selected.quantidade_total}</b></span>
+          <span style={{ fontSize: "10px", color: Colors.textSec }}>Total no catálogo: <b style={{ color: Colors.textPrimary }}>{selected.quantidade_total}</b></span>
         </div>
       )}
 
@@ -643,7 +655,7 @@ function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving
             <button key={o} onClick={() => setSaidaForm((f: any) => ({ ...f, origem: o }))} style={{
               background: saidaForm.origem === o ? "rgba(201,169,110,0.18)" : "rgba(255,255,255,0.04)",
               border: `1px solid ${saidaForm.origem === o ? "rgba(201,169,110,0.4)" : "rgba(255,255,255,0.1)"}`,
-              color: saidaForm.origem === o ? C.gold : C.textMuted,
+              color: saidaForm.origem === o ? Colors.gold : Colors.textMuted,
               fontSize: "10px", padding: "8px 14px", cursor: "pointer", fontFamily: "inherit",
             }}>{o}</button>
           ))}
@@ -679,23 +691,23 @@ function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving
 function MaterialModalContent({ materialForm, setMaterialForm, materialModal, saving, imgUploading, closeMaterialModal, handleSaveMaterial, handleImageUpload, fileInputRef, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C }: any) {
   return (
     <>
-      <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "1.5rem" }}>
+      <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "1.5rem" }}>
         {materialModal.editing ? "Editar Material" : "Novo Material"}
       </p>
 
       <div style={{ marginBottom: "1rem" }}>
         <label style={labelStyle}>Foto</label>
         <div onClick={() => fileInputRef.current?.click()} style={{
-          width: "100%", height: "140px", background: "rgba(255,255,255,0.03)", border: `1px dashed ${C.border}`,
+          width: "100%", height: "140px", background: "rgba(255,255,255,0.03)", border: `1px dashed ${Colors.border}`,
           display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", overflow: "hidden",
         }}>
           {imgUploading
-            ? <span style={{ fontSize: "10px", color: C.textMuted, letterSpacing: "0.2em" }}>A processar...</span>
+            ? <span style={{ fontSize: "10px", color: Colors.textMuted, letterSpacing: "0.2em" }}>A processar...</span>
             : materialForm.imagem
               ? <img src={materialForm.imagem} alt="" style={{ width: "100%", height: "100%", objectFit: "cover"   }} />
               : <div style={{ textAlign: "center" }}>
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.textMuted} strokeWidth="1.4" style={{ marginBottom: "6px" }}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
-                  <div style={{ fontSize: "9px", color: C.textMuted, letterSpacing: "0.15em" }}>Toca para adicionar foto</div>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={Colors.textMuted} strokeWidth="1.4" style={{ marginBottom: "6px" }}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
+                  <div style={{ fontSize: "9px", color: Colors.textMuted, letterSpacing: "0.15em" }}>Toca para adicionar foto</div>
                 </div>}
         </div>
         <input ref={fileInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}

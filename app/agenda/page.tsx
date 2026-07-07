@@ -840,14 +840,7 @@ export default function AgendaPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
           <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.textSec, textTransform: "uppercase", fontWeight: 600 }}>Agenda 2026</p>
           <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-            <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
-            <button
-              onClick={() => setLightTheme(!lightTheme)}
-              title={lightTheme ? "Mudar para tema escuro" : "Mudar para tema claro"}
-              style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.2)", color: Colors.textMuted, fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
-            >
-              {lightTheme ? "🌙 Escuro" : "☀️ Claro"}
-            </button>
+            <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ background: lightTheme ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.05)", border: lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(255,255,255,0.1)", color: lightTheme ? "rgba(0,0,0,0.6)" : "rgba(245,240,232,0.4)", fontSize: "11px", padding: "0.5rem 0.7rem" }} />
             <button
               onClick={openWaPeriodModal}
               style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "#5DCAA5", fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
@@ -1980,22 +1973,22 @@ function MobTabBar({ active, role }: { active: string; role: string }) {
         position: "fixed", bottom: "calc(60px + env(safe-area-inset-bottom))", left: 0, right: 0,
         zIndex: 200, transform: maisOpen ? "translateY(0)" : "translateY(110%)",
         transition: "transform 0.25s cubic-bezier(0.32,0.72,0,1)",
-        background: "#131108", borderTop: "1px solid rgba(201,169,110,0.15)",
+        background: lightTheme ? "#FFFFFF" : "#131108", borderTop: `1px solid ${lightTheme ? "rgba(0,0,0,0.15)" : "rgba(201,169,110,0.15)"}`,
         borderRadius: "16px 16px 0 0", padding: "0.75rem 0.5rem",
         paddingBottom: "0.5rem",
-        boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
+        boxShadow: lightTheme ? "0 -8px 32px rgba(0,0,0,0.15)" : "0 -8px 32px rgba(0,0,0,0.6)",
       }}>
         {/* Handle */}
-        <div style={{ width: "36px", height: "3px", background: "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem" }} />
-        <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.4)", textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
+        <div style={{ width: "36px", height: "3px", background: lightTheme ? "rgba(0,0,0,0.15)" : "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem" }} />
+        <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: lightTheme ? "rgba(0,0,0,0.5)" : "rgba(201,169,110,0.4)", textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "0 0.5rem" }}>
           {maisTabs.map(t => (
             <a key={t.href} href={t.href} onClick={() => setMaisOpen(false)}
               style={{
                 display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
                 textDecoration: "none", padding: "0.6rem 1rem", minWidth: "72px",
-                color: active === t.id ? "#C9A96E" : "rgba(245,240,232,0.4)",
-                background: active === t.id ? "rgba(201,169,110,0.08)" : "transparent",
+                color: active === t.id ? (lightTheme ? "#000000" : "#C9A96E") : (lightTheme ? "rgba(0,0,0,0.5)" : "rgba(245,240,232,0.4)"),
+                background: active === t.id ? (lightTheme ? "rgba(0,0,0,0.08)" : "rgba(201,169,110,0.08)") : "transparent",
                 borderRadius: "10px",
               }}>
               <span style={{ width: "22px", height: "22px", display: "block" }}>{t.icon}</span>

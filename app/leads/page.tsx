@@ -114,6 +114,15 @@ const C = {
   green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A", purple: "#A78BFA",
 };
 
+const C_Light = {
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
+  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
+};
+
+const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
+
 function fmtDate(s: string) {
   if (!s) return "—";
   const d = new Date(s + "T00:00:00");
@@ -409,18 +418,18 @@ export default function LeadsPage() {
   };
 
   const statusColor = (s?: string) => {
-    if (!s) return C.textMuted;
+    if (!s) return Colors.textMuted;
     const sl = s.toLowerCase();
-    if (sl === "pago") return C.green;
+    if (sl === "pago") return Colors.green;
     if (sl === "confirmado") return "#85C88A";
-    if (sl === "adjudicado") return C.gold;
-    if (sl === "em adjudicação") return C.gold;
-    if (sl === "faturado") return C.purple;
-    if (sl === "cancelado" || sl === "perdido") return C.red;
-    if (sl === "em negociação" || sl === "negociação") return C.amber;
-    if (sl === "proposta enviada") return C.blue;
-    if (sl === "contacto") return C.textSec;
-    return C.textSec;
+    if (sl === "adjudicado") return Colors.gold;
+    if (sl === "em adjudicação") return Colors.gold;
+    if (sl === "faturado") return Colors.purple;
+    if (sl === "cancelado" || sl === "perdido") return Colors.red;
+    if (sl === "em negociação" || sl === "negociação") return Colors.amber;
+    if (sl === "proposta enviada") return Colors.blue;
+    if (sl === "contacto") return Colors.textSec;
+    return Colors.textSec;
   };
 
 
@@ -519,24 +528,27 @@ export default function LeadsPage() {
   // Deduplicated client list for dropdown
   const clientesUnicos = clientes.filter((c, i, arr) => arr.findIndex(x => x.nome === c.nome) === i);
 
+  // Get colors based on current theme
+  const Colors = getColors(lightTheme);
+
   const statusColors: Record<string,string> = {
-    "Contacto": "rgba(245,240,232,0.4)", "Proposta Enviada": C.blue,
-    "Em Negociação": C.amber, "Confirmado": C.green,
-    "Em Adjudicação": C.gold, "Adjudicado": C.gold,
-    "Faturado": "#A78BFA", "Pago": C.green, "Cancelado": C.red,
+    "Contacto": lightTheme ? "rgba(0,0,0,0.3)" : "rgba(245,240,232,0.4)", "Proposta Enviada": Colors.blue,
+    "Em Negociação": Colors.amber, "Confirmado": Colors.green,
+    "Em Adjudicação": Colors.gold, "Adjudicado": Colors.gold,
+    "Faturado": lightTheme ? "#000000" : "#A78BFA", "Pago": Colors.green, "Cancelado": Colors.red,
   };
 
   return (
     <>
     {/* ═══ DESKTOP ═══ */}
-    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
+    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: lightTheme ? "#FFFBF7" : "#0C0B09", color: Colors.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <Nav userName={userName} active="leads" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
 
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-          <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600 }}>
+          <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.textSec, textTransform: "uppercase", fontWeight: 600 }}>
             Pipeline de Leads
-            {leads.length > 0 && <span style={{ color: C.textMuted, marginLeft: "0.75rem" }}>({leads.length} total)</span>}
+            {leads.length > 0 && <span style={{ color: Colors.textMuted, marginLeft: "0.75rem" }}>({leads.length} total)</span>}
           </p>
           <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
             <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
@@ -556,19 +568,19 @@ export default function LeadsPage() {
           </div>
         </div>
 
-        <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative" }}>
+        <div style={{ background: Colors.surface, border: `1px solid ${Colors.borderDim}`, position: "relative" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Pesquisar lead ou estado..."
-            style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "none", borderBottom: `1px solid ${C.borderDim}`, color: C.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "1rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
+            style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "none", borderBottom: `1px solid ${Colors.borderDim}`, color: Colors.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "1rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
           />
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
                   {["Data Evento", "Lead / Projecto", "Local", "Cliente", "Estado", "Valor", "Ações"].map((h, i) => (
-                    <th key={h} style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${C.border}`, textAlign: i >= 5 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
+                    <th key={h} style={{ fontSize: "7px", letterSpacing: "0.4em", color: Colors.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${Colors.border}`, textAlign: i >= 5 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -576,10 +588,10 @@ export default function LeadsPage() {
                 {sortedMonths.map(ym => (
                   <React.Fragment key={ym}>
                     <tr onClick={() => toggleMonth(ym)} style={{ cursor: "pointer" }}>
-                      <td colSpan={7} style={{ padding: "0.75rem 1.25rem", background: "rgba(201,169,110,0.05)", borderBottom: `1px solid ${C.border}` }}>
-                        <span style={{ fontSize: "8px", letterSpacing: "0.4em", color: C.gold, fontWeight: 700, textTransform: "capitalize" }}>{monthLabel(ym)}</span>
-                        <span style={{ fontSize: "8px", color: C.textMuted, marginLeft: "0.75rem" }}>({grouped[ym].length})</span>
-                        <span style={{ fontSize: "9px", color: C.goldDim, marginLeft: "0.5rem", opacity: 0.7 }}>{collapsedMonths.has(ym) ? "▸" : "▾"}</span>
+                      <td colSpan={7} style={{ padding: "0.75rem 1.25rem", background: "rgba(201,169,110,0.05)", borderBottom: `1px solid ${Colors.border}` }}>
+                        <span style={{ fontSize: "8px", letterSpacing: "0.4em", color: Colors.gold, fontWeight: 700, textTransform: "capitalize" }}>{monthLabel(ym)}</span>
+                        <span style={{ fontSize: "8px", color: Colors.textMuted, marginLeft: "0.75rem" }}>({grouped[ym].length})</span>
+                        <span style={{ fontSize: "9px", color: Colors.goldDim, marginLeft: "0.5rem", opacity: 0.7 }}>{collapsedMonths.has(ym) ? "▸" : "▾"}</span>
                       </td>
                     </tr>
                     {!collapsedMonths.has(ym) && grouped[ym].map(l => (
@@ -587,15 +599,15 @@ export default function LeadsPage() {
                         <td style={tdStyle({ nowrap: true })}>{fmtDate(l.event_date)}</td>
                         <td style={tdStyle({ maxW: "260px" })}>
                           <span style={{ textDecoration: l.cancelled ? "line-through" : "none" }}>{l.title}</span>
-                          {!!l.cancelled && <span style={{ fontSize: "8px", color: C.red, letterSpacing: "0.2em", marginLeft: "0.5rem" }}>[CANCELADO]</span>}
-                          {l.notas && <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px", fontStyle: "italic" }}>"{l.notas}"</div>}
+                          {!!l.cancelled && <span style={{ fontSize: "8px", color: Colors.red, letterSpacing: "0.2em", marginLeft: "0.5rem" }}>[CANCELADO]</span>}
+                          {l.notas && <div style={{ fontSize: "9px", color: Colors.textMuted, marginTop: "2px", fontStyle: "italic" }}>"{l.notas}"</div>}
                         </td>
-                        <td style={tdStyle({ muted: true, maxW: "130px" })}>{l.local || <span style={{ color: C.textMuted }}>—</span>}</td>
+                        <td style={tdStyle({ muted: true, maxW: "130px" })}>{l.local || <span style={{ color: Colors.textMuted }}>—</span>}</td>
                         <td style={tdStyle({ muted: true, maxW: "180px" })}>{displayClienteNome(l, clientes) || "—"}</td>
                         <td style={tdStyle({})}>
                           <StatusBadge color={statusColor(l.status)} label={l.status || "Pendente"} />
                         </td>
-                        <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: C.gold, fontWeight: 600, fontSize: "11px" }}>
+                        <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "11px" }}>
                           {userRole === "limited_novalues" ? "—" : (Number(l.value) > 0 ? `${Number(l.value).toLocaleString("pt-PT")}€` : "—")}
                         </td>
                         <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
@@ -615,7 +627,7 @@ export default function LeadsPage() {
                   </React.Fragment>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={6} style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem leads encontradas</td></tr>
+                  <tr><td colSpan={6} style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: Colors.textMuted, letterSpacing: "0.2em" }}>Sem leads encontradas</td></tr>
                 )}
               </tbody>
             </table>
@@ -801,7 +813,7 @@ export default function LeadsPage() {
         <div onClick={e => e.target === e.currentTarget && closeModal()} style={overlayStyle}>
           <div style={modalStyle}>
             <div style={topLineStyle} />
-            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "2rem" }}>
+            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "2rem" }}>
               {modal.editing ? "Editar Lead" : "Nova Lead"}
             </p>
 
@@ -863,18 +875,18 @@ export default function LeadsPage() {
                               setClienteSearch(c.nome);
                               setClienteDropOpen(false);
                             }}
-                            style={{ padding: "0.6rem 1rem", fontSize: "11px", color: C.textSec, cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                            style={{ padding: "0.6rem 1rem", fontSize: "11px", color: Colors.textSec, cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.04)" }}
                             onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.08)")}
                             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                           >
                             {c.nome}
-                            {c.nif && <span style={{ fontSize: "9px", color: C.textMuted, marginLeft: "8px" }}>{c.nif}</span>}
+                            {c.nif && <span style={{ fontSize: "9px", color: Colors.textMuted, marginLeft: "8px" }}>{c.nif}</span>}
                           </div>
                         ))
                       }
                       <div
                         onMouseDown={() => { setClienteCreating(true); setClienteDropOpen(false); }}
-                        style={{ padding: "0.6rem 1rem", fontSize: "10px", color: C.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(201,169,110,0.12)", display: "flex", alignItems: "center", gap: "6px" }}
+                        style={{ padding: "0.6rem 1rem", fontSize: "10px", color: Colors.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(201,169,110,0.12)", display: "flex", alignItems: "center", gap: "6px" }}
                         onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.06)")}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                       >
@@ -922,18 +934,18 @@ export default function LeadsPage() {
 
 
             {/* ── Artistas & Pagamentos ── */}
-            <div style={{ marginTop: "1.75rem", borderTop: `1px solid ${C.borderDim}`, paddingTop: "1.5rem" }}>
+            <div style={{ marginTop: "1.75rem", borderTop: `1px solid ${Colors.borderDim}`, paddingTop: "1.5rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-                <span style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600 }}>Artistas & Pagamentos</span>
+                <span style={{ fontSize: "7px", letterSpacing: "0.4em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600 }}>Artistas & Pagamentos</span>
                 {artists.filter(a => a.nome.trim()).reduce((s, a) => s + (parseFloat(a.fee) || 0), 0) > 0 && (
-                  <span style={{ fontSize: "9px", color: C.amber, letterSpacing: "0.15em", fontWeight: 600 }}>
+                  <span style={{ fontSize: "9px", color: Colors.amber, letterSpacing: "0.15em", fontWeight: 600 }}>
                     Total: {artists.filter(a => a.nome.trim()).reduce((s, a) => s + (parseFloat(a.fee) || 0), 0).toLocaleString("pt-PT")}€
                   </span>
                 )}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "6px" }}>
                 {["Nome", "Tipo", "Fee (€)", ""].map(h => (
-                  <span key={h} style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600, padding: "0 4px" }}>{h}</span>
+                  <span key={h} style={{ fontSize: "7px", letterSpacing: "0.3em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600, padding: "0 4px" }}>{h}</span>
                 ))}
               </div>
               {artists.map((a, i) => (
@@ -962,7 +974,7 @@ export default function LeadsPage() {
                   />
                   <button
                     onClick={() => removeArtistRow(setArtists, i)}
-                    style={{ background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                    style={{ background: "transparent", border: "none", color: Colors.textMuted, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center", justifyContent: "center" }}
                   >
                     <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2"><line x1="1" y1="1" x2="11" y2="11" /><line x1="11" y1="1" x2="1" y2="11" /></svg>
                   </button>
@@ -991,7 +1003,7 @@ export default function LeadsPage() {
       )}
 
     {/* Toast (partilhado desktop+mobile) */}
-    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "#1a1408", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
+    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "#1a1408", border: `1px solid ${Colors.border}`, color: Colors.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
       {toast}
     </div>
     </>

@@ -19,11 +19,60 @@ interface Colaborador {
 }
 
 const C = {
-  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009",
-  border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
-  textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
-  green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
+
+const C_Light = {
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
+  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
 };
+
+const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
+  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009",
+
+const C_Light = {
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
+  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
+};
+
+  border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
+
+const C_Light = {
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
+  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
+};
+
+  textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
+
+const C_Light = {
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
+  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
+};
+
+  green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
+
+const C_Light = {
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
+  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
+};
+
+};
+
+const C_Light = {
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
+  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
+};
+
 
 function resolveNome(nome: string): string { return resolveColaboradorNome(nome); }
 function fmtDate(s: string) {
@@ -201,11 +250,12 @@ export default function PagamentosPage() {
   };
 
   if (loading) return <Loading />;
+  const Colors = getColors(lightTheme);
 
   return (
     <>
     {/* ═══ DESKTOP ═══ */}
-    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: "#0C0B09", color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
+    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: lightTheme ? "#FFFBF7" : "#0C0B09", color: Colors.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <Nav userName={userName} active="pagamentos" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");   }} />
 
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1200px", margin: "0 auto" }}>
@@ -213,41 +263,41 @@ export default function PagamentosPage() {
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "2rem" }}>
           <div>
-            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.25rem" }}>Pagamentos a Artistas</p>
-            <p style={{ fontSize: "11px", color: C.textMuted }}>Gestão de cachets e fees por evento</p>
+            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.textSec, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.25rem" }}>Pagamentos a Artistas</p>
+            <p style={{ fontSize: "11px", color: Colors.textMuted }}>Gestão de cachets e fees por evento</p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
             {/* Yearly totals */}
             <div style={{ display: "flex", alignItems: "center", gap: "2rem" }}>
               <div style={{ textAlign: "right" }}>
-                <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.textMuted, textTransform: "uppercase", marginBottom: "4px" }}>Faturado {selectedYear}</p>
-                <p style={{ fontSize: "1.1rem", color: C.gold, fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, letterSpacing: "0.05em" }}>{faturadoAno.toLocaleString("pt-PT")}€</p>
+                <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: Colors.textMuted, textTransform: "uppercase", marginBottom: "4px" }}>Faturado {selectedYear}</p>
+                <p style={{ fontSize: "1.1rem", color: Colors.gold, fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, letterSpacing: "0.05em" }}>{faturadoAno.toLocaleString("pt-PT")}€</p>
               </div>
               <div style={{ textAlign: "right" }}>
-                <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.textMuted, textTransform: "uppercase", marginBottom: "4px" }}>Custos {selectedYear}</p>
-                <p style={{ fontSize: "1.1rem", color: C.red, fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, letterSpacing: "0.05em" }}>−{custosAno.toLocaleString("pt-PT")}€</p>
+                <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: Colors.textMuted, textTransform: "uppercase", marginBottom: "4px" }}>Custos {selectedYear}</p>
+                <p style={{ fontSize: "1.1rem", color: Colors.red, fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, letterSpacing: "0.05em" }}>−{custosAno.toLocaleString("pt-PT")}€</p>
               </div>
-              <div style={{ textAlign: "right", borderLeft: `1px solid ${C.border}`, paddingLeft: "2rem" }}>
-                <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.textMuted, textTransform: "uppercase", marginBottom: "4px" }}>Lucro {selectedYear}</p>
-                <p style={{ fontSize: "1.4rem", color: lucroAno >= 0 ? C.green : C.red, fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, letterSpacing: "0.05em" }}>{lucroAno.toLocaleString("pt-PT")}€</p>
+              <div style={{ textAlign: "right", borderLeft: `1px solid ${Colors.border}`, paddingLeft: "2rem" }}>
+                <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: Colors.textMuted, textTransform: "uppercase", marginBottom: "4px" }}>Lucro {selectedYear}</p>
+                <p style={{ fontSize: "1.4rem", color: lucroAno >= 0 ? Colors.green : Colors.red, fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, letterSpacing: "0.05em" }}>{lucroAno.toLocaleString("pt-PT")}€</p>
               </div>
             </div>
             {/* Year selector */}
             <div style={{ display: "flex", gap: "4px" }}>
               {years.map(y => (
-                <button key={y} onClick={() => setSelectedYear(y)} style={{ background: selectedYear === y ? "rgba(201,169,110,0.12)" : "transparent", border: `1px solid ${selectedYear === y ? C.gold : C.borderDim}`, color: selectedYear === y ? C.gold : C.textMuted, fontSize: "9px", letterSpacing: "0.3em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit", fontWeight: selectedYear === y ? 700 : 400 }}>{y}</button>
+                <button key={y} onClick={() => setSelectedYear(y)} style={{ background: selectedYear === y ? "rgba(201,169,110,0.12)" : "transparent", border: `1px solid ${selectedYear === y ? Colors.gold : Colors.borderDim}`, color: selectedYear === y ? Colors.gold : Colors.textMuted, fontSize: "9px", letterSpacing: "0.3em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit", fontWeight: selectedYear === y ? 700 : 400 }}>{y}</button>
               ))}
             </div>
             <button
               onClick={() => setResumoOpen(true)}
-              style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.gold, fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase", display: "flex", alignItems: "center", gap: "6px" }}
+              style={{ background: "transparent", border: `1px solid ${Colors.border}`, color: Colors.gold, fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase", display: "flex", alignItems: "center", gap: "6px" }}
             >
               <svg width="11" height="11" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><rect x="2" y="2" width="12" height="12" rx="1"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="9" x2="11" y2="9"/><line x1="5" y1="12" x2="8" y2="12"/></svg>
               Resumo Artistas
             </button>
             <button
               onClick={exportCSV}
-              style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.green, fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase", display: "flex", alignItems: "center", gap: "6px" }}
+              style={{ background: "transparent", border: `1px solid ${Colors.border}`, color: Colors.green, fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase", display: "flex", alignItems: "center", gap: "6px" }}
             >
               <svg width="11" height="11" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><path d="M8 2v8M5 7l3 3 3-3M3 12v1a1 1 0 001 1h8a1 1 0 001-1v-1"/></svg>
               Exportar CSV
@@ -256,14 +306,14 @@ export default function PagamentosPage() {
         </div>
 
         {months.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "4rem", color: C.textMuted, fontSize: "11px", letterSpacing: "0.2em" }}>
+          <div style={{ textAlign: "center", padding: "4rem", color: Colors.textMuted, fontSize: "11px", letterSpacing: "0.2em" }}>
             Sem pagamentos registados para {selectedYear}.<br />
             <span style={{ fontSize: "9px", marginTop: "0.5rem", display: "block" }}>Adiciona artistas na Agenda ao editar um evento.</span>
           </div>
         ) : (
           <>
             {/* ── Month Tabs ── */}
-            <div style={{ display: "flex", gap: "0", marginBottom: "0", borderBottom: `1px solid ${C.border}`, overflowX: "auto" }}>
+            <div style={{ display: "flex", gap: "0", marginBottom: "0", borderBottom: `1px solid ${Colors.border}`, overflowX: "auto" }}>
               {months.map(month => {
                 const isActive = selectedMonth === month;
                 const rows = byMonth[month];
@@ -275,8 +325,8 @@ export default function PagamentosPage() {
                     style={{
                       background: isActive ? "rgba(201,169,110,0.07)" : "transparent",
                       border: "none",
-                      borderBottom: isActive ? `2px solid ${C.gold}` : "2px solid transparent",
-                      color: isActive ? C.gold : C.textMuted,
+                      borderBottom: isActive ? `2px solid ${Colors.gold}` : "2px solid transparent",
+                      color: isActive ? Colors.gold : Colors.textMuted,
                       fontSize: "8px",
                       letterSpacing: "0.35em",
                       padding: "0.75rem 1.25rem",
@@ -298,7 +348,7 @@ export default function PagamentosPage() {
                     <span style={{
                       fontSize: "7px",
                       letterSpacing: "0.1em",
-                      color: isActive ? (lucro >= 0 ? C.green : C.red) : C.textMuted,
+                      color: isActive ? (lucro >= 0 ? Colors.green : Colors.red) : Colors.textMuted,
                       fontWeight: isActive ? 700 : 400,
                     }}>
                       {lucro >= 0 ? "+" : ""}{lucro.toLocaleString("pt-PT")}€
@@ -313,33 +363,33 @@ export default function PagamentosPage() {
               <div style={{ marginTop: "1.75rem" }}>
                 {/* Month stats bar */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-                  <span style={{ fontSize: "10px", letterSpacing: "0.4em", color: C.gold, textTransform: "capitalize", fontWeight: 700 }}>
+                  <span style={{ fontSize: "10px", letterSpacing: "0.4em", color: Colors.gold, textTransform: "capitalize", fontWeight: 700 }}>
                     {monthLabel(selectedMonth)}
                   </span>
                   <div style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
                     <div style={{ textAlign: "right" }}>
-                      <p style={{ fontSize: "6px", letterSpacing: "0.35em", color: C.textMuted, textTransform: "uppercase", marginBottom: "2px" }}>Faturado</p>
-                      <p style={{ fontSize: "11px", color: C.gold, fontWeight: 600 }}>{faturadoMes.toLocaleString("pt-PT")}€</p>
+                      <p style={{ fontSize: "6px", letterSpacing: "0.35em", color: Colors.textMuted, textTransform: "uppercase", marginBottom: "2px" }}>Faturado</p>
+                      <p style={{ fontSize: "11px", color: Colors.gold, fontWeight: 600 }}>{faturadoMes.toLocaleString("pt-PT")}€</p>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <p style={{ fontSize: "6px", letterSpacing: "0.35em", color: C.textMuted, textTransform: "uppercase", marginBottom: "2px" }}>Custos</p>
-                      <p style={{ fontSize: "11px", color: C.red, fontWeight: 600 }}>−{custosMes.toLocaleString("pt-PT")}€</p>
+                      <p style={{ fontSize: "6px", letterSpacing: "0.35em", color: Colors.textMuted, textTransform: "uppercase", marginBottom: "2px" }}>Custos</p>
+                      <p style={{ fontSize: "11px", color: Colors.red, fontWeight: 600 }}>−{custosMes.toLocaleString("pt-PT")}€</p>
                     </div>
-                    <div style={{ textAlign: "right", borderLeft: `1px solid ${C.border}`, paddingLeft: "1.5rem" }}>
-                      <p style={{ fontSize: "6px", letterSpacing: "0.35em", color: C.textMuted, textTransform: "uppercase", marginBottom: "2px" }}>Lucro</p>
-                      <p style={{ fontSize: "13px", color: lucroMes >= 0 ? C.green : C.red, fontWeight: 700 }}>{lucroMes.toLocaleString("pt-PT")}€</p>
+                    <div style={{ textAlign: "right", borderLeft: `1px solid ${Colors.border}`, paddingLeft: "1.5rem" }}>
+                      <p style={{ fontSize: "6px", letterSpacing: "0.35em", color: Colors.textMuted, textTransform: "uppercase", marginBottom: "2px" }}>Lucro</p>
+                      <p style={{ fontSize: "13px", color: lucroMes >= 0 ? Colors.green : Colors.red, fontWeight: 700 }}>{lucroMes.toLocaleString("pt-PT")}€</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Table */}
-                <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative" }}>
+                <div style={{ background: Colors.surface, border: `1px solid ${Colors.borderDim}`, position: "relative" }}>
                   <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E44, transparent)" }} />
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
                         {["Data", "Evento", "Artista", "Tipo", "Fee", "Ações"].map((h, i) => (
-                          <th key={h} style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.6rem 1rem", borderBottom: `1px solid ${C.border}`, textAlign: i >= 4 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
+                          <th key={h} style={{ fontSize: "7px", letterSpacing: "0.4em", color: Colors.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.6rem 1rem", borderBottom: `1px solid ${Colors.border}`, textAlign: i >= 4 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -352,12 +402,12 @@ export default function PagamentosPage() {
                             <td style={tds({ muted: true, nowrap: true })}>{fmtDate(p.evento_data)}</td>
                             <td style={tds({ maxW: "220px" })}>
                               <span style={{ fontSize: "11px" }}>{p.evento_nome}</span>
-                              {p.evento_status === 'Cancelado' && <span style={{ fontSize: "8px", color: C.red, marginLeft: "6px" }}>[CANC]</span>}
+                              {p.evento_status === 'Cancelado' && <span style={{ fontSize: "8px", color: Colors.red, marginLeft: "6px" }}>[CANC]</span>}
                             </td>
                             <td style={tds({})}>
                               {isEditing
                                 ? <input value={editForm.nome} onChange={e => setEditForm(f => ({ ...f, nome: e.target.value }))} style={{ ...inlineInput, width: "140px"   }} />
-                                : <span style={{ fontSize: "11px", color: isAnnia ? C.green : C.textPrimary }}>{resolveNome(p.nome)}</span>
+                                : <span style={{ fontSize: "11px", color: isAnnia ? Colors.green : Colors.textPrimary }}>{resolveNome(p.nome)}</span>
                               }
                             </td>
                             <td style={tds({ muted: true })}>
@@ -370,8 +420,8 @@ export default function PagamentosPage() {
                               {isEditing
                                 ? <input type="number" value={editForm.fee} onChange={e => setEditForm(f => ({ ...f, fee: parseFloat(e.target.value) || 0 }))} style={{ ...inlineInput, width: "80px", textAlign: "right"   }} />
                                 : <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                                    <span style={{ color: isAnnia ? C.green : C.gold, fontWeight: 600 }}>{p.fee.toLocaleString("pt-PT")}€</span>
-                                    {isAnnia && <span style={{ fontSize: "7px", letterSpacing: "0.2em", color: C.green, background: "rgba(95,202,165,0.12)", padding: "1px 5px", fontWeight: 600 }}>LUCRO</span>}
+                                    <span style={{ color: isAnnia ? Colors.green : Colors.gold, fontWeight: 600 }}>{p.fee.toLocaleString("pt-PT")}€</span>
+                                    {isAnnia && <span style={{ fontSize: "7px", letterSpacing: "0.2em", color: Colors.green, background: "rgba(95,202,165,0.12)", padding: "1px 5px", fontWeight: 600 }}>LUCRO</span>}
                                   </span>
                               }
                             </td>
@@ -379,14 +429,14 @@ export default function PagamentosPage() {
                               <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end", alignItems: "center" }}>
                                 {isEditing ? (
                                   <>
-                                    <button onClick={() => saveEdit(p)} disabled={saving} style={{ ...smallBtn, color: C.green, borderColor: `${C.green}44` }}>✓ Guardar</button>
-                                    <button onClick={() => setEditingId(null)} style={{ ...smallBtn, color: C.textMuted }}>Cancelar</button>
+                                    <button onClick={() => saveEdit(p)} disabled={saving} style={{ ...smallBtn, color: Colors.green, borderColor: `${Colors.green}44` }}>✓ Guardar</button>
+                                    <button onClick={() => setEditingId(null)} style={{ ...smallBtn, color: Colors.textMuted }}>Cancelar</button>
                                   </>
                                 ) : (
                                   <>
-                                    <button onClick={() => openAddModal(p)} style={{ ...smallBtn, color: C.blue, borderColor: `${C.blue}33` }} title="Adicionar artista neste evento">+</button>
-                                    <button onClick={() => startEdit(p)} style={{ ...smallBtn, color: C.textSec }}>Editar</button>
-                                    <button onClick={() => handleDelete(p.id)} style={{ ...smallBtn, color: C.red, borderColor: `${C.red}33` }}>✕</button>
+                                    <button onClick={() => openAddModal(p)} style={{ ...smallBtn, color: Colors.blue, borderColor: `${Colors.blue}33` }} title="Adicionar artista neste evento">+</button>
+                                    <button onClick={() => startEdit(p)} style={{ ...smallBtn, color: Colors.textSec }}>Editar</button>
+                                    <button onClick={() => handleDelete(p.id)} style={{ ...smallBtn, color: Colors.red, borderColor: `${Colors.red}33` }}>✕</button>
                                   </>
                                 )}
                               </div>
@@ -423,10 +473,10 @@ export default function PagamentosPage() {
               <div style={topLineStyle} />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.75rem" }}>
                 <div>
-                  <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, margin: 0 }}>Resumo por Artista</p>
-                  <p style={{ fontSize: "10px", color: C.textMuted, marginTop: "4px" }}>{selectedYear} · dias trabalhados + total</p>
+                  <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.goldDim, textTransform: "uppercase", fontWeight: 600, margin: 0 }}>Resumo por Artista</p>
+                  <p style={{ fontSize: "10px", color: Colors.textMuted, marginTop: "4px" }}>{selectedYear} · dias trabalhados + total</p>
                 </div>
-                <button onClick={() => setResumoOpen(false)} style={{ background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: "16px", lineHeight: 1 }}>✕</button>
+                <button onClick={() => setResumoOpen(false)} style={{ background: "transparent", border: "none", color: Colors.textMuted, cursor: "pointer", fontSize: "16px", lineHeight: 1 }}>✕</button>
               </div>
 
               {sortedMonths.map(month => {
@@ -434,9 +484,9 @@ export default function PagamentosPage() {
                 const monthTotal = artistsInMonth.reduce((s, [, v]) => s + v.total, 0);
                 return (
                   <div key={month} style={{ marginBottom: "1.75rem" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6rem", paddingBottom: "0.5rem", borderBottom: `1px solid ${C.border}` }}>
-                      <span style={{ fontSize: "8px", letterSpacing: "0.4em", color: C.gold, textTransform: "capitalize", fontWeight: 700 }}>{monthLabel(month)}</span>
-                      <span style={{ fontSize: "10px", color: C.textSec }}>{monthTotal.toLocaleString("pt-PT")}€</span>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6rem", paddingBottom: "0.5rem", borderBottom: `1px solid ${Colors.border}` }}>
+                      <span style={{ fontSize: "8px", letterSpacing: "0.4em", color: Colors.gold, textTransform: "capitalize", fontWeight: 700 }}>{monthLabel(month)}</span>
+                      <span style={{ fontSize: "10px", color: Colors.textSec }}>{monthTotal.toLocaleString("pt-PT")}€</span>
                     </div>
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                       <tbody>
@@ -444,20 +494,20 @@ export default function PagamentosPage() {
                           const isAnnia = nome.toLowerCase().includes(ANNIA_NOME);
                           return (
                             <tr key={nome}>
-                              <td style={{ padding: "0.5rem 0", borderBottom: `1px solid ${C.borderDim}`, width: "130px", whiteSpace: "nowrap" }}>
-                                <span style={{ fontSize: "10px", color: isAnnia ? C.green : C.textPrimary, fontWeight: 600 }}>{nome}</span>
+                              <td style={{ padding: "0.5rem 0", borderBottom: `1px solid ${Colors.borderDim}`, width: "130px", whiteSpace: "nowrap" }}>
+                                <span style={{ fontSize: "10px", color: isAnnia ? Colors.green : Colors.textPrimary, fontWeight: 600 }}>{nome}</span>
                               </td>
-                              <td style={{ padding: "0.5rem 0.75rem", borderBottom: `1px solid ${C.borderDim}` }}>
+                              <td style={{ padding: "0.5rem 0.75rem", borderBottom: `1px solid ${Colors.borderDim}` }}>
                                 <div style={{ display: "flex", flexWrap: "wrap", gap: "3px" }}>
                                   {[...days].sort((a, b) => a - b).map((d, i) => (
-                                    <span key={i} style={{ fontSize: "9px", background: "rgba(255,255,255,0.05)", border: `1px solid ${C.borderDim}`, color: C.textSec, padding: "1px 6px", minWidth: "20px", textAlign: "center" }}>
+                                    <span key={i} style={{ fontSize: "9px", background: "rgba(255,255,255,0.05)", border: `1px solid ${Colors.borderDim}`, color: Colors.textSec, padding: "1px 6px", minWidth: "20px", textAlign: "center" }}>
                                       {d}
                                     </span>
                                   ))}
                                 </div>
                               </td>
-                              <td style={{ padding: "0.5rem 0", borderBottom: `1px solid ${C.borderDim}`, textAlign: "right", whiteSpace: "nowrap" }}>
-                                <span style={{ fontSize: "12px", color: isAnnia ? C.green : C.gold, fontWeight: 700, fontFamily: "'Cormorant Garamond',serif" }}>{total.toLocaleString("pt-PT")}€</span>
+                              <td style={{ padding: "0.5rem 0", borderBottom: `1px solid ${Colors.borderDim}`, textAlign: "right", whiteSpace: "nowrap" }}>
+                                <span style={{ fontSize: "12px", color: isAnnia ? Colors.green : Colors.gold, fontWeight: 700, fontFamily: "'Cormorant Garamond',serif" }}>{total.toLocaleString("pt-PT")}€</span>
                               </td>
                             </tr>
                           );
@@ -468,9 +518,9 @@ export default function PagamentosPage() {
                 );
               })}
 
-              <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "8px", letterSpacing: "0.4em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600 }}>Total {selectedYear}</span>
-                <span style={{ fontSize: "18px", color: C.gold, fontWeight: 300, fontFamily: "'Cormorant Garamond',serif", letterSpacing: "0.05em" }}>{grandTotal.toLocaleString("pt-PT")}€</span>
+              <div style={{ borderTop: `1px solid ${Colors.border}`, paddingTop: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "8px", letterSpacing: "0.4em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600 }}>Total {selectedYear}</span>
+                <span style={{ fontSize: "18px", color: Colors.gold, fontWeight: 300, fontFamily: "'Cormorant Garamond',serif", letterSpacing: "0.05em" }}>{grandTotal.toLocaleString("pt-PT")}€</span>
               </div>
             </div>
           </div>
@@ -482,8 +532,8 @@ export default function PagamentosPage() {
         <div onClick={e => e.target === e.currentTarget && setAddModal(null)} style={overlayStyle}>
           <div style={modalStyle}>
             <div style={topLineStyle} />
-            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.5rem" }}>Adicionar Artista</p>
-            <p style={{ fontSize: "10px", color: C.textMuted, marginBottom: "1.5rem" }}>{addModal.evento_nome} · {fmtDate(addModal.evento_data)}</p>
+            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.5rem" }}>Adicionar Artista</p>
+            <p style={{ fontSize: "10px", color: Colors.textMuted, marginBottom: "1.5rem" }}>{addModal.evento_nome} · {fmtDate(addModal.evento_data)}</p>
             <div style={{ marginBottom: "1rem" }}>
               <label style={labelStyle}>Nome</label>
               <input style={inputStyle} value={addForm.nome} onChange={e => setAddForm(f => ({ ...f, nome: e.target.value }))} placeholder="Nome do artista..." />
@@ -508,7 +558,7 @@ export default function PagamentosPage() {
         </div>
       )}
 
-      <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "#1a1408", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
+      <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "#1a1408", border: `1px solid ${Colors.border}`, color: Colors.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
         {toast}
       </div>
     </div>{/* end desktop */}
@@ -634,7 +684,7 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
 
 function Loading() {
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0C0B09" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: lightTheme ? "#FFFBF7" : "#0C0B09" }}>
       <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
     </div>
   );
