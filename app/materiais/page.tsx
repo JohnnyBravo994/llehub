@@ -757,6 +757,7 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     { href: "/faturacao", label: "Faturação" },
     { href: "/pagamentos", label: "Pagamentos" },
     { href: "/colaboradores", label: "Colaboradores" },
+    { href: "/valores", label: "Valores" }, { href: "/residencias", label: "Residências" },
     { href: "/clientes", label: "Clientes" },
     { href: "/materiais", label: "Materiais" },
   ];

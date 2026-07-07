@@ -77,7 +77,7 @@ import {
   getAllAgenda, createAgendaEvent, updateAgendaEvent,
   cancelAgendaEvent, restoreAgendaEvent, deleteAgendaEvent,
   getArtistasEvento, syncArtistasEvento, getAllArtistasAgenda, syncArtistasParaLead,
-  getAllClientes, createCliente, getAllLeads, getAllColaboradores, syncAllExistingData,
+  getAllClientes, createCliente, getAllLeads, getAllColaboradores, getAllValoresFuncoes, getAllResidenciasAtivas, syncAllExistingData,
   setupMateriais, getAllMateriais, getMovimentosMateriais, registarSaidaMaterial,
   registarVoltaMaterial, deleteMovimentoMaterial,
 } from "../actions";
@@ -87,7 +87,7 @@ interface AgendaEvent {
   tipo?: string; bill?: number; status?: string; cancelled?: number;
   billing_status?: string; cliente_nome?: string; modalidade?: string;
   origem_lead_id?: number | null; venue?: string;
-  contacto?: string; notas?: string;
+  contacto?: string; notas?: string; residencia_id?: number | null;
 }
 
 interface Lead {
@@ -106,8 +106,17 @@ interface Cliente {
 }
 
 interface Colaborador {
-  id: number; nome: string; contacto?: string; email?: string; iban?: string;
+  id: number; nome: string; nome_artistico?: string; nome_pessoal?: string; contacto?: string; email?: string; iban?: string;
   skills?: string; notas?: string; ativo: number;
+}
+
+interface ValorFuncao {
+  id: number; funcao: string; custo_padrao: number; valor_cliente_padrao: number; notas?: string; ativo: number;
+}
+
+interface ResidenciaAtiva {
+  id: number; nome: string; cliente_id?: number | null; cliente_nome: string; local: string; servico: string; duracao_formato: string;
+  custo_interno: number; valor_cliente: number; performer_padrao_id?: number | null; performer_padrao_nome?: string; notas?: string; ativo: number;
 }
 
 interface MaterialItem {
@@ -187,7 +196,7 @@ function artistsSummary(artists: ArtistRow[]) {
   return artists.filter(a => a.nome.trim()).map(a => a.nome).join(" · ");
 }
 
-const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura", venue: "", contacto: "", notas: "" };
+const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura", venue: "", contacto: "", notas: "", residencia_id: null as number | null };
 const emptyArtist = (): ArtistRow => ({ colaborador_id: null, nome: "", tipo: "DJ", fee: "" });
 
 function normalizeText(v: string) {
@@ -250,6 +259,8 @@ export default function AgendaPage() {
   const [confirmedLeads, setConfirmedLeads] = useState<Lead[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+  const [valoresFuncoes, setValoresFuncoes] = useState<ValorFuncao[]>([]);
+  const [residenciasAtivas, setResidenciasAtivas] = useState<ResidenciaAtiva[]>([]);
   const [clienteSearch, setClienteSearch] = useState("");
   const [clienteDropOpen, setClienteDropOpen] = useState(false);
   const [clienteCreating, setClienteCreating] = useState(false);
@@ -272,11 +283,13 @@ export default function AgendaPage() {
   };
 
   const load = useCallback(async () => {
-    const [r, ar, cr, lr, colr] = await Promise.all([getAllAgenda(), getAllArtistasAgenda(), getAllClientes(), getAllLeads(), getAllColaboradores()]);
+    const [r, ar, cr, lr, colr, vr, rr] = await Promise.all([getAllAgenda(), getAllArtistasAgenda(), getAllClientes(), getAllLeads(), getAllColaboradores(), getAllValoresFuncoes(), getAllResidenciasAtivas()]);
     if (r.success) setEvents(r.data as AgendaEvent[]);
     if (ar.success) setArtistasMap(Object.fromEntries(Object.entries(ar.data as Record<number, any[]>).map(([k, v]) => [k, v.map((a: any) => ({ ...a, colaborador_id: a.colaborador_id ?? null, fee: String(a.fee ?? "") }))])));
     if (cr.success) setClientes(cr.data as Cliente[]);
     if (colr.success) setColaboradores(colr.data as Colaborador[]);
+    if (vr.success) setValoresFuncoes(vr.data as ValorFuncao[]);
+    if (rr.success) setResidenciasAtivas((rr.data as ResidenciaAtiva[]).filter(r => r.ativo === 1));
     if (lr.success) {
       const stripEmoji = (s: string) => s.replace(/[\p{Emoji}\u200d\ufe0f]+/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
       const agendaEvents = r.success ? (r.data as AgendaEvent[]) : [];
@@ -381,14 +394,27 @@ export default function AgendaPage() {
   };
 
   const colaboradoresAtivos = colaboradores.filter(c => c.ativo === 1);
-  const findColaboradorByNome = (nome: string) => colaboradoresAtivos.find(c => normalizeText(c.nome) === normalizeText(nome));
+  const colaboradorDisplayName = (c: Colaborador) => c.nome_artistico || c.nome;
+  const findColaboradorByNome = (nome: string) => colaboradoresAtivos.find(c => {
+    const q = normalizeText(nome);
+    return [c.nome, c.nome_artistico || "", c.nome_pessoal || ""].some(v => normalizeText(v) === q);
+  });
   const findColaboradorById = (id?: number | null) => id ? colaboradores.find(c => c.id === id) : undefined;
+  const isEmptyFee = (fee: string) => fee.trim() === "" || Number(fee.replace(",", ".")) === 0;
+  const suggestedFeeForTipo = (tipo: string) => {
+    const row = valoresFuncoes.find(v => v.ativo === 1 && normalizeText(v.funcao) === normalizeText(tipo));
+    return row?.custo_padrao || 0;
+  };
+  const suggestedFeeString = (tipo: string) => {
+    const value = suggestedFeeForTipo(tipo);
+    return value ? String(value) : "";
+  };
   const normalizeArtistRow = (a: any): ArtistRow => {
     const col = findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome || "");
     return {
       id: a.id,
       colaborador_id: col?.id ?? a.colaborador_id ?? null,
-      nome: col?.nome || a.nome || "",
+      nome: col ? colaboradorDisplayName(col) : (a.nome || ""),
       tipo: a.tipo || (col ? tipoFromSkills(col.skills) : "DJ"),
       fee: String(a.fee ?? ""),
     };
@@ -396,12 +422,54 @@ export default function AgendaPage() {
 
   const updateArtistNome = (i: number, nome: string) => {
     const col = findColaboradorByNome(nome);
+    setArtists(prev => prev.map((a, idx) => {
+      if (idx !== i) return a;
+      const nextTipo = col ? tipoFromSkills(col.skills) : a.tipo;
+      return {
+        ...a,
+        colaborador_id: col?.id ?? null,
+        nome: col ? colaboradorDisplayName(col) : nome,
+        tipo: nextTipo,
+        fee: col && isEmptyFee(a.fee) ? suggestedFeeString(nextTipo) : a.fee,
+      };
+    }));
+  };
+
+  const updateArtistTipo = (i: number, tipo: string) => {
     setArtists(prev => prev.map((a, idx) => idx === i ? {
       ...a,
-      colaborador_id: col?.id ?? null,
-      nome: col?.nome || nome,
-      tipo: col ? tipoFromSkills(col.skills) : a.tipo,
+      tipo,
+      fee: isEmptyFee(a.fee) ? suggestedFeeString(tipo) : a.fee,
     } : a));
+  };
+
+  const applyResidenciaAtiva = (id: number | null) => {
+    const r = id ? residenciasAtivas.find(x => x.id === id) : undefined;
+    setForm(f => ({
+      ...f,
+      residencia_id: id,
+      title: r?.nome || f.title,
+      venue: r?.local || f.venue,
+      time: r?.duracao_formato || f.time,
+      tipo: r?.servico || f.tipo,
+      bill: r?.valor_cliente ? String(r.valor_cliente) : f.bill,
+      cliente_nome: r?.cliente_nome || f.cliente_nome,
+    }));
+    if (r?.cliente_nome) setClienteSearch(r.cliente_nome);
+    if (r?.performer_padrao_id || r?.performer_padrao_nome) {
+      setArtists([{
+        colaborador_id: r.performer_padrao_id ?? null,
+        nome: r.performer_padrao_nome || "",
+        tipo: r.servico || "DJ",
+        fee: r.custo_interno ? String(r.custo_interno) : "",
+      }]);
+    } else if (r) {
+      setArtists(prev => prev.map((a, idx) => idx === 0 ? {
+        ...a,
+        tipo: r.servico || a.tipo,
+        fee: isEmptyFee(a.fee) && r.custo_interno ? String(r.custo_interno) : a.fee,
+      } : a));
+    }
   };
 
   const openCreate = () => {
@@ -424,6 +492,7 @@ export default function AgendaPage() {
       modalidade: e.modalidade || "Fatura",
       venue: e.venue || "",
       contacto: e.contacto || "", notas: e.notas || "",
+      residencia_id: e.residencia_id ?? null,
     });
     setClienteSearch(e.cliente_nome || "");
     setClienteDropOpen(false);
@@ -469,6 +538,7 @@ export default function AgendaPage() {
       cliente_nome: form.cliente_nome, modalidade: form.modalidade,
       venue: form.venue || "",
       contacto: form.contacto || "", notas: form.notas || "",
+      residencia_id: form.residencia_id,
     };
     const validArtists = artists.filter(a => a.nome.trim()).map(a => ({
       colaborador_id: a.colaborador_id ?? findColaboradorByNome(a.nome)?.id ?? null,
@@ -1446,41 +1516,49 @@ export default function AgendaPage() {
                 <input style={inputStyle} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Nome do evento..." />
               </FormField>
               {isResidencia && !modal.editing ? (
-                <FormField label="Datas das Residências" style={{ gridColumn: "1 / -1" }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    {residenciaDates.map((d, i) => (
-                      <div key={i} style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                        <input
-                          type="date"
-                          value={d}
-                          onChange={e => {
-                            const next = [...residenciaDates];
-                            next[i] = e.target.value;
-                            setResidenciaDates(next);
-                          }}
-                          style={{ ...inputStyle, flex: 1 }}
-                        />
-                        {residenciaDates.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => setResidenciaDates(prev => prev.filter((_, idx) => idx !== i))}
-                            style={{ background: "transparent", border: "none", color: Colors.textMuted, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
-                          >
-                            <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2"><line x1="1" y1="1" x2="11" y2="11" /><line x1="11" y1="1" x2="1" y2="11" /></svg>
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => setResidenciaDates(prev => [...prev, prev[prev.length - 1] || new Date().toISOString().split("T")[0]])}
-                      style={{ ...btnSecStyle, fontSize: "8px", padding: "0.4rem 0.9rem", alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "5px" }}
-                    >
-                      <svg width="8" height="8" viewBox="0 0 10 10" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="5" y1="1" x2="5" y2="9" /><line x1="1" y1="5" x2="9" y2="5" /></svg>
-                      Adicionar data
-                    </button>
-                  </div>
-                </FormField>
+                <>
+                  <FormField label="Datas das Residências" style={{ gridColumn: "1 / -1" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {residenciaDates.map((d, i) => (
+                        <div key={i} style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                          <input
+                            type="date"
+                            value={d}
+                            onChange={e => {
+                              const next = [...residenciaDates];
+                              next[i] = e.target.value;
+                              setResidenciaDates(next);
+                            }}
+                            style={{ ...inputStyle, flex: 1 }}
+                          />
+                          {residenciaDates.length > 1 && (
+                            <button type="button" onClick={() => setResidenciaDates(prev => prev.filter((_, idx) => idx !== i))} style={{ background: "transparent", border: "none", color: Colors.textMuted, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}>
+                              <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2"><line x1="1" y1="1" x2="11" y2="11" /><line x1="11" y1="1" x2="1" y2="11" /></svg>
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button type="button" onClick={() => setResidenciaDates(prev => [...prev, prev[prev.length - 1] || new Date().toISOString().split("T")[0]])} style={{ ...btnSecStyle, fontSize: "8px", padding: "0.4rem 0.9rem", alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "5px" }}>
+                        <svg width="8" height="8" viewBox="0 0 10 10" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="5" y1="1" x2="5" y2="9" /><line x1="1" y1="5" x2="9" y2="5" /></svg>
+                        Adicionar data
+                      </button>
+                    </div>
+                  </FormField>
+                  <FormField label="Residência Ativa" style={{ gridColumn: "1 / -1" }}>
+                    <CustomSelect
+                      value={form.residencia_id ? String(form.residencia_id) : ""}
+                      onChange={v => applyResidenciaAtiva(v ? Number(v) : null)}
+                      options={[
+                        { value: "", label: "Sem residência master" },
+                        ...residenciasAtivas.map(r => ({ value: String(r.id), label: `${r.nome}${r.cliente_nome ? ` · ${r.cliente_nome}` : ""}${r.local ? ` · ${r.local}` : ""}` }))
+                      ]}
+                      style={inputStyle}
+                    />
+                    <p style={{ marginTop: "0.5rem", fontSize: "9px", color: Colors.textMuted, letterSpacing: "0.08em" }}>
+                      Ao escolher uma residência ativa, a app preenche cliente, local, serviço, duração, faturação e custo sugerido do performer.
+                    </p>
+                  </FormField>
+                </>
               ) : (
                 <FormField label="Data">
                   <input style={inputStyle} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
@@ -1661,7 +1739,7 @@ export default function AgendaPage() {
                     ))}
                   </div>
                   <datalist id="agenda-colaboradores-list">
-                    {colaboradoresAtivos.map(c => <option key={c.id} value={c.nome}>{c.skills || "Colaborador"}</option>)}
+                    {colaboradoresAtivos.map(c => <option key={c.id} value={colaboradorDisplayName(c)}>{c.nome_pessoal || c.skills || "Colaborador"}</option>)}
                   </datalist>
                   {artists.map((a, i) => (
                     <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
@@ -1674,7 +1752,7 @@ export default function AgendaPage() {
                       />
                       <CustomSelect
                         value={a.tipo}
-                        onChange={v => updateArtist(i, "tipo", v)}
+                        onChange={v => updateArtistTipo(i, v)}
                         options={ARTIST_TIPOS.map(t => ({ value: t, label: t }))}
                         style={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "10px" }}
                       />
@@ -1840,9 +1918,10 @@ function Nav({ userName, active, onLogout, lightTheme }: { userName: string; act
     { href: "/faturacao", label: "Faturação" },
     { href: "/pagamentos", label: "Pagamentos" },
     { href: "/colaboradores", label: "Colaboradores" },
+    { href: "/valores", label: "Valores" }, { href: "/residencias", label: "Residências" },
     { href: "/clientes", label: "Clientes" },
   ];
-  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/clientes"];
+  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/residencias", "/clientes"];
   const links = [
     ...(role === "admin" ? allLinks : allLinks.filter(l => !restrictedHrefs.includes(l.href))),
     ...(role !== "limited_novalues" ? [{ href: "/materiais", label: "Materiais" }] : []),
@@ -1996,6 +2075,11 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
   ];
 
   // Páginas no drawer "Mais" (admin only)
+  const valoresTab = { href: "/valores", label: "Valores", id: "valores", icon: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 15l3-3 3 2 5-7"/>
+    </svg>
+  )};
   const materiaisTab = { href: "/materiais", label: "Materiais", id: "materiais", icon: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a4 4 0 018 0v2"/>
@@ -2018,6 +2102,8 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
         <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
       </svg>
     )},
+    valoresTab,
+    { href: "/residencias", label: "Residências", id: "residencias", icon: valoresTab.icon },
     materiaisTab,
   ] : role !== "limited_novalues" ? [materiaisTab] : [];
 

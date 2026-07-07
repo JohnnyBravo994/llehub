@@ -76,7 +76,7 @@ import { useRouter } from "next/navigation";
 import {
   getAllLeads, createLead, updateLead,
   cancelLead, restoreLead, deleteLead,
-  getAllClientes, createCliente, createAgendaEvent, getAllColaboradores,
+  getAllClientes, createCliente, createAgendaEvent, getAllColaboradores, getAllValoresFuncoes,
   syncArtistasEvento, getArtistasEvento, setupDatabase, syncArtistasParaAgenda,
   syncAllExistingData,
 } from "../actions";
@@ -91,8 +91,12 @@ interface Lead {
 
 interface Cliente { id: number; nome: string; nif?: string; alias?: string; }
 interface Colaborador {
-  id: number; nome: string; contacto?: string; email?: string; iban?: string;
+  id: number; nome: string; nome_artistico?: string; nome_pessoal?: string; contacto?: string; email?: string; iban?: string;
   skills?: string; notas?: string; ativo: number;
+}
+
+interface ValorFuncao {
+  id: number; funcao: string; custo_padrao: number; valor_cliente_padrao: number; notas?: string; ativo: number;
 }
 
 function displayClienteNome(lead: { cliente_id?: number | null; cliente_nome?: string }, clientes: Cliente[]): string {
@@ -168,6 +172,7 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+  const [valoresFuncoes, setValoresFuncoes] = useState<ValorFuncao[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<{ open: boolean; editing: Lead | null }>({ open: false, editing: null });
@@ -194,7 +199,7 @@ export default function LeadsPage() {
   };
 
   const load = useCallback(async () => {
-    const [r, cr, colr] = await Promise.all([getAllLeads(), getAllClientes(), getAllColaboradores()]);
+    const [r, cr, colr, vr] = await Promise.all([getAllLeads(), getAllClientes(), getAllColaboradores(), getAllValoresFuncoes()]);
     if (r.success) {
       setLeads(r.data as Lead[]);
       // Auto-colapsar meses já passados
@@ -210,6 +215,7 @@ export default function LeadsPage() {
     }
     if (cr.success) setClientes(cr.data as Cliente[]);
     if (colr.success) setColaboradores(colr.data as Colaborador[]);
+    if (vr.success) setValoresFuncoes(vr.data as ValorFuncao[]);
     setLoading(false);
   }, []);
 
@@ -231,14 +237,27 @@ export default function LeadsPage() {
   }, [load]);
 
   const colaboradoresAtivos = colaboradores.filter(c => c.ativo === 1);
-  const findColaboradorByNome = (nome: string) => colaboradoresAtivos.find(c => normalizeText(c.nome) === normalizeText(nome));
+  const colaboradorDisplayName = (c: Colaborador) => c.nome_artistico || c.nome;
+  const findColaboradorByNome = (nome: string) => colaboradoresAtivos.find(c => {
+    const q = normalizeText(nome);
+    return [c.nome, c.nome_artistico || "", c.nome_pessoal || ""].some(v => normalizeText(v) === q);
+  });
   const findColaboradorById = (id?: number | null) => id ? colaboradores.find(c => c.id === id) : undefined;
+  const isEmptyFee = (fee: string) => fee.trim() === "" || Number(fee.replace(",", ".")) === 0;
+  const suggestedFeeForTipo = (tipo: string) => {
+    const row = valoresFuncoes.find(v => v.ativo === 1 && normalizeText(v.funcao) === normalizeText(tipo));
+    return row?.custo_padrao || 0;
+  };
+  const suggestedFeeString = (tipo: string) => {
+    const value = suggestedFeeForTipo(tipo);
+    return value ? String(value) : "";
+  };
   const normalizeArtistRow = (a: any): ArtistRow => {
     const col = findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome || "");
     return {
       id: a.id,
       colaborador_id: col?.id ?? a.colaborador_id ?? null,
-      nome: col?.nome || a.nome || "",
+      nome: col ? colaboradorDisplayName(col) : (a.nome || ""),
       tipo: a.tipo || (col ? tipoFromSkills(col.skills) : "DJ"),
       fee: String(a.fee ?? ""),
     };
@@ -246,11 +265,24 @@ export default function LeadsPage() {
 
   const updateArtistNome = (i: number, nome: string) => {
     const col = findColaboradorByNome(nome);
+    setArtists(prev => prev.map((a, idx) => {
+      if (idx !== i) return a;
+      const nextTipo = col ? tipoFromSkills(col.skills) : a.tipo;
+      return {
+        ...a,
+        colaborador_id: col?.id ?? null,
+        nome: col ? colaboradorDisplayName(col) : nome,
+        tipo: nextTipo,
+        fee: col && isEmptyFee(a.fee) ? suggestedFeeString(nextTipo) : a.fee,
+      };
+    }));
+  };
+
+  const updateArtistTipo = (i: number, tipo: string) => {
     setArtists(prev => prev.map((a, idx) => idx === i ? {
       ...a,
-      colaborador_id: col?.id ?? null,
-      nome: col?.nome || nome,
-      tipo: col ? tipoFromSkills(col.skills) : a.tipo,
+      tipo,
+      fee: isEmptyFee(a.fee) ? suggestedFeeString(tipo) : a.fee,
     } : a));
   };
 
@@ -1011,7 +1043,7 @@ export default function LeadsPage() {
                 ))}
               </div>
               <datalist id="leads-colaboradores-list">
-                {colaboradoresAtivos.map(c => <option key={c.id} value={c.nome}>{c.skills || "Colaborador"}</option>)}
+                {colaboradoresAtivos.map(c => <option key={c.id} value={colaboradorDisplayName(c)}>{c.nome_pessoal || c.skills || "Colaborador"}</option>)}
               </datalist>
               {artists.map((a, i) => (
                 <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
@@ -1024,7 +1056,7 @@ export default function LeadsPage() {
                   />
                   <CustomSelect
                     value={a.tipo}
-                    onChange={v => updateArtist(setArtists, i, "tipo", v)}
+                    onChange={v => updateArtistTipo(i, v)}
                     options={ARTIST_TIPOS.map(t => ({ value: t, label: t }))}
                     style={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "10px" }}
                   />
@@ -1081,8 +1113,8 @@ export default function LeadsPage() {
 function Nav({ userName, active, onLogout }: { userName: string; active: string; onLogout: () => void }) {
   const stored = typeof window !== "undefined" ? localStorage.getItem("lle_user") : null;
   const role = stored ? JSON.parse(stored).role : "admin";
-  const allLinks = [{ href: "/dashboard", label: "Dashboard" }, { href: "/agenda", label: "Agenda" }, { href: "/leads", label: "Leads" }, { href: "/faturacao", label: "Faturação" }, { href: "/pagamentos", label: "Pagamentos" }, { href: "/colaboradores", label: "Colaboradores" }];
-  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores"];
+  const allLinks = [{ href: "/dashboard", label: "Dashboard" }, { href: "/agenda", label: "Agenda" }, { href: "/leads", label: "Leads" }, { href: "/faturacao", label: "Faturação" }, { href: "/pagamentos", label: "Pagamentos" }, { href: "/colaboradores", label: "Colaboradores" }, { href: "/valores", label: "Valores" }, { href: "/residencias", label: "Residências" }];
+  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/residencias"];
   const links = [
     ...(role === "admin" ? allLinks : allLinks.filter(l => !restrictedHrefs.includes(l.href))),
     ...(role !== "limited_novalues" ? [{ href: "/materiais", label: "Materiais" }] : []),
@@ -1195,6 +1227,11 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
   ];
 
   // Páginas no drawer "Mais" (admin only)
+  const valoresTab = { href: "/valores", label: "Valores", id: "valores", icon: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 15l3-3 3 2 5-7"/>
+    </svg>
+  )};
   const materiaisTab = { href: "/materiais", label: "Materiais", id: "materiais", icon: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a4 4 0 018 0v2"/>
@@ -1217,6 +1254,8 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
         <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
       </svg>
     )},
+    valoresTab,
+    { href: "/residencias", label: "Residências", id: "residencias", icon: valoresTab.icon },
     materiaisTab,
   ] : role !== "limited_novalues" ? [materiaisTab] : [];
 

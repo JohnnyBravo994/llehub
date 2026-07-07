@@ -7,12 +7,17 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   getAllColaboradores, createColaborador, updateColaborador,
-  toggleColaboradorAtivo, setupColaboradores,
+  toggleColaboradorAtivo, setupColaboradores, getArtistasPorAssociar,
+  associarArtistaNomeAColaborador, criarColaboradorEAssociarArtista,
 } from "../actions";
 
 interface Colaborador {
-  id: number; nome: string; contacto: string; email: string;
-  iban: string; skills: string; notas: string; ativo: number;
+  id: number; nome: string; nome_artistico?: string; nome_pessoal?: string;
+  contacto: string; email: string; iban: string; skills: string; notas: string; ativo: number;
+}
+
+interface ArtistaPorAssociar {
+  nome: string; tipos: string; total: number; primeira_data: string; ultima_data: string; fee_medio: number;
 }
 
 const C = {
@@ -41,7 +46,7 @@ const ALL_SKILLS = [
 ];
 
 const emptyForm = {
-  nome: "", contacto: "", email: "", iban: "", skills: [] as string[], notas: "", ativo: 1,
+  nome: "", nome_pessoal: "", contacto: "", email: "", iban: "", skills: [] as string[], notas: "", ativo: 1,
 };
 
 function skillsToString(skills: string[]): string {
@@ -58,6 +63,8 @@ export default function ColaboradoresPage() {
   const router = useRouter();
   const [userName, setUserName] = useState("");
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+  const [artistasPorAssociar, setArtistasPorAssociar] = useState<ArtistaPorAssociar[]>([]);
+  const [linkDrafts, setLinkDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterSkill, setFilterSkill] = useState("");
@@ -73,6 +80,8 @@ export default function ColaboradoresPage() {
     await setupColaboradores();
     const r = await getAllColaboradores();
     if (r.success) setColaboradores(r.data as Colaborador[]);
+    const pending = await getArtistasPorAssociar();
+    if (pending.success) setArtistasPorAssociar(pending.data as ArtistaPorAssociar[]);
     setLoading(false);
   }, []);
 
@@ -92,7 +101,8 @@ export default function ColaboradoresPage() {
 
   const openEdit = (c: Colaborador) => {
     setForm({
-      nome: c.nome, contacto: c.contacto, email: c.email, iban: c.iban,
+      nome: c.nome_artistico || c.nome, nome_pessoal: c.nome_pessoal || "",
+      contacto: c.contacto, email: c.email, iban: c.iban,
       skills: stringToSkills(c.skills), notas: c.notas, ativo: c.ativo,
     });
     setModal({ open: true, editing: c });
@@ -103,7 +113,7 @@ export default function ColaboradoresPage() {
   const handleSave = async () => {
     if (!form.nome.trim()) { showToast("Nome é obrigatório"); return; }
     setSaving(true);
-    const payload = { ...form, skills: skillsToString(form.skills) };
+    const payload = { ...form, nome_artistico: form.nome.trim(), skills: skillsToString(form.skills) };
     if (modal.editing) {
       await updateColaborador(modal.editing.id, payload);
       showToast("Colaborador actualizado");
@@ -123,6 +133,22 @@ export default function ColaboradoresPage() {
     load();
   };
 
+
+  const handleAssociarNome = async (nome: string) => {
+    const colaboradorId = Number(linkDrafts[nome] || 0);
+    if (!colaboradorId) { showToast("Escolhe um colaborador"); return; }
+    const res = await associarArtistaNomeAColaborador(nome, colaboradorId);
+    showToast(res.success ? `${res.updated || 0} registos associados` : "Erro ao associar");
+    await load();
+  };
+
+  const handleCriarEAssociar = async (item: ArtistaPorAssociar) => {
+    const skill = (item.tipos || "").split(",")[0]?.trim() || "";
+    const res = await criarColaboradorEAssociarArtista(item.nome, skill);
+    showToast(res.success ? `Colaborador criado e ${res.updated || 0} registos associados` : "Erro ao criar/associar");
+    await load();
+  };
+
   const toggleSkill = (skill: string) => {
     setForm(f => ({
       ...f,
@@ -134,7 +160,11 @@ export default function ColaboradoresPage() {
 
   const filtered = colaboradores.filter(c => {
     if (!showInactive && c.ativo === 0) return false;
-    if (search && !c.nome.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const haystack = `${c.nome} ${c.nome_artistico || ""} ${c.nome_pessoal || ""} ${c.email || ""}`.toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
     if (filterSkill && !stringToSkills(c.skills).includes(filterSkill)) return false;
     return true;
   });
@@ -207,6 +237,39 @@ export default function ColaboradoresPage() {
           </button>
         </div>
 
+        {artistasPorAssociar.length > 0 && (
+          <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative", marginBottom: "1rem", padding: "1rem" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: lightTheme ? "rgba(0,0,0,0.2)" : "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "flex-start", marginBottom: "0.9rem" }}>
+              <div>
+                <p style={{ fontSize: "8px", letterSpacing: "0.35em", color: C.goldDim, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.35rem" }}>Nomes por associar</p>
+                <p style={{ fontSize: "11px", color: C.textMuted, letterSpacing: "0.04em" }}>Registos antigos da Agenda/Leads continuam intactos. Aqui só ligas o texto antigo ao colaborador certo.</p>
+              </div>
+              <span style={{ fontSize: "18px", fontWeight: 700, color: C.textPrimary }}>{artistasPorAssociar.length}</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 90px 1.2fr 95px 120px", gap: "8px", alignItems: "center" }}>
+              {artistasPorAssociar.slice(0, 12).map(item => (
+                <div key={item.nome} style={{ display: "contents" }}>
+                  <div style={{ fontSize: "12px", fontWeight: 700, color: C.textPrimary }}>{item.nome}</div>
+                  <div style={{ fontSize: "10px", color: C.textSec }}>{item.tipos || "Sem função"}</div>
+                  <div style={{ fontSize: "10px", color: C.textMuted }}>{item.total} reg.</div>
+                  <select
+                    value={linkDrafts[item.nome] || ""}
+                    onChange={e => setLinkDrafts(prev => ({ ...prev, [item.nome]: e.target.value }))}
+                    style={{ ...inputStyle, padding: "0.48rem 0.6rem" }}
+                  >
+                    <option value="">Associar a...</option>
+                    {colaboradores.filter(c => c.ativo === 1).map(c => <option key={c.id} value={c.id}>{c.nome_artistico || c.nome}</option>)}
+                  </select>
+                  <button onClick={() => handleAssociarNome(item.nome)} style={{ ...btnSecStyle, padding: "0.55rem 0.65rem", fontSize: "8px" }}>Associar</button>
+                  <button onClick={() => handleCriarEAssociar(item)} style={{ ...btnPrimStyle, padding: "0.55rem 0.65rem", fontSize: "8px" }}>Criar + ligar</button>
+                </div>
+              ))}
+            </div>
+            {artistasPorAssociar.length > 12 && <div style={{ marginTop: "0.75rem", fontSize: "9px", color: C.textMuted }}>A mostrar 12 de {artistasPorAssociar.length}. Vai associando para aparecerem os restantes.</div>}
+          </div>
+        )}
+
         {/* Filters */}
         <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative", marginBottom: "0" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
@@ -236,7 +299,7 @@ export default function ColaboradoresPage() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  {["Nome", "Contacto", "Email", "IBAN", "Funções / Skills", "Notas", "Estado", "Ações"].map((h, i) => (
+                  {["Nome Artístico", "Nome Pessoal", "Contacto", "Email", "IBAN", "Funções / Skills", "Estado", "Ações"].map((h, i) => (
                     <th key={h} style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${C.border}`, textAlign: i >= 6 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -244,7 +307,8 @@ export default function ColaboradoresPage() {
               <tbody>
                 {filtered.map(c => (
                   <tr key={c.id} style={{ opacity: c.ativo === 0 ? 0.45 : 1 }}>
-                    <td style={tdS()}><span style={{ fontWeight: 600, fontSize: "11px" }}>{c.nome}</span></td>
+                    <td style={tdS()}><span style={{ fontWeight: 600, fontSize: "11px" }}>{c.nome_artistico || c.nome}</span></td>
+                    <td style={tdS({ muted: true })}>{c.nome_pessoal || "—"}</td>
                     <td style={tdS({ muted: true })}>{c.contacto || "—"}</td>
                     <td style={tdS({ muted: true })}>{c.email || "—"}</td>
                     <td style={tdS({ muted: true, nowrap: true })}>
@@ -261,7 +325,6 @@ export default function ColaboradoresPage() {
                           </div>
                         : <span style={{ color: C.textMuted, fontSize: "10px" }}>—</span>}
                     </td>
-                    <td style={{ ...tdS({ muted: true }), maxWidth: "180px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.notas || "—"}</td>
                     <td style={{ ...tdS({}), textAlign: "right" }}>
                       <span style={{ fontSize: "8px", letterSpacing: "0.2em", color: c.ativo === 1 ? C.green : C.textMuted, fontWeight: 600, textTransform: "uppercase" }}>
                         {c.ativo === 1 ? "Ativo" : "Inativo"}
@@ -328,13 +391,27 @@ export default function ColaboradoresPage() {
         </select>
       </div>
 
+      {artistasPorAssociar.length > 0 && (
+        <div style={{ padding: "0.9rem 1rem", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+          <div style={{ fontSize: "9px", letterSpacing: "0.25em", color: "#C9A96E", textTransform: "uppercase", fontWeight: 700, marginBottom: "0.5rem" }}>Por associar</div>
+          {artistasPorAssociar.slice(0, 4).map(item => (
+            <div key={item.nome} style={{ padding: "0.55rem 0", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "#F5F0E8" }}>{item.nome}</div>
+              <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.45)", marginTop: "2px" }}>{item.tipos || "Sem função"} · {item.total} reg.</div>
+              <button onClick={() => handleCriarEAssociar(item)} style={{ marginTop: "0.45rem", background: "rgba(201,169,110,0.12)", border: "1px solid rgba(201,169,110,0.2)", color: "#C9A96E", fontSize: "9px", padding: "0.45rem 0.65rem", cursor: "pointer" }}>Criar + ligar</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* List */}
       <div className="mob-list">
         {filtered.map(c => (
           <div key={c.id} style={{ padding: "1rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.04)", opacity: c.ativo === 0 ? 0.5 : 1 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "13px", fontWeight: 600, color: "#F5F0E8", marginBottom: "3px" }}>{c.nome}</div>
+                <div style={{ fontSize: "13px", fontWeight: 600, color: "#F5F0E8", marginBottom: "3px" }}>{c.nome_artistico || c.nome}</div>
+                {c.nome_pessoal && <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.55)", marginBottom: "2px" }}>{c.nome_pessoal}</div>}
                 {c.contacto && <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.45)" }}>{c.contacto}</div>}
                 {stringToSkills(c.skills).length > 0 && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "3px", marginTop: "4px" }}>
@@ -387,8 +464,12 @@ export default function ColaboradoresPage() {
             </div>
 
             <div style={{ marginBottom: "1rem" }}>
-              <label style={labelStyle}>Nome *</label>
-              <input style={inputStyle} value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} placeholder="Nome completo..." />
+              <label style={labelStyle}>Nome Artístico *</label>
+              <input style={inputStyle} value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} placeholder="Gio, DJ João, Annia..." />
+            </div>
+            <div style={{ marginBottom: "1rem" }}>
+              <label style={labelStyle}>Nome Pessoal / Fiscal</label>
+              <input style={inputStyle} value={form.nome_pessoal} onChange={e => setForm(f => ({ ...f, nome_pessoal: e.target.value }))} placeholder="Nome civil/fiscal..." />
             </div>
             <div style={{ marginBottom: "1rem" }}>
               <label style={labelStyle}>Contacto / Telefone</label>
@@ -452,9 +533,15 @@ function ColabModalContent({ form, setForm, modal, saving, closeModal, handleSav
       <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "1.5rem" }}>
         {modal.editing ? "Editar Colaborador" : "Novo Colaborador"}
       </p>
-      <div style={{ marginBottom: "1rem" }}>
-        <label style={labelStyle}>Nome *</label>
-        <input style={inputStyle} value={form.nome} onChange={(e: any) => setForm((f: any) => ({ ...f, nome: e.target.value }))} placeholder="Nome completo..." />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+        <div>
+          <label style={labelStyle}>Nome Artístico *</label>
+          <input style={inputStyle} value={form.nome} onChange={(e: any) => setForm((f: any) => ({ ...f, nome: e.target.value }))} placeholder="Gio, DJ João, Annia..." />
+        </div>
+        <div>
+          <label style={labelStyle}>Nome Pessoal / Fiscal</label>
+          <input style={inputStyle} value={form.nome_pessoal} onChange={(e: any) => setForm((f: any) => ({ ...f, nome_pessoal: e.target.value }))} placeholder="Nome civil/fiscal..." />
+        </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
         <div>
@@ -530,9 +617,10 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     { href: "/faturacao", label: "Faturação" },
     { href: "/pagamentos", label: "Pagamentos" },
     { href: "/colaboradores", label: "Colaboradores" },
+    { href: "/valores", label: "Valores" }, { href: "/residencias", label: "Residências" },
     { href: "/clientes", label: "Clientes" },
   ];
-  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/clientes"];
+  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/residencias", "/clientes"];
   const links = [
     ...(role === "admin" ? allLinks : allLinks.filter(l => !restrictedHrefs.includes(l.href))),
     ...(role !== "limited_novalues" ? [{ href: "/materiais", label: "Materiais" }] : []),
@@ -592,6 +680,11 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
   ];
 
   // Páginas no drawer "Mais" (admin only)
+  const valoresTab = { href: "/valores", label: "Valores", id: "valores", icon: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 15l3-3 3 2 5-7"/>
+    </svg>
+  )};
   const materiaisTab = { href: "/materiais", label: "Materiais", id: "materiais", icon: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a4 4 0 018 0v2"/>
@@ -614,6 +707,8 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
         <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
       </svg>
     )},
+    valoresTab,
+    { href: "/residencias", label: "Residências", id: "residencias", icon: valoresTab.icon },
     materiaisTab,
   ] : role !== "limited_novalues" ? [materiaisTab] : [];
 

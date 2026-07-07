@@ -641,9 +641,10 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     { href: "/faturacao", label: "Faturação" },
     { href: "/pagamentos", label: "Pagamentos" },
     { href: "/colaboradores", label: "Colaboradores" },
+    { href: "/valores", label: "Valores" }, { href: "/residencias", label: "Residências" },
     { href: "/clientes", label: "Clientes" },
   ];
-  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/clientes"];
+  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/residencias", "/clientes"];
   const links = [
     ...(role === "admin" ? allLinks : allLinks.filter(l => !restrictedHrefs.includes(l.href))),
     ...(role !== "limited_novalues" ? [{ href: "/materiais", label: "Materiais" }] : []),
@@ -729,6 +730,11 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
   ];
 
   // Páginas no drawer "Mais" (admin only)
+  const valoresTab = { href: "/valores", label: "Valores", id: "valores", icon: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 15l3-3 3 2 5-7"/>
+    </svg>
+  )};
   const materiaisTab = { href: "/materiais", label: "Materiais", id: "materiais", icon: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a4 4 0 018 0v2"/>
@@ -751,6 +757,8 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
         <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
       </svg>
     )},
+    valoresTab,
+    { href: "/residencias", label: "Residências", id: "residencias", icon: valoresTab.icon },
     materiaisTab,
   ] : role !== "limited_novalues" ? [materiaisTab] : [];
 

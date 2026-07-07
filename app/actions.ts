@@ -7,6 +7,119 @@ const turso = createClient({
   authToken: process.env.TURSO_AUTH_TOKEN!,
 });
 
+const DEFAULT_FUNCOES_VALORES = [
+  "DJ", "Singer", "Dancer", "Sax", "Guitar", "Bass", "Drums", "Piano",
+  "Violino", "Acordeão", "Trompete", "Percussão", "Fire", "Host", "MC",
+  "Actor", "Comediante", "Mágico", "Coreógrafa", "Ginasta", "Produtor",
+  "Guarda-Roupa", "Animador", "Karaoke"
+];
+
+async function ensureColaboradoresExtendedColumns() {
+  try { await turso.execute("ALTER TABLE colaboradores ADD COLUMN nome_artistico TEXT DEFAULT ''"); } catch { }
+  try { await turso.execute("ALTER TABLE colaboradores ADD COLUMN nome_pessoal TEXT DEFAULT ''"); } catch { }
+  try {
+    await turso.execute("UPDATE colaboradores SET nome_artistico = nome WHERE COALESCE(nome_artistico, '') = ''");
+  } catch { }
+}
+
+async function ensureValoresFuncoesTable() {
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS valores_funcoes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      funcao TEXT NOT NULL UNIQUE,
+      custo_padrao REAL NOT NULL DEFAULT 0,
+      valor_cliente_padrao REAL NOT NULL DEFAULT 0,
+      notas TEXT DEFAULT '',
+      ativo INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+  for (const funcao of DEFAULT_FUNCOES_VALORES) {
+    try {
+      await turso.execute({
+        sql: "INSERT OR IGNORE INTO valores_funcoes (funcao, custo_padrao, valor_cliente_padrao, notas, ativo) VALUES (?, 0, 0, '', 1)",
+        args: [funcao],
+      });
+    } catch { }
+  }
+}
+
+
+async function ensureValoresMasterTable() {
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS valores_master (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      servico TEXT NOT NULL,
+      duracao_formato TEXT DEFAULT '',
+      contexto TEXT DEFAULT 'Normal',
+      cliente_nome TEXT DEFAULT '',
+      custo_interno REAL NOT NULL DEFAULT 0,
+      valor_parceiro REAL NOT NULL DEFAULT 0,
+      valor_cliente_final REAL NOT NULL DEFAULT 0,
+      notas TEXT DEFAULT '',
+      ativo INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+  const cols = [
+    "servico TEXT NOT NULL DEFAULT ''",
+    "duracao_formato TEXT DEFAULT ''",
+    "contexto TEXT DEFAULT 'Normal'",
+    "cliente_nome TEXT DEFAULT ''",
+    "custo_interno REAL NOT NULL DEFAULT 0",
+    "valor_parceiro REAL NOT NULL DEFAULT 0",
+    "valor_cliente_final REAL NOT NULL DEFAULT 0",
+    "notas TEXT DEFAULT ''",
+    "ativo INTEGER DEFAULT 1",
+  ];
+  for (const col of cols) {
+    try { await turso.execute(`ALTER TABLE valores_master ADD COLUMN ${col}`); } catch { }
+  }
+}
+
+async function ensureResidenciasAtivasTable() {
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS residencias_ativas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL,
+      cliente_id INTEGER,
+      cliente_nome TEXT DEFAULT '',
+      local TEXT DEFAULT '',
+      servico TEXT DEFAULT 'DJ',
+      duracao_formato TEXT DEFAULT '',
+      custo_interno REAL NOT NULL DEFAULT 0,
+      valor_cliente REAL NOT NULL DEFAULT 0,
+      performer_padrao_id INTEGER,
+      performer_padrao_nome TEXT DEFAULT '',
+      notas TEXT DEFAULT '',
+      ativo INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+  const cols = [
+    "nome TEXT NOT NULL DEFAULT ''",
+    "cliente_id INTEGER",
+    "cliente_nome TEXT DEFAULT ''",
+    "local TEXT DEFAULT ''",
+    "servico TEXT DEFAULT 'DJ'",
+    "duracao_formato TEXT DEFAULT ''",
+    "custo_interno REAL NOT NULL DEFAULT 0",
+    "valor_cliente REAL NOT NULL DEFAULT 0",
+    "performer_padrao_id INTEGER",
+    "performer_padrao_nome TEXT DEFAULT ''",
+    "notas TEXT DEFAULT ''",
+    "ativo INTEGER DEFAULT 1",
+  ];
+  for (const col of cols) {
+    try { await turso.execute(`ALTER TABLE residencias_ativas ADD COLUMN ${col}`); } catch { }
+  }
+}
+
+async function ensureCommercialColumns() {
+  try { await turso.execute("ALTER TABLE agenda ADD COLUMN residencia_id INTEGER"); } catch { }
+  try { await turso.execute("ALTER TABLE leads ADD COLUMN residencia_id INTEGER"); } catch { }
+}
+
 function extractField(details: string, field: string): string {
   if (!details) return '';
   const regex = new RegExp(`${field}:\\s*([^|]+)`);
@@ -111,6 +224,8 @@ export async function setupDatabase() {
       CREATE TABLE IF NOT EXISTS colaboradores (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nome TEXT NOT NULL,
+        nome_artistico TEXT DEFAULT '',
+        nome_pessoal TEXT DEFAULT '',
         contacto TEXT DEFAULT '',
         email TEXT DEFAULT '',
         iban TEXT DEFAULT '',
@@ -119,8 +234,23 @@ export async function setupDatabase() {
         ativo INTEGER DEFAULT 1,
         created_at TEXT DEFAULT (datetime('now'))
       );
+
+      CREATE TABLE IF NOT EXISTS valores_funcoes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        funcao TEXT NOT NULL UNIQUE,
+        custo_padrao REAL NOT NULL DEFAULT 0,
+        valor_cliente_padrao REAL NOT NULL DEFAULT 0,
+        notas TEXT DEFAULT '',
+        ativo INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
     `);
     try { await turso.execute("ALTER TABLE artistas_evento ADD COLUMN colaborador_id INTEGER"); } catch { }
+    await ensureColaboradoresExtendedColumns();
+    await ensureValoresFuncoesTable();
+    await ensureValoresMasterTable();
+    await ensureResidenciasAtivasTable();
+    await ensureCommercialColumns();
 
     const agendaCols = [
       "billing_status TEXT DEFAULT 'Contacto'",
@@ -167,6 +297,7 @@ export async function setupDatabase() {
       "cliente_id INTEGER",
       "modalidade TEXT DEFAULT 'Fatura'",
       "valor_recebido REAL DEFAULT 0",
+      "residencia_id INTEGER",
     ];
     for (const col of leadsCols) {
       try { await turso.execute(`ALTER TABLE leads ADD COLUMN ${col}`); } catch { }
@@ -338,6 +469,7 @@ export async function getAllAgenda(userName: string = 'Admin') {
           origem_lead_id: r.origem_lead_id ? Number(r.origem_lead_id) : null,
           contacto: r.contacto || '', notas: r.notas || '',
           event_id: (r.event_id as string) || '',
+          residencia_id: r.residencia_id == null ? null : Number(r.residencia_id),
         };
       }),
     };
@@ -350,7 +482,7 @@ export async function getAllAgenda(userName: string = 'Admin') {
 export async function createAgendaEvent(data: {
   title: string; date: string; time: string; tipo: string; bill: number;
   billing_status?: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string;
-  origem_lead_id?: number | null; venue?: string; contacto?: string; notas?: string;
+  origem_lead_id?: number | null; venue?: string; contacto?: string; notas?: string; residencia_id?: number | null;
 }) {
   try {
     // Se há origem_lead_id, partilhar o event_id da lead; caso contrário gerar novo
@@ -362,8 +494,8 @@ export async function createAgendaEvent(data: {
     }
 
     await turso.execute({
-      sql: "INSERT INTO agenda (event_name, event_date, location, staff_needed, client_cachet, status, visibility, billing_status, cliente_id, cliente_nome, modalidade, origem_lead_id, venue, contacto, notas, event_id) VALUES (?, ?, ?, ?, ?, 'Confirmado', 'Public', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.origem_lead_id ?? null, data.venue || '', data.contacto || '', data.notas || '', eventId],
+      sql: "INSERT INTO agenda (event_name, event_date, location, staff_needed, client_cachet, status, visibility, billing_status, cliente_id, cliente_nome, modalidade, origem_lead_id, venue, contacto, notas, event_id, residencia_id) VALUES (?, ?, ?, ?, ?, 'Confirmado', 'Public', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.origem_lead_id ?? null, data.venue || '', data.contacto || '', data.notas || '', eventId, data.residencia_id ?? null],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
     const newId = Number(last.rows[0].id);
@@ -393,12 +525,12 @@ export async function createAgendaEvent(data: {
 
 export async function updateAgendaEvent(
   id: number,
-  data: { title: string; date: string; time: string; tipo: string; bill: number; billing_status?: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string; venue?: string; contacto?: string; notas?: string; }
+  data: { title: string; date: string; time: string; tipo: string; bill: number; billing_status?: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string; venue?: string; contacto?: string; notas?: string; residencia_id?: number | null; }
 ) {
   try {
     await turso.execute({
-      sql: "UPDATE agenda SET event_name=?, event_date=?, location=?, staff_needed=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, venue=?, contacto=?, notas=? WHERE id=?",
-      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.venue || '', data.contacto || '', data.notas || '', id],
+      sql: "UPDATE agenda SET event_name=?, event_date=?, location=?, staff_needed=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, venue=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
+      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.venue || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, id],
     });
 
     // Obter event_id e origem_lead_id actuais
@@ -452,8 +584,8 @@ export async function updateAgendaEvent(
         // Dar o event_id correcto à lead e fazer sync directo
         await turso.execute({ sql: "UPDATE leads SET event_id=? WHERE id=?", args: [eventId, leadId] });
         await turso.execute({
-          sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, local=?, contacto=?, notas=? WHERE id=?",
-          args: [data.title, data.date, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.venue || '', data.contacto || '', data.notas || '', leadId],
+          sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, local=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
+          args: [data.title, data.date, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.venue || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, leadId],
         });
       }
     }
@@ -686,6 +818,7 @@ export async function getAllLeads() {
         modalidade: r.modalidade || 'Fatura',
         agenda_event_id: r.agenda_event_id ? Number(r.agenda_event_id) : null,
         event_id: (r.event_id as string) || '',
+        residencia_id: r.residencia_id == null ? null : Number(r.residencia_id),
       }))
     };
   } catch (error) {
@@ -697,13 +830,13 @@ export async function getAllLeads() {
 export async function createLead(data: {
   title: string; event_date: string; value: number; status: string;
   cliente_id?: number | null; cliente_nome?: string; modalidade?: string;
-  local?: string; contacto?: string; notas?: string;
+  local?: string; contacto?: string; notas?: string; residencia_id?: number | null;
 }) {
   try {
     const eventId = uuidv4();
     await turso.execute({
-      sql: "INSERT INTO leads (title, event_date, value, status, cliente_id, client_name, modalidade, local, contacto, notas, event_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', data.contacto || '', data.notas || '', eventId],
+      sql: "INSERT INTO leads (title, event_date, value, status, cliente_id, client_name, modalidade, local, contacto, notas, event_id, residencia_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', data.contacto || '', data.notas || '', eventId, data.residencia_id ?? null],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
     return { success: true, id: Number(last.rows[0].id), event_id: eventId };
@@ -715,12 +848,12 @@ export async function createLead(data: {
 
 export async function updateLead(
   id: number,
-  data: { title: string; event_date: string; value: number; status: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string; local?: string; contacto?: string; notas?: string; }
+  data: { title: string; event_date: string; value: number; status: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string; local?: string; contacto?: string; notas?: string; residencia_id?: number | null; }
 ) {
   try {
     await turso.execute({
-      sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, local=?, contacto=?, notas=? WHERE id=?",
-      args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', data.contacto || '', data.notas || '', id],
+      sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, local=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
+      args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, id],
     });
 
     // Garantir que esta lead tem event_id
@@ -749,8 +882,8 @@ export async function updateLead(
       if (!agEid || agEid !== eventId) {
         await turso.execute({ sql: "UPDATE agenda SET event_id=? WHERE id=?", args: [eventId, (row as any).id] });
         await turso.execute({
-          sql: "UPDATE agenda SET event_name=?, event_date=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, venue=?, contacto=?, notas=? WHERE id=?",
-          args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', data.contacto || '', data.notas || '', (row as any).id],
+          sql: "UPDATE agenda SET event_name=?, event_date=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, venue=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
+          args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, (row as any).id],
         });
       }
     }
@@ -764,8 +897,8 @@ export async function updateLead(
     for (const row of unlinked.rows as any[]) {
       // Ligar e partilhar event_id
       await turso.execute({
-        sql: "UPDATE agenda SET origem_lead_id=?, event_id=?, event_name=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, venue=?, contacto=?, notas=? WHERE id=?",
-        args: [id, eventId, data.title, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', data.contacto || '', data.notas || '', row.id],
+        sql: "UPDATE agenda SET origem_lead_id=?, event_id=?, event_name=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, venue=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
+        args: [id, eventId, data.title, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, row.id],
       });
     }
 
@@ -1062,6 +1195,8 @@ export async function setupColaboradores() {
       CREATE TABLE IF NOT EXISTS colaboradores (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nome TEXT NOT NULL,
+        nome_artistico TEXT DEFAULT '',
+        nome_pessoal TEXT DEFAULT '',
         contacto TEXT DEFAULT '',
         email TEXT DEFAULT '',
         iban TEXT DEFAULT '',
@@ -1071,6 +1206,7 @@ export async function setupColaboradores() {
         created_at TEXT DEFAULT (datetime('now'))
       )
     `);
+    await ensureColaboradoresExtendedColumns();
     // Adicionar coluna colaborador_id a artistas_evento se não existir
     try { await turso.execute("ALTER TABLE artistas_evento ADD COLUMN colaborador_id INTEGER"); } catch { }
     return { success: true };
@@ -1082,12 +1218,15 @@ export async function setupColaboradores() {
 
 export async function getAllColaboradores() {
   try {
-    const res = await turso.execute("SELECT * FROM colaboradores ORDER BY nome ASC");
+    await ensureColaboradoresExtendedColumns();
+    const res = await turso.execute("SELECT * FROM colaboradores ORDER BY COALESCE(NULLIF(nome_artistico, ''), nome) ASC");
     return {
       success: true,
       data: res.rows.map((r: any) => ({
         id: Number(r.id),
-        nome: r.nome as string,
+        nome: ((r.nome_artistico as string) || (r.nome as string) || '') as string,
+        nome_artistico: ((r.nome_artistico as string) || (r.nome as string) || '') as string,
+        nome_pessoal: (r.nome_pessoal as string) || '',
         contacto: (r.contacto as string) || '',
         email: (r.email as string) || '',
         iban: (r.iban as string) || '',
@@ -1103,13 +1242,15 @@ export async function getAllColaboradores() {
 }
 
 export async function createColaborador(data: {
-  nome: string; contacto?: string; email?: string; iban?: string;
+  nome: string; nome_artistico?: string; nome_pessoal?: string; contacto?: string; email?: string; iban?: string;
   skills?: string; notas?: string; ativo?: number;
 }) {
   try {
+    await ensureColaboradoresExtendedColumns();
+    const nomeArtistico = (data.nome_artistico || data.nome || '').trim();
     await turso.execute({
-      sql: "INSERT INTO colaboradores (nome, contacto, email, iban, skills, notas, ativo) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      args: [data.nome, data.contacto || '', data.email || '', data.iban || '', data.skills || '', data.notas || '', data.ativo ?? 1],
+      sql: "INSERT INTO colaboradores (nome, nome_artistico, nome_pessoal, contacto, email, iban, skills, notas, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [nomeArtistico, nomeArtistico, data.nome_pessoal || '', data.contacto || '', data.email || '', data.iban || '', data.skills || '', data.notas || '', data.ativo ?? 1],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
     return { success: true, id: Number(last.rows[0].id) };
@@ -1120,13 +1261,15 @@ export async function createColaborador(data: {
 }
 
 export async function updateColaborador(id: number, data: {
-  nome: string; contacto?: string; email?: string; iban?: string;
+  nome: string; nome_artistico?: string; nome_pessoal?: string; contacto?: string; email?: string; iban?: string;
   skills?: string; notas?: string; ativo?: number;
 }) {
   try {
+    await ensureColaboradoresExtendedColumns();
+    const nomeArtistico = (data.nome_artistico || data.nome || '').trim();
     await turso.execute({
-      sql: "UPDATE colaboradores SET nome=?, contacto=?, email=?, iban=?, skills=?, notas=?, ativo=? WHERE id=?",
-      args: [data.nome, data.contacto || '', data.email || '', data.iban || '', data.skills || '', data.notas || '', data.ativo ?? 1, id],
+      sql: "UPDATE colaboradores SET nome=?, nome_artistico=?, nome_pessoal=?, contacto=?, email=?, iban=?, skills=?, notas=?, ativo=? WHERE id=?",
+      args: [nomeArtistico, nomeArtistico, data.nome_pessoal || '', data.contacto || '', data.email || '', data.iban || '', data.skills || '', data.notas || '', data.ativo ?? 1, id],
     });
     return { success: true };
   } catch (error) {
@@ -1138,6 +1281,428 @@ export async function updateColaborador(id: number, data: {
 export async function toggleColaboradorAtivo(id: number, ativo: number) {
   try {
     await turso.execute({ sql: "UPDATE colaboradores SET ativo=? WHERE id=?", args: [ativo, id] });
+    return { success: true };
+  } catch { return { success: false }; }
+}
+
+
+type ArtistaPorAssociar = {
+  nome: string;
+  tipos: string;
+  total: number;
+  primeira_data: string;
+  ultima_data: string;
+  fee_medio: number;
+};
+
+export async function getArtistasPorAssociar(): Promise<{ success: boolean; data: ArtistaPorAssociar[] }> {
+  try {
+    await setupColaboradores();
+    const res = await turso.execute(`
+      SELECT
+        TRIM(nome) as nome,
+        GROUP_CONCAT(DISTINCT TRIM(tipo)) as tipos,
+        COUNT(*) as total,
+        MIN(evento_data) as primeira_data,
+        MAX(evento_data) as ultima_data,
+        AVG(fee) as fee_medio
+      FROM artistas_evento
+      WHERE TRIM(COALESCE(nome, '')) <> ''
+        AND (colaborador_id IS NULL OR colaborador_id = 0)
+      GROUP BY LOWER(TRIM(nome))
+      ORDER BY total DESC, nome ASC
+    `);
+    return {
+      success: true,
+      data: res.rows.map((r: any) => ({
+        nome: (r.nome as string) || '',
+        tipos: (r.tipos as string) || '',
+        total: Number(r.total || 0),
+        primeira_data: (r.primeira_data as string) || '',
+        ultima_data: (r.ultima_data as string) || '',
+        fee_medio: Number(r.fee_medio || 0),
+      })),
+    };
+  } catch (error) {
+    console.error("Erro getArtistasPorAssociar:", error);
+    return { success: false, data: [] };
+  }
+}
+
+export async function associarArtistaNomeAColaborador(nome: string, colaboradorId: number) {
+  try {
+    await setupColaboradores();
+    const col = await turso.execute({ sql: "SELECT id FROM colaboradores WHERE id=?", args: [colaboradorId] });
+    if (col.rows.length === 0) return { success: false, updated: 0, message: "Colaborador não encontrado." };
+    const res = await turso.execute({
+      sql: `
+        UPDATE artistas_evento
+        SET colaborador_id=?
+        WHERE TRIM(COALESCE(nome, '')) <> ''
+          AND LOWER(TRIM(nome)) = LOWER(TRIM(?))
+          AND (colaborador_id IS NULL OR colaborador_id = 0)
+      `,
+      args: [colaboradorId, nome],
+    });
+    return { success: true, updated: Number(res.rowsAffected || 0) };
+  } catch (error) {
+    console.error("Erro associar artista a colaborador:", error);
+    return { success: false, updated: 0 };
+  }
+}
+
+export async function criarColaboradorEAssociarArtista(nome: string, skill?: string) {
+  try {
+    const nomeLimpo = (nome || '').trim();
+    if (!nomeLimpo) return { success: false, message: "Nome obrigatório." };
+    const created = await createColaborador({
+      nome: nomeLimpo,
+      nome_artistico: nomeLimpo,
+      nome_pessoal: '',
+      skills: (skill || '').trim(),
+      ativo: 1,
+    });
+    if (!created.success || !created.id) return { success: false, message: "Não foi possível criar colaborador." };
+    const linked = await associarArtistaNomeAColaborador(nomeLimpo, created.id);
+    return { success: true, id: created.id, updated: linked.updated || 0 };
+  } catch (error) {
+    console.error("Erro criar e associar colaborador:", error);
+    return { success: false };
+  }
+}
+
+// ── VALORES MASTER POR FUNÇÃO ────────────────────────────────────────────────
+
+export async function setupValoresFuncoes() {
+  try {
+    await ensureValoresFuncoesTable();
+    return { success: true };
+  } catch (error) {
+    console.error("Erro setup valores funções:", error);
+    return { success: false };
+  }
+}
+
+export async function getAllValoresFuncoes() {
+  try {
+    await ensureValoresFuncoesTable();
+    await ensureValoresMasterTable();
+    const master = await turso.execute(`
+      SELECT * FROM valores_master
+      WHERE ativo=1
+      ORDER BY CASE WHEN contexto='Normal' THEN 0 ELSE 1 END, CASE WHEN cliente_nome='' THEN 0 ELSE 1 END, servico ASC, id ASC
+    `);
+    if (master.rows.length > 0) {
+      const seen = new Set<string>();
+      const data: { id: number; funcao: string; custo_padrao: number; valor_cliente_padrao: number; notas: string; ativo: number }[] = [];
+      for (const r of master.rows as any[]) {
+        const servico = ((r.servico as string) || '').trim();
+        const key = servico.toLowerCase();
+        if (!servico || seen.has(key)) continue;
+        seen.add(key);
+        data.push({
+          id: Number(r.id),
+          funcao: servico,
+          custo_padrao: Number(r.custo_interno || 0),
+          valor_cliente_padrao: Number(r.valor_cliente_final || r.valor_parceiro || 0),
+          notas: [r.contexto, r.duracao_formato, r.cliente_nome].filter(Boolean).join(' · '),
+          ativo: 1,
+        });
+      }
+      return { success: true, data };
+    }
+
+    const res = await turso.execute("SELECT * FROM valores_funcoes ORDER BY funcao ASC");
+    return {
+      success: true,
+      data: res.rows.map((r: any) => ({
+        id: Number(r.id),
+        funcao: (r.funcao as string) || '',
+        custo_padrao: Number(r.custo_padrao || 0),
+        valor_cliente_padrao: Number(r.valor_cliente_padrao || 0),
+        notas: (r.notas as string) || '',
+        ativo: r.ativo === 1 || r.ativo === true ? 1 : 0,
+      })),
+    };
+  } catch (error) {
+    console.error("Erro getAllValoresFuncoes:", error);
+    return { success: false, data: [] };
+  }
+}
+
+export async function createValorFuncao(data: {
+  funcao: string; custo_padrao?: number; valor_cliente_padrao?: number; notas?: string; ativo?: number;
+}) {
+  try {
+    await ensureValoresFuncoesTable();
+    await turso.execute({
+      sql: "INSERT INTO valores_funcoes (funcao, custo_padrao, valor_cliente_padrao, notas, ativo) VALUES (?, ?, ?, ?, ?)",
+      args: [data.funcao.trim(), data.custo_padrao || 0, data.valor_cliente_padrao || 0, data.notas || '', data.ativo ?? 1],
+    });
+    const last = await turso.execute("SELECT last_insert_rowid() as id");
+    return { success: true, id: Number(last.rows[0].id) };
+  } catch (error) {
+    console.error("Erro criar valor função:", error);
+    return { success: false, message: "Erro ao criar valor. A função pode já existir." };
+  }
+}
+
+export async function updateValorFuncao(id: number, data: {
+  funcao: string; custo_padrao?: number; valor_cliente_padrao?: number; notas?: string; ativo?: number;
+}) {
+  try {
+    await ensureValoresFuncoesTable();
+    await turso.execute({
+      sql: "UPDATE valores_funcoes SET funcao=?, custo_padrao=?, valor_cliente_padrao=?, notas=?, ativo=? WHERE id=?",
+      args: [data.funcao.trim(), data.custo_padrao || 0, data.valor_cliente_padrao || 0, data.notas || '', data.ativo ?? 1, id],
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Erro update valor função:", error);
+    return { success: false };
+  }
+}
+
+export async function toggleValorFuncaoAtivo(id: number, ativo: number) {
+  try {
+    await ensureValoresFuncoesTable();
+    await turso.execute({ sql: "UPDATE valores_funcoes SET ativo=? WHERE id=?", args: [ativo, id] });
+    return { success: true };
+  } catch { return { success: false }; }
+}
+
+
+// ── MASTER DE VALORES COMERCIAL ──────────────────────────────────────────────
+
+export async function setupValoresMaster() {
+  try {
+    await ensureValoresMasterTable();
+    return { success: true };
+  } catch (error) {
+    console.error("Erro setup valores master:", error);
+    return { success: false };
+  }
+}
+
+export async function getAllValoresMaster() {
+  try {
+    await ensureValoresMasterTable();
+    const res = await turso.execute(`
+      SELECT * FROM valores_master
+      ORDER BY ativo DESC, COALESCE(NULLIF(cliente_nome, ''), 'zzzz') ASC, servico ASC, contexto ASC, duracao_formato ASC, id ASC
+    `);
+    return {
+      success: true,
+      data: res.rows.map((r: any) => ({
+        id: Number(r.id),
+        servico: (r.servico as string) || '',
+        duracao_formato: (r.duracao_formato as string) || '',
+        contexto: (r.contexto as string) || 'Normal',
+        cliente_nome: (r.cliente_nome as string) || '',
+        custo_interno: Number(r.custo_interno || 0),
+        valor_parceiro: Number(r.valor_parceiro || 0),
+        valor_cliente_final: Number(r.valor_cliente_final || 0),
+        notas: (r.notas as string) || '',
+        ativo: r.ativo === 1 || r.ativo === true ? 1 : 0,
+      })),
+    };
+  } catch (error) {
+    console.error("Erro getAllValoresMaster:", error);
+    return { success: false, data: [] };
+  }
+}
+
+export async function createValorMaster(data: {
+  servico: string; duracao_formato?: string; contexto?: string; cliente_nome?: string;
+  custo_interno?: number; valor_parceiro?: number; valor_cliente_final?: number; notas?: string; ativo?: number;
+}) {
+  try {
+    await ensureValoresMasterTable();
+    await turso.execute({
+      sql: "INSERT INTO valores_master (servico, duracao_formato, contexto, cliente_nome, custo_interno, valor_parceiro, valor_cliente_final, notas, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [data.servico.trim(), data.duracao_formato || '', data.contexto || 'Normal', data.cliente_nome || '', data.custo_interno || 0, data.valor_parceiro || 0, data.valor_cliente_final || 0, data.notas || '', data.ativo ?? 1],
+    });
+    const last = await turso.execute("SELECT last_insert_rowid() as id");
+    return { success: true, id: Number(last.rows[0].id) };
+  } catch (error) {
+    console.error("Erro criar valor master:", error);
+    return { success: false, message: "Erro ao criar valor master." };
+  }
+}
+
+export async function updateValorMaster(id: number, data: {
+  servico: string; duracao_formato?: string; contexto?: string; cliente_nome?: string;
+  custo_interno?: number; valor_parceiro?: number; valor_cliente_final?: number; notas?: string; ativo?: number;
+}) {
+  try {
+    await ensureValoresMasterTable();
+    await turso.execute({
+      sql: "UPDATE valores_master SET servico=?, duracao_formato=?, contexto=?, cliente_nome=?, custo_interno=?, valor_parceiro=?, valor_cliente_final=?, notas=?, ativo=? WHERE id=?",
+      args: [data.servico.trim(), data.duracao_formato || '', data.contexto || 'Normal', data.cliente_nome || '', data.custo_interno || 0, data.valor_parceiro || 0, data.valor_cliente_final || 0, data.notas || '', data.ativo ?? 1, id],
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Erro update valor master:", error);
+    return { success: false };
+  }
+}
+
+export async function toggleValorMasterAtivo(id: number, ativo: number) {
+  try {
+    await ensureValoresMasterTable();
+    await turso.execute({ sql: "UPDATE valores_master SET ativo=? WHERE id=?", args: [ativo, id] });
+    return { success: true };
+  } catch { return { success: false }; }
+}
+
+
+type ServicoPorCriarNaMaster = {
+  servico: string;
+  total: number;
+  primeira_data: string;
+  ultima_data: string;
+  fee_medio: number;
+};
+
+export async function getServicosPorCriarNaMaster(): Promise<{ success: boolean; data: ServicoPorCriarNaMaster[] }> {
+  try {
+    await ensureValoresMasterTable();
+    const res = await turso.execute(`
+      SELECT
+        TRIM(a.tipo) as servico,
+        COUNT(*) as total,
+        MIN(a.evento_data) as primeira_data,
+        MAX(a.evento_data) as ultima_data,
+        AVG(a.fee) as fee_medio
+      FROM artistas_evento a
+      WHERE TRIM(COALESCE(a.tipo, '')) <> ''
+        AND NOT EXISTS (
+          SELECT 1 FROM valores_master vm
+          WHERE LOWER(TRIM(vm.servico)) = LOWER(TRIM(a.tipo))
+        )
+      GROUP BY LOWER(TRIM(a.tipo))
+      ORDER BY total DESC, servico ASC
+    `);
+    return {
+      success: true,
+      data: res.rows.map((r: any) => ({
+        servico: (r.servico as string) || '',
+        total: Number(r.total || 0),
+        primeira_data: (r.primeira_data as string) || '',
+        ultima_data: (r.ultima_data as string) || '',
+        fee_medio: Number(r.fee_medio || 0),
+      })),
+    };
+  } catch (error) {
+    console.error("Erro getServicosPorCriarNaMaster:", error);
+    return { success: false, data: [] };
+  }
+}
+
+export async function criarValorMasterAPartirServico(servico: string, custoInterno?: number) {
+  try {
+    await ensureValoresMasterTable();
+    const nome = (servico || '').trim();
+    if (!nome) return { success: false, message: "Serviço obrigatório." };
+    const exists = await turso.execute({
+      sql: "SELECT id FROM valores_master WHERE LOWER(TRIM(servico)) = LOWER(TRIM(?)) LIMIT 1",
+      args: [nome],
+    });
+    if (exists.rows.length > 0) return { success: true, id: Number((exists.rows[0] as any).id), alreadyExists: true };
+    await turso.execute({
+      sql: "INSERT INTO valores_master (servico, duracao_formato, contexto, cliente_nome, custo_interno, valor_parceiro, valor_cliente_final, notas, ativo) VALUES (?, '', 'Normal', '', ?, 0, 0, ?, 1)",
+      args: [nome, Number(custoInterno || 0), 'Criado a partir dos serviços já usados em Agenda/Leads. Rever valores.'],
+    });
+    const last = await turso.execute("SELECT last_insert_rowid() as id");
+    return { success: true, id: Number(last.rows[0].id), alreadyExists: false };
+  } catch (error) {
+    console.error("Erro criarValorMasterAPartirServico:", error);
+    return { success: false };
+  }
+}
+
+// ── RESIDÊNCIAS ATIVAS ───────────────────────────────────────────────────────
+
+export async function setupResidenciasAtivas() {
+  try {
+    await ensureResidenciasAtivasTable();
+    return { success: true };
+  } catch (error) {
+    console.error("Erro setup residências ativas:", error);
+    return { success: false };
+  }
+}
+
+export async function getAllResidenciasAtivas() {
+  try {
+    await ensureResidenciasAtivasTable();
+    const res = await turso.execute(`
+      SELECT * FROM residencias_ativas
+      ORDER BY ativo DESC, cliente_nome ASC, local ASC, nome ASC, id ASC
+    `);
+    return {
+      success: true,
+      data: res.rows.map((r: any) => ({
+        id: Number(r.id),
+        nome: (r.nome as string) || '',
+        cliente_id: r.cliente_id == null ? null : Number(r.cliente_id),
+        cliente_nome: (r.cliente_nome as string) || '',
+        local: (r.local as string) || '',
+        servico: (r.servico as string) || 'DJ',
+        duracao_formato: (r.duracao_formato as string) || '',
+        custo_interno: Number(r.custo_interno || 0),
+        valor_cliente: Number(r.valor_cliente || 0),
+        performer_padrao_id: r.performer_padrao_id == null ? null : Number(r.performer_padrao_id),
+        performer_padrao_nome: (r.performer_padrao_nome as string) || '',
+        notas: (r.notas as string) || '',
+        ativo: r.ativo === 1 || r.ativo === true ? 1 : 0,
+      })),
+    };
+  } catch (error) {
+    console.error("Erro getAllResidenciasAtivas:", error);
+    return { success: false, data: [] };
+  }
+}
+
+export async function createResidenciaAtiva(data: {
+  nome: string; cliente_id?: number | null; cliente_nome?: string; local?: string; servico?: string; duracao_formato?: string;
+  custo_interno?: number; valor_cliente?: number; performer_padrao_id?: number | null; performer_padrao_nome?: string; notas?: string; ativo?: number;
+}) {
+  try {
+    await ensureResidenciasAtivasTable();
+    await turso.execute({
+      sql: "INSERT INTO residencias_ativas (nome, cliente_id, cliente_nome, local, servico, duracao_formato, custo_interno, valor_cliente, performer_padrao_id, performer_padrao_nome, notas, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [data.nome.trim(), data.cliente_id ?? null, data.cliente_nome || '', data.local || '', data.servico || 'DJ', data.duracao_formato || '', data.custo_interno || 0, data.valor_cliente || 0, data.performer_padrao_id ?? null, data.performer_padrao_nome || '', data.notas || '', data.ativo ?? 1],
+    });
+    const last = await turso.execute("SELECT last_insert_rowid() as id");
+    return { success: true, id: Number(last.rows[0].id) };
+  } catch (error) {
+    console.error("Erro criar residência ativa:", error);
+    return { success: false, message: "Erro ao criar residência." };
+  }
+}
+
+export async function updateResidenciaAtiva(id: number, data: {
+  nome: string; cliente_id?: number | null; cliente_nome?: string; local?: string; servico?: string; duracao_formato?: string;
+  custo_interno?: number; valor_cliente?: number; performer_padrao_id?: number | null; performer_padrao_nome?: string; notas?: string; ativo?: number;
+}) {
+  try {
+    await ensureResidenciasAtivasTable();
+    await turso.execute({
+      sql: "UPDATE residencias_ativas SET nome=?, cliente_id=?, cliente_nome=?, local=?, servico=?, duracao_formato=?, custo_interno=?, valor_cliente=?, performer_padrao_id=?, performer_padrao_nome=?, notas=?, ativo=? WHERE id=?",
+      args: [data.nome.trim(), data.cliente_id ?? null, data.cliente_nome || '', data.local || '', data.servico || 'DJ', data.duracao_formato || '', data.custo_interno || 0, data.valor_cliente || 0, data.performer_padrao_id ?? null, data.performer_padrao_nome || '', data.notas || '', data.ativo ?? 1, id],
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Erro update residência ativa:", error);
+    return { success: false };
+  }
+}
+
+export async function toggleResidenciaAtiva(id: number, ativo: number) {
+  try {
+    await ensureResidenciasAtivasTable();
+    await turso.execute({ sql: "UPDATE residencias_ativas SET ativo=? WHERE id=?", args: [ativo, id] });
     return { success: true };
   } catch { return { success: false }; }
 }
