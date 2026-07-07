@@ -272,6 +272,7 @@ export default function Dashboard() {
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(255,255,255,0.05)", background:"rgba(12,11,9,0.97)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
         <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"#C9A96E", fontWeight:300 }}>LLE</span>
         <div style={{ display:"flex", gap:"0.6rem", alignItems:"center" }}>
+          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize:"10px", padding:"0.4rem 0.5rem" }} />
           <button onClick={() => { localStorage.removeItem("lle_user"); window.location.href = "/"; }} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.06)", color:"rgba(245,240,232,0.2)", fontSize:"8px", letterSpacing:"0.35em", padding:"0.4rem 0.75rem", cursor:"pointer", fontFamily:"inherit", textTransform:"uppercase", fontWeight:600 }}>SAIR</button>
         </div>
       </div>
