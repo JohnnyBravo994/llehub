@@ -172,7 +172,7 @@ export default function MateriaisPage() {
     const u = localStorage.getItem("lle_user");
     if (!u) { router.push("/"); return; }
     const parsed = JSON.parse(u);
-    if (parsed.role === "limited_novalues") { router.push("/agenda"); return; }
+    if (["limited_novalues", "finance"].includes(parsed.role || "")) { router.push("/agenda"); return; }
     setUserName(parsed.name);
     setUserRole(parsed.role || "admin");
     load();
@@ -761,13 +761,16 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     { href: "/clientes", label: "Clientes" },
     { href: "/materiais", label: "Materiais" },
   ];
-  const adminOnlyHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/clientes"];
+  const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes"];
+  const adminOnlyHrefs = ["/dashboard", "/colaboradores", "/valores", "/residencias", "/materiais"];
   const novaluesBlockedHrefs = ["/materiais"];
-  const links = allLinks.filter(l => {
-    if (adminOnlyHrefs.includes(l.href) && role !== "admin") return false;
-    if (novaluesBlockedHrefs.includes(l.href) && role === "limited_novalues") return false;
-    return true;
-  });
+  const links = role === "finance"
+    ? allLinks.filter(l => financeHrefs.includes(l.href))
+    : allLinks.filter(l => {
+        if (adminOnlyHrefs.includes(l.href) && role !== "admin") return false;
+        if (novaluesBlockedHrefs.includes(l.href) && role === "limited_novalues") return false;
+        return true;
+      });
   return (
     <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid rgba(255,255,255,0.05)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>

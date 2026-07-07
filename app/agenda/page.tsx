@@ -719,8 +719,9 @@ export default function AgendaPage() {
       return display.toLowerCase() === filterCliente.toLowerCase();
     })();
     const equipaMatch = !filterEquipa || parseEquipa(e.tipo || "").includes(filterEquipa);
-    // Soraya, Annia e Larissa nao veem eventos so do Joao
-    const visibilityMatch = (userRole === "admin" && userName === "João") || !isSoJoao(e.tipo || "");
+    // João, Tânia/Annia, Soraya e Inês veem a agenda completa.
+    // Mantém-se apenas a restrição antiga da Larissa.
+    const visibilityMatch = userName !== "Larissa" || !isSoJoao(e.tipo || "");
     return monthMatch && searchMatch && artistaMatch && clienteMatch && equipaMatch && visibilityMatch;
   });
 
@@ -823,7 +824,7 @@ export default function AgendaPage() {
       const wd = WEEKDAYS_PT_LONG[cur.getDay()];
       const dayEvents = events.filter(e => {
         if (e.event_date !== dateStr) return false;
-        if (!((userRole === "admin" && userName === "João") || !isSoJoao(e.tipo || ""))) return false;
+        if (userName === "Larissa" && isSoJoao(e.tipo || "")) return false;
         const evArtists = artistasMap[e.id] || [];
         if (filterArtista && !evArtists.some(a => resolveColaboradorNome(a.nome).toLowerCase() === filterArtista.toLowerCase())) return false;
         if (filterCliente && (() => {
@@ -1922,9 +1923,15 @@ function Nav({ userName, active, onLogout, lightTheme }: { userName: string; act
     { href: "/clientes", label: "Clientes" },
   ];
   const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/residencias", "/clientes"];
+  const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes"];
+  const financeLinks = [
+    ...allLinks.filter(l => financeHrefs.includes(l.href)),
+    ...(allLinks.some(l => l.href === "/clientes") ? [] : [{ href: "/clientes", label: "Clientes" }]),
+  ].filter((l, i, arr) => arr.findIndex(x => x.href === l.href) === i);
+  const baseLinks = role === "admin" ? allLinks : role === "finance" ? financeLinks : allLinks.filter(l => !restrictedHrefs.includes(l.href));
   const links = [
-    ...(role === "admin" ? allLinks : allLinks.filter(l => !restrictedHrefs.includes(l.href))),
-    ...(role !== "limited_novalues" ? [{ href: "/materiais", label: "Materiais" }] : []),
+    ...baseLinks,
+    ...((role !== "limited_novalues" && role !== "finance") ? [{ href: "/materiais", label: "Materiais" }] : []),
   ];
   const navBg = isDark ? "rgba(12,11,9,0.95)" : "#FFFFFF";
   const navBorder = isDark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.12)";
@@ -2105,7 +2112,7 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
     valoresTab,
     { href: "/residencias", label: "Residências", id: "residencias", icon: valoresTab.icon },
     materiaisTab,
-  ] : role !== "limited_novalues" ? [materiaisTab] : [];
+  ] : role === "finance" ? [{ href: "/clientes", label: "Clientes", id: "clientes", icon: materiaisTab.icon }, { href: "/pagamentos", label: "Pagamentos", id: "pagamentos", icon: materiaisTab.icon }] : role !== "limited_novalues" ? [materiaisTab] : [];
 
   const activeInMais = maisTabs.some(t => t.id === active);
 

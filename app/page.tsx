@@ -5,7 +5,9 @@ import { useState } from "react";
 const USERS: Record<string, { password: string; name: string; role: string }> = {
   "João":    { password: "Issimple1!",   name: "João",    role: "admin" },
   "Annia":   { password: "#Num3r0121!",  name: "Annia",   role: "admin" },
-  "Soraya":  { password: "SorayaLLE!",   name: "Soraya",  role: "limited" },
+  "Tânia":   { password: "#Num3r0121!",  name: "Tânia",   role: "admin" },
+  "Soraya":  { password: "SorayaLLE!",   name: "Soraya",  role: "admin" },
+  "Inês":    { password: "InesLLE2407!", name: "Inês",    role: "finance" },
   "Larissa": { password: "LarissaLLE!",  name: "Larissa", role: "limited_novalues" },
 };
 
@@ -26,13 +28,15 @@ export default function Home() {
       return;
     }
     localStorage.setItem("lle_user", JSON.stringify({ name: u.name, role: u.role }));
-    window.location.href = "/dashboard";
+    window.location.href = u.role === "finance" ? "/agenda" : "/dashboard";
   };
 
   const members = [
     { value: "João",    label: "João" },
     { value: "Annia",   label: "Annia" },
+    { value: "Tânia",   label: "Tânia" },
     { value: "Soraya",  label: "Soraya" },
+    { value: "Inês",    label: "Inês" },
     { value: "Larissa", label: "Larissa" },
   ];
 

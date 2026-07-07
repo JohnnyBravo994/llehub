@@ -40,6 +40,7 @@ export default function ClientesPage() {
   const C = getColors(lightTheme);
   const router = useRouter();
   const [userName, setUserName] = useState("");
+  const [userRole, setUserRole] = useState("admin");
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -70,8 +71,9 @@ export default function ClientesPage() {
     const u = localStorage.getItem("lle_user");
     if (!u) { router.push("/"); return; }
     const parsed = JSON.parse(u);
-    if (parsed.role !== "admin") { router.push("/agenda"); return; }
+    if (!["admin", "finance"].includes(parsed.role || "")) { router.push("/agenda"); return; }
     setUserName(parsed.name);
+    setUserRole(parsed.role || "admin");
     load();
   }, [load]);
 
@@ -289,7 +291,7 @@ export default function ClientesPage() {
         )}
       </div>
 
-      <MobTabBar active="clientes" role="admin" lightTheme={lightTheme} />
+      <MobTabBar active="clientes" role={userRole} lightTheme={lightTheme} />
     </div>
 
     {/* ── Modal Criar / Editar ── */}
@@ -461,9 +463,15 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     { href: "/clientes", label: "Clientes" },
   ];
   const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/residencias", "/clientes"];
+  const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes"];
+  const financeLinks = [
+    ...allLinks.filter(l => financeHrefs.includes(l.href)),
+    ...(allLinks.some(l => l.href === "/clientes") ? [] : [{ href: "/clientes", label: "Clientes" }]),
+  ].filter((l, i, arr) => arr.findIndex(x => x.href === l.href) === i);
+  const baseLinks = role === "admin" ? allLinks : role === "finance" ? financeLinks : allLinks.filter(l => !restrictedHrefs.includes(l.href));
   const links = [
-    ...(role === "admin" ? allLinks : allLinks.filter(l => !restrictedHrefs.includes(l.href))),
-    ...(role !== "limited_novalues" ? [{ href: "/materiais", label: "Materiais" }] : []),
+    ...baseLinks,
+    ...((role !== "limited_novalues" && role !== "finance") ? [{ href: "/materiais", label: "Materiais" }] : []),
   ];
   return (
     <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid rgba(255,255,255,0.05)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
@@ -550,7 +558,7 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
     valoresTab,
     { href: "/residencias", label: "Residências", id: "residencias", icon: valoresTab.icon },
     materiaisTab,
-  ] : role !== "limited_novalues" ? [materiaisTab] : [];
+  ] : role === "finance" ? [{ href: "/clientes", label: "Clientes", id: "clientes", icon: materiaisTab.icon }, { href: "/pagamentos", label: "Pagamentos", id: "pagamentos", icon: materiaisTab.icon }] : role !== "limited_novalues" ? [materiaisTab] : [];
 
   const activeInMais = maisTabs.some(t => t.id === active);
 
