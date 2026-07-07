@@ -830,3 +830,320 @@ html.light-theme .mob-filter-panel {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════
+   LIGHT THEME READABILITY GUARDRAILS
+   Corrige contraste global em todas as páginas sem mexer na lógica/layout.
+═══════════════════════════════════════════════════ */
+html.light-theme {
+  --lle-light-bg: #FFFBF7;
+  --lle-light-surface: #FFFFFF;
+  --lle-light-soft: #F3EEE8;
+  --lle-light-text: #111111;
+  --lle-light-text-2: #2A241F;
+  --lle-light-muted: #5F574F;
+  --lle-light-border: rgba(0,0,0,0.16);
+  --lle-light-border-strong: rgba(0,0,0,0.24);
+  --lle-light-gold: #8B6F47;
+  --lle-light-green: #087F5B;
+  --lle-light-red: #C1121F;
+}
+
+html.light-theme ::selection {
+  background: rgba(139,111,71,0.22);
+  color: var(--lle-light-text);
+}
+
+html.light-theme ::-webkit-scrollbar-track { background: var(--lle-light-bg); }
+html.light-theme ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.25); }
+
+html.light-theme input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: none;
+  opacity: 0.85;
+}
+
+/* Desktop — dados/tabelas/botões legíveis em Leads, Agenda, Faturação, Pagamentos, Clientes, Colaboradores, Materiais e Dashboard */
+@media (min-width: 769px) {
+  html.light-theme .mob-page-desktop {
+    background: var(--lle-light-bg) !important;
+    color: var(--lle-light-text) !important;
+  }
+
+  html.light-theme .mob-page-desktop main,
+  html.light-theme .mob-page-desktop section,
+  html.light-theme .mob-page-desktop article,
+  html.light-theme .mob-page-desktop table,
+  html.light-theme .mob-page-desktop thead,
+  html.light-theme .mob-page-desktop tbody,
+  html.light-theme .mob-page-desktop tr,
+  html.light-theme .mob-page-desktop td,
+  html.light-theme .mob-page-desktop th {
+    color: var(--lle-light-text) !important;
+    border-color: var(--lle-light-border) !important;
+  }
+
+  html.light-theme .mob-page-desktop tr,
+  html.light-theme .mob-page-desktop td,
+  html.light-theme .mob-page-desktop th,
+  html.light-theme .mob-page-desktop span,
+  html.light-theme .mob-page-desktop p,
+  html.light-theme .mob-page-desktop div,
+  html.light-theme .mob-page-desktop label,
+  html.light-theme .mob-page-desktop a {
+    color: var(--lle-light-text) !important;
+  }
+
+  html.light-theme .mob-page-desktop td,
+  html.light-theme .mob-page-desktop td span,
+  html.light-theme .mob-page-desktop td div {
+    color: var(--lle-light-text-2) !important;
+    font-weight: 600 !important;
+  }
+
+  html.light-theme .mob-page-desktop th,
+  html.light-theme .mob-page-desktop p,
+  html.light-theme .mob-page-desktop label {
+    color: var(--lle-light-text) !important;
+    font-weight: 700 !important;
+  }
+
+  html.light-theme .mob-page-desktop [style*="rgba(245,240,232"],
+  html.light-theme .mob-page-desktop [style*="rgba(245, 240, 232"],
+  html.light-theme .mob-page-desktop [style*="#F5F0E8"],
+  html.light-theme .mob-page-desktop [style*="#f5f0e8"] {
+    color: var(--lle-light-text-2) !important;
+  }
+
+  html.light-theme .mob-page-desktop input,
+  html.light-theme .mob-page-desktop textarea,
+  html.light-theme .mob-page-desktop select {
+    background: rgba(0,0,0,0.035) !important;
+    border-color: var(--lle-light-border) !important;
+    color: var(--lle-light-text) !important;
+    font-weight: 600 !important;
+  }
+
+  html.light-theme .mob-page-desktop input::placeholder,
+  html.light-theme .mob-page-desktop textarea::placeholder {
+    color: var(--lle-light-muted) !important;
+    opacity: 1 !important;
+  }
+
+  html.light-theme .mob-page-desktop button,
+  html.light-theme .mob-page-desktop a {
+    color: var(--lle-light-text) !important;
+    border-color: var(--lle-light-border) !important;
+  }
+
+  html.light-theme .mob-page-desktop button[title="Eliminar"],
+  html.light-theme .mob-page-desktop button[title="Cancelar"],
+  html.light-theme .mob-page-desktop button[style*="#E24B4A"],
+  html.light-theme .mob-page-desktop [style*="#E24B4A"] {
+    color: var(--lle-light-red) !important;
+  }
+
+  html.light-theme .mob-page-desktop button[title="Repor"],
+  html.light-theme .mob-page-desktop button[style*="#5DCAA5"] {
+    color: var(--lle-light-green) !important;
+  }
+
+  html.light-theme .mob-page-desktop svg {
+    color: inherit !important;
+    stroke: currentColor !important;
+  }
+
+  html.light-theme .mob-page-desktop [style*="opacity: 0.45"],
+  html.light-theme .mob-page-desktop [style*="opacity: 0.4"],
+  html.light-theme .mob-page-desktop [style*="opacity: 0.32"] {
+    opacity: 0.78 !important;
+  }
+}
+
+/* Mobile — light theme com contraste real nos cards, metas e ícones */
+@media (max-width: 768px) {
+  html.light-theme .mob-shell,
+  html.light-theme .mob-dash-shell,
+  html.light-theme .mob-page,
+  html.light-theme .mob-list,
+  html.light-theme .mob-dash-scroll,
+  html.light-theme .mob-colab-list {
+    background: var(--lle-light-bg) !important;
+    color: var(--lle-light-text) !important;
+  }
+
+  html.light-theme .mob-shell > div:first-child,
+  html.light-theme .mob-dash-shell > div:first-child,
+  html.light-theme .mob-topbar,
+  html.light-theme .mob-filter-panel {
+    background: rgba(255,251,247,0.97) !important;
+    border-color: var(--lle-light-border) !important;
+  }
+
+  html.light-theme .mob-shell span,
+  html.light-theme .mob-shell p,
+  html.light-theme .mob-shell div,
+  html.light-theme .mob-shell label,
+  html.light-theme .mob-shell a,
+  html.light-theme .mob-dash-shell span,
+  html.light-theme .mob-dash-shell p,
+  html.light-theme .mob-dash-shell div,
+  html.light-theme .mob-dash-shell label,
+  html.light-theme .mob-dash-shell a {
+    color: var(--lle-light-text) !important;
+  }
+
+  html.light-theme .mob-shell [style*="rgba(245,240,232"],
+  html.light-theme .mob-shell [style*="rgba(245, 240, 232"],
+  html.light-theme .mob-shell [style*="#F5F0E8"],
+  html.light-theme .mob-shell [style*="#f5f0e8"],
+  html.light-theme .mob-dash-shell [style*="rgba(245,240,232"],
+  html.light-theme .mob-dash-shell [style*="rgba(245, 240, 232"],
+  html.light-theme .mob-dash-shell [style*="#F5F0E8"],
+  html.light-theme .mob-dash-shell [style*="#f5f0e8"] {
+    color: var(--lle-light-text-2) !important;
+  }
+
+  html.light-theme .mob-months,
+  html.light-theme .mob-filters,
+  html.light-theme .mob-pag-months,
+  html.light-theme .mob-stats-row,
+  html.light-theme .mob-dash-today,
+  html.light-theme .mob-dash-hero {
+    border-color: var(--lle-light-border) !important;
+  }
+
+  html.light-theme .mob-months button,
+  html.light-theme .mob-mpill,
+  html.light-theme .mob-filter-pill,
+  html.light-theme .mob-pag-mtab,
+  html.light-theme .mob-act-btn {
+    background: rgba(0,0,0,0.035) !important;
+    border-color: var(--lle-light-border) !important;
+    color: var(--lle-light-text) !important;
+    font-weight: 700 !important;
+  }
+
+  html.light-theme .mob-mpill.active,
+  html.light-theme .mob-filter-pill.active,
+  html.light-theme .mob-pag-mtab.active {
+    background: rgba(139,111,71,0.12) !important;
+    border-color: rgba(139,111,71,0.35) !important;
+    color: var(--lle-light-gold) !important;
+  }
+
+  html.light-theme .mob-card,
+  html.light-theme .mob-actions-row,
+  html.light-theme .mob-artist-row,
+  html.light-theme .mob-dash-lead-card,
+  html.light-theme .mob-dash-today-item {
+    border-color: var(--lle-light-border) !important;
+  }
+
+  html.light-theme .mob-card-title,
+  html.light-theme .mob-artist-name,
+  html.light-theme .mob-dash-today-name,
+  html.light-theme .mob-dash-lead-name {
+    color: var(--lle-light-text) !important;
+    font-weight: 800 !important;
+  }
+
+  html.light-theme .mob-card-meta,
+  html.light-theme .mob-artist-tipo,
+  html.light-theme .mob-dash-lead-meta,
+  html.light-theme .mob-stat-label,
+  html.light-theme .mob-section-count {
+    color: var(--lle-light-muted) !important;
+    font-weight: 600 !important;
+  }
+
+  html.light-theme .mob-date-day,
+  html.light-theme .mob-date-weekday {
+    color: var(--lle-light-text) !important;
+    font-weight: 800 !important;
+  }
+
+  html.light-theme .mob-card-value,
+  html.light-theme .mob-dash-today-hour,
+  html.light-theme .mob-artist-fee,
+  html.light-theme .mob-dash-lead-val,
+  html.light-theme .mob-stat-value {
+    color: var(--lle-light-gold) !important;
+    font-weight: 800 !important;
+  }
+
+  html.light-theme .mob-card-value.muted,
+  html.light-theme .mob-empty {
+    color: var(--lle-light-muted) !important;
+    font-weight: 600 !important;
+  }
+
+  html.light-theme .mob-badge {
+    background: rgba(0,0,0,0.08) !important;
+    color: var(--lle-light-text) !important;
+    font-weight: 800 !important;
+  }
+
+  html.light-theme .mob-badge-dot {
+    background: var(--lle-light-text) !important;
+  }
+
+  html.light-theme .mob-card-chevron,
+  html.light-theme .mob-search-icon,
+  html.light-theme .mob-tab-icon,
+  html.light-theme .mob-tab-label {
+    color: var(--lle-light-text) !important;
+  }
+
+  html.light-theme .mob-shell button,
+  html.light-theme .mob-dash-shell button {
+    color: var(--lle-light-text) !important;
+    border-color: var(--lle-light-border) !important;
+  }
+
+  html.light-theme .mob-shell button[style*="#E24B4A"],
+  html.light-theme .mob-dash-shell button[style*="#E24B4A"],
+  html.light-theme .mob-shell [style*="#E24B4A"],
+  html.light-theme .mob-dash-shell [style*="#E24B4A"] {
+    color: var(--lle-light-red) !important;
+  }
+
+  html.light-theme .mob-shell button[style*="#5DCAA5"],
+  html.light-theme .mob-dash-shell button[style*="#5DCAA5"] {
+    color: var(--lle-light-green) !important;
+  }
+
+  html.light-theme .mob-shell svg,
+  html.light-theme .mob-dash-shell svg {
+    color: inherit !important;
+    stroke: currentColor !important;
+  }
+
+  html.light-theme .mob-shell input,
+  html.light-theme .mob-shell textarea,
+  html.light-theme .mob-dash-shell input,
+  html.light-theme .mob-dash-shell textarea {
+    background: rgba(0,0,0,0.045) !important;
+    border-color: var(--lle-light-border) !important;
+    color: var(--lle-light-text) !important;
+    font-weight: 600 !important;
+  }
+
+  html.light-theme .mob-shell input::placeholder,
+  html.light-theme .mob-shell textarea::placeholder,
+  html.light-theme .mob-dash-shell input::placeholder,
+  html.light-theme .mob-dash-shell textarea::placeholder {
+    color: var(--lle-light-muted) !important;
+    opacity: 1 !important;
+  }
+
+  html.light-theme .mob-card.is-folga,
+  html.light-theme .mob-card-title.cancelled,
+  html.light-theme .mob-shell [style*="opacity: 0.45"],
+  html.light-theme .mob-shell [style*="opacity: 0.4"],
+  html.light-theme .mob-shell [style*="opacity: 0.32"],
+  html.light-theme .mob-dash-shell [style*="opacity: 0.45"],
+  html.light-theme .mob-dash-shell [style*="opacity: 0.4"],
+  html.light-theme .mob-dash-shell [style*="opacity: 0.32"] {
+    opacity: 0.75 !important;
+  }
+}
