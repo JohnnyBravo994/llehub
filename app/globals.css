@@ -136,7 +136,7 @@ html.light-theme .mob-tab.active .mob-tab-label { color: #000000; font-weight: 7
 
 /* ── Mobile page shell ── */
 .mob-shell {
-  display: none;
+  display: none !important;
   flex-direction: column;
   min-height: 100dvh;
   background: #0C0B09;
@@ -144,7 +144,19 @@ html.light-theme .mob-tab.active .mob-tab-label { color: #000000; font-weight: 7
 html.light-theme .mob-shell {
   background: #FFFBF7;
 }
-@media (max-width: 768px) { .mob-shell { display: flex; } }
+@media (max-width: 768px) { .mob-shell { display: flex !important; } }
+
+/* ── Mobile dashboard shell — escondido no desktop ── */
+.mob-dash-shell {
+  display: none !important;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: #0C0B09;
+}
+html.light-theme .mob-dash-shell {
+  background: #FFFBF7;
+}
+@media (max-width: 768px) { .mob-dash-shell { display: flex !important; } }
 
 /* ── Mobile top bar ── */
 .mob-topbar {

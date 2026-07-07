@@ -479,7 +479,7 @@ export default function FaturacaoPage() {
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(255,255,255,0.05)", background:"rgba(12,11,9,0.97)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
         <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"#C9A96E", fontWeight:300 }}>LLE</span>
         <div style={{ display:"flex", gap:"0.6rem", alignItems:"center" }}>
-          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.5rem 0.5rem" }} />
+          
           <button onClick={() => setClienteModal(true)} className="mob-fab" style={{width:"auto", padding:"0 0.9rem", gap:6, borderRadius:8}}>
             <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
             <span style={{fontSize:"9px", letterSpacing:"0.2em", fontFamily:"'Montserrat',sans-serif", fontWeight:600}}>Cliente</span>
@@ -537,7 +537,6 @@ export default function FaturacaoPage() {
             disabled={!bulkStatus}
             style={{ background: bulkStatus ? C.gold : "rgba(255,255,255,0.04)", border: "none", color: bulkStatus ? "#0C0B09" : C.textMuted, fontSize: "9px", letterSpacing: "0.25em", fontWeight: 700, padding: "0.5rem 0.9rem", cursor: bulkStatus ? "pointer" : "default", fontFamily: "inherit", textTransform: "uppercase", whiteSpace: "nowrap", borderRadius: "2px" }}
           >Aplicar</button>
-            <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
           <button onClick={() => setSelectedItems(new Set())} style={{ background: "transparent", border: "none", color: C.textMuted, fontSize: "16px", cursor: "pointer", padding: "0 4px", lineHeight: "1" }}>✕</button>
         </div>
       )}
