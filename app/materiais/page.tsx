@@ -34,7 +34,6 @@ const C = {
   textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
   green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
 };
-
 const C_Light = {
   gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
   border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
@@ -43,6 +42,7 @@ const C_Light = {
 };
 
 const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
+
 
 const CATEGORIAS = ["Som", "Luz", "DJ / Cabine", "Microfones", "Estrutura", "Decoração", "Roupa", "Outro"];
 const ORIGENS = ["Loja", "João", "Annia", "Outro"];
@@ -287,10 +287,9 @@ export default function MateriaisPage() {
   const btnPrimStyle: React.CSSProperties = { background: Colors.gold, border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
   const btnSecStyle: React.CSSProperties = { background: "transparent", border: `1px solid ${Colors.border}`, color: Colors.textSec, fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 
-  // Get colors based on current theme
-  const Colors = getColors(lightTheme);
-
   if (loading) {
+
+  const Colors = getColors(lightTheme);
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: lightTheme ? "#FFFBF7" : "#0C0B09" }}>
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: Colors.gold, fontWeight: 300 }}>LLE</span>

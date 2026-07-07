@@ -113,7 +113,6 @@ const C = {
   textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
   green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A", purple: "#A78BFA",
 };
-
 const C_Light = {
   gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
   border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
@@ -122,6 +121,7 @@ const C_Light = {
 };
 
 const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
+
 
 function fmtDate(s: string) {
   if (!s) return "—";
@@ -525,17 +525,16 @@ export default function LeadsPage() {
 
   if (loading) return <Loading />;
 
+  const Colors = getColors(lightTheme);
+
   // Deduplicated client list for dropdown
   const clientesUnicos = clientes.filter((c, i, arr) => arr.findIndex(x => x.nome === c.nome) === i);
 
-  // Get colors based on current theme
-  const Colors = getColors(lightTheme);
-
   const statusColors: Record<string,string> = {
-    "Contacto": lightTheme ? "rgba(0,0,0,0.3)" : "rgba(245,240,232,0.4)", "Proposta Enviada": Colors.blue,
+    "Contacto": "rgba(245,240,232,0.4)", "Proposta Enviada": Colors.blue,
     "Em Negociação": Colors.amber, "Confirmado": Colors.green,
     "Em Adjudicação": Colors.gold, "Adjudicado": Colors.gold,
-    "Faturado": lightTheme ? "#000000" : "#A78BFA", "Pago": Colors.green, "Cancelado": Colors.red,
+    "Faturado": "#A78BFA", "Pago": Colors.green, "Cancelado": Colors.red,
   };
 
   return (
@@ -1041,7 +1040,7 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
 
 function Loading() {
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0C0B09" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: lightTheme ? "#FFFBF7" : "#0C0B09" }}>
       <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
     </div>
   );

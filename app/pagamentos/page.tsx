@@ -19,59 +19,19 @@ interface Colaborador {
 }
 
 const C = {
-
+  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009",
+  border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
+  textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
+  green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
+};
 const C_Light = {
   gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
   border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
   textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
-  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000",
 };
 
 const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
-  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009",
-
-const C_Light = {
-  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
-  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
-  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
-  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
-};
-
-  border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
-
-const C_Light = {
-  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
-  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
-  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
-  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
-};
-
-  textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
-
-const C_Light = {
-  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
-  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
-  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
-  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
-};
-
-  green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
-
-const C_Light = {
-  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
-  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
-  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
-  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
-};
-
-};
-
-const C_Light = {
-  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
-  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
-  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
-  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
-};
 
 
 function resolveNome(nome: string): string { return resolveColaboradorNome(nome); }
@@ -250,6 +210,7 @@ export default function PagamentosPage() {
   };
 
   if (loading) return <Loading />;
+
   const Colors = getColors(lightTheme);
 
   return (
