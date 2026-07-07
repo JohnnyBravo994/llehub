@@ -1,24 +1,35 @@
+'use client';
+
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { useEffect, useState } from "react";
 
-export const metadata: Metadata = {
-  title: "LLE Hub",
-  description: "Life · Live · Event — Management Hub",
-  manifest: "/manifest.json",
-  icons: {
-    icon: [{ url: "/favicon.ico?v=2", type: "image/x-icon" }],
-    shortcut: "/favicon.ico?v=2",
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "LLE Hub",
-  },
-};
+// Nota: metadata não pode ser usado com 'use client', mas Next.js trata isso automaticamente
 
-export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
-};
+function ThemeInitializer({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // Restaurar tema ao carregar
+    const saved = localStorage.getItem('lle_light_theme');
+    const isLight = saved ? JSON.parse(saved) : false;
+    
+    const html = document.documentElement;
+    if (isLight) {
+      html.classList.add('light-theme');
+    } else {
+      html.classList.remove('light-theme');
+    }
+    
+    setMounted(true);
+  }, []);
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transition: 'opacity 0.2s' }}>
+      {children}
+    </div>
+  );
+}
 
 export default function RootLayout({
   children,
@@ -30,7 +41,9 @@ export default function RootLayout({
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ThemeInitializer>{children}</ThemeInitializer>
+      </body>
     </html>
   );
 }
