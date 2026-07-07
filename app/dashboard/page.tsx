@@ -50,15 +50,16 @@ function parseArtists(raw?: string): string {
 }
 
 const C = {
-  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009",
+  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009", pageBg: "#0C0B09",
   border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
   textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
 };
+
 const C_Light = {
-  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF", pageBg: "#FFFBF7",
   border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
   textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
-  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000",
+  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
 };
 
 const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
@@ -77,6 +78,7 @@ export default function Dashboard() {
   const router = useRouter();
   const [userName, setUserName] = useState("");
   const { lightTheme, setLightTheme, mounted } = useTheme();
+  const C = getColors(lightTheme);
   const [currentTime, setCurrentTime] = useState("");
   const [currentDate, setCurrentDate] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -159,12 +161,10 @@ export default function Dashboard() {
 
   if (isLoading) return <Loading />;
 
-  const Colors = getColors(lightTheme);
-
   return (
     <>
     {/* ═══ DESKTOP ═══ */}
-    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: lightTheme ? "#FFFBF7" : "#0C0B09", color: Colors.textPrimary, fontFamily: "'Montserrat', sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
+    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: C.pageBg, color: C.textPrimary, fontFamily: "'Montserrat', sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <Nav userName={userName} active="dashboard" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");  }} />
 
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
@@ -174,71 +174,71 @@ export default function Dashboard() {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: "1.5rem", marginBottom: "1.5rem" }}>
 
-          <div style={{ background: Colors.surface, border: `1px solid ${Colors.borderDim}`, padding: "2rem" }}>
-            <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: Colors.goldDim, marginBottom: "1rem" }}>HORA ACTUAL</p>
+          <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "2rem" }}>
+            <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim, marginBottom: "1rem" }}>HORA ACTUAL</p>
             <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "3.5rem", lineHeight: 1 }}>{currentTime}</p>
-            <p style={{ fontSize: "8px", color: Colors.textMuted, marginTop: "0.5rem", textTransform: "capitalize" }}>{currentDate}</p>
+            <p style={{ fontSize: "8px", color: C.textMuted, marginTop: "0.5rem", textTransform: "capitalize" }}>{currentDate}</p>
           </div>
 
-          <div style={{ background: "linear-gradient(135deg, #1a1408 0%, #110f07 100%)", border: `1px solid ${Colors.border}`, padding: "2rem", position: "relative" }}>
+          <div style={{ background: "linear-gradient(135deg, #1a1408 0%, #110f07 100%)", border: `1px solid ${C.border}`, padding: "2rem", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
-            <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: Colors.goldDim, marginBottom: "1.25rem" }}>EVENTOS DE HOJE</p>
+            <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim, marginBottom: "1.25rem" }}>EVENTOS DE HOJE</p>
             {todayEvs.length > 0 ? (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "0.75rem" }}>
                 {todayEvs.map(e => (
-                  <div key={e.id} style={{ background: "rgba(201,169,110,0.04)", border: `1px solid ${Colors.border}`, padding: "1rem 1.25rem" }}>
+                  <div key={e.id} style={{ background: "rgba(201,169,110,0.04)", border: `1px solid ${C.border}`, padding: "1rem 1.25rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.35rem" }}>
                       <span style={{ fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: "5px" }}>
                         {artistIcons(e.artistas||[]) && <span style={{ fontSize: "13px", letterSpacing: "1px" }}>{artistIcons(e.artistas||[])}</span>}
                         {cleanTitle(e.title)}
                       </span>
-                      {e.hours && <span style={{ fontSize: "11px", color: Colors.gold, fontWeight: 700, marginLeft: "0.75rem", whiteSpace: "nowrap" }}>{e.hours}</span>}
+                      {e.hours && <span style={{ fontSize: "11px", color: C.gold, fontWeight: 700, marginLeft: "0.75rem", whiteSpace: "nowrap" }}>{e.hours}</span>}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                      {e.location && <span style={{ fontSize: "9px", color: Colors.textSec }}>📍 {e.location}</span>}
+                      {e.location && <span style={{ fontSize: "9px", color: C.textSec }}>📍 {e.location}</span>}
                       {(e.artistas && e.artistas.length > 0)
-                        ? <span style={{ fontSize: "9px", color: Colors.textSec }}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</span>
+                        ? <span style={{ fontSize: "9px", color: C.textSec }}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</span>
                         : parseArtists(e.artists)
-                          ? <span style={{ fontSize: "9px", color: Colors.textSec }}>🎵 {parseArtists(e.artists)}</span>
-                          : e.staff ? <span style={{ fontSize: "9px", color: Colors.textMuted }}>👥 {e.staff}</span> : null
+                          ? <span style={{ fontSize: "9px", color: C.textSec }}>🎵 {parseArtists(e.artists)}</span>
+                          : e.staff ? <span style={{ fontSize: "9px", color: C.textMuted }}>👥 {e.staff}</span> : null
                       }
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p style={{ fontSize: "11px", color: Colors.textMuted, fontStyle: "italic" }}>Nada agendado para hoje.</p>
+              <p style={{ fontSize: "11px", color: C.textMuted, fontStyle: "italic" }}>Nada agendado para hoje.</p>
             )}
           </div>
         </div>
 
         {/* ROW 2: PRÓXIMOS 7 DIAS */}
-        <div style={{ background: Colors.surface, border: `1px solid ${Colors.borderDim}`, padding: "2rem", marginBottom: "1.5rem", position: "relative" }}>
+        <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "2rem", marginBottom: "1.5rem", position: "relative" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-            <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: Colors.goldDim }}>PRÓXIMOS 7 DIAS</p>
-            <a href="/agenda" style={{ fontSize: "7px", letterSpacing: "0.3em", color: Colors.goldDim, textDecoration: "none", textTransform: "uppercase" }}>Ver agenda →</a>
+            <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim }}>PRÓXIMOS 7 DIAS</p>
+            <a href="/agenda" style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.goldDim, textDecoration: "none", textTransform: "uppercase" }}>Ver agenda →</a>
           </div>
           {next7Days.length > 0 ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "1rem" }}>
               {next7Days.map(day => (
-                <div key={day.dateStr} style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${Colors.borderDim}`, padding: "1rem" }}>
-                  <p style={{ fontSize: "8px", letterSpacing: "0.3em", color: Colors.gold, fontWeight: 600, marginBottom: "0.75rem", textTransform: "uppercase" }}>{day.label}</p>
+                <div key={day.dateStr} style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${C.borderDim}`, padding: "1rem" }}>
+                  <p style={{ fontSize: "8px", letterSpacing: "0.3em", color: C.gold, fontWeight: 600, marginBottom: "0.75rem", textTransform: "uppercase" }}>{day.label}</p>
                   {day.events.map((e, idx) => (
-                    <div key={e.id} style={{ marginBottom: idx < day.events.length - 1 ? "0.6rem" : 0, paddingBottom: idx < day.events.length - 1 ? "0.6rem" : 0, borderBottom: idx < day.events.length - 1 ? `1px solid ${Colors.borderDim}` : "none" }}>
+                    <div key={e.id} style={{ marginBottom: idx < day.events.length - 1 ? "0.6rem" : 0, paddingBottom: idx < day.events.length - 1 ? "0.6rem" : 0, borderBottom: idx < day.events.length - 1 ? `1px solid ${C.borderDim}` : "none" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                        <span style={{ fontSize: "11px", color: Colors.textPrimary, fontWeight: 500, display: "flex", alignItems: "center", gap: "5px" }}>
+                        <span style={{ fontSize: "11px", color: C.textPrimary, fontWeight: 500, display: "flex", alignItems: "center", gap: "5px" }}>
                           {artistIcons(e.artistas||[]) && <span style={{ fontSize: "12px", letterSpacing: "1px" }}>{artistIcons(e.artistas||[])}</span>}
                           {cleanTitle(e.title)}
                         </span>
-                        {e.hours && <span style={{ fontSize: "9px", color: Colors.textSec, marginLeft: "0.5rem", whiteSpace: "nowrap" }}>{e.hours}</span>}
+                        {e.hours && <span style={{ fontSize: "9px", color: C.textSec, marginLeft: "0.5rem", whiteSpace: "nowrap" }}>{e.hours}</span>}
                       </div>
-                      {e.location && <p style={{ fontSize: "9px", color: Colors.textMuted, marginTop: "2px" }}>📍 {e.location}</p>}
+                      {e.location && <p style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px" }}>📍 {e.location}</p>}
                       {(e.artistas && e.artistas.length > 0)
-                        ? <p style={{ fontSize: "9px", color: Colors.textSec, marginTop: "2px" }}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</p>
+                        ? <p style={{ fontSize: "9px", color: C.textSec, marginTop: "2px" }}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</p>
                         : parseArtists(e.artists)
-                          ? <p style={{ fontSize: "9px", color: Colors.textSec, marginTop: "2px" }}>🎵 {parseArtists(e.artists)}</p>
-                          : e.staff ? <p style={{ fontSize: "9px", color: Colors.textMuted, marginTop: "2px" }}>👥 {e.staff}</p> : null
+                          ? <p style={{ fontSize: "9px", color: C.textSec, marginTop: "2px" }}>🎵 {parseArtists(e.artists)}</p>
+                          : e.staff ? <p style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px" }}>👥 {e.staff}</p> : null
                       }
                     </div>
                   ))}
@@ -246,31 +246,31 @@ export default function Dashboard() {
               ))}
             </div>
           ) : (
-            <p style={{ fontSize: "11px", color: Colors.textMuted, fontStyle: "italic" }}>Sem eventos nos próximos 7 dias.</p>
+            <p style={{ fontSize: "11px", color: C.textMuted, fontStyle: "italic" }}>Sem eventos nos próximos 7 dias.</p>
           )}
         </div>
 
         {/* ROW 3: LEADS */}
-        <div style={{ background: Colors.surface, border: `1px solid ${Colors.borderDim}`, padding: "2rem" }}>
+        <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "2rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-            <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: Colors.goldDim }}>LEADS ACTIVAS</p>
-            <a href="/leads" style={{ fontSize: "7px", letterSpacing: "0.3em", color: Colors.goldDim, textDecoration: "none", textTransform: "uppercase" }}>Ver todas →</a>
+            <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim }}>LEADS ACTIVAS</p>
+            <a href="/leads" style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.goldDim, textDecoration: "none", textTransform: "uppercase" }}>Ver todas →</a>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem" }}>
             {activeLeads.slice(0, 6).map(l => (
-              <div key={l.id} style={{ background: "rgba(255,255,255,0.02)", padding: "1.25rem", border: `1px solid ${Colors.borderDim}` }}>
+              <div key={l.id} style={{ background: "rgba(255,255,255,0.02)", padding: "1.25rem", border: `1px solid ${C.borderDim}` }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 700, color: Colors.gold, flex: 1, marginRight: "0.5rem" }}>{l.title}</span>
-                  <span style={{ fontSize: "11px", color: Colors.textPrimary, whiteSpace: "nowrap" }}>{l.value > 0 ? `${l.value.toLocaleString("pt-PT")}€` : "—"}</span>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: C.gold, flex: 1, marginRight: "0.5rem" }}>{l.title}</span>
+                  <span style={{ fontSize: "11px", color: C.textPrimary, whiteSpace: "nowrap" }}>{l.value > 0 ? `${l.value.toLocaleString("pt-PT")}€` : "—"}</span>
                 </div>
-                <p style={{ fontSize: "9px", color: Colors.textSec, marginTop: "0.5rem" }}>📅 {new Date(l.event_date + "T00:00:00").toLocaleDateString("pt-PT")}</p>
-                {l.local && <p style={{ fontSize: "9px", color: Colors.textSec }}>📍 {l.local}</p>}
-                {l.notas && <p style={{ fontSize: "9px", color: Colors.textMuted, marginTop: "0.4rem", fontStyle: "italic" }}>"{l.notas}"</p>}
-                {l.contacto && <div style={{ marginTop: "0.6rem", fontSize: "8px", color: Colors.goldDim, letterSpacing: "0.1em" }}>📞 {l.contacto}</div>}
+                <p style={{ fontSize: "9px", color: C.textSec, marginTop: "0.5rem" }}>📅 {new Date(l.event_date + "T00:00:00").toLocaleDateString("pt-PT")}</p>
+                {l.local && <p style={{ fontSize: "9px", color: C.textSec }}>📍 {l.local}</p>}
+                {l.notas && <p style={{ fontSize: "9px", color: C.textMuted, marginTop: "0.4rem", fontStyle: "italic" }}>"{l.notas}"</p>}
+                {l.contacto && <div style={{ marginTop: "0.6rem", fontSize: "8px", color: C.goldDim, letterSpacing: "0.1em" }}>📞 {l.contacto}</div>}
               </div>
             ))}
             {activeLeads.length === 0 && (
-              <p style={{ fontSize: "11px", color: Colors.textMuted, gridColumn: "1/-1" }}>Sem leads activas.</p>
+              <p style={{ fontSize: "11px", color: C.textMuted, gridColumn: "1/-1" }}>Sem leads activas.</p>
             )}
           </div>
         </div>
@@ -368,7 +368,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <MobTabBar active="dashboard" role="admin" />
+      <MobTabBar active="dashboard" role="admin" lightTheme={lightTheme} />
     </div>
     </>
   );
@@ -403,15 +403,23 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
 
 function Loading() {
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: lightTheme ? "#FFFBF7" : "#0C0B09" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.pageBg }}>
       <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
     </div>
   );
 }
 
 // ── Mobile Tab Bar — 4 fixos + "Mais" drawer ───────────────────────────────
-function MobTabBar({ active, role }: { active: string; role: string }) {
+function MobTabBar({ active, role, lightTheme }: { active: string; role: string; lightTheme: boolean }) {
   const [maisOpen, setMaisOpen] = useState(false);
+  const drawerBg = lightTheme ? "#FFFFFF" : "#131108";
+  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(201,169,110,0.15)";
+  const drawerShadow = lightTheme ? "0 -8px 32px rgba(0,0,0,0.15)" : "0 -8px 32px rgba(0,0,0,0.6)";
+  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "rgba(245,240,232,0.4)";
+  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(201,169,110,0.08)";
+  const drawerGold = lightTheme ? "#000000" : "#C9A96E";
+  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(201,169,110,0.25)";
+  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(201,169,110,0.4)";
 
   // Os 4 tabs fixos — sempre visíveis
   const mainTabs = [
@@ -480,22 +488,22 @@ function MobTabBar({ active, role }: { active: string; role: string }) {
         position: "fixed", bottom: "calc(60px + env(safe-area-inset-bottom))", left: 0, right: 0,
         zIndex: 200, transform: maisOpen ? "translateY(0)" : "translateY(110%)",
         transition: "transform 0.25s cubic-bezier(0.32,0.72,0,1)",
-        background: "#131108", borderTop: "1px solid rgba(201,169,110,0.15)",
+        background: drawerBg, borderTop: drawerBorder,
         borderRadius: "16px 16px 0 0", padding: "0.75rem 0.5rem",
         paddingBottom: "0.5rem",
-        boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
+        boxShadow: drawerShadow,
       }}>
         {/* Handle */}
-        <div style={{ width: "36px", height: "3px", background: "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem"  }} />
-        <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.4)", textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
+        <div style={{ width: "36px", height: "3px", background: drawerHandle, borderRadius: "2px", margin: "0 auto 0.75rem"  }} />
+        <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: drawerTitle, textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "0 0.5rem" }}>
           {maisTabs.map(t => (
             <a key={t.href} href={t.href} onClick={() => setMaisOpen(false)}
               style={{
                 display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
                 textDecoration: "none", padding: "0.6rem 1rem", minWidth: "72px",
-                color: active === t.id ? "#C9A96E" : "rgba(245,240,232,0.4)",
-                background: active === t.id ? "rgba(201,169,110,0.08)" : "transparent",
+                color: active === t.id ? drawerGold : drawerMuted,
+                background: active === t.id ? drawerActiveBg : "transparent",
                 borderRadius: "10px",
               }}>
               <span style={{ width: "22px", height: "22px", display: "block" }}>{t.icon}</span>

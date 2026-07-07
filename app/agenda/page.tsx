@@ -152,7 +152,7 @@ function artistIcons(artistas: ArtistRow[]): string {
 
 // Color constants - will be adapted for light theme by JS
 const C = {
-  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009",
+  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009", pageBg: "#0C0B09",
   border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
   textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
   green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
@@ -160,7 +160,7 @@ const C = {
 
 // Light theme colors - 100% contrast, document-style
 const C_Light = {
-  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF", pageBg: "#FFFBF7",
   border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
   textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
   green: "#000000", amber: "#000000", blue: "#000000", red: "#000000",
@@ -840,7 +840,7 @@ export default function AgendaPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
           <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.textSec, textTransform: "uppercase", fontWeight: 600 }}>Agenda 2026</p>
           <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-            <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ background: lightTheme ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.05)", border: lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(255,255,255,0.1)", color: lightTheme ? "rgba(0,0,0,0.6)" : "rgba(245,240,232,0.4)", fontSize: "11px", padding: "0.5rem 0.7rem" }} />
+            <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
             <button
               onClick={openWaPeriodModal}
               style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "#5DCAA5", fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
@@ -1276,7 +1276,7 @@ export default function AgendaPage() {
       </div>
 
       {/* Bottom tab bar */}
-      <MobTabBar active="agenda" role={userRole} />
+      <MobTabBar active="agenda" role={userRole} lightTheme={lightTheme} />
     </div>
 
     {/* ═══ MODAL (shared) ═══ */}
@@ -1903,8 +1903,16 @@ const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1
 const btnDangerStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(226,75,74,0.3)", color: "#E24B4A", fontSize: "8px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 
 // ── Mobile Tab Bar — 4 fixos + "Mais" drawer ───────────────────────────────
-function MobTabBar({ active, role }: { active: string; role: string }) {
+function MobTabBar({ active, role, lightTheme }: { active: string; role: string; lightTheme: boolean }) {
   const [maisOpen, setMaisOpen] = useState(false);
+  const drawerBg = lightTheme ? "#FFFFFF" : "#131108";
+  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(201,169,110,0.15)";
+  const drawerShadow = lightTheme ? "0 -8px 32px rgba(0,0,0,0.15)" : "0 -8px 32px rgba(0,0,0,0.6)";
+  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "rgba(245,240,232,0.4)";
+  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(201,169,110,0.08)";
+  const drawerGold = lightTheme ? "#000000" : "#C9A96E";
+  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(201,169,110,0.25)";
+  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(201,169,110,0.4)";
 
   // Os 4 tabs fixos — sempre visíveis
   const mainTabs = [
@@ -1973,22 +1981,22 @@ function MobTabBar({ active, role }: { active: string; role: string }) {
         position: "fixed", bottom: "calc(60px + env(safe-area-inset-bottom))", left: 0, right: 0,
         zIndex: 200, transform: maisOpen ? "translateY(0)" : "translateY(110%)",
         transition: "transform 0.25s cubic-bezier(0.32,0.72,0,1)",
-        background: lightTheme ? "#FFFFFF" : "#131108", borderTop: `1px solid ${lightTheme ? "rgba(0,0,0,0.15)" : "rgba(201,169,110,0.15)"}`,
+        background: drawerBg, borderTop: drawerBorder,
         borderRadius: "16px 16px 0 0", padding: "0.75rem 0.5rem",
         paddingBottom: "0.5rem",
-        boxShadow: lightTheme ? "0 -8px 32px rgba(0,0,0,0.15)" : "0 -8px 32px rgba(0,0,0,0.6)",
+        boxShadow: drawerShadow,
       }}>
         {/* Handle */}
-        <div style={{ width: "36px", height: "3px", background: lightTheme ? "rgba(0,0,0,0.15)" : "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem" }} />
-        <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: lightTheme ? "rgba(0,0,0,0.5)" : "rgba(201,169,110,0.4)", textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
+        <div style={{ width: "36px", height: "3px", background: drawerHandle, borderRadius: "2px", margin: "0 auto 0.75rem" }} />
+        <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: drawerTitle, textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "0 0.5rem" }}>
           {maisTabs.map(t => (
             <a key={t.href} href={t.href} onClick={() => setMaisOpen(false)}
               style={{
                 display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
                 textDecoration: "none", padding: "0.6rem 1rem", minWidth: "72px",
-                color: active === t.id ? (lightTheme ? "#000000" : "#C9A96E") : (lightTheme ? "rgba(0,0,0,0.5)" : "rgba(245,240,232,0.4)"),
-                background: active === t.id ? (lightTheme ? "rgba(0,0,0,0.08)" : "rgba(201,169,110,0.08)") : "transparent",
+                color: active === t.id ? drawerGold : drawerMuted,
+                background: active === t.id ? drawerActiveBg : "transparent",
                 borderRadius: "10px",
               }}>
               <span style={{ width: "22px", height: "22px", display: "block" }}>{t.icon}</span>

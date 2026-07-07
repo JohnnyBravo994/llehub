@@ -21,14 +21,15 @@ interface FatItem {
 interface Cliente { id: number; nome: string; nif?: string; email?: string; telefone?: string; notas?: string; alias?: string; }
 
 const C = {
-  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009",
+  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009", pageBg: "#0C0B09",
   border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
   textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
   green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
   purple: "#A78BFA",
 };
+
 const C_Light = {
-  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF",
+  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF", pageBg: "#FFFBF7",
   border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
   textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
   green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
@@ -44,15 +45,15 @@ const TODOS_ESTADOS = ["Contacto", "Proposta Enviada", "Em Negociação", "Confi
 const ESTADOS_FAT = ["Confirmado", "Em Adjudicação", "Adjudicado", "Faturado", "Pago", "Cancelado"];
 
 const ESTADO_CFG: Record<string, { color: string; dot: string }> = {
-  "Contacto":         { color: Colors.textSec,  dot: "#6B7280" },
-  "Proposta Enviada": { color: Colors.blue,     dot: Colors.blue },
-  "Em Negociação":    { color: Colors.amber,    dot: Colors.amber },
-  "Confirmado":       { color: Colors.green,    dot: Colors.green },
-  "Em Adjudicação":   { color: Colors.gold,     dot: Colors.gold },
+  "Contacto":         { color: C.textSec,  dot: "#6B7280" },
+  "Proposta Enviada": { color: C.blue,     dot: C.blue },
+  "Em Negociação":    { color: C.amber,    dot: C.amber },
+  "Confirmado":       { color: C.green,    dot: C.green },
+  "Em Adjudicação":   { color: C.gold,     dot: C.gold },
   "Adjudicado":       { color: "#C9A96E",  dot: "#C9A96E" },
-  "Faturado":         { color: Colors.purple,   dot: Colors.purple },
+  "Faturado":         { color: C.purple,   dot: C.purple },
   "Pago":             { color: "#5DCAA5",  dot: "#5DCAA5" },
-  "Cancelado":        { color: Colors.red,      dot: Colors.red },
+  "Cancelado":        { color: C.red,      dot: C.red },
 };
 
 function fmtDate(s: string) {
@@ -71,6 +72,7 @@ function displayClienteName(nome: string, clienteInfo?: { alias?: string }) {
 
 export default function FaturacaoPage() {
   const { lightTheme, setLightTheme, mounted } = useTheme();
+  const C = getColors(lightTheme);
   const router = useRouter();
   const [userName, setUserName] = useState("");
   const [grouped, setGrouped] = useState<Record<string, FatItem[]>>({});
@@ -230,12 +232,10 @@ export default function FaturacaoPage() {
 
   if (loading) return <Loading />;
 
-  const Colors = getColors(lightTheme);
-
   return (
     <>
     {/* ═══ DESKTOP ═══ */}
-    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: lightTheme ? "#FFFBF7" : "#0C0B09", color: Colors.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
+    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: C.pageBg, color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <Nav userName={userName} active="faturacao" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");  }} />
 
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
@@ -243,12 +243,12 @@ export default function FaturacaoPage() {
         {/* HEADER */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "2rem" }}>
           <div>
-            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.textSec, textTransform: "uppercase", fontWeight: 600 }}>
+            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600 }}>
               Faturação
-              {clientes_count > 0 && <span style={{ color: Colors.textMuted, marginLeft: "0.75rem" }}>({clientes_count} {clientes_count === 1 ? 'cliente' : 'clientes'})</span>}
+              {clientes_count > 0 && <span style={{ color: C.textMuted, marginLeft: "0.75rem" }}>({clientes_count} {clientes_count === 1 ? 'cliente' : 'clientes'})</span>}
             </p>
-            <p style={{ fontSize: "8px", color: Colors.textMuted, marginTop: "0.4rem", letterSpacing: "0.15em" }}>
-              Eventos e leads a partir do estado <span style={{ color: Colors.green }}>Confirmado</span>
+            <p style={{ fontSize: "8px", color: C.textMuted, marginTop: "0.4rem", letterSpacing: "0.15em" }}>
+              Eventos e leads a partir do estado <span style={{ color: C.green }}>Confirmado</span>
             </p>
           </div>
             <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
@@ -261,13 +261,13 @@ export default function FaturacaoPage() {
         {/* RESUMO FINANCEIRO */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem", marginBottom: totalFaturado > 0 ? "0.75rem" : "2rem" }}>
           {[
-            { label: "Total Geral", valor: totalGeral, color: Colors.gold },
-            { label: "A Receber", valor: totalPendente, color: Colors.amber },
-            { label: "Recebido", valor: totalRecebido, color: Colors.green },
+            { label: "Total Geral", valor: totalGeral, color: C.gold },
+            { label: "A Receber", valor: totalPendente, color: C.amber },
+            { label: "Recebido", valor: totalRecebido, color: C.green },
           ].map(({ label, valor, color }) => (
-            <div key={label} style={{ background: Colors.surface, border: `1px solid ${Colors.borderDim}`, padding: "1.5rem 2rem", position: "relative" }}>
+            <div key={label} style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "1.5rem 2rem", position: "relative" }}>
               <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: `linear-gradient(90deg, transparent, ${color}44, transparent)`  }} />
-              <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: Colors.goldDim, marginBottom: "0.75rem", textTransform: "uppercase" }}>{label}</p>
+              <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim, marginBottom: "0.75rem", textTransform: "uppercase" }}>{label}</p>
               <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "2rem", color, lineHeight: 1, fontWeight: 300 }}>{fmtEuro(valor)}</p>
             </div>
           ))}
@@ -276,9 +276,9 @@ export default function FaturacaoPage() {
         {/* FATURADO — banner compacto, só aparece se houver */}
         {totalFaturado > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "2rem", padding: "0.7rem 1.25rem", background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.18)", borderTop: "none" }}>
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: Colors.purple, flexShrink: 0  }} />
-            <span style={{ fontSize: "8px", letterSpacing: "0.35em", color: Colors.purple, textTransform: "uppercase", fontWeight: 600 }}>Faturado · aguarda pagamento</span>
-            <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.1rem", color: Colors.purple, fontWeight: 300, marginLeft: "auto", letterSpacing: "0.05em" }}>{fmtEuro(totalFaturado)}</span>
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: C.purple, flexShrink: 0  }} />
+            <span style={{ fontSize: "8px", letterSpacing: "0.35em", color: C.purple, textTransform: "uppercase", fontWeight: 600 }}>Faturado · aguarda pagamento</span>
+            <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.1rem", color: C.purple, fontWeight: 300, marginLeft: "auto", letterSpacing: "0.05em" }}>{fmtEuro(totalFaturado)}</span>
           </div>
         )}
 
@@ -287,13 +287,13 @@ export default function FaturacaoPage() {
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Pesquisar cliente ou evento..."
-            style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${Colors.borderDim}`, color: Colors.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "0.6rem 1rem", letterSpacing: "0.05em", outline: "none", flex: "1", minWidth: "200px" }}
+            style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${C.borderDim}`, color: C.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "0.6rem 1rem", letterSpacing: "0.05em", outline: "none", flex: "1", minWidth: "200px" }}
           />
           {["Por Faturar", "Faturado", "Pagos", "Todos"].map(e => (
             <button key={e} onClick={() => setFiltroEstado(e)} style={{
               background: filtroEstado === e ? (e === "Pagos" ? "rgba(93,202,165,0.08)" : e === "Faturado" ? "rgba(167,139,250,0.08)" : "rgba(201,169,110,0.08)") : "transparent",
-              border: filtroEstado === e ? `1px solid ${e === "Pagos" ? Colors.green : e === "Faturado" ? Colors.purple : Colors.border}` : `1px solid ${Colors.borderDim}`,
-              color: filtroEstado === e ? (e === "Pagos" ? Colors.green : e === "Faturado" ? Colors.purple : Colors.gold) : Colors.textMuted,
+              border: filtroEstado === e ? `1px solid ${e === "Pagos" ? C.green : e === "Faturado" ? C.purple : C.border}` : `1px solid ${C.borderDim}`,
+              color: filtroEstado === e ? (e === "Pagos" ? C.green : e === "Faturado" ? C.purple : C.gold) : C.textMuted,
               fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1rem", cursor: "pointer",
               fontFamily: "inherit", textTransform: "uppercase", fontWeight: filtroEstado === e ? 600 : 400,
               transition: "all 0.2s",
@@ -303,27 +303,27 @@ export default function FaturacaoPage() {
 
         {/* BULK ACTION BAR */}
         {selectedItems.size > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem", padding: "0.75rem 1.25rem", background: "rgba(201,169,110,0.06)", border: `1px solid ${Colors.border}` }}>
-            <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: Colors.gold, fontWeight: 600 }}>{selectedItems.size} {selectedItems.size === 1 ? "item seleccionado" : "itens seleccionados"}</span>
-            <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${Colors.borderDim}`, color: bulkStatus ? Colors.textPrimary : Colors.textMuted, fontFamily: "inherit", fontSize: "9px", padding: "0.4rem 0.75rem", letterSpacing: "0.1em", outline: "none", cursor: "pointer", appearance: "none" as any }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem", padding: "0.75rem 1.25rem", background: "rgba(201,169,110,0.06)", border: `1px solid ${C.border}` }}>
+            <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: C.gold, fontWeight: 600 }}>{selectedItems.size} {selectedItems.size === 1 ? "item seleccionado" : "itens seleccionados"}</span>
+            <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${C.borderDim}`, color: bulkStatus ? C.textPrimary : C.textMuted, fontFamily: "inherit", fontSize: "9px", padding: "0.4rem 0.75rem", letterSpacing: "0.1em", outline: "none", cursor: "pointer", appearance: "none" as any }}>
               <option value="">Alterar estado para...</option>
               {TODOS_ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <button onClick={handleBulkStatus} disabled={!bulkStatus} style={{ background: bulkStatus ? Colors.gold : "rgba(255,255,255,0.04)", border: "none", color: bulkStatus ? "#0C0B09" : Colors.textMuted, fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.5rem 1.25rem", cursor: bulkStatus ? "pointer" : "default", fontFamily: "inherit", textTransform: "uppercase" }}>Aplicar</button>
-            <button onClick={() => setSelectedItems(new Set())} style={{ background: "transparent", border: "none", color: Colors.textMuted, fontSize: "9px", cursor: "pointer", marginLeft: "auto" }}>✕ Limpar seleção</button>
+            <button onClick={handleBulkStatus} disabled={!bulkStatus} style={{ background: bulkStatus ? C.gold : "rgba(255,255,255,0.04)", border: "none", color: bulkStatus ? "#0C0B09" : C.textMuted, fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.5rem 1.25rem", cursor: bulkStatus ? "pointer" : "default", fontFamily: "inherit", textTransform: "uppercase" }}>Aplicar</button>
+            <button onClick={() => setSelectedItems(new Set())} style={{ background: "transparent", border: "none", color: C.textMuted, fontSize: "9px", cursor: "pointer", marginLeft: "auto" }}>✕ Limpar seleção</button>
           </div>
         )}
 
         {/* CARDS POR CLIENTE */}
         {Object.keys(filteredGrouped).length === 0 ? (
-          <div style={{ background: Colors.surface, border: `1px solid ${Colors.borderDim}`, padding: "4rem", textAlign: "center" }}>
-            <p style={{ fontSize: "11px", color: Colors.textMuted, letterSpacing: "0.2em" }}>
+          <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "4rem", textAlign: "center" }}>
+            <p style={{ fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>
               {Object.keys(grouped).length === 0
                 ? "Sem eventos ou leads com cliente associado a partir do estado Confirmado."
                 : "Nenhum resultado para os filtros seleccionados."}
             </p>
             {Object.keys(grouped).length === 0 && (
-              <p style={{ fontSize: "9px", color: Colors.textMuted, marginTop: "1rem", letterSpacing: "0.15em", opacity: 0.6 }}>
+              <p style={{ fontSize: "9px", color: C.textMuted, marginTop: "1rem", letterSpacing: "0.15em", opacity: 0.6 }}>
                 Edita um evento na Agenda ou uma Lead e associa um cliente + estado ≥ Confirmado.
               </p>
             )}
@@ -339,38 +339,38 @@ export default function FaturacaoPage() {
               const clienteInfo = clientes.find(c => c.nome === clienteNome || (c.alias?.trim() && c.alias.trim() === clienteNome));
 
               return (
-                <div key={clienteNome} style={{ background: Colors.surface, border: `1px solid ${Colors.borderDim}`, position: "relative" }}>
+                <div key={clienteNome} style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative" }}>
                   <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
 
                   {/* Card Header */}
                   <div
                     onClick={() => toggleCliente(clienteNome)}
-                    style={{ padding: "1.5rem 2rem", borderBottom: collapsedClientes.has(clienteNome) ? "none" : `1px solid ${Colors.borderDim}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start", cursor: "pointer", userSelect: "none" }}
+                    style={{ padding: "1.5rem 2rem", borderBottom: collapsedClientes.has(clienteNome) ? "none" : `1px solid ${C.borderDim}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start", cursor: "pointer", userSelect: "none" }}
                   >
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.35rem" }}>
-                        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", color: Colors.textPrimary, fontWeight: 400, letterSpacing: "0.05em" }}>{displayClienteName(clienteNome, clienteInfo)}</span>
+                        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", color: C.textPrimary, fontWeight: 400, letterSpacing: "0.05em" }}>{displayClienteName(clienteNome, clienteInfo)}</span>
                         {clienteInfo?.alias?.trim() && clienteInfo.nome !== clienteNome && (
-                          <span style={{ fontSize: "9px", letterSpacing: "0.15em", color: Colors.textMuted }}>{clienteInfo.nome}</span>
+                          <span style={{ fontSize: "9px", letterSpacing: "0.15em", color: C.textMuted }}>{clienteInfo.nome}</span>
                         )}
                         {clienteInfo?.nif && (
-                          <span style={{ fontSize: "8px", letterSpacing: "0.2em", color: Colors.textMuted, background: "rgba(255,255,255,0.04)", padding: "2px 8px", border: `1px solid ${Colors.borderDim}` }}>
+                          <span style={{ fontSize: "8px", letterSpacing: "0.2em", color: C.textMuted, background: "rgba(255,255,255,0.04)", padding: "2px 8px", border: `1px solid ${C.borderDim}` }}>
                             NIF {clienteInfo.nif}
                           </span>
                         )}
-                        <span style={{ fontSize: "11px", color: Colors.goldDim, opacity: 0.6, marginLeft: "0.25rem" }}>{collapsedClientes.has(clienteNome) ? "▸" : "▾"}</span>
+                        <span style={{ fontSize: "11px", color: C.goldDim, opacity: 0.6, marginLeft: "0.25rem" }}>{collapsedClientes.has(clienteNome) ? "▸" : "▾"}</span>
                       </div>
                       <div style={{ display: "flex", gap: "1.5rem" }}>
-                        {clienteInfo?.email && <span style={{ fontSize: "9px", color: Colors.textSec }}>✉ {clienteInfo.email}</span>}
-                        {clienteInfo?.telefone && <span style={{ fontSize: "9px", color: Colors.textSec }}>📞 {clienteInfo.telefone}</span>}
-                        <span style={{ fontSize: "9px", color: Colors.textMuted }}>{items.length} {items.length === 1 ? 'evento' : 'eventos'}</span>
-                        {pendentes > 0 && <span style={{ fontSize: "9px", color: Colors.amber }}>{pendentes} por receber</span>}
+                        {clienteInfo?.email && <span style={{ fontSize: "9px", color: C.textSec }}>✉ {clienteInfo.email}</span>}
+                        {clienteInfo?.telefone && <span style={{ fontSize: "9px", color: C.textSec }}>📞 {clienteInfo.telefone}</span>}
+                        <span style={{ fontSize: "9px", color: C.textMuted }}>{items.length} {items.length === 1 ? 'evento' : 'eventos'}</span>
+                        {pendentes > 0 && <span style={{ fontSize: "9px", color: C.amber }}>{pendentes} por receber</span>}
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: Colors.goldDim, marginBottom: "0.35rem" }}>TOTAL</p>
-                      <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.6rem", color: Colors.gold, fontWeight: 300 }}>{fmtEuro(totalCliente)}</p>
-                      {totalRecebidoCliente > 0 && <p style={{ fontSize: "9px", color: Colors.green, marginTop: "2px" }}>{fmtEuro(totalRecebidoCliente)} recebido</p>}
+                      <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.goldDim, marginBottom: "0.35rem" }}>TOTAL</p>
+                      <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.6rem", color: C.gold, fontWeight: 300 }}>{fmtEuro(totalCliente)}</p>
+                      {totalRecebidoCliente > 0 && <p style={{ fontSize: "9px", color: C.green, marginTop: "2px" }}>{fmtEuro(totalRecebidoCliente)} recebido</p>}
                     </div>
                   </div>
 
@@ -378,29 +378,29 @@ export default function FaturacaoPage() {
                   {!collapsedClientes.has(clienteNome) && (
                   <div>
                     {items.map((item, idx) => {
-                      const cfg = ESTADO_CFG[item.billing_status] || { color: Colors.textSec, dot: Colors.textSec };
+                      const cfg = ESTADO_CFG[item.billing_status] || { color: C.textSec, dot: C.textSec };
                       const isLast = idx === items.length - 1;
                       return (
-                        <div key={`${item.origem}-${item.id}`} style={{ display: "grid", gridTemplateColumns: "24px 1fr auto auto auto auto", gap: "1rem", alignItems: "center", padding: "1rem 2rem", borderBottom: isLast ? "none" : `1px solid ${Colors.borderDim}`, transition: "background 0.15s", background: selectedItems.has(`${item.origem}-${item.id}`) ? "rgba(201,169,110,0.04)" : "transparent" }}
+                        <div key={`${item.origem}-${item.id}`} style={{ display: "grid", gridTemplateColumns: "24px 1fr auto auto auto auto", gap: "1rem", alignItems: "center", padding: "1rem 2rem", borderBottom: isLast ? "none" : `1px solid ${C.borderDim}`, transition: "background 0.15s", background: selectedItems.has(`${item.origem}-${item.id}`) ? "rgba(201,169,110,0.04)" : "transparent" }}
                           onMouseEnter={e => { if (!selectedItems.has(`${item.origem}-${item.id}`)) e.currentTarget.style.background = "rgba(255,255,255,0.015)"; }}
                           onMouseLeave={e => { if (!selectedItems.has(`${item.origem}-${item.id}`)) e.currentTarget.style.background = "transparent"; }}
                         >
                           {/* Checkbox */}
-                          <input type="checkbox" checked={selectedItems.has(`${item.origem}-${item.id}`)} onChange={() => toggleItem(`${item.origem}-${item.id}`)} style={{ accentColor: Colors.gold, cursor: "pointer", width: "14px", height: "14px"  }} />
+                          <input type="checkbox" checked={selectedItems.has(`${item.origem}-${item.id}`)} onChange={() => toggleItem(`${item.origem}-${item.id}`)} style={{ accentColor: C.gold, cursor: "pointer", width: "14px", height: "14px"  }} />
                           {/* Descrição + origem */}
                           <div>
                             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                              <span style={{ fontSize: "9px", color: item.origem === 'agenda' ? Colors.gold : Colors.purple, letterSpacing: "0.2em", opacity: 0.7, textTransform: "uppercase" }}>
+                              <span style={{ fontSize: "9px", color: item.origem === 'agenda' ? C.gold : C.purple, letterSpacing: "0.2em", opacity: 0.7, textTransform: "uppercase" }}>
                                 {item.origem === 'agenda' ? '📅' : '🎯'}
                               </span>
-                              <span style={{ fontSize: "12px", color: Colors.textPrimary, fontWeight: 500 }}>{item.descricao}</span>
+                              <span style={{ fontSize: "12px", color: C.textPrimary, fontWeight: 500 }}>{item.descricao}</span>
                             </div>
-                            <span style={{ fontSize: "9px", color: Colors.textMuted, marginLeft: "1.3rem" }}>{fmtDate(item.data)}</span>
+                            <span style={{ fontSize: "9px", color: C.textMuted, marginLeft: "1.3rem" }}>{fmtDate(item.data)}</span>
                           </div>
 
                           {/* Valor + recebido parcial */}
                           <div style={{ textAlign: "right" }}>
-                            <span style={{ fontSize: "12px", color: Colors.gold, fontWeight: 600, whiteSpace: "nowrap" }}>
+                            <span style={{ fontSize: "12px", color: C.gold, fontWeight: 600, whiteSpace: "nowrap" }}>
                               {item.valor > 0 ? fmtEuro(item.valor) : "—"}
                             </span>
                             {item.billing_status === 'Adjudicado' && (
@@ -412,10 +412,10 @@ export default function FaturacaoPage() {
                                       value={editingRecebido.valor}
                                       onChange={e => setEditingRecebido(r => r ? { ...r, valor: e.target.value } : r)}
                                       onKeyDown={e => { if (e.key === "Enter") handleSaveValorRecebido(); if (e.key === "Escape") setEditingRecebido(null); }}
-                                      style={{ width: "80px", background: "rgba(255,255,255,0.06)", border: `1px solid ${Colors.green}44`, color: Colors.green, fontFamily: "inherit", fontSize: "10px", padding: "2px 6px", outline: "none", textAlign: "right" }}
+                                      style={{ width: "80px", background: "rgba(255,255,255,0.06)", border: `1px solid ${C.green}44`, color: C.green, fontFamily: "inherit", fontSize: "10px", padding: "2px 6px", outline: "none", textAlign: "right" }}
                                     />
-                                    <button onClick={handleSaveValorRecebido} style={{ background: "transparent", border: "none", color: Colors.green, cursor: "pointer", fontSize: "11px", padding: "1px 4px" }}>✓</button>
-                                    <button onClick={() => setEditingRecebido(null)} style={{ background: "transparent", border: "none", color: Colors.textMuted, cursor: "pointer", fontSize: "11px", padding: "1px 4px" }}>✕</button>
+                                    <button onClick={handleSaveValorRecebido} style={{ background: "transparent", border: "none", color: C.green, cursor: "pointer", fontSize: "11px", padding: "1px 4px" }}>✓</button>
+                                    <button onClick={() => setEditingRecebido(null)} style={{ background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: "11px", padding: "1px 4px" }}>✕</button>
                                   </div>
                                 ) : (
                                   <button
@@ -423,10 +423,10 @@ export default function FaturacaoPage() {
                                     style={{ background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px", justifyContent: "flex-end", padding: 0, marginLeft: "auto" }}
                                   >
                                     {(item.valor_recebido || 0) > 0
-                                      ? <span style={{ fontSize: "9px", color: Colors.green }}>{fmtEuro(item.valor_recebido!)} recebido</span>
-                                      : <span style={{ fontSize: "8px", color: Colors.textMuted, letterSpacing: "0.15em" }}>+ recebido</span>
+                                      ? <span style={{ fontSize: "9px", color: C.green }}>{fmtEuro(item.valor_recebido!)} recebido</span>
+                                      : <span style={{ fontSize: "8px", color: C.textMuted, letterSpacing: "0.15em" }}>+ recebido</span>
                                     }
-                                    <svg width="9" height="9" viewBox="0 0 16 16" stroke={Colors.textMuted} fill="none" strokeWidth="2"><path d="M11 2l3 3-9 9H2v-3l9-9z"/></svg>
+                                    <svg width="9" height="9" viewBox="0 0 16 16" stroke={C.textMuted} fill="none" strokeWidth="2"><path d="M11 2l3 3-9 9H2v-3l9-9z"/></svg>
                                   </button>
                                 )}
                               </div>
@@ -443,7 +443,7 @@ export default function FaturacaoPage() {
                           <select
                             value={item.billing_status}
                             onChange={e => handleStatusChange(item, e.target.value)}
-                            style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${Colors.borderDim}`, color: Colors.textSec, fontFamily: "inherit", fontSize: "8px", padding: "0.4rem 0.6rem", letterSpacing: "0.1em", outline: "none", cursor: "pointer", appearance: "none" as any }}
+                            style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${C.borderDim}`, color: C.textSec, fontFamily: "inherit", fontSize: "8px", padding: "0.4rem 0.6rem", letterSpacing: "0.1em", outline: "none", cursor: "pointer", appearance: "none" as any }}
                           >
                             {TODOS_ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
@@ -464,7 +464,7 @@ export default function FaturacaoPage() {
         <div onClick={e => e.target === e.currentTarget && setClienteModal(false)} style={overlayStyle}>
           <div style={modalStyle}>
             <div style={topLineStyle} />
-            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "2rem" }}>Novo Cliente</p>
+            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "2rem" }}>Novo Cliente</p>
             <FormField label="Nome Oficial *"><input style={inputStyle} value={clienteForm.nome} onChange={e => setClienteForm(f => ({ ...f, nome: e.target.value }))} placeholder="Nome ou empresa..." /></FormField>
             <FormField label="Alias / Nome curto"><input style={inputStyle} value={clienteForm.alias} onChange={e => setClienteForm(f => ({ ...f, alias: e.target.value }))} placeholder="Ex: Hyatt, Marriott..." /></FormField>
             <FormField label="NIF"><input style={inputStyle} value={clienteForm.nif} onChange={e => setClienteForm(f => ({ ...f, nif: e.target.value }))} placeholder="Número de identificação fiscal..." /></FormField>
@@ -480,7 +480,7 @@ export default function FaturacaoPage() {
       )}
 
       {/* Toast */}
-      <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "#1a1408", border: `1px solid ${Colors.border}`, color: Colors.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
+      <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "#1a1408", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
         {toast}
       </div>
     </div>{/* end desktop */}
@@ -533,12 +533,12 @@ export default function FaturacaoPage() {
 
       {/* Mobile bulk action bar */}
       {selectedItems.size > 0 && (
-        <div style={{ position: "sticky", top: "52px", zIndex: 9, margin: "0", padding: "0.65rem 1rem", background: "rgba(18,14,8,0.98)", borderBottom: `1px solid ${Colors.border}`, backdropFilter: "blur(12px)", display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
-          <span style={{ fontSize: "9px", letterSpacing: "0.25em", color: Colors.gold, fontWeight: 700, whiteSpace: "nowrap" }}>{selectedItems.size} {selectedItems.size === 1 ? "item" : "itens"}</span>
+        <div style={{ position: "sticky", top: "52px", zIndex: 9, margin: "0", padding: "0.65rem 1rem", background: "rgba(18,14,8,0.98)", borderBottom: `1px solid ${C.border}`, backdropFilter: "blur(12px)", display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "9px", letterSpacing: "0.25em", color: C.gold, fontWeight: 700, whiteSpace: "nowrap" }}>{selectedItems.size} {selectedItems.size === 1 ? "item" : "itens"}</span>
           <select
             value={bulkStatus}
             onChange={e => setBulkStatus(e.target.value)}
-            style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.05)", border: `1px solid ${Colors.borderDim}`, color: bulkStatus ? Colors.textPrimary : Colors.textMuted, fontFamily: "inherit", fontSize: "10px", padding: "0.45rem 0.6rem", letterSpacing: "0.05em", outline: "none", appearance: "none" as any }}
+            style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.05)", border: `1px solid ${C.borderDim}`, color: bulkStatus ? C.textPrimary : C.textMuted, fontFamily: "inherit", fontSize: "10px", padding: "0.45rem 0.6rem", letterSpacing: "0.05em", outline: "none", appearance: "none" as any }}
           >
             <option value="">Alterar estado...</option>
             {TODOS_ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -546,9 +546,9 @@ export default function FaturacaoPage() {
           <button
             onClick={handleBulkStatus}
             disabled={!bulkStatus}
-            style={{ background: bulkStatus ? Colors.gold : "rgba(255,255,255,0.04)", border: "none", color: bulkStatus ? "#0C0B09" : Colors.textMuted, fontSize: "9px", letterSpacing: "0.25em", fontWeight: 700, padding: "0.5rem 0.9rem", cursor: bulkStatus ? "pointer" : "default", fontFamily: "inherit", textTransform: "uppercase", whiteSpace: "nowrap", borderRadius: "2px" }}
+            style={{ background: bulkStatus ? C.gold : "rgba(255,255,255,0.04)", border: "none", color: bulkStatus ? "#0C0B09" : C.textMuted, fontSize: "9px", letterSpacing: "0.25em", fontWeight: 700, padding: "0.5rem 0.9rem", cursor: bulkStatus ? "pointer" : "default", fontFamily: "inherit", textTransform: "uppercase", whiteSpace: "nowrap", borderRadius: "2px" }}
           >Aplicar</button>
-          <button onClick={() => setSelectedItems(new Set())} style={{ background: "transparent", border: "none", color: Colors.textMuted, fontSize: "16px", cursor: "pointer", padding: "0 4px", lineHeight: "1" }}>✕</button>
+          <button onClick={() => setSelectedItems(new Set())} style={{ background: "transparent", border: "none", color: C.textMuted, fontSize: "16px", cursor: "pointer", padding: "0 4px", lineHeight: "1" }}>✕</button>
         </div>
       )}
 
@@ -586,13 +586,13 @@ export default function FaturacaoPage() {
                     key={item.id}
                     className="mob-card"
                     onClick={() => toggleItem(itemKey)}
-                    style={{ cursor: "pointer", background: isSelected ? "rgba(201,169,110,0.07)" : undefined, borderLeft: isSelected ? `2px solid ${Colors.gold}` : "2px solid transparent", transition: "background 0.15s, border-color 0.15s" }}
+                    style={{ cursor: "pointer", background: isSelected ? "rgba(201,169,110,0.07)" : undefined, borderLeft: isSelected ? `2px solid ${C.gold}` : "2px solid transparent", transition: "background 0.15s, border-color 0.15s" }}
                   >
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "22px", flexShrink: 0 }}>
                       <div style={{
                         width: "16px", height: "16px", borderRadius: "3px",
-                        border: `1.5px solid ${isSelected ? Colors.gold : "rgba(201,169,110,0.3)"}`,
-                        background: isSelected ? Colors.gold : "transparent",
+                        border: `1.5px solid ${isSelected ? C.gold : "rgba(201,169,110,0.3)"}`,
+                        background: isSelected ? C.gold : "transparent",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         transition: "all 0.15s", flexShrink: 0,
                       }}>
@@ -623,7 +623,7 @@ export default function FaturacaoPage() {
         })}
       </div>
 
-      <MobTabBar active="faturacao" role="admin" />
+      <MobTabBar active="faturacao" role="admin" lightTheme={lightTheme} />
     </div>
     </>
   );
@@ -668,7 +668,7 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
 
 function Loading() {
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: lightTheme ? "#FFFBF7" : "#0C0B09" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.pageBg }}>
       <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
     </div>
   );
@@ -693,8 +693,16 @@ const btnPrimStyle: React.CSSProperties = { background: "#C9A96E", border: "none
 const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "rgba(245,240,232,0.35)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 
 // ── Mobile Tab Bar — 4 fixos + "Mais" drawer ───────────────────────────────
-function MobTabBar({ active, role }: { active: string; role: string }) {
+function MobTabBar({ active, role, lightTheme }: { active: string; role: string; lightTheme: boolean }) {
   const [maisOpen, setMaisOpen] = useState(false);
+  const drawerBg = lightTheme ? "#FFFFFF" : "#131108";
+  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(201,169,110,0.15)";
+  const drawerShadow = lightTheme ? "0 -8px 32px rgba(0,0,0,0.15)" : "0 -8px 32px rgba(0,0,0,0.6)";
+  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "rgba(245,240,232,0.4)";
+  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(201,169,110,0.08)";
+  const drawerGold = lightTheme ? "#000000" : "#C9A96E";
+  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(201,169,110,0.25)";
+  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(201,169,110,0.4)";
 
   // Os 4 tabs fixos — sempre visíveis
   const mainTabs = [
@@ -763,22 +771,22 @@ function MobTabBar({ active, role }: { active: string; role: string }) {
         position: "fixed", bottom: "calc(60px + env(safe-area-inset-bottom))", left: 0, right: 0,
         zIndex: 200, transform: maisOpen ? "translateY(0)" : "translateY(110%)",
         transition: "transform 0.25s cubic-bezier(0.32,0.72,0,1)",
-        background: "#131108", borderTop: "1px solid rgba(201,169,110,0.15)",
+        background: drawerBg, borderTop: drawerBorder,
         borderRadius: "16px 16px 0 0", padding: "0.75rem 0.5rem",
         paddingBottom: "0.5rem",
-        boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
+        boxShadow: drawerShadow,
       }}>
         {/* Handle */}
-        <div style={{ width: "36px", height: "3px", background: "rgba(201,169,110,0.25)", borderRadius: "2px", margin: "0 auto 0.75rem"  }} />
-        <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.4)", textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
+        <div style={{ width: "36px", height: "3px", background: drawerHandle, borderRadius: "2px", margin: "0 auto 0.75rem"  }} />
+        <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: drawerTitle, textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "0 0.5rem" }}>
           {maisTabs.map(t => (
             <a key={t.href} href={t.href} onClick={() => setMaisOpen(false)}
               style={{
                 display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
                 textDecoration: "none", padding: "0.6rem 1rem", minWidth: "72px",
-                color: active === t.id ? "#C9A96E" : "rgba(245,240,232,0.4)",
-                background: active === t.id ? "rgba(201,169,110,0.08)" : "transparent",
+                color: active === t.id ? drawerGold : drawerMuted,
+                background: active === t.id ? drawerActiveBg : "transparent",
                 borderRadius: "10px",
               }}>
               <span style={{ width: "22px", height: "22px", display: "block" }}>{t.icon}</span>
