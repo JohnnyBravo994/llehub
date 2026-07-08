@@ -45,7 +45,7 @@ const C_Light = {
   textPrimary: "#000000", textSec: "rgba(0,0,0,0.72)", textMuted: "rgba(0,0,0,0.48)",
   green: "#000000",
 };
-const CONTEXTOS = ["Normal", "Parceiro", "Cliente Final", "SUD", "SANA", "Hyatt", "Conta Especial"];
+const CONTEXTOS = ["Normal", "Parceiro", "Cliente Final", "Residência", "Priceless Band", "Equipamento avulso", "Pack AV", "Operacional", "SUD", "SANA", "Hyatt", "Conta Especial"];
 const emptyNew: Draft = { servico: "", duracao_formato: "", contexto: "Normal", cliente_nome: "", custo_interno: "", valor_parceiro: "", valor_cliente_final: "", notas: "", ativo: 1 };
 const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C_Dark;
 const toNum = (v: string) => parseFloat((v || "").replace(",", ".")) || 0;

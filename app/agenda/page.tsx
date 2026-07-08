@@ -1,6 +1,6 @@
 "use client";
 
-import { ARTIST_TIPOS, MODALIDADES, resolveColaboradorNome } from "../constants";
+import { ARTIST_TIPOS, MODALIDADES, SERVICOS_VENDIDOS, TIPOS_COMERCIAIS, VALOR_CONTEXTOS, resolveColaboradorNome } from "../constants";
 import { useEffect, useState, useCallback, useRef } from "react";
 import React from "react";
 import { useRouter } from "next/navigation";
@@ -77,9 +77,10 @@ import {
   getAllAgenda, createAgendaEvent, updateAgendaEvent,
   cancelAgendaEvent, restoreAgendaEvent, deleteAgendaEvent,
   getArtistasEvento, syncArtistasEvento, getAllArtistasAgenda, syncArtistasParaLead,
-  getAllClientes, createCliente, getAllLeads, getAllColaboradores, getAllValoresFuncoes, getAllResidenciasAtivas, syncAllExistingData,
+  getAllClientes, createCliente, getAllLeads, getAllColaboradores, getAllValoresFuncoes, getAllValoresMaster, getAllResidenciasAtivas, syncAllExistingData,
   setupMateriais, getAllMateriais, getMovimentosMateriais, registarSaidaMaterial,
   registarVoltaMaterial, deleteMovimentoMaterial,
+  getAllMaterialPacks, reservarMaterialPacksParaEvento, getMaterialPackReservasEvento,
   getArtistConflictOverrides, dismissArtistConflict,
 } from "../actions";
 
@@ -89,12 +90,14 @@ interface AgendaEvent {
   billing_status?: string; cliente_nome?: string; modalidade?: string;
   origem_lead_id?: number | null; venue?: string;
   contacto?: string; notas?: string; residencia_id?: number | null; event_id?: string;
+  tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string;
 }
 
 interface Lead {
   id: number; title: string; event_date: string; value: number;
   status?: string; cancelled?: number; cliente_nome?: string; modalidade?: string; cliente_id?: number | null;
   agenda_event_id?: number | null; event_id?: string;
+  tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string;
 }
 
 const CONFIRMED_STATUSES = ["Confirmado", "Em Adjudicação", "Adjudicado", "Pago"];
@@ -118,6 +121,11 @@ interface ValorFuncao {
   id: number; funcao: string; custo_padrao: number; valor_cliente_padrao: number; notas?: string; ativo: number;
 }
 
+interface ValorMaster {
+  id: number; servico: string; duracao_formato: string; contexto: string; cliente_nome?: string;
+  custo_interno: number; valor_parceiro: number; valor_cliente_final: number; notas?: string; ativo: number;
+}
+
 interface ResidenciaAtiva {
   id: number; nome: string; cliente_id?: number | null; cliente_nome: string; local: string; servico: string; duracao_formato: string;
   custo_interno: number; valor_cliente: number; performer_padrao_id?: number | null; performer_padrao_nome?: string; notas?: string; ativo: number;
@@ -134,6 +142,14 @@ interface MaterialMovimento {
   origem: string; origem_detalhe: string; evento: string; evento_id: number | null;
   responsavel: string; notas: string; data_saida: string; data_volta: string | null;
 }
+
+interface MaterialPackItem { id: number; pack_id: number; material_nome: string; categoria: string; quantidade: number; notas?: string; }
+interface MaterialPack {
+  id: number; nome: string; descricao: string; valor_referencia: number; ativo: number;
+  items: MaterialPackItem[];
+  links?: { id: number; servico: string; duracao_formato: string; contexto: string; notas?: string }[];
+}
+interface MaterialPackReserva { id: number; evento_id: number; pack_id: number; pack_nome: string; valor_referencia: number; valor_cobrado: number; desconto_oferta: number; }
 
 const MATERIAL_ORIGENS = ["Loja", "João", "Annia", "Outro"];
 
@@ -207,7 +223,7 @@ function artistsSummary(artists: ArtistRow[]) {
   return artists.filter(a => a.nome.trim()).map(a => a.nome).join(" · ");
 }
 
-const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura", venue: "", contacto: "", notas: "", residencia_id: null as number | null };
+const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura", tipo_comercial: "Evento", servico_comercial: "", valor_contexto: "Cliente Final", venue: "", contacto: "", notas: "", residencia_id: null as number | null };
 const emptyArtist = (): ArtistRow => ({ colaborador_id: null, nome: "", tipo: "DJ", fee: "" });
 
 function normalizeText(v: string) {
@@ -272,6 +288,7 @@ export default function AgendaPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [valoresFuncoes, setValoresFuncoes] = useState<ValorFuncao[]>([]);
+  const [valoresMaster, setValoresMaster] = useState<ValorMaster[]>([]);
   const [residenciasAtivas, setResidenciasAtivas] = useState<ResidenciaAtiva[]>([]);
   const [clienteSearch, setClienteSearch] = useState("");
   const [clienteDropOpen, setClienteDropOpen] = useState(false);
@@ -281,6 +298,8 @@ export default function AgendaPage() {
   const [trocaNovaData, setTrocaNovaData] = useState("");
   const [materiais, setMateriais] = useState<MaterialItem[]>([]);
   const [movimentosMateriais, setMovimentosMateriais] = useState<MaterialMovimento[]>([]);
+  const [materialPacks, setMaterialPacks] = useState<MaterialPack[]>([]);
+  const [selectedPackIds, setSelectedPackIds] = useState<number[]>([]);
   const [materialModal, setMaterialModal] = useState<{ open: boolean; event: AgendaEvent | null }>({ open: false, event: null });
   const emptyReservaForm = { material_id: 0, quantidade: 1, origem: "Loja", origem_detalhe: "", notas: "" };
   const [reservaForm, setReservaForm] = useState(emptyReservaForm);
@@ -295,12 +314,13 @@ export default function AgendaPage() {
   };
 
   const load = useCallback(async () => {
-    const [r, ar, cr, lr, colr, vr, rr, cor] = await Promise.all([getAllAgenda(), getAllArtistasAgenda(), getAllClientes(), getAllLeads(), getAllColaboradores(), getAllValoresFuncoes(), getAllResidenciasAtivas(), getArtistConflictOverrides()]);
+    const [r, ar, cr, lr, colr, vr, vmr, rr, cor] = await Promise.all([getAllAgenda(), getAllArtistasAgenda(), getAllClientes(), getAllLeads(), getAllColaboradores(), getAllValoresFuncoes(), getAllValoresMaster(), getAllResidenciasAtivas(), getArtistConflictOverrides()]);
     if (r.success) setEvents(r.data as AgendaEvent[]);
     if (ar.success) setArtistasMap(Object.fromEntries(Object.entries(ar.data as Record<number, any[]>).map(([k, v]) => [k, v.map((a: any) => ({ ...a, colaborador_id: a.colaborador_id ?? null, fee: String(a.fee ?? "") }))])));
     if (cr.success) setClientes(cr.data as Cliente[]);
     if (colr.success) setColaboradores(colr.data as Colaborador[]);
     if (vr.success) setValoresFuncoes(vr.data as ValorFuncao[]);
+    if (vmr.success) setValoresMaster(vmr.data as ValorMaster[]);
     if (rr.success) setResidenciasAtivas((rr.data as ResidenciaAtiva[]).filter(r => r.ativo === 1));
     if (cor.success) setConflictOverrides(cor.data as ConflictOverride[]);
     if (lr.success) {
@@ -331,9 +351,10 @@ export default function AgendaPage() {
 
   const loadMateriais = useCallback(async () => {
     await setupMateriais();
-    const [mr, movr] = await Promise.all([getAllMateriais(), getMovimentosMateriais()]);
+    const [mr, movr, pr] = await Promise.all([getAllMateriais(), getMovimentosMateriais(), getAllMaterialPacks()]);
     if (mr.success) setMateriais(mr.data as MaterialItem[]);
     if (movr.success) setMovimentosMateriais(movr.data as MaterialMovimento[]);
+    if (pr.success) setMaterialPacks(pr.data as MaterialPack[]);
   }, []);
 
   const [userRole, setUserRole] = useState("");
@@ -376,6 +397,8 @@ export default function AgendaPage() {
 
   const materiaisDoEvento = (eventoId: number) => movimentosMateriais.filter(m => m.evento_id === eventoId);
   const materiaisPendentesDoEvento = (eventoId: number) => materiaisDoEvento(eventoId).filter(m => (m.quantidade_devolvida + (m.quantidade_consumida || 0)) < m.quantidade);
+  const selectedPacks = materialPacks.filter(p => selectedPackIds.includes(p.id));
+  const togglePackSelecionado = (packId: number) => setSelectedPackIds(prev => prev.includes(packId) ? prev.filter(id => id !== packId) : [...prev, packId]);
 
   const handleReservarMaterial = async () => {
     if (!materialModal.event) return;
@@ -422,6 +445,39 @@ export default function AgendaPage() {
     const value = suggestedFeeForTipo(tipo);
     return value ? String(value) : "";
   };
+
+  const inferValorContexto = (clienteNome: string, tipoComercial: string) => {
+    if (tipoComercial === "Residência") return "Residência";
+    if (tipoComercial === "Evento de Residência") return "Evento Residência";
+    const q = normalizeText(clienteNome || "");
+    if (q.includes("sud") || q.includes("du tage")) return "SUD";
+    if (q.includes("sana") || q.includes("epic") || q.includes("azimar")) return "SANA";
+    if (q.includes("hyatt") || q.includes("icon") || q.includes("odyssey")) return "Hyatt";
+    return "Cliente Final";
+  };
+
+  const valorMasterSuggestion = (servico?: string, contexto?: string) => {
+    const svc = normalizeText(servico || "");
+    if (!svc) return null;
+    const ctx = contexto || "Cliente Final";
+    const rows = valoresMaster.filter(v => v.ativo === 1 && normalizeText(v.servico) === svc);
+    if (rows.length === 0) return null;
+    const byContext = (wanted: string) => rows.find(v => normalizeText(v.contexto) === normalizeText(wanted) || normalizeText(v.cliente_nome || "") === normalizeText(wanted));
+    let row: ValorMaster | undefined;
+    if (["SUD", "SANA", "Hyatt", "Conta Especial"].includes(ctx)) row = byContext(ctx);
+    if (!row && (ctx === "Residência" || ctx === "Evento Residência")) row = byContext("Residência");
+    if (!row && ctx === "Parceiro") row = byContext("Parceiro") || byContext("Normal") || byContext("Priceless Band") || rows[0];
+    if (!row) row = byContext("Normal") || byContext("Cliente Final") || byContext("Priceless Band") || rows[0];
+    const valor = (ctx === "Parceiro" || ctx === "Residência") ? Number(row.valor_parceiro || 0) : Number(row.valor_cliente_final || 0);
+    return { row, valor, custo: Number(row.custo_interno || 0) };
+  };
+
+  const aplicarValorSugerido = () => {
+    const suggestion = valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto);
+    if (!suggestion || !suggestion.valor) { showToast("Sem valor sugerido para esta combinação"); return; }
+    setForm(f => ({ ...f, bill: String(suggestion.valor) }));
+    showToast(`Valor sugerido aplicado: ${suggestion.valor}€`);
+  };
   const normalizeArtistRow = (a: any): ArtistRow => {
     const col = findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome || "");
     return {
@@ -461,6 +517,9 @@ export default function AgendaPage() {
     setForm(f => ({
       ...f,
       residencia_id: id,
+      tipo_comercial: r ? "Residência" : f.tipo_comercial,
+      servico_comercial: r?.servico || f.servico_comercial,
+      valor_contexto: r ? "Residência" : f.valor_contexto,
       title: r?.nome || f.title,
       venue: r?.local || f.venue,
       time: r?.duracao_formato || f.time,
@@ -493,6 +552,7 @@ export default function AgendaPage() {
     setClienteCreating(false);
     setIsResidencia(false);
     setResidenciaDates([new Date().toISOString().split("T")[0]]);
+    setSelectedPackIds([]);
     setModal({ open: true, editing: null });
   };
 
@@ -503,11 +563,16 @@ export default function AgendaPage() {
       billing_status: e.billing_status || "Contacto",
       cliente_nome: e.cliente_nome || "",
       modalidade: e.modalidade || "Fatura",
+      tipo_comercial: e.tipo_comercial || "Evento",
+      servico_comercial: e.servico_comercial || "",
+      valor_contexto: e.valor_contexto || inferValorContexto(e.cliente_nome || "", e.tipo_comercial || "Evento"),
       venue: e.venue || "",
       contacto: e.contacto || "", notas: e.notas || "",
       residencia_id: e.residencia_id ?? null,
     });
     setClienteSearch(e.cliente_nome || "");
+    const packRes = await getMaterialPackReservasEvento(e.id);
+    setSelectedPackIds(packRes.success ? (packRes.data as MaterialPackReserva[]).map(r => r.pack_id) : []);
     setClienteDropOpen(false);
     setClienteCreating(false);
     setIsResidencia(false);
@@ -549,6 +614,9 @@ export default function AgendaPage() {
       title: cleanTitle, date: form.date, time: form.time, tipo: form.tipo,
       bill: parseFloat(form.bill) || 0, billing_status: form.billing_status,
       cliente_nome: form.cliente_nome, modalidade: form.modalidade,
+      tipo_comercial: form.tipo_comercial,
+      servico_comercial: form.servico_comercial,
+      valor_contexto: form.valor_contexto,
       venue: form.venue || "",
       contacto: form.contacto || "", notas: form.notas || "",
       residencia_id: form.residencia_id,
@@ -559,10 +627,21 @@ export default function AgendaPage() {
       tipo: a.tipo,
       fee: parseFloat(a.fee) || 0,
     }));
+    const reservarPacksEvento = async (eventoId: number, eventoNome: string) => {
+      if (selectedPackIds.length === 0) return;
+      await reservarMaterialPacksParaEvento({
+        evento_id: eventoId,
+        evento_nome: eventoNome,
+        pack_ids: selectedPackIds,
+        servico: form.title || cleanTitle,
+        reservado_por: userName,
+      });
+    };
 
     if (modal.editing) {
       const updateRes = await updateAgendaEvent(modal.editing.id, data);
       await syncArtistasEvento(modal.editing.id, cleanTitle, form.date, validArtists);
+      await reservarPacksEvento(modal.editing.id, cleanTitle);
       // Sync artistas para a lead ligada — usar leadId resolvido pela action (mais fiável que o objeto em memória)
       const linkedLeadId = updateRes.leadId ?? (modal.editing as any).origem_lead_id;
       if (linkedLeadId) {
@@ -575,6 +654,7 @@ export default function AgendaPage() {
         const res = await createAgendaEvent({ ...data, date: d });
         if (res.success && res.id) {
           await syncArtistasEvento(res.id, cleanTitle, d, validArtists);
+          await reservarPacksEvento(res.id, cleanTitle);
         }
       }
       showToast(`${validDates.length} evento${validDates.length > 1 ? "s" : ""} criado${validDates.length > 1 ? "s" : ""}`);
@@ -582,6 +662,7 @@ export default function AgendaPage() {
       const res = await createAgendaEvent(data);
       if (res.success && res.id) {
         await syncArtistasEvento(res.id, cleanTitle, form.date, validArtists);
+        await reservarPacksEvento(res.id, cleanTitle);
       }
       showToast("Evento criado");
     }
@@ -647,6 +728,9 @@ export default function AgendaPage() {
       cliente_id: (l as any).cliente_id ?? null,
       cliente_nome: l.cliente_nome, modalidade: l.modalidade,
       origem_lead_id: l.id,
+      tipo_comercial: l.tipo_comercial || "Evento",
+      servico_comercial: l.servico_comercial || "",
+      valor_contexto: l.valor_contexto || inferValorContexto(l.cliente_nome || "", l.tipo_comercial || "Evento"),
       contacto: (l as any).contacto || "", notas: (l as any).notas || "",
     });
     if (res.success) { showToast("Lead convertida em evento"); load(); }
@@ -1583,6 +1667,9 @@ export default function AgendaPage() {
               )}
             </div>
 
+            <datalist id="agenda-servicos-vendidos-list">
+              {SERVICOS_VENDIDOS.map(s => <option key={s} value={s} />)}
+            </datalist>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 1.5rem" }}>
               <FormField label="Título do Evento" style={{ gridColumn: "1 / -1" }}>
                 <input style={inputStyle} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Nome do evento..." />
@@ -1728,7 +1815,7 @@ export default function AgendaPage() {
                             <div
                               key={c.id}
                               onMouseDown={() => {
-                                setForm(f => ({ ...f, cliente_nome: c.nome }));
+                                setForm(f => ({ ...f, cliente_nome: c.nome, valor_contexto: inferValorContexto(c.nome, f.tipo_comercial) }));
                                 setClienteSearch((c as any).alias?.trim() || c.nome);
                                 setClienteDropOpen(false);
                               }}
@@ -1755,6 +1842,41 @@ export default function AgendaPage() {
                   </div>
                 )}
               </FormField>
+              <FormField label="Tipo Comercial">
+                <CustomSelect
+                  value={form.tipo_comercial}
+                  onChange={v => setForm(f => ({ ...f, tipo_comercial: v, valor_contexto: inferValorContexto(f.cliente_nome, v) }))}
+                  options={TIPOS_COMERCIAIS.map(t => ({ value: t, label: t }))}
+                  style={inputStyle}
+                />
+              </FormField>
+              <FormField label="Serviço Vendido">
+                <input
+                  list="agenda-servicos-vendidos-list"
+                  style={inputStyle}
+                  value={form.servico_comercial}
+                  onChange={e => setForm(f => ({ ...f, servico_comercial: e.target.value }))}
+                  placeholder="DJ s/ AV, Banda c/ AVs..."
+                />
+              </FormField>
+              <FormField label="Perfil de Valor">
+                <CustomSelect
+                  value={form.valor_contexto}
+                  onChange={v => setForm(f => ({ ...f, valor_contexto: v }))}
+                  options={VALOR_CONTEXTOS.map(c => ({ value: c, label: c }))}
+                  style={inputStyle}
+                />
+              </FormField>
+              <FormField label="Sugestão">
+                <button type="button" onClick={aplicarValorSugerido} style={{ ...btnSecStyle, width: "100%" }}>
+                  Calcular valor
+                </button>
+              </FormField>
+              {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto) && (
+                <div style={{ gridColumn: "1 / -1", fontSize: "10px", color: Colors.textMuted, letterSpacing: "0.05em", marginTop: "-0.6rem", marginBottom: "0.6rem" }}>
+                  Sugestão: {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)?.valor || 0}€ · Custo interno: {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)?.custo || 0}€ · {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)?.row.contexto}
+                </div>
+              )}
               {userRole !== "limited_novalues" && (
               <FormField label="Faturação (€)">
                 <input
@@ -1787,6 +1909,39 @@ export default function AgendaPage() {
               <FormField label="Notas" style={{ gridColumn: "1 / -1" }}>
                 <textarea style={{ ...inputStyle, minHeight: "72px", resize: "vertical" }} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Observações..." />
               </FormField>
+              {materialPacks.length > 0 && (
+                <FormField label="Packs de Material Incluídos" style={{ gridColumn: "1 / -1" }}>
+                  <div style={{ display: "grid", gap: "8px" }}>
+                    {materialPacks.map(pack => {
+                      const active = selectedPackIds.includes(pack.id);
+                      return (
+                        <button
+                          key={pack.id}
+                          type="button"
+                          onClick={() => togglePackSelecionado(pack.id)}
+                          style={{
+                            textAlign: "left", background: active ? "rgba(201,169,110,0.12)" : "rgba(255,255,255,0.03)",
+                            border: `1px solid ${active ? Colors.gold : Colors.borderDim}`,
+                            color: active ? Colors.textPrimary : Colors.textSec,
+                            padding: "0.75rem", cursor: "pointer", fontFamily: "inherit",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center" }}>
+                            <strong style={{ fontSize: "11px", letterSpacing: "0.08em" }}>{active ? "✓ " : ""}{pack.nome}</strong>
+                            <span style={{ fontSize: "9px", color: Colors.gold, letterSpacing: "0.12em" }}>Oferta {pack.valor_referencia ? `${pack.valor_referencia}€` : ""}</span>
+                          </div>
+                          <div style={{ marginTop: "0.35rem", fontSize: "9px", color: Colors.textMuted, lineHeight: 1.45 }}>
+                            {pack.items.map(i => `${i.quantidade}× ${i.material_nome}`).join(" · ")}
+                          </div>
+                        </button>
+                      );
+                    })}
+                    <p style={{ margin: 0, fontSize: "9px", color: Colors.textMuted, lineHeight: 1.5 }}>
+                      Ao guardar, a app reserva estes materiais no evento como pack incluído/oferta. Não acrescenta valor à faturação.
+                    </p>
+                  </div>
+                </FormField>
+              )}
             </div>
 
             {/* ── Artistas ── */}

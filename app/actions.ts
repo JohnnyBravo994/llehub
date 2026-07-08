@@ -10,6 +10,126 @@ const turso = createClient({
 
 const DEFAULT_FUNCOES_VALORES = [...ARTIST_TIPOS];
 
+
+type ValorMasterSeed = {
+  servico: string;
+  duracao_formato: string;
+  contexto: string;
+  cliente_nome?: string;
+  custo_interno: number;
+  valor_parceiro: number;
+  valor_cliente_final: number;
+  notas?: string;
+};
+
+const DEFAULT_VALORES_MASTER: ValorMasterSeed[] = [
+  // Serviços gerais LLE
+  { servico: "DJ s/ AV", duracao_formato: "até 4h", contexto: "Normal", custo_interno: 200, valor_parceiro: 400, valor_cliente_final: 500, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "DJ todo o dia", duracao_formato: "evento", contexto: "Normal", custo_interno: 425, valor_parceiro: 750, valor_cliente_final: 900, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "Karaoke s/ AV", duracao_formato: "até 2h", contexto: "Normal", custo_interno: 350, valor_parceiro: 550, valor_cliente_final: 650, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "Karaoke s/ AV", duracao_formato: "até 4h", contexto: "Normal", custo_interno: 400, valor_parceiro: 600, valor_cliente_final: 750, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "Som 1 PA", duracao_formato: "sistema", contexto: "Normal", custo_interno: 125, valor_parceiro: 150, valor_cliente_final: 250, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "Som 2 PAs", duracao_formato: "sistema", contexto: "Normal", custo_interno: 155, valor_parceiro: 200, valor_cliente_final: 300, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "AV base evento", duracao_formato: "mesa de som", contexto: "Normal", custo_interno: 0, valor_parceiro: 30, valor_cliente_final: 45, notas: "Tabela LLE 2026 · Custo interno por definir" },
+  { servico: "AV Base", duracao_formato: "PA + luz base", contexto: "Normal", custo_interno: 175, valor_parceiro: 300, valor_cliente_final: 450, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "AV Premium", duracao_formato: "PA + luz premium", contexto: "Normal", custo_interno: 225, valor_parceiro: 300, valor_cliente_final: 450, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "Sax", duracao_formato: "1 momento", contexto: "Normal", custo_interno: 250, valor_parceiro: 375, valor_cliente_final: 450, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "Violinista", duracao_formato: "1 momento", contexto: "Normal", custo_interno: 300, valor_parceiro: 400, valor_cliente_final: 500, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "Acordionista", duracao_formato: "1 momento", contexto: "Normal", custo_interno: 300, valor_parceiro: 400, valor_cliente_final: 500, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "Cantor(a)", duracao_formato: "1h30 ou 5 entradas", contexto: "Normal", custo_interno: 350, valor_parceiro: 500, valor_cliente_final: 750, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "Bailarinos s/ receção", duracao_formato: "4 entradas", contexto: "Normal", custo_interno: 200, valor_parceiro: 350, valor_cliente_final: 500, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "Bailarinos c/ receção", duracao_formato: "4 entradas", contexto: "Normal", custo_interno: 250, valor_parceiro: 350, valor_cliente_final: 500, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "Asas Isis (2 bailarinos)", duracao_formato: "2 entradas", contexto: "Normal", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 400, notas: "Tabela LLE 2026 · Custos internos/parceiro por definir" },
+  { servico: "Artista de Fogo", duracao_formato: "2 entradas", contexto: "Normal", custo_interno: 250, valor_parceiro: 0, valor_cliente_final: 400, notas: "Tabela LLE 2026 · Valor parceiro por definir" },
+  { servico: "Artista de Malabares", duracao_formato: "2 entradas", contexto: "Normal", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 0, notas: "Tabela LLE 2026 · Valores por definir" },
+  { servico: "Anão", duracao_formato: "1 entrada", contexto: "Normal", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 350, notas: "Tabela LLE 2026 · Custos internos/parceiro por definir" },
+  { servico: "Show Bolas de Sabão", duracao_formato: "1 entrada", contexto: "Normal", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 550, notas: "Tabela LLE 2026 · Custos internos/parceiro por definir" },
+  { servico: "Mágico(a)", duracao_formato: "1 entrada", contexto: "Normal", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 0, notas: "Tabela LLE 2026 · Valores por definir" },
+  { servico: "Cubo (a partir de 3m)", duracao_formato: "5 a 6 minutos", contexto: "Normal", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 500, notas: "Tabela LLE 2026 · Custos internos/parceiro por definir" },
+  { servico: "Forças Combinadas - dueto", duracao_formato: "atuação", contexto: "Normal", custo_interno: 900, valor_parceiro: 0, valor_cliente_final: 1000, notas: "Tabela LLE 2026 · Valor parceiro por definir" },
+  { servico: "Acro - dueto", duracao_formato: "atuação", contexto: "Normal", custo_interno: 900, valor_parceiro: 0, valor_cliente_final: 1000, notas: "Tabela LLE 2026 · Valor parceiro por definir" },
+  { servico: "Acro Aéreos - solo", duracao_formato: "atuação", contexto: "Normal", custo_interno: 450, valor_parceiro: 0, valor_cliente_final: 550, notas: "Tabela LLE 2026 · Valor parceiro por definir" },
+  { servico: "Lyra Aéreos - dueto", duracao_formato: "atuação", contexto: "Normal", custo_interno: 900, valor_parceiro: 0, valor_cliente_final: 1000, notas: "Tabela LLE 2026 · Valor parceiro por definir" },
+  { servico: "Straps Aéreos - solo", duracao_formato: "atuação", contexto: "Normal", custo_interno: 450, valor_parceiro: 0, valor_cliente_final: 550, notas: "Tabela LLE 2026 · Valor parceiro por definir" },
+  { servico: "Straps Aéreos - dueto", duracao_formato: "atuação", contexto: "Normal", custo_interno: 900, valor_parceiro: 0, valor_cliente_final: 1000, notas: "Tabela LLE 2026 · Valor parceiro por definir" },
+  { servico: "Pórtico Aéreos", duracao_formato: "atuação", contexto: "Normal", custo_interno: 900, valor_parceiro: 0, valor_cliente_final: 1000, notas: "Tabela LLE 2026 · Valor parceiro por definir" },
+  { servico: "Spiral - plataforma", duracao_formato: "atuação", contexto: "Normal", custo_interno: 600, valor_parceiro: 0, valor_cliente_final: 0, notas: "Tabela LLE 2026 · Custo interno: 600€ + rigagem. Preencher preço cliente." },
+  { servico: "Lollipop - plataforma", duracao_formato: "atuação", contexto: "Normal", custo_interno: 450, valor_parceiro: 0, valor_cliente_final: 550, notas: "Tabela LLE 2026 · Valor parceiro por definir" },
+  { servico: "Chandelier - plataforma", duracao_formato: "atuação", contexto: "Normal", custo_interno: 450, valor_parceiro: 0, valor_cliente_final: 550, notas: "Tabela LLE 2026 · Valor parceiro por definir" },
+  { servico: "Diamante - plataforma", duracao_formato: "atuação", contexto: "Normal", custo_interno: 450, valor_parceiro: 0, valor_cliente_final: 550, notas: "Tabela LLE 2026 · Valor parceiro por definir" },
+  { servico: "Animador / Host", duracao_formato: "evento", contexto: "Normal", custo_interno: 250, valor_parceiro: 350, valor_cliente_final: 450, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "Animador Infantil c/ jogos", duracao_formato: "2h30 (2pax)", contexto: "Normal", custo_interno: 170, valor_parceiro: 250, valor_cliente_final: 300, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "Animador Infantil c/ jogos", duracao_formato: "4h (2pax)", contexto: "Normal", custo_interno: 230, valor_parceiro: 350, valor_cliente_final: 400, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "Make-up & Hair", duracao_formato: "evento", contexto: "Normal", custo_interno: 250, valor_parceiro: 300, valor_cliente_final: 350, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "Guarda Roupa", duracao_formato: "evento", contexto: "Normal", custo_interno: 0, valor_parceiro: 25, valor_cliente_final: 50, notas: "Tabela LLE 2026 · Custo interno por definir" },
+  { servico: "Produtor", duracao_formato: "evento", contexto: "Normal", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 0, notas: "Tabela LLE 2026 · Valores por definir" },
+  { servico: "Trio Fado", duracao_formato: "1h", contexto: "Normal", custo_interno: 550, valor_parceiro: 900, valor_cliente_final: 1250, notas: "Tabela LLE 2026 · Serviços gerais" },
+  { servico: "Trio Fado", duracao_formato: "1h30", contexto: "Normal", custo_interno: 850, valor_parceiro: 1200, valor_cliente_final: 1550, notas: "Tabela LLE 2026 · Serviços gerais" },
+
+  // Residências fixas/regulares. Nesta tabela, valor_parceiro = Residência e valor_cliente_final = Evento Residência.
+  { servico: "DJ", duracao_formato: "4h", contexto: "Residência", custo_interno: 100, valor_parceiro: 150, valor_cliente_final: 250, notas: "Tabela LLE 2026 · Residências. Coluna Parceiro = Residência; Cliente Final = Evento Residência" },
+  { servico: "DJ", duracao_formato: "5h", contexto: "Residência", custo_interno: 100, valor_parceiro: 180, valor_cliente_final: 300, notas: "Tabela LLE 2026 · Residências. Coluna Parceiro = Residência; Cliente Final = Evento Residência" },
+  { servico: "DJ todo o dia", duracao_formato: "evento", contexto: "Residência", custo_interno: 425, valor_parceiro: 0, valor_cliente_final: 750, notas: "Tabela LLE 2026 · Residências. Valor de residência por definir; Cliente Final = Evento Residência" },
+  { servico: "Sax", duracao_formato: "1 momento", contexto: "Residência", custo_interno: 120, valor_parceiro: 150, valor_cliente_final: 375, notas: "Tabela LLE 2026 · Residências. Coluna Parceiro = Residência; Cliente Final = Evento Residência" },
+  { servico: "Cantor(a)", duracao_formato: "1 momento", contexto: "Residência", custo_interno: 120, valor_parceiro: 150, valor_cliente_final: 350, notas: "Tabela LLE 2026 · Residências. Coluna Parceiro = Residência; Cliente Final = Evento Residência" },
+  { servico: "Bailarinos s/ receção", duracao_formato: "4 entradas", contexto: "Residência", custo_interno: 150, valor_parceiro: 0, valor_cliente_final: 250, notas: "Tabela LLE 2026 · Residências. Valor de residência por definir; Cliente Final = Evento Residência" },
+  { servico: "Bailarinos c/ receção", duracao_formato: "4 entradas", contexto: "Residência", custo_interno: 200, valor_parceiro: 0, valor_cliente_final: 250, notas: "Tabela LLE 2026 · Residências. Valor de residência por definir; Cliente Final = Evento Residência" },
+
+  // Priceless Band / Annia. Valor parceiro = tabela parceiro; valor cliente final = preço 2026.
+  { servico: "Annia Solo", duracao_formato: "até 1h30", contexto: "Priceless Band", custo_interno: 0, valor_parceiro: 575, valor_cliente_final: 800, notas: "Priceless Band 2026 · Parceiro + Preço 2026" },
+  { servico: "Annia Solo", duracao_formato: "até 1h30", contexto: "SUD", cliente_nome: "SUD", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 500, notas: "Priceless Band 2026 · Valor SUD" },
+  { servico: "Annia Solo c/ AVs", duracao_formato: "até 1h30", contexto: "Priceless Band", custo_interno: 0, valor_parceiro: 775, valor_cliente_final: 1000, notas: "Priceless Band 2026 · Parceiro + Preço 2026" },
+  { servico: "Banda Duo s/ AV", duracao_formato: "até 1h30", contexto: "Priceless Band", custo_interno: 0, valor_parceiro: 850, valor_cliente_final: 1000, notas: "Priceless Band 2026 · Parceiro + Preço 2026" },
+  { servico: "Banda Duo s/ AV", duracao_formato: "até 1h30", contexto: "SUD", cliente_nome: "SUD", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 700, notas: "Priceless Band 2026 · Valor SUD" },
+  { servico: "Banda Duo c/ AVs", duracao_formato: "até 1h30", contexto: "Priceless Band", custo_interno: 0, valor_parceiro: 1150, valor_cliente_final: 1300, notas: "Priceless Band 2026 · Parceiro + Preço 2026" },
+  { servico: "Banda Trio s/ AV", duracao_formato: "até 1h30", contexto: "Priceless Band", custo_interno: 0, valor_parceiro: 1200, valor_cliente_final: 1350, notas: "Priceless Band 2026 · Parceiro + Preço 2026" },
+  { servico: "Banda Trio s/ AV", duracao_formato: "até 1h30", contexto: "SUD", cliente_nome: "SUD", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 1050, notas: "Priceless Band 2026 · Valor SUD" },
+  { servico: "Banda Trio c/ AVs", duracao_formato: "até 1h30", contexto: "Priceless Band", custo_interno: 0, valor_parceiro: 1500, valor_cliente_final: 1650, notas: "Priceless Band 2026 · Parceiro + Preço 2026" },
+  { servico: "Banda quarteto s/ AV", duracao_formato: "até 1h30", contexto: "Priceless Band", custo_interno: 0, valor_parceiro: 1550, valor_cliente_final: 1700, notas: "Priceless Band 2026 · Parceiro + Preço 2026" },
+  { servico: "Banda quarteto s/ AV", duracao_formato: "até 1h30", contexto: "SUD", cliente_nome: "SUD", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 1300, notas: "Priceless Band 2026 · Valor SUD" },
+  { servico: "Banda quarteto c/ AVs", duracao_formato: "até 1h30", contexto: "Priceless Band", custo_interno: 0, valor_parceiro: 1950, valor_cliente_final: 2100, notas: "Priceless Band 2026 · Parceiro + Preço 2026" },
+  { servico: "Banda quinteto s/ AV", duracao_formato: "até 1h30", contexto: "Priceless Band", custo_interno: 0, valor_parceiro: 1875, valor_cliente_final: 2000, notas: "Priceless Band 2026 · Parceiro + Preço 2026" },
+  { servico: "Banda quinteto s/ AV", duracao_formato: "até 1h30", contexto: "SUD", cliente_nome: "SUD", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 1500, notas: "Priceless Band 2026 · Valor SUD" },
+  { servico: "Banda quinteto c/ AVs", duracao_formato: "até 1h30", contexto: "Priceless Band", custo_interno: 0, valor_parceiro: 2375, valor_cliente_final: 2500, notas: "Priceless Band 2026 · Parceiro + Preço 2026" },
+  { servico: "Banda quinteto + Cantor", duracao_formato: "até 1h30", contexto: "Priceless Band", custo_interno: 0, valor_parceiro: 2200, valor_cliente_final: 2400, notas: "Priceless Band 2026 · Parceiro + Preço 2026" },
+  { servico: "Banda quinteto + Cantor", duracao_formato: "até 1h30", contexto: "SUD", cliente_nome: "SUD", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 1800, notas: "Priceless Band 2026 · Valor SUD" },
+  { servico: "Banda quinteto + Cantor c/ AVs", duracao_formato: "até 1h30", contexto: "Priceless Band", custo_interno: 0, valor_parceiro: 2700, valor_cliente_final: 2900, notas: "Priceless Band 2026 · Parceiro + Preço 2026" },
+  { servico: "Banda quinteto + 2 Back Vocals", duracao_formato: "até 1h30", contexto: "Priceless Band", custo_interno: 0, valor_parceiro: 2500, valor_cliente_final: 2700, notas: "Priceless Band 2026 · Parceiro + Preço 2026" },
+  { servico: "Banda quinteto + 2 Back Vocals", duracao_formato: "até 1h30", contexto: "SUD", cliente_nome: "SUD", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 2100, notas: "Priceless Band 2026 · Valor SUD" },
+  { servico: "Banda quinteto + 2 BVs c/ AVs", duracao_formato: "até 1h30", contexto: "Priceless Band", custo_interno: 0, valor_parceiro: 3000, valor_cliente_final: 3200, notas: "Priceless Band 2026 · Parceiro + Preço 2026" },
+
+  // Equipamento avulso. Custo equipamento fica em notas; custo interno operacional = 0 quando não indicado.
+  { servico: "DJ Booth LED - branco", duracao_formato: "equipamento", contexto: "Equipamento avulso", custo_interno: 0, valor_parceiro: 60, valor_cliente_final: 90, notas: "Equipamento LLE · Custo equipamento: 300€" },
+  { servico: "DJ Booth LED - preto", duracao_formato: "equipamento", contexto: "Equipamento avulso", custo_interno: 0, valor_parceiro: 60, valor_cliente_final: 80, notas: "Equipamento LLE · Custo equipamento: 300€" },
+  { servico: "1 PA Mackie Thump 212 12\"", duracao_formato: "equipamento", contexto: "Equipamento avulso", custo_interno: 0, valor_parceiro: 160, valor_cliente_final: 240, notas: "Equipamento LLE · Custo equipamento: 800€" },
+  { servico: "Mixer Behringer Xenyx 1202SFX", duracao_formato: "mesa de mistura", contexto: "Equipamento avulso", custo_interno: 0, valor_parceiro: 30, valor_cliente_final: 45, notas: "Equipamento LLE · Custo equipamento: 150€" },
+  { servico: "Controller Pioneer Rekordbox DJ DDJ-400", duracao_formato: "controladora", contexto: "Equipamento avulso", custo_interno: 0, valor_parceiro: 60, valor_cliente_final: 90, notas: "Equipamento LLE · Custo equipamento: 300€" },
+  { servico: "Stairville LED Bar 240/8 RGB DMX 30º", duracao_formato: "luz", contexto: "Equipamento avulso", custo_interno: 0, valor_parceiro: 15, valor_cliente_final: 25, notas: "Equipamento LLE · Custo equipamento: 70€" },
+  { servico: "4 Baterias LEDs Uking RGBWA + UV Par Light", duracao_formato: "pack luz", contexto: "Equipamento avulso", custo_interno: 0, valor_parceiro: 240, valor_cliente_final: 360, notas: "Equipamento LLE · Custo equipamento: 1200€ · inclui referência a 2 luzes UV" },
+  { servico: "8 LEDs Wash 7x12 RGBW", duracao_formato: "pack luz", contexto: "Equipamento avulso", custo_interno: 0, valor_parceiro: 60, valor_cliente_final: 90, notas: "Equipamento LLE · Custo equipamento: 300€" },
+  { servico: "4 LEDs Uking 105W 7x15W RGBW", duracao_formato: "pack luz", contexto: "Equipamento avulso", custo_interno: 0, valor_parceiro: 57, valor_cliente_final: 85.5, notas: "Equipamento LLE · Custo equipamento: 285€" },
+  { servico: "LED efeito flor Eurolite FE-700", duracao_formato: "luz", contexto: "Equipamento avulso", custo_interno: 0, valor_parceiro: 40, valor_cliente_final: 60, notas: "Equipamento LLE · Custo equipamento: 200€" },
+  { servico: "Máquina de fumo Ibiza LSM900W", duracao_formato: "efeito", contexto: "Equipamento avulso", custo_interno: 0, valor_parceiro: 14, valor_cliente_final: 21, notas: "Equipamento LLE · Custo equipamento: 70€" },
+  { servico: "Microfone c/ fio Sennheiser e835", duracao_formato: "microfone", contexto: "Equipamento avulso", custo_interno: 0, valor_parceiro: 16, valor_cliente_final: 24, notas: "Equipamento LLE · Custo equipamento: 80€" },
+  { servico: "2 Microfones dual UHF s/ fios GLXD2", duracao_formato: "microfones", contexto: "Equipamento avulso", custo_interno: 0, valor_parceiro: 10, valor_cliente_final: 15, notas: "Equipamento LLE · Custo equipamento: 30€" },
+  { servico: "1 Shure SM58 s/ fios", duracao_formato: "microfone", contexto: "Equipamento avulso", custo_interno: 0, valor_parceiro: 100, valor_cliente_final: 150, notas: "Equipamento LLE · Custo equipamento: 500€" },
+  { servico: "Cablagem completa XLR", duracao_formato: "3m, 6m, 10m, 20m", contexto: "Equipamento avulso", custo_interno: 0, valor_parceiro: 25, valor_cliente_final: 25, notas: "Equipamento LLE · Custo equipamento inestimável · taxa fixa" },
+
+  // Packs AV. Valores internos/equipamento não indicados; custo operacional/técnico fica nas notas.
+  { servico: "Discurso", duracao_formato: "1 PA + mesa + 2 micros sem fio", contexto: "Pack AV", custo_interno: 0, valor_parceiro: 450, valor_cliente_final: 500, notas: "Inclui 1 PA Mackie Thump 212, Behringer Xenyx 1202SFX, 2 microfones sem fio e cablagem completa. Inclui técnico montagem/desmontagem; deslocação à parte." },
+  { servico: "DJ Basic", duracao_formato: "1 PA + mesa + booth + DDJ-400 + 2 micros", contexto: "Pack AV", custo_interno: 0, valor_parceiro: 370, valor_cliente_final: 680, notas: "Inclui 1 PA Mackie Thump 212, Behringer Xenyx 1202SFX, DJ Booth LED B/P, DDJ-400, 2 microfones sem fio e cablagem completa. Inclui técnico montagem/desmontagem; deslocação à parte." },
+  { servico: "Let's Party", duracao_formato: "PA + SUB + luz + fumo", contexto: "Pack AV", custo_interno: 0, valor_parceiro: 500, valor_cliente_final: 1000, notas: "Inclui 1 PA Mackie Thump 212, SUB a especificar, mesa, DJ Booth LED B/P, DDJ-400, 2 microfones sem fio, 4 Moving Heads, Eurolite FE-700, Stairville LED Bar, 4 pares LED bateria Uking RGBWA + UV, máquina de fumo e cablagem completa. Preço pode ajustar conforme SUB/Moving Heads. Fazer soma para desconto se necessário." },
+  { servico: "Premium", duracao_formato: "2 PAs + 2 SUB + luz premium + fumo", contexto: "Pack AV", custo_interno: 0, valor_parceiro: 750, valor_cliente_final: 1500, notas: "Inclui 2 PAs Mackie Thump 212, 2 SUB a especificar, mesa, DJ Booth LED B/P, DDJ-400, 2 microfones sem fio, 12 Moving Heads, Eurolite FE-700, Stairville LED Bar, máquina de fumo e cablagem completa. Preço pode ajustar conforme SUB/Moving Heads. Incluir técnico de luz além do técnico de som." },
+
+  // Custos operacionais. Valores sob consulta ficam a 0 para não inventar preço.
+  { servico: "Serviço sob consulta", duracao_formato: "operacional", contexto: "Operacional", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 0, notas: "Custos operacionais · sob consulta" },
+  { servico: "Técnico de Som", duracao_formato: "serviço", contexto: "Operacional", custo_interno: 175, valor_parceiro: 0, valor_cliente_final: 0, notas: "Custo operacional interno" },
+  { servico: "Técnico de Luz", duracao_formato: "serviço", contexto: "Operacional", custo_interno: 175, valor_parceiro: 0, valor_cliente_final: 0, notas: "Custo operacional interno" },
+  { servico: "Deslocações", duracao_formato: "operacional", contexto: "Operacional", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 0, notas: "Custos operacionais · sob consulta" },
+  { servico: "Aluguer de Carrinha", duracao_formato: "operacional", contexto: "Operacional", custo_interno: 0, valor_parceiro: 0, valor_cliente_final: 0, notas: "Custos operacionais · sob consulta" },
+
+];
+
 async function ensureColaboradoresExtendedColumns() {
   try { await turso.execute("ALTER TABLE colaboradores ADD COLUMN nome_artistico TEXT DEFAULT ''"); } catch { }
   try { await turso.execute("ALTER TABLE colaboradores ADD COLUMN nome_pessoal TEXT DEFAULT ''"); } catch { }
@@ -96,6 +216,72 @@ async function ensureValoresMasterTable() {
       });
     }
   }
+
+  await seedValoresMasterLLE2026();
+}
+
+function isBlankOrDefaultValorMasterRow(row: any) {
+  const notas = String(row?.notas || '');
+  const numericBlank = Number(row?.custo_interno || 0) === 0 && Number(row?.valor_parceiro || 0) === 0 && Number(row?.valor_cliente_final || 0) === 0;
+  return numericBlank || notas.includes('Serviço base LLE') || notas.includes('Criado a partir dos serviços');
+}
+
+async function updateValorMasterSeedRow(id: number, row: any, seed: ValorMasterSeed) {
+  const keepManual = !isBlankOrDefaultValorMasterRow(row);
+  const custoInterno = keepManual && Number(row?.custo_interno || 0) !== 0 ? Number(row.custo_interno) : seed.custo_interno;
+  const valorParceiro = keepManual && Number(row?.valor_parceiro || 0) !== 0 ? Number(row.valor_parceiro) : seed.valor_parceiro;
+  const valorClienteFinal = keepManual && Number(row?.valor_cliente_final || 0) !== 0 ? Number(row.valor_cliente_final) : seed.valor_cliente_final;
+  const notas = keepManual && String(row?.notas || '').trim() ? String(row.notas) : (seed.notas || 'Tabela LLE 2026');
+
+  await turso.execute({
+    sql: "UPDATE valores_master SET servico=?, duracao_formato=?, contexto=?, cliente_nome=?, custo_interno=?, valor_parceiro=?, valor_cliente_final=?, notas=?, ativo=1 WHERE id=?",
+    args: [seed.servico, seed.duracao_formato, seed.contexto, seed.cliente_nome || '', custoInterno, valorParceiro, valorClienteFinal, notas, id],
+  });
+}
+
+async function insertValorMasterSeed(seed: ValorMasterSeed) {
+  await turso.execute({
+    sql: "INSERT INTO valores_master (servico, duracao_formato, contexto, cliente_nome, custo_interno, valor_parceiro, valor_cliente_final, notas, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
+    args: [seed.servico, seed.duracao_formato, seed.contexto, seed.cliente_nome || '', seed.custo_interno, seed.valor_parceiro, seed.valor_cliente_final, seed.notas || 'Tabela LLE 2026'],
+  });
+}
+
+async function seedValoresMasterLLE2026() {
+  for (const seed of DEFAULT_VALORES_MASTER) {
+    const exact = await turso.execute({
+      sql: `
+        SELECT * FROM valores_master
+        WHERE LOWER(TRIM(servico)) = LOWER(TRIM(?))
+          AND LOWER(TRIM(COALESCE(duracao_formato, ''))) = LOWER(TRIM(?))
+          AND LOWER(TRIM(COALESCE(contexto, ''))) = LOWER(TRIM(?))
+          AND LOWER(TRIM(COALESCE(cliente_nome, ''))) = LOWER(TRIM(?))
+        LIMIT 1
+      `,
+      args: [seed.servico, seed.duracao_formato, seed.contexto, seed.cliente_nome || ''],
+    });
+    if (exact.rows.length > 0) {
+      await updateValorMasterSeedRow(Number((exact.rows[0] as any).id), exact.rows[0], seed);
+      continue;
+    }
+
+    const reusableDefault = await turso.execute({
+      sql: `
+        SELECT * FROM valores_master
+        WHERE LOWER(TRIM(servico)) = LOWER(TRIM(?))
+          AND TRIM(COALESCE(duracao_formato, '')) = ''
+          AND LOWER(TRIM(COALESCE(contexto, 'Normal'))) = 'normal'
+          AND TRIM(COALESCE(cliente_nome, '')) = ''
+        LIMIT 1
+      `,
+      args: [seed.servico],
+    });
+    if (reusableDefault.rows.length > 0 && isBlankOrDefaultValorMasterRow(reusableDefault.rows[0])) {
+      await updateValorMasterSeedRow(Number((reusableDefault.rows[0] as any).id), reusableDefault.rows[0], seed);
+      continue;
+    }
+
+    await insertValorMasterSeed(seed);
+  }
 }
 
 async function ensureResidenciasAtivasTable() {
@@ -139,6 +325,15 @@ async function ensureResidenciasAtivasTable() {
 async function ensureCommercialColumns() {
   try { await turso.execute("ALTER TABLE agenda ADD COLUMN residencia_id INTEGER"); } catch { }
   try { await turso.execute("ALTER TABLE leads ADD COLUMN residencia_id INTEGER"); } catch { }
+  const cols = [
+    "tipo_comercial TEXT DEFAULT 'Evento'",
+    "servico_comercial TEXT DEFAULT ''",
+    "valor_contexto TEXT DEFAULT 'Cliente Final'",
+  ];
+  for (const col of cols) {
+    try { await turso.execute(`ALTER TABLE agenda ADD COLUMN ${col}`); } catch { }
+    try { await turso.execute(`ALTER TABLE leads ADD COLUMN ${col}`); } catch { }
+  }
 }
 
 function extractField(details: string, field: string): string {
@@ -162,6 +357,7 @@ function uuidv4(): string {
 async function propagateByEventId(event_id: string, fields: {
   title?: string; event_date?: string; value?: number; status?: string;
   cliente_id?: number | null; cliente_nome?: string; modalidade?: string;
+  tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string;
   local?: string; contacto?: string; notas?: string;
   valor_recebido?: number;
 }) {
@@ -177,6 +373,9 @@ async function propagateByEventId(event_id: string, fields: {
   if (f.cliente_id !== undefined)    { agendaUpdates.push('cliente_id=?');    agendaArgs.push(f.cliente_id ?? null); }
   if (f.cliente_nome !== undefined)  { agendaUpdates.push('cliente_nome=?');  agendaArgs.push(f.cliente_nome); }
   if (f.modalidade !== undefined)    { agendaUpdates.push('modalidade=?');    agendaArgs.push(f.modalidade); }
+  if (f.tipo_comercial !== undefined){ agendaUpdates.push('tipo_comercial=?');agendaArgs.push(f.tipo_comercial); }
+  if (f.servico_comercial !== undefined){ agendaUpdates.push('servico_comercial=?');agendaArgs.push(f.servico_comercial); }
+  if (f.valor_contexto !== undefined){ agendaUpdates.push('valor_contexto=?');agendaArgs.push(f.valor_contexto); }
   if (f.local !== undefined)         { agendaUpdates.push('venue=?');         agendaArgs.push(f.local); }
   if (f.contacto !== undefined)      { agendaUpdates.push('contacto=?');      agendaArgs.push(f.contacto); }
   if (f.notas !== undefined)         { agendaUpdates.push('notas=?');         agendaArgs.push(f.notas); }
@@ -196,6 +395,9 @@ async function propagateByEventId(event_id: string, fields: {
   if (f.cliente_id !== undefined)    { leadsUpdates.push('cliente_id=?');    leadsArgs.push(f.cliente_id ?? null); }
   if (f.cliente_nome !== undefined)  { leadsUpdates.push('client_name=?');   leadsArgs.push(f.cliente_nome); }
   if (f.modalidade !== undefined)    { leadsUpdates.push('modalidade=?');    leadsArgs.push(f.modalidade); }
+  if (f.tipo_comercial !== undefined){ leadsUpdates.push('tipo_comercial=?');leadsArgs.push(f.tipo_comercial); }
+  if (f.servico_comercial !== undefined){ leadsUpdates.push('servico_comercial=?');leadsArgs.push(f.servico_comercial); }
+  if (f.valor_contexto !== undefined){ leadsUpdates.push('valor_contexto=?');leadsArgs.push(f.valor_contexto); }
   if (f.local !== undefined)         { leadsUpdates.push('local=?');         leadsArgs.push(f.local); }
   if (f.contacto !== undefined)      { leadsUpdates.push('contacto=?');      leadsArgs.push(f.contacto); }
   if (f.notas !== undefined)         { leadsUpdates.push('notas=?');         leadsArgs.push(f.notas); }
@@ -293,6 +495,9 @@ export async function setupDatabase() {
       "cliente_id INTEGER",
       "cliente_nome TEXT DEFAULT ''",
       "modalidade TEXT DEFAULT 'Fatura'",
+      "tipo_comercial TEXT DEFAULT 'Evento'",
+      "servico_comercial TEXT DEFAULT ''",
+      "valor_contexto TEXT DEFAULT 'Cliente Final'",
       "valor_recebido REAL DEFAULT 0",
       "origem_lead_id INTEGER",
       "venue TEXT DEFAULT ''",
@@ -317,6 +522,9 @@ export async function setupDatabase() {
         notas TEXT DEFAULT '',
         cliente_id INTEGER,
         modalidade TEXT DEFAULT 'Fatura',
+        tipo_comercial TEXT DEFAULT 'Evento',
+        servico_comercial TEXT DEFAULT '',
+        valor_contexto TEXT DEFAULT 'Cliente Final',
         valor_recebido REAL DEFAULT 0,
         created_at TEXT DEFAULT (datetime('now'))
       )`);
@@ -332,6 +540,9 @@ export async function setupDatabase() {
       "notas TEXT DEFAULT ''",
       "cliente_id INTEGER",
       "modalidade TEXT DEFAULT 'Fatura'",
+      "tipo_comercial TEXT DEFAULT 'Evento'",
+      "servico_comercial TEXT DEFAULT ''",
+      "valor_contexto TEXT DEFAULT 'Cliente Final'",
       "valor_recebido REAL DEFAULT 0",
       "residencia_id INTEGER",
     ];
@@ -502,6 +713,9 @@ export async function getAllAgenda(userName: string = 'Admin') {
           cancelled: r.status === 'Cancelado' ? 1 : 0,
           billing_status: r.billing_status || '', cliente_id: r.cliente_id || null,
           cliente_nome: r.cliente_nome || '', modalidade: r.modalidade || 'Fatura',
+          tipo_comercial: r.tipo_comercial || 'Evento',
+          servico_comercial: r.servico_comercial || '',
+          valor_contexto: r.valor_contexto || 'Cliente Final',
           origem_lead_id: r.origem_lead_id ? Number(r.origem_lead_id) : null,
           contacto: r.contacto || '', notas: r.notas || '',
           event_id: (r.event_id as string) || '',
@@ -518,9 +732,11 @@ export async function getAllAgenda(userName: string = 'Admin') {
 export async function createAgendaEvent(data: {
   title: string; date: string; time: string; tipo: string; bill: number;
   billing_status?: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string;
+  tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string;
   origem_lead_id?: number | null; venue?: string; contacto?: string; notas?: string; residencia_id?: number | null;
 }) {
   try {
+    await ensureCommercialColumns();
     // Se há origem_lead_id, partilhar o event_id da lead; caso contrário gerar novo
     let eventId = uuidv4();
     if (data.origem_lead_id) {
@@ -530,8 +746,8 @@ export async function createAgendaEvent(data: {
     }
 
     await turso.execute({
-      sql: "INSERT INTO agenda (event_name, event_date, location, staff_needed, client_cachet, status, visibility, billing_status, cliente_id, cliente_nome, modalidade, origem_lead_id, venue, contacto, notas, event_id, residencia_id) VALUES (?, ?, ?, ?, ?, 'Confirmado', 'Public', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.origem_lead_id ?? null, data.venue || '', data.contacto || '', data.notas || '', eventId, data.residencia_id ?? null],
+      sql: "INSERT INTO agenda (event_name, event_date, location, staff_needed, client_cachet, status, visibility, billing_status, cliente_id, cliente_nome, modalidade, tipo_comercial, servico_comercial, valor_contexto, origem_lead_id, venue, contacto, notas, event_id, residencia_id) VALUES (?, ?, ?, ?, ?, 'Confirmado', 'Public', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.origem_lead_id ?? null, data.venue || '', data.contacto || '', data.notas || '', eventId, data.residencia_id ?? null],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
     const newId = Number(last.rows[0].id);
@@ -561,12 +777,13 @@ export async function createAgendaEvent(data: {
 
 export async function updateAgendaEvent(
   id: number,
-  data: { title: string; date: string; time: string; tipo: string; bill: number; billing_status?: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string; venue?: string; contacto?: string; notas?: string; residencia_id?: number | null; }
+  data: { title: string; date: string; time: string; tipo: string; bill: number; billing_status?: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string; tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string; venue?: string; contacto?: string; notas?: string; residencia_id?: number | null; }
 ) {
   try {
+    await ensureCommercialColumns();
     await turso.execute({
-      sql: "UPDATE agenda SET event_name=?, event_date=?, location=?, staff_needed=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, venue=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
-      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.venue || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, id],
+      sql: "UPDATE agenda SET event_name=?, event_date=?, location=?, staff_needed=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, venue=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
+      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.venue || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, id],
     });
 
     // Obter event_id e origem_lead_id actuais
@@ -609,6 +826,9 @@ export async function updateAgendaEvent(
       status: data.billing_status || 'Contacto',
       cliente_id: data.cliente_id ?? null, cliente_nome: data.cliente_nome || '',
       modalidade: data.modalidade || 'Fatura',
+      tipo_comercial: data.tipo_comercial || 'Evento',
+      servico_comercial: data.servico_comercial || '',
+      valor_contexto: data.valor_contexto || 'Cliente Final',
       local: data.venue || '', contacto: data.contacto || '', notas: data.notas || '',
     });
 
@@ -620,8 +840,8 @@ export async function updateAgendaEvent(
         // Dar o event_id correcto à lead e fazer sync directo
         await turso.execute({ sql: "UPDATE leads SET event_id=? WHERE id=?", args: [eventId, leadId] });
         await turso.execute({
-          sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, local=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
-          args: [data.title, data.date, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.venue || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, leadId],
+          sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, local=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
+          args: [data.title, data.date, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.venue || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, leadId],
         });
       }
     }
@@ -852,6 +1072,9 @@ export async function getAllLeads() {
         cancelled: r.status === 'Cancelado' ? 1 : 0,
         cliente_id: r.cliente_id || null, cliente_nome: (r.client_name as string) || '',
         modalidade: r.modalidade || 'Fatura',
+        tipo_comercial: r.tipo_comercial || 'Evento',
+        servico_comercial: r.servico_comercial || '',
+        valor_contexto: r.valor_contexto || 'Cliente Final',
         agenda_event_id: r.agenda_event_id ? Number(r.agenda_event_id) : null,
         event_id: (r.event_id as string) || '',
         residencia_id: r.residencia_id == null ? null : Number(r.residencia_id),
@@ -866,13 +1089,15 @@ export async function getAllLeads() {
 export async function createLead(data: {
   title: string; event_date: string; value: number; status: string;
   cliente_id?: number | null; cliente_nome?: string; modalidade?: string;
+  tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string;
   local?: string; contacto?: string; notas?: string; residencia_id?: number | null;
 }) {
   try {
+    await ensureCommercialColumns();
     const eventId = uuidv4();
     await turso.execute({
-      sql: "INSERT INTO leads (title, event_date, value, status, cliente_id, client_name, modalidade, local, contacto, notas, event_id, residencia_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', data.contacto || '', data.notas || '', eventId, data.residencia_id ?? null],
+      sql: "INSERT INTO leads (title, event_date, value, status, cliente_id, client_name, modalidade, tipo_comercial, servico_comercial, valor_contexto, local, contacto, notas, event_id, residencia_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.local || '', data.contacto || '', data.notas || '', eventId, data.residencia_id ?? null],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
     return { success: true, id: Number(last.rows[0].id), event_id: eventId };
@@ -884,12 +1109,13 @@ export async function createLead(data: {
 
 export async function updateLead(
   id: number,
-  data: { title: string; event_date: string; value: number; status: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string; local?: string; contacto?: string; notas?: string; residencia_id?: number | null; }
+  data: { title: string; event_date: string; value: number; status: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string; tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string; local?: string; contacto?: string; notas?: string; residencia_id?: number | null; }
 ) {
   try {
+    await ensureCommercialColumns();
     await turso.execute({
-      sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, local=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
-      args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, id],
+      sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, local=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
+      args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.local || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, id],
     });
 
     // Garantir que esta lead tem event_id
@@ -905,6 +1131,9 @@ export async function updateLead(
       title: data.title, event_date: data.event_date, value: data.value,
       status: data.status, cliente_id: data.cliente_id ?? null,
       cliente_nome: data.cliente_nome || '', modalidade: data.modalidade || 'Fatura',
+      tipo_comercial: data.tipo_comercial || 'Evento',
+      servico_comercial: data.servico_comercial || '',
+      valor_contexto: data.valor_contexto || 'Cliente Final',
       local: data.local || '', contacto: data.contacto || '', notas: data.notas || '',
     });
 
@@ -918,8 +1147,8 @@ export async function updateLead(
       if (!agEid || agEid !== eventId) {
         await turso.execute({ sql: "UPDATE agenda SET event_id=? WHERE id=?", args: [eventId, (row as any).id] });
         await turso.execute({
-          sql: "UPDATE agenda SET event_name=?, event_date=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, venue=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
-          args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, (row as any).id],
+          sql: "UPDATE agenda SET event_name=?, event_date=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, venue=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
+          args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.local || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, (row as any).id],
         });
       }
     }
@@ -933,8 +1162,8 @@ export async function updateLead(
     for (const row of unlinked.rows as any[]) {
       // Ligar e partilhar event_id
       await turso.execute({
-        sql: "UPDATE agenda SET origem_lead_id=?, event_id=?, event_name=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, venue=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
-        args: [id, eventId, data.title, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.local || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, row.id],
+        sql: "UPDATE agenda SET origem_lead_id=?, event_id=?, event_name=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, venue=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
+        args: [id, eventId, data.title, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.local || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, row.id],
       });
     }
 
@@ -1951,6 +2180,324 @@ export async function dismissArtistConflict(data: { event_date: string; artist_n
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+
+type MaterialPackSeed = {
+  nome: string;
+  descricao: string;
+  valor_referencia: number;
+  items: { material_nome: string; categoria: string; quantidade: number; notas?: string }[];
+  servicos: { servico: string; duracao_formato?: string; contexto?: string; notas?: string }[];
+};
+
+const DEFAULT_MATERIAL_PACKS: MaterialPackSeed[] = [
+  {
+    nome: "DJ Basic",
+    descricao: "Pack incluído quando vendemos DJ todo o dia ou formato DJ com AV básico.",
+    valor_referencia: 680,
+    items: [
+      { material_nome: '1 PA Mackie Thump 212 12"', categoria: "Som", quantidade: 1, notas: "1 PA = 2 colunas" },
+      { material_nome: "Mixer Behringer Xenyx 1202SFX", categoria: "Som", quantidade: 1 },
+      { material_nome: "DJ Booth LED (B/P)", categoria: "DJ / Cabine", quantidade: 1, notas: "Escolher branco ou preto na preparação" },
+      { material_nome: "Controller Pioneer Rekordbox DJ DDJ-400", categoria: "DJ / Cabine", quantidade: 1 },
+      { material_nome: "2 Microfones dual UHF s/ fios GLXD2", categoria: "Microfones", quantidade: 1 },
+      { material_nome: "Cablagem completa XLR (3m, 6m, 10m, 20m)", categoria: "Som", quantidade: 1 },
+    ],
+    servicos: [
+      { servico: "DJ todo o dia", duracao_formato: "evento", contexto: "Normal", notas: "Incluído/oferta no pacote DJ todo o dia" },
+      { servico: "DJ todo o dia", duracao_formato: "evento", contexto: "Residência", notas: "Incluído/oferta no pacote DJ todo o dia" },
+    ],
+  },
+  {
+    nome: "AVs Basic",
+    descricao: "Pack de AV básico para banda/voz com AVs incluídos.",
+    valor_referencia: 500,
+    items: [
+      { material_nome: '1 PA Mackie Thump 212 12"', categoria: "Som", quantidade: 1, notas: "1 PA = 2 colunas" },
+      { material_nome: "Mixer Behringer Xenyx 1202SFX", categoria: "Som", quantidade: 1 },
+      { material_nome: "Shure SM58 s/ fios", categoria: "Microfones", quantidade: 1 },
+      { material_nome: "Cablagem completa XLR (3m, 6m, 10m, 20m)", categoria: "Som", quantidade: 1 },
+      { material_nome: "Par LED", categoria: "Luz", quantidade: 1 },
+    ],
+    servicos: [
+      { servico: "AV Base", duracao_formato: "PA + luz base", contexto: "Normal", notas: "Pack AV básico" },
+      { servico: "Annia Solo c/ AVs", duracao_formato: "até 1h30", contexto: "Priceless Band", notas: "AVs incluídos no formato" },
+      { servico: "Banda Duo c/ AVs", duracao_formato: "até 1h30", contexto: "Priceless Band", notas: "AVs incluídos no formato" },
+      { servico: "Banda Trio c/ AVs", duracao_formato: "até 1h30", contexto: "Priceless Band", notas: "AVs incluídos no formato" },
+      { servico: "Banda quarteto c/ AVs", duracao_formato: "até 1h30", contexto: "Priceless Band", notas: "AVs incluídos no formato" },
+      { servico: "Banda quinteto c/ AVs", duracao_formato: "até 1h30", contexto: "Priceless Band", notas: "AVs incluídos no formato" },
+      { servico: "Banda quinteto + Cantor c/ AVs", duracao_formato: "até 1h30", contexto: "Priceless Band", notas: "AVs incluídos no formato" },
+      { servico: "Banda quinteto + 2 BVs c/ AVs", duracao_formato: "até 1h30", contexto: "Priceless Band", notas: "AVs incluídos no formato" },
+    ],
+  },
+];
+
+async function ensureMaterialPacksTables() {
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS material_packs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL UNIQUE,
+      descricao TEXT DEFAULT '',
+      valor_referencia REAL NOT NULL DEFAULT 0,
+      ativo INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS material_pack_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pack_id INTEGER NOT NULL,
+      material_nome TEXT NOT NULL,
+      categoria TEXT DEFAULT '',
+      quantidade INTEGER NOT NULL DEFAULT 1,
+      notas TEXT DEFAULT '',
+      ativo INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS servico_material_packs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      servico TEXT NOT NULL,
+      duracao_formato TEXT DEFAULT '',
+      contexto TEXT DEFAULT 'Normal',
+      pack_id INTEGER NOT NULL,
+      incluido_sem_custo INTEGER DEFAULT 1,
+      valor_referencia REAL NOT NULL DEFAULT 0,
+      notas TEXT DEFAULT '',
+      ativo INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS material_pack_reservas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      evento_id INTEGER NOT NULL,
+      pack_id INTEGER NOT NULL,
+      pack_nome TEXT DEFAULT '',
+      servico TEXT DEFAULT '',
+      valor_referencia REAL NOT NULL DEFAULT 0,
+      valor_cobrado REAL NOT NULL DEFAULT 0,
+      desconto_oferta REAL NOT NULL DEFAULT 0,
+      reservado_por TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+  try { await turso.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_material_pack_reserva_evento_pack ON material_pack_reservas(evento_id, pack_id)"); } catch { }
+}
+
+async function getOrCreateMaterialByName(nome: string, categoria = "Outro") {
+  await setupMateriais();
+  const found = await turso.execute({
+    sql: "SELECT * FROM materiais WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) LIMIT 1",
+    args: [nome],
+  });
+  if (found.rows.length > 0) return found.rows[0] as any;
+  await turso.execute({
+    sql: "INSERT INTO materiais (nome, categoria, quantidade_total, dono, local_habitual, notas, ativo) VALUES (?, ?, 1, 'LLE', 'Loja', 'Criado automaticamente por Pack de Material', 1)",
+    args: [nome, categoria],
+  });
+  const inserted = await turso.execute({
+    sql: "SELECT * FROM materiais WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) LIMIT 1",
+    args: [nome],
+  });
+  return inserted.rows[0] as any;
+}
+
+async function seedMaterialPacks() {
+  await ensureMaterialPacksTables();
+  for (const seed of DEFAULT_MATERIAL_PACKS) {
+    const existing = await turso.execute({ sql: "SELECT id FROM material_packs WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) LIMIT 1", args: [seed.nome] });
+    let packId: number;
+    if (existing.rows.length > 0) {
+      packId = Number((existing.rows[0] as any).id);
+      await turso.execute({ sql: "UPDATE material_packs SET descricao=?, valor_referencia=?, ativo=1 WHERE id=?", args: [seed.descricao, seed.valor_referencia, packId] });
+    } else {
+      await turso.execute({ sql: "INSERT INTO material_packs (nome, descricao, valor_referencia, ativo) VALUES (?, ?, ?, 1)", args: [seed.nome, seed.descricao, seed.valor_referencia] });
+      const last = await turso.execute("SELECT last_insert_rowid() as id");
+      packId = Number((last.rows[0] as any).id);
+    }
+
+    for (const item of seed.items) {
+      await getOrCreateMaterialByName(item.material_nome, item.categoria);
+      const existsItem = await turso.execute({
+        sql: "SELECT id FROM material_pack_items WHERE pack_id=? AND LOWER(TRIM(material_nome))=LOWER(TRIM(?)) LIMIT 1",
+        args: [packId, item.material_nome],
+      });
+      if (existsItem.rows.length > 0) {
+        await turso.execute({
+          sql: "UPDATE material_pack_items SET categoria=?, quantidade=?, notas=?, ativo=1 WHERE id=?",
+          args: [item.categoria, item.quantidade, item.notas || '', Number((existsItem.rows[0] as any).id)],
+        });
+      } else {
+        await turso.execute({
+          sql: "INSERT INTO material_pack_items (pack_id, material_nome, categoria, quantidade, notas, ativo) VALUES (?, ?, ?, ?, ?, 1)",
+          args: [packId, item.material_nome, item.categoria, item.quantidade, item.notas || ''],
+        });
+      }
+    }
+
+    for (const link of seed.servicos) {
+      const existsLink = await turso.execute({
+        sql: `SELECT id FROM servico_material_packs
+              WHERE pack_id=? AND LOWER(TRIM(servico))=LOWER(TRIM(?))
+                AND LOWER(TRIM(COALESCE(duracao_formato,'')))=LOWER(TRIM(?))
+                AND LOWER(TRIM(COALESCE(contexto,'Normal')))=LOWER(TRIM(?)) LIMIT 1`,
+        args: [packId, link.servico, link.duracao_formato || '', link.contexto || 'Normal'],
+      });
+      if (existsLink.rows.length > 0) {
+        await turso.execute({
+          sql: "UPDATE servico_material_packs SET valor_referencia=?, notas=?, incluido_sem_custo=1, ativo=1 WHERE id=?",
+          args: [seed.valor_referencia, link.notas || '', Number((existsLink.rows[0] as any).id)],
+        });
+      } else {
+        await turso.execute({
+          sql: "INSERT INTO servico_material_packs (servico, duracao_formato, contexto, pack_id, incluido_sem_custo, valor_referencia, notas, ativo) VALUES (?, ?, ?, ?, 1, ?, ?, 1)",
+          args: [link.servico, link.duracao_formato || '', link.contexto || 'Normal', packId, seed.valor_referencia, link.notas || ''],
+        });
+      }
+    }
+  }
+}
+
+export async function getAllMaterialPacks() {
+  try {
+    await setupMateriais();
+    await seedMaterialPacks();
+    const packs = await turso.execute("SELECT * FROM material_packs WHERE ativo=1 ORDER BY nome ASC");
+    const items = await turso.execute("SELECT * FROM material_pack_items WHERE ativo=1 ORDER BY id ASC");
+    const links = await turso.execute("SELECT smp.*, mp.nome as pack_nome FROM servico_material_packs smp LEFT JOIN material_packs mp ON smp.pack_id=mp.id WHERE smp.ativo=1 ORDER BY smp.servico ASC");
+    return {
+      success: true,
+      data: packs.rows.map((p: any) => ({
+        id: Number(p.id),
+        nome: p.nome as string,
+        descricao: (p.descricao as string) || '',
+        valor_referencia: Number(p.valor_referencia) || 0,
+        ativo: p.ativo === 1 || p.ativo === true ? 1 : 0,
+        items: items.rows.filter((i: any) => Number(i.pack_id) === Number(p.id)).map((i: any) => ({
+          id: Number(i.id), pack_id: Number(i.pack_id), material_nome: i.material_nome as string,
+          categoria: (i.categoria as string) || '', quantidade: Number(i.quantidade) || 1, notas: (i.notas as string) || '',
+        })),
+        links: links.rows.filter((l: any) => Number(l.pack_id) === Number(p.id)).map((l: any) => ({
+          id: Number(l.id), servico: l.servico as string, duracao_formato: (l.duracao_formato as string) || '',
+          contexto: (l.contexto as string) || 'Normal', notas: (l.notas as string) || '',
+        })),
+      })),
+    };
+  } catch (error) {
+    console.error("Erro getAllMaterialPacks:", error);
+    return { success: false, data: [] };
+  }
+}
+
+export async function getMaterialPackReservasEvento(eventoId: number) {
+  try {
+    await setupMateriais();
+    await seedMaterialPacks();
+    const res = await turso.execute({
+      sql: "SELECT * FROM material_pack_reservas WHERE evento_id=? ORDER BY created_at ASC",
+      args: [eventoId],
+    });
+    return { success: true, data: res.rows.map((r: any) => ({
+      id: Number(r.id), evento_id: Number(r.evento_id), pack_id: Number(r.pack_id), pack_nome: (r.pack_nome as string) || '',
+      servico: (r.servico as string) || '', valor_referencia: Number(r.valor_referencia) || 0,
+      valor_cobrado: Number(r.valor_cobrado) || 0, desconto_oferta: Number(r.desconto_oferta) || 0,
+      reservado_por: (r.reservado_por as string) || '', created_at: (r.created_at as string) || '',
+    })) };
+  } catch (error) {
+    console.error("Erro getMaterialPackReservasEvento:", error);
+    return { success: false, data: [] };
+  }
+}
+
+export async function reservarMaterialPacksParaEvento(data: {
+  evento_id: number; evento_nome: string; pack_ids: number[]; servico?: string; reservado_por?: string;
+}) {
+  try {
+    await setupMateriais();
+    await seedMaterialPacks();
+    let createdMovements = 0;
+    let skippedPacks = 0;
+    for (const rawPackId of Array.from(new Set((data.pack_ids || []).map(Number).filter(Boolean)))) {
+      const packId = Number(rawPackId);
+      const packRes = await turso.execute({ sql: "SELECT * FROM material_packs WHERE id=? AND ativo=1", args: [packId] });
+      if (packRes.rows.length === 0) continue;
+      const pack = packRes.rows[0] as any;
+      const exists = await turso.execute({ sql: "SELECT id FROM material_pack_reservas WHERE evento_id=? AND pack_id=? LIMIT 1", args: [data.evento_id, packId] });
+      if (exists.rows.length > 0) { skippedPacks++; continue; }
+
+      const valorReferencia = Number(pack.valor_referencia) || 0;
+      await turso.execute({
+        sql: "INSERT INTO material_pack_reservas (evento_id, pack_id, pack_nome, servico, valor_referencia, valor_cobrado, desconto_oferta, reservado_por) VALUES (?, ?, ?, ?, ?, 0, ?, ?)",
+        args: [data.evento_id, packId, pack.nome || '', data.servico || '', valorReferencia, valorReferencia, data.reservado_por || ''],
+      });
+
+      const items = await turso.execute({ sql: "SELECT * FROM material_pack_items WHERE pack_id=? AND ativo=1", args: [packId] });
+      for (const item of items.rows as any[]) {
+        const mat = await getOrCreateMaterialByName(String(item.material_nome || ''), String(item.categoria || 'Outro'));
+        const notaLinha = [`Pack incluído/oferta: ${pack.nome}`, valorReferencia ? `Valor referência pack: ${valorReferencia}€` : '', item.notas || ''].filter(Boolean).join(' · ');
+        await registarSaidaMaterial({
+          material_id: Number(mat.id),
+          material_nome: String(mat.nome || item.material_nome || ''),
+          material_imagem: String(mat.imagem || ''),
+          quantidade: Number(item.quantidade) || 1,
+          origem: String(mat.local_habitual || 'Loja'),
+          origem_detalhe: '',
+          dono_material: String(mat.dono || 'LLE'),
+          quem_levou: data.reservado_por || '',
+          evento: data.evento_nome,
+          evento_id: data.evento_id,
+          responsavel: data.reservado_por || '',
+          notas: notaLinha,
+        });
+        createdMovements++;
+      }
+    }
+    return { success: true, createdMovements, skippedPacks };
+  } catch (error) {
+    console.error("Erro reservarMaterialPacksParaEvento:", error);
+    return { success: false, message: "Erro ao reservar packs de material.", createdMovements: 0, skippedPacks: 0 };
+  }
+}
+
+export async function getMaterialPackIdsLead(leadId: number) {
+  try {
+    await setupMateriais();
+    await seedMaterialPacks();
+    const res = await turso.execute({ sql: "SELECT pack_id FROM lead_material_packs WHERE lead_id=? AND ativo=1", args: [leadId] });
+    return { success: true, data: res.rows.map((r: any) => Number(r.pack_id)).filter(Boolean) };
+  } catch (error) {
+    console.error("Erro getMaterialPackIdsLead:", error);
+    return { success: false, data: [] };
+  }
+}
+
+export async function syncMaterialPacksLead(leadId: number, packIds: number[]) {
+  try {
+    await setupMateriais();
+    await seedMaterialPacks();
+    await turso.execute({ sql: "DELETE FROM lead_material_packs WHERE lead_id=?", args: [leadId] });
+    for (const packId of Array.from(new Set((packIds || []).map(Number).filter(Boolean)))) {
+      await turso.execute({ sql: "INSERT INTO lead_material_packs (lead_id, pack_id, ativo) VALUES (?, ?, 1)", args: [leadId, packId] });
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("Erro syncMaterialPacksLead:", error);
+    return { success: false };
+  }
+}
+
+export async function reservarMaterialPacksDaLeadParaEvento(leadId: number, eventoId: number, eventoNome: string, reservadoPor?: string) {
+  try {
+    const selected = await getMaterialPackIdsLead(leadId);
+    if (!selected.success || selected.data.length === 0) return { success: true, createdMovements: 0, skippedPacks: 0 };
+    return await reservarMaterialPacksParaEvento({ evento_id: eventoId, evento_nome: eventoNome, pack_ids: selected.data, servico: "Lead", reservado_por: reservadoPor || '' });
+  } catch (error) {
+    console.error("Erro reservarMaterialPacksDaLeadParaEvento:", error);
+    return { success: false, createdMovements: 0, skippedPacks: 0 };
+  }
+}
+
 // MATERIAIS — catálogo de equipamento + controlo de saídas/entradas
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -2016,6 +2563,18 @@ export async function setupMateriais() {
     for (const col of movimentoCols) {
       try { await turso.execute(`ALTER TABLE material_movimentos ADD COLUMN ${col}`); } catch { }
     }
+
+    await ensureMaterialPacksTables();
+    await turso.execute(`
+      CREATE TABLE IF NOT EXISTS lead_material_packs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        lead_id INTEGER NOT NULL,
+        pack_id INTEGER NOT NULL,
+        ativo INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+    try { await turso.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_lead_material_packs_lead_pack ON lead_material_packs(lead_id, pack_id)"); } catch { }
     return { success: true };
   } catch (error) {
     console.error("Erro setup materiais:", error);

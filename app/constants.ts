@@ -1,4 +1,5 @@
 export const SERVICOS_VENDIDOS = [
+  "DJ",
   "DJ s/ AV",
   "DJ todo o dia",
   "Karaoke s/ AV",
@@ -37,6 +38,44 @@ export const SERVICOS_VENDIDOS = [
   "Guarda Roupa",
   "Produtor",
   "Trio Fado",
+  "Annia Solo",
+  "Annia Solo c/ AVs",
+  "Banda Duo s/ AV",
+  "Banda Duo c/ AVs",
+  "Banda Trio s/ AV",
+  "Banda Trio c/ AVs",
+  "Banda quarteto s/ AV",
+  "Banda quarteto c/ AVs",
+  "Banda quinteto s/ AV",
+  "Banda quinteto c/ AVs",
+  "Banda quinteto + Cantor",
+  "Banda quinteto + Cantor c/ AVs",
+  "Banda quinteto + 2 Back Vocals",
+  "Banda quinteto + 2 BVs c/ AVs",
+  "DJ Booth LED - branco",
+  "DJ Booth LED - preto",
+  "1 PA Mackie Thump 212 12\"",
+  "Mixer Behringer Xenyx 1202SFX",
+  "Controller Pioneer Rekordbox DJ DDJ-400",
+  "Stairville LED Bar 240/8 RGB DMX 30º",
+  "4 Baterias LEDs Uking RGBWA + UV Par Light",
+  "8 LEDs Wash 7x12 RGBW",
+  "4 LEDs Uking 105W 7x15W RGBW",
+  "LED efeito flor Eurolite FE-700",
+  "Máquina de fumo Ibiza LSM900W",
+  "Microfone c/ fio Sennheiser e835",
+  "2 Microfones dual UHF s/ fios GLXD2",
+  "1 Shure SM58 s/ fios",
+  "Cablagem completa XLR",
+  "Discurso",
+  "DJ Basic",
+  "Let\'s Party",
+  "Premium",
+  "Serviço sob consulta",
+  "Técnico de Som",
+  "Técnico de Luz",
+  "Deslocações",
+  "Aluguer de Carrinha",
 ] as const;
 
 // Função/serviço executado numa Agenda/Lead por um colaborador.
@@ -93,6 +132,9 @@ export const COLABORADOR_SKILLS = [
 ] as const;
 
 export const MODALIDADES = ["Fatura", "Por Fora", "50% Por Fora", "10% Por Fora"];
+
+export const TIPOS_COMERCIAIS = ["Evento", "Residência", "Evento de Residência", "Cliente Especial"] as const;
+export const VALOR_CONTEXTOS = ["Cliente Final", "Parceiro", "Residência", "Evento Residência", "SUD", "SANA", "Hyatt", "Conta Especial"] as const;
 
 // Normalização de nomes de colaboradores/artistas:
 // Chave = variante em lowercase → Valor = nome canónico

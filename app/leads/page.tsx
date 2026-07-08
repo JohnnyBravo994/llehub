@@ -1,6 +1,6 @@
 "use client";
 
-import { ARTIST_TIPOS, MODALIDADES, resolveColaboradorNome } from "../constants";
+import { ARTIST_TIPOS, MODALIDADES, SERVICOS_VENDIDOS, TIPOS_COMERCIAIS, VALOR_CONTEXTOS, resolveColaboradorNome } from "../constants";
 import { useTheme } from "../useTheme";
 import { ThemeSwitcher } from "../ThemeSwitcher";
 import React, { useEffect, useState, useCallback, useRef } from "react";
@@ -77,8 +77,9 @@ import {
   getAllLeads, createLead, updateLead,
   cancelLead, restoreLead, deleteLead,
   getAllClientes, createCliente, createAgendaEvent, getAllAgenda, getAllArtistasAgenda,
-  getAllColaboradores, getAllValoresFuncoes,
+  getAllColaboradores, getAllValoresFuncoes, getAllValoresMaster,
   syncArtistasEvento, getArtistasEvento, setupDatabase, syncArtistasParaAgenda,
+  getAllMaterialPacks, getMaterialPackIdsLead, syncMaterialPacksLead, reservarMaterialPacksDaLeadParaEvento,
   syncAllExistingData, getArtistConflictOverrides, dismissArtistConflict,
 } from "../actions";
 
@@ -88,6 +89,7 @@ interface Lead {
   local?: string; contacto?: string; notas?: string;
   cliente_nome?: string; cliente_id?: number | null; modalidade?: string;
   agenda_event_id?: number | null; event_id?: string;
+  tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string;
 }
 
 interface AgendaEvent {
@@ -102,6 +104,16 @@ interface Colaborador {
 
 interface ValorFuncao {
   id: number; funcao: string; custo_padrao: number; valor_cliente_padrao: number; notas?: string; ativo: number;
+}
+interface ValorMaster {
+  id: number; servico: string; duracao_formato: string; contexto: string; cliente_nome?: string;
+  custo_interno: number; valor_parceiro: number; valor_cliente_final: number; notas?: string; ativo: number;
+}
+interface MaterialPackItem { id: number; pack_id: number; material_nome: string; categoria: string; quantidade: number; notas?: string; }
+interface MaterialPack {
+  id: number; nome: string; descricao: string; valor_referencia: number; ativo: number;
+  items: MaterialPackItem[];
+  links?: { id: number; servico: string; duracao_formato: string; contexto: string; notas?: string }[];
 }
 
 function displayClienteNome(lead: { cliente_id?: number | null; cliente_nome?: string }, clientes: Cliente[]): string {
@@ -160,7 +172,7 @@ function tipoFromSkills(skills?: string) {
 }
 
 const STATUS_OPTIONS = ["Contacto", "Proposta Enviada", "Em Negociação", "Confirmado", "Em Adjudicação", "Adjudicado", "Faturado", "Pago", "Cancelado"];
-const emptyForm = { title: "", event_date: "", value: "0", status: "Contacto", local: "", contacto: "", notas: "", cliente_nome: "", cliente_id: null as number | null, modalidade: "Fatura" };
+const emptyForm = { title: "", event_date: "", value: "0", status: "Contacto", local: "", contacto: "", notas: "", cliente_nome: "", cliente_id: null as number | null, modalidade: "Fatura", tipo_comercial: "Evento", servico_comercial: "", valor_contexto: "Cliente Final" };
 
 const addArtistRow = (setArtists: React.Dispatch<React.SetStateAction<ArtistRow[]>>) => 
   setArtists(prev => [...prev, emptyArtist()]);
@@ -181,6 +193,9 @@ export default function LeadsPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [valoresFuncoes, setValoresFuncoes] = useState<ValorFuncao[]>([]);
+  const [valoresMaster, setValoresMaster] = useState<ValorMaster[]>([]);
+  const [materialPacks, setMaterialPacks] = useState<MaterialPack[]>([]);
+  const [selectedPackIds, setSelectedPackIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<{ open: boolean; editing: Lead | null }>({ open: false, editing: null });
@@ -205,9 +220,10 @@ export default function LeadsPage() {
     setToast(msg);
     setTimeout(() => setToast(""), 2500);
   };
+  const togglePackSelecionado = (packId: number) => setSelectedPackIds(prev => prev.includes(packId) ? prev.filter(id => id !== packId) : [...prev, packId]);
 
   const load = useCallback(async () => {
-    const [r, ar, aar, cr, colr, vr, cor] = await Promise.all([getAllLeads(), getAllAgenda(), getAllArtistasAgenda(), getAllClientes(), getAllColaboradores(), getAllValoresFuncoes(), getArtistConflictOverrides()]);
+    const [r, ar, aar, cr, colr, vr, vmr, pr, cor] = await Promise.all([getAllLeads(), getAllAgenda(), getAllArtistasAgenda(), getAllClientes(), getAllColaboradores(), getAllValoresFuncoes(), getAllValoresMaster(), getAllMaterialPacks(), getArtistConflictOverrides()]);
     if (r.success) {
       setLeads(r.data as Lead[]);
       // Auto-colapsar meses já passados
@@ -227,6 +243,8 @@ export default function LeadsPage() {
     if (cr.success) setClientes(cr.data as Cliente[]);
     if (colr.success) setColaboradores(colr.data as Colaborador[]);
     if (vr.success) setValoresFuncoes(vr.data as ValorFuncao[]);
+    if (vmr.success) setValoresMaster(vmr.data as ValorMaster[]);
+    if (pr.success) setMaterialPacks(pr.data as MaterialPack[]);
     setLoading(false);
   }, []);
 
@@ -262,6 +280,39 @@ export default function LeadsPage() {
   const suggestedFeeString = (tipo: string) => {
     const value = suggestedFeeForTipo(tipo);
     return value ? String(value) : "";
+  };
+
+  const inferValorContexto = (clienteNome: string, tipoComercial: string) => {
+    if (tipoComercial === "Residência") return "Residência";
+    if (tipoComercial === "Evento de Residência") return "Evento Residência";
+    const q = normalizeText(clienteNome || "");
+    if (q.includes("sud") || q.includes("du tage")) return "SUD";
+    if (q.includes("sana") || q.includes("epic") || q.includes("azimar")) return "SANA";
+    if (q.includes("hyatt") || q.includes("icon") || q.includes("odyssey")) return "Hyatt";
+    return "Cliente Final";
+  };
+
+  const valorMasterSuggestion = (servico?: string, contexto?: string) => {
+    const svc = normalizeText(servico || "");
+    if (!svc) return null;
+    const ctx = contexto || "Cliente Final";
+    const rows = valoresMaster.filter(v => v.ativo === 1 && normalizeText(v.servico) === svc);
+    if (rows.length === 0) return null;
+    const byContext = (wanted: string) => rows.find(v => normalizeText(v.contexto) === normalizeText(wanted) || normalizeText(v.cliente_nome || "") === normalizeText(wanted));
+    let row: ValorMaster | undefined;
+    if (["SUD", "SANA", "Hyatt", "Conta Especial"].includes(ctx)) row = byContext(ctx);
+    if (!row && (ctx === "Residência" || ctx === "Evento Residência")) row = byContext("Residência");
+    if (!row && ctx === "Parceiro") row = byContext("Parceiro") || byContext("Normal") || byContext("Priceless Band") || rows[0];
+    if (!row) row = byContext("Normal") || byContext("Cliente Final") || byContext("Priceless Band") || rows[0];
+    const valor = (ctx === "Parceiro" || ctx === "Residência") ? Number(row.valor_parceiro || 0) : Number(row.valor_cliente_final || 0);
+    return { row, valor, custo: Number(row.custo_interno || 0) };
+  };
+
+  const aplicarValorSugerido = () => {
+    const suggestion = valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto);
+    if (!suggestion || !suggestion.valor) { showToast("Sem valor sugerido para esta combinação"); return; }
+    setForm(f => ({ ...f, value: String(suggestion.valor) }));
+    showToast(`Valor sugerido aplicado: ${suggestion.valor}€`);
   };
   const normalizeArtistRow = (a: any): ArtistRow => {
     const col = findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome || "");
@@ -313,6 +364,7 @@ export default function LeadsPage() {
   const openCreate = () => {
     setForm({ ...emptyForm, event_date: new Date().toISOString().split("T")[0] });
     setArtists([emptyArtist()]);
+    setSelectedPackIds([]);
     resetClienteState();
     setModal({ open: true, editing: null });
   };
@@ -323,12 +375,16 @@ export default function LeadsPage() {
       status: l.status || "Contacto", local: l.local || "", contacto: l.contacto || "",
       notas: l.notas || "", cliente_nome: l.cliente_nome || "",
       cliente_id: l.cliente_id ?? null, modalidade: l.modalidade || "Fatura",
+      tipo_comercial: l.tipo_comercial || "Evento",
+      servico_comercial: l.servico_comercial || "",
+      valor_contexto: l.valor_contexto || inferValorContexto(l.cliente_nome || "", l.tipo_comercial || "Evento"),
     });
     setClienteSearch(l.cliente_nome || "");
     setClienteDropOpen(false);
     setClienteCreating(false);
     setArtists([emptyArtist()]);
     setModal({ open: true, editing: l });
+    getMaterialPackIdsLead(l.id).then(packRes => setSelectedPackIds(packRes.success ? (packRes.data as number[]) : []));
     // Carregar artistas: primeiro tenta evento de agenda ligado, senão usa artistas da lead
     setLoadingArtists(true);
     (async () => {
@@ -368,6 +424,9 @@ export default function LeadsPage() {
       value: parseFloat(form.value) || 0, status: form.status,
       cliente_id: form.cliente_id ?? null,
       cliente_nome: form.cliente_nome, modalidade: form.modalidade,
+      tipo_comercial: form.tipo_comercial,
+      servico_comercial: form.servico_comercial,
+      valor_contexto: form.valor_contexto,
       local: form.local || "",
       contacto: form.contacto || "", notas: form.notas || "",
     };
@@ -382,6 +441,7 @@ export default function LeadsPage() {
       }
       // Save artistas linked to this lead (stored as lead id, will be synced)
       await syncArtistasEvento(modal.editing.id * -1, form.title.trim(), form.event_date, validArtists);
+      await syncMaterialPacksLead(modal.editing.id, selectedPackIds);
       // Sync artistas para o evento de agenda ligado (se existir)
       await syncArtistasParaAgenda(modal.editing.id, form.title.trim(), form.event_date, validArtists);
       // Auto-importar para Agenda se passou para estado confirmado/avançado
@@ -399,12 +459,16 @@ export default function LeadsPage() {
           cliente_id: form.cliente_id ?? null,
           cliente_nome: form.cliente_nome,
           modalidade: form.modalidade,
+          tipo_comercial: form.tipo_comercial,
+          servico_comercial: form.servico_comercial,
+          valor_contexto: form.valor_contexto,
           origem_lead_id: modal.editing.id,
           contacto: form.contacto || "",
           notas: form.notas || "",
         });
         if (agendaRes.success && agendaRes.id) {
           await syncArtistasEvento(agendaRes.id, form.title.trim(), form.event_date, validArtists);
+          await reservarMaterialPacksDaLeadParaEvento(modal.editing.id, agendaRes.id, form.title.trim(), "Lead");
         }
         showToast("Lead actualizada · Evento criado na Agenda");
       } else {
@@ -414,6 +478,7 @@ export default function LeadsPage() {
       const res = await createLead(data);
       if (res.success && res.id) {
         await syncArtistasEvento(res.id * -1, form.title.trim(), form.event_date, validArtists);
+        await syncMaterialPacksLead(res.id, selectedPackIds);
       }
       // Se criar directamente com estado avançado, também importa
       if (AGENDA_AUTO_STATUSES.includes(form.status)) {
@@ -427,12 +492,16 @@ export default function LeadsPage() {
           cliente_id: form.cliente_id ?? null,
           cliente_nome: form.cliente_nome,
           modalidade: form.modalidade,
+          tipo_comercial: form.tipo_comercial,
+          servico_comercial: form.servico_comercial,
+          valor_contexto: form.valor_contexto,
           origem_lead_id: res.id ?? null,
           contacto: form.contacto || "",
           notas: form.notas || "",
         });
         if (agendaRes.success && agendaRes.id) {
           await syncArtistasEvento(agendaRes.id, form.title.trim(), form.event_date, validArtists);
+          if (res.id) await reservarMaterialPacksDaLeadParaEvento(res.id, agendaRes.id, form.title.trim(), "Lead");
         }
         showToast("Lead criada · Evento criado na Agenda");
       } else {
@@ -457,6 +526,9 @@ export default function LeadsPage() {
       cliente_id: form.cliente_id ?? null,
       cliente_nome: form.cliente_nome,
       modalidade: form.modalidade,
+      tipo_comercial: form.tipo_comercial,
+      servico_comercial: form.servico_comercial,
+      valor_contexto: form.valor_contexto,
       venue: form.local || "",
       origem_lead_id: modal.editing.id,
       contacto: form.contacto || "",
@@ -466,6 +538,8 @@ export default function LeadsPage() {
     if (res.success) {
       if (res.id) {
         await syncArtistasEvento(res.id, form.title.trim(), form.event_date, validArtistsPayload());
+        await syncMaterialPacksLead(modal.editing.id, selectedPackIds);
+        await reservarMaterialPacksDaLeadParaEvento(modal.editing.id, res.id, form.title.trim(), "Lead");
       }
       showToast("Evento criado na Agenda");
       closeModal();
@@ -977,6 +1051,9 @@ export default function LeadsPage() {
               {modal.editing ? "Editar Lead" : "Nova Lead"}
             </p>
 
+            <datalist id="leads-servicos-vendidos-list">
+              {SERVICOS_VENDIDOS.map(s => <option key={s} value={s} />)}
+            </datalist>
             <FormField label="Nome do Projecto / Lead">
               <input style={inputStyle} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Nome do evento ou projecto..." />
             </FormField>
@@ -1031,7 +1108,7 @@ export default function LeadsPage() {
                           <div
                             key={c.id}
                             onMouseDown={() => {
-                              setForm(f => ({ ...f, cliente_nome: c.nome, cliente_id: c.id }));
+                              setForm(f => ({ ...f, cliente_nome: c.nome, cliente_id: c.id, valor_contexto: inferValorContexto(c.nome, f.tipo_comercial) }));
                               setClienteSearch(c.nome);
                               setClienteDropOpen(false);
                             }}
@@ -1057,6 +1134,42 @@ export default function LeadsPage() {
                 </div>
               )}
             </FormField>
+
+            <FormField label="Tipo Comercial">
+              <CustomSelect
+                value={form.tipo_comercial}
+                onChange={v => setForm(f => ({ ...f, tipo_comercial: v, valor_contexto: inferValorContexto(f.cliente_nome, v) }))}
+                options={TIPOS_COMERCIAIS.map(t => ({ value: t, label: t }))}
+                style={inputStyle}
+              />
+            </FormField>
+            <FormField label="Serviço Vendido">
+              <input
+                list="leads-servicos-vendidos-list"
+                style={inputStyle}
+                value={form.servico_comercial}
+                onChange={e => setForm(f => ({ ...f, servico_comercial: e.target.value }))}
+                placeholder="DJ s/ AV, Banda c/ AVs..."
+              />
+            </FormField>
+            <FormField label="Perfil de Valor">
+              <CustomSelect
+                value={form.valor_contexto}
+                onChange={v => setForm(f => ({ ...f, valor_contexto: v }))}
+                options={VALOR_CONTEXTOS.map(c => ({ value: c, label: c }))}
+                style={inputStyle}
+              />
+            </FormField>
+            <FormField label="Sugestão">
+              <button type="button" onClick={aplicarValorSugerido} style={{ ...btnSecStyle, width: "100%" }}>
+                Calcular valor
+              </button>
+            </FormField>
+            {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto) && (
+              <div style={{ fontSize: "10px", color: C.textMuted, letterSpacing: "0.05em", marginTop: "-0.6rem", marginBottom: "0.6rem" }}>
+                Sugestão: {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)?.valor || 0}€ · Custo interno: {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)?.custo || 0}€ · {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)?.row.contexto}
+              </div>
+            )}
 
             <FormField label="Data do Evento">
               <input style={inputStyle} type="date" value={form.event_date} onChange={e => setForm(f => ({ ...f, event_date: e.target.value }))} />
@@ -1091,6 +1204,39 @@ export default function LeadsPage() {
             <FormField label="Notas">
               <input style={inputStyle} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Observações..." />
             </FormField>
+            {materialPacks.length > 0 && (
+              <FormField label="Packs de Material Incluídos">
+                <div style={{ display: "grid", gap: "8px" }}>
+                  {materialPacks.map(pack => {
+                    const active = selectedPackIds.includes(pack.id);
+                    return (
+                      <button
+                        key={pack.id}
+                        type="button"
+                        onClick={() => togglePackSelecionado(pack.id)}
+                        style={{
+                          textAlign: "left", background: active ? "rgba(201,169,110,0.12)" : "rgba(255,255,255,0.03)",
+                          border: `1px solid ${active ? C.gold : C.borderDim}`,
+                          color: active ? C.textPrimary : C.textSec,
+                          padding: "0.75rem", cursor: "pointer", fontFamily: "inherit",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center" }}>
+                          <strong style={{ fontSize: "11px", letterSpacing: "0.08em" }}>{active ? "✓ " : ""}{pack.nome}</strong>
+                          <span style={{ fontSize: "9px", color: C.gold, letterSpacing: "0.12em" }}>Oferta {pack.valor_referencia ? `${pack.valor_referencia}€` : ""}</span>
+                        </div>
+                        <div style={{ marginTop: "0.35rem", fontSize: "9px", color: C.textMuted, lineHeight: 1.45 }}>
+                          {pack.items.map(i => `${i.quantidade}× ${i.material_nome}`).join(" · ")}
+                        </div>
+                      </button>
+                    );
+                  })}
+                  <p style={{ margin: 0, fontSize: "9px", color: C.textMuted, lineHeight: 1.5 }}>
+                    Fica guardado na lead. Quando converter para Agenda, a app reserva estes materiais como pack incluído/oferta.
+                  </p>
+                </div>
+              </FormField>
+            )}
 
 
             {/* ── Artistas & Pagamentos ── */}
