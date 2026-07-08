@@ -3071,7 +3071,28 @@ function monthBounds(ym?: string) {
   const safe = /^\d{4}-\d{2}$/.test(ym || '') ? ym! : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const [y, m] = safe.split('-').map(Number);
   const last = new Date(y, m, 0).getDate();
-  return { ym: safe, start: `${safe}-01`, end: `${safe}-${String(last).padStart(2, '0')}` };
+  return { ym: safe, y, m, mm: String(m).padStart(2, '0'), start: `${safe}-01`, end: `${safe}-${String(last).padStart(2, '0')}` };
+}
+
+function toIsoDateServer(value: unknown) {
+  const v = String(value || '').trim();
+  if (!v) return '';
+  const iso = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
+  const pt = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (pt) return `${pt[3]}-${pt[2].padStart(2, '0')}-${pt[1].padStart(2, '0')}`;
+  return v;
+}
+
+function monthKeyServer(value: unknown) {
+  const iso = toIsoDateServer(value);
+  return /^\d{4}-\d{2}/.test(iso) ? iso.slice(0, 7) : '';
+}
+
+function monthLikeArgs(ym: string) {
+  const { y, m, mm } = monthBounds(ym);
+  // Suporta datas novas YYYY-MM-DD e datas antigas DD/MM/YYYY ou D/M/YYYY.
+  return [`${ym}%`, `%/${mm}/${y}%`, `%/${m}/${y}%`];
 }
 
 function normalizeAgendaRow(r: any) {
@@ -3145,13 +3166,14 @@ async function getArtistasMapForEventoIds(eventoIds: number[]) {
 export async function getAgendaMonthIndex() {
   noStore();
   try {
-    const agendaDate = sqlDateExpr('event_date');
-    const leadDate = sqlDateExpr('event_date');
-    const agendaMonths = await turso.execute(`SELECT DISTINCT substr(${agendaDate},1,7) as ym FROM agenda WHERE event_date IS NOT NULL AND length(event_date)>=7`);
-    const leadMonths = await turso.execute(`SELECT DISTINCT substr(${leadDate},1,7) as ym FROM leads WHERE event_date IS NOT NULL AND length(event_date)>=7`);
+    // Não usar WHERE por mês aqui. É uma query leve só com datas e evita partir tabs por formatos antigos.
+    const [agendaDates, leadDates] = await Promise.all([
+      turso.execute("SELECT event_date FROM agenda WHERE event_date IS NOT NULL AND event_date <> ''"),
+      turso.execute("SELECT event_date FROM leads WHERE event_date IS NOT NULL AND event_date <> ''"),
+    ]);
     const months = Array.from(new Set([
-      ...agendaMonths.rows.map((r: any) => r.ym as string),
-      ...leadMonths.rows.map((r: any) => r.ym as string),
+      ...agendaDates.rows.map((r: any) => monthKeyServer(r.event_date)),
+      ...leadDates.rows.map((r: any) => monthKeyServer(r.event_date)),
       monthBounds().ym,
     ].filter((m: any) => /^\d{4}-\d{2}$/.test(String(m || ''))))).sort();
     return { success: true, data: months };
@@ -3164,32 +3186,30 @@ export async function getAgendaMonthIndex() {
 export async function getAgendaPageBundle(userName: string = 'Admin', month?: string) {
   noStore();
   try {
-    const { start, end } = monthBounds(month);
-    const agendaDate = sqlDateExpr('event_date');
-    const leadDate = sqlDateExpr('l.event_date');
+    const { ym } = monthBounds(month);
+    const likeArgs = monthLikeArgs(ym);
+    const agendaMonthSql = `(event_date LIKE ? OR event_date LIKE ? OR event_date LIKE ?)`;
+    const leadMonthSql = `(l.event_date LIKE ? OR l.event_date LIKE ? OR l.event_date LIKE ?)`;
     const agendaWhere = userName === 'Larissa'
-      ? `WHERE visibility = 'Public' AND ${agendaDate} >= ? AND ${agendaDate} <= ?`
-      : `WHERE ${agendaDate} >= ? AND ${agendaDate} <= ?`;
+      ? `WHERE visibility = 'Public' AND ${agendaMonthSql}`
+      : `WHERE ${agendaMonthSql}`;
+
+    // SELECT * evita crash se uma BD antiga ainda não tiver alguma coluna nova; normalizadores fazem fallback.
     const agendaRes = await turso.execute({
-      sql: `SELECT id, event_name, event_date, location, staff_needed, client_cachet, status, visibility,
-                   billing_status, cliente_id, cliente_nome, modalidade, tipo_comercial, servico_comercial,
-                   valor_contexto, origem_lead_id, venue, contacto, notas, event_id, residencia_id
-            FROM agenda ${agendaWhere}
-            ORDER BY ${agendaDate} ASC, id ASC`,
-      args: [start, end],
+      sql: `SELECT * FROM agenda ${agendaWhere} ORDER BY event_date ASC, id ASC`,
+      args: likeArgs,
     });
     const leadsRes = await turso.execute({
-      sql: `SELECT l.id, l.title, l.project_name, l.event_name, l.event_date, l.value, l.status, l.status_icon,
-                   l.details, l.local, l.contacto, l.notas, l.cliente_id, l.client_name, l.modalidade,
-                   l.tipo_comercial, l.servico_comercial, l.valor_contexto, l.event_id, l.residencia_id,
-                   (SELECT a.id FROM agenda a WHERE a.origem_lead_id = l.id LIMIT 1) as agenda_event_id
+      sql: `SELECT l.*, (SELECT a.id FROM agenda a WHERE a.origem_lead_id = l.id LIMIT 1) as agenda_event_id
             FROM leads l
-            WHERE ${leadDate} >= ? AND ${leadDate} <= ?
-            ORDER BY COALESCE(${leadDate}, '9999-99-99') ASC, l.id ASC`,
-      args: [start, end],
+            WHERE ${leadMonthSql}
+            ORDER BY COALESCE(l.event_date, '9999-99-99') ASC, l.id ASC`,
+      args: likeArgs,
     });
-    const agendaData = agendaRes.rows.map(normalizeAgendaRow);
-    const leadsData = leadsRes.rows.map(normalizeLeadRow);
+
+    // Filtro final em JS para normalizar DD/MM/YYYY, D/M/YYYY, YYYY-MM-DD e datas com hora.
+    const agendaData = agendaRes.rows.map(normalizeAgendaRow).filter((r: any) => monthKeyServer(r.event_date) === ym);
+    const leadsData = leadsRes.rows.map(normalizeLeadRow).filter((r: any) => monthKeyServer(r.event_date) === ym);
     const artists = await getArtistasMapForEventoIds([...agendaData.map((e: any) => Number(e.id)), ...leadsData.map((l: any) => -Number(l.id))]);
     const [months, conflicts] = await Promise.all([getAgendaMonthIndex(), getArtistConflictOverrides()]);
     return {
@@ -3209,25 +3229,27 @@ export async function getAgendaPageBundle(userName: string = 'Admin', month?: st
 export async function getLeadsPageBundle(month?: string) {
   noStore();
   try {
-    const { start, end } = monthBounds(month);
-    const leadDate = sqlDateExpr('l.event_date');
-    const agendaDate = sqlDateExpr('event_date');
+    const { ym } = monthBounds(month);
+    const likeArgs = monthLikeArgs(ym);
+    const leadMonthSql = `(l.event_date LIKE ? OR l.event_date LIKE ? OR l.event_date LIKE ?)`;
+    const agendaMonthSql = `(event_date LIKE ? OR event_date LIKE ? OR event_date LIKE ?)`;
+
     const leadsRes = await turso.execute({
-      sql: `SELECT l.id, l.title, l.project_name, l.event_name, l.event_date, l.value, l.status, l.status_icon,
-                   l.details, l.local, l.contacto, l.notas, l.cliente_id, l.client_name, l.modalidade,
-                   l.tipo_comercial, l.servico_comercial, l.valor_contexto, l.event_id, l.residencia_id,
-                   (SELECT a.id FROM agenda a WHERE a.origem_lead_id = l.id LIMIT 1) as agenda_event_id
+      sql: `SELECT l.*, (SELECT a.id FROM agenda a WHERE a.origem_lead_id = l.id LIMIT 1) as agenda_event_id
             FROM leads l
-            WHERE ${leadDate} >= ? AND ${leadDate} <= ?
-            ORDER BY COALESCE(${leadDate}, '9999-99-99') ASC, l.id ASC`,
-      args: [start, end],
+            WHERE ${leadMonthSql}
+            ORDER BY COALESCE(l.event_date, '9999-99-99') ASC, l.id ASC`,
+      args: likeArgs,
     });
     const agendaRes = await turso.execute({
-      sql: `SELECT id, event_name, event_date, origem_lead_id, status FROM agenda WHERE ${agendaDate} >= ? AND ${agendaDate} <= ? ORDER BY ${agendaDate} ASC, id ASC`,
-      args: [start, end],
+      sql: `SELECT * FROM agenda WHERE ${agendaMonthSql} ORDER BY event_date ASC, id ASC`,
+      args: likeArgs,
     });
-    const leadsData = leadsRes.rows.map(normalizeLeadRow);
-    const agendaData = agendaRes.rows.map((r: any) => ({ id: Number(r.id), title: (r.event_name as string) || '', event_date: (r.event_date as string) || '', event_id: '', origem_lead_id: r.origem_lead_id ? Number(r.origem_lead_id) : null, cancelled: r.status === 'Cancelado' ? 1 : 0 }));
+
+    const leadsData = leadsRes.rows.map(normalizeLeadRow).filter((r: any) => monthKeyServer(r.event_date) === ym);
+    const agendaData = agendaRes.rows.map(normalizeAgendaRow).filter((r: any) => monthKeyServer(r.event_date) === ym).map((r: any) => ({
+      id: Number(r.id), title: r.title || '', event_date: r.event_date || '', event_id: r.event_id || '', origem_lead_id: r.origem_lead_id ?? null, cancelled: r.cancelled || 0,
+    }));
     const artists = await getArtistasMapForEventoIds([...agendaData.map((e: any) => Number(e.id)), ...leadsData.map((l: any) => -Number(l.id))]);
     const [months, conflicts] = await Promise.all([getAgendaMonthIndex(), getArtistConflictOverrides()]);
     return {
