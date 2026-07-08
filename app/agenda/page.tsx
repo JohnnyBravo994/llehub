@@ -80,7 +80,7 @@ import {
   getAllClientes, createCliente, getAllLeads, getAllColaboradores, getAllValoresFuncoes, getAllValoresMaster, getAllResidenciasAtivas, syncAllExistingData,
   setupMateriais, getAllMateriais, getMovimentosMateriais, registarSaidaMaterial,
   registarVoltaMaterial, deleteMovimentoMaterial,
-  getAllMaterialPacks, reservarMaterialPacksParaEvento, getMaterialPackReservasEvento,
+  getAllMaterialPacks, reservarMaterialPacksParaEvento, getMaterialPackReservasEvento, getMateriaisReservadosResumoEvento,
   getArtistConflictOverrides, dismissArtistConflict, getAgendaPageBundle, getAgendaFormLookups, getMaterialPackIdsForServico,
 } from "../actions";
 
@@ -150,6 +150,7 @@ interface MaterialPack {
   links?: { id: number; servico: string; duracao_formato: string; contexto: string; notas?: string }[];
 }
 interface MaterialPackReserva { id: number; evento_id: number; pack_id: number; pack_nome: string; valor_referencia: number; valor_cobrado: number; desconto_oferta: number; }
+interface MaterialReservadoResumo { material_nome: string; quantidade: number; quantidade_devolvida: number; quantidade_consumida: number; estado_regresso: string; data_volta: string; notas: string; }
 
 const MATERIAL_ORIGENS = ["Loja", "João", "Annia", "Outro"];
 
@@ -210,9 +211,23 @@ const C_Light = {
 // Helper to get colors based on theme
 const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
 
+function toIsoDate(s: string) {
+  if (!s) return "";
+  const v = s.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  const m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return v;
+}
+function monthKey(s: string) {
+  const iso = toIsoDate(s);
+  return /^\d{4}-\d{2}/.test(iso) ? iso.slice(0, 7) : "";
+}
 function fmtDate(s: string) {
   if (!s) return "—";
-  const d = new Date(s + "T00:00:00");
+  const iso = toIsoDate(s);
+  const d = new Date(iso + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return s;
   const weekday = d.toLocaleDateString("pt-PT", { weekday: "short" });
   const date = d.toLocaleDateString("pt-PT", { day: "2-digit", month: "short", year: "numeric" });
   return `${date} · ${weekday.charAt(0).toUpperCase() + weekday.slice(1)}`;
@@ -304,6 +319,8 @@ export default function AgendaPage() {
   const [materialPacks, setMaterialPacks] = useState<MaterialPack[]>([]);
   const [materiaisLoaded, setMateriaisLoaded] = useState(false);
   const [selectedPackIds, setSelectedPackIds] = useState<number[]>([]);
+  const [materiaisReservadosResumo, setMateriaisReservadosResumo] = useState<MaterialReservadoResumo[]>([]);
+  const [loadingMateriaisResumo, setLoadingMateriaisResumo] = useState(false);
   const [materialModal, setMaterialModal] = useState<{ open: boolean; event: AgendaEvent | null }>({ open: false, event: null });
   const emptyReservaForm = { material_id: 0, quantidade: 1, origem: "Loja", origem_detalhe: "", notas: "" };
   const [reservaForm, setReservaForm] = useState(emptyReservaForm);
@@ -573,6 +590,8 @@ export default function AgendaPage() {
     setIsResidencia(false);
     setResidenciaDates([new Date().toISOString().split("T")[0]]);
     setSelectedPackIds([]);
+    setMateriaisReservadosResumo([]);
+    setLoadingMateriaisResumo(false);
     setModal({ open: true, editing: null });
   };
 
@@ -598,6 +617,12 @@ export default function AgendaPage() {
     setIsResidencia(false);
     setResidenciaDates([]);
     setModal({ open: true, editing: e });
+    setMateriaisReservadosResumo([]);
+    setLoadingMateriaisResumo(true);
+    getMateriaisReservadosResumoEvento(e.id).then(r => {
+      if (r.success) setMateriaisReservadosResumo(r.data as MaterialReservadoResumo[]);
+      setLoadingMateriaisResumo(false);
+    });
     const cachedArtists = (artistasMap[e.id] || []).map(normalizeArtistRow);
     if (cachedArtists.length > 0) {
       setArtists(cachedArtists);
@@ -832,7 +857,7 @@ export default function AgendaPage() {
   };
 
   const filtered = events.filter(e => {
-    const monthMatch = e.event_date.startsWith(selectedMonth);
+    const monthMatch = monthKey(e.event_date) === selectedMonth;
     const searchMatch = !search || e.title.toLowerCase().includes(search.toLowerCase()) || (e.tipo || "").toLowerCase().includes(search.toLowerCase());
     const evArtists = artistasMap[e.id] || [];
     const artistaMatch = !filterArtista || evArtists.some(a => resolveColaboradorNome(a.nome).toLowerCase() === filterArtista.toLowerCase());
@@ -851,7 +876,7 @@ export default function AgendaPage() {
 
   // Leads confirmadas do mês seleccionado que ainda não estão na agenda
   // Listas para os dropdowns — baseadas em TODOS os eventos do mês seleccionado
-  const allMonthEvents = events.filter(e => e.event_date.startsWith(selectedMonth));
+  const allMonthEvents = events.filter(e => monthKey(e.event_date) === selectedMonth);
   const dropdownArtistas = Array.from(new Set(
     allMonthEvents.flatMap(e => (artistasMap[e.id] || []).map(a => resolveColaboradorNome(a.nome))).filter(Boolean)
   )).sort();
@@ -866,7 +891,7 @@ export default function AgendaPage() {
     allMonthEvents.some(e => parseEquipa(e.tipo || "").includes(n))
   );
 
-  const filteredLeads = confirmedLeads.filter(l => l.event_date.startsWith(selectedMonth));
+  const filteredLeads = confirmedLeads.filter(l => monthKey(l.event_date) === selectedMonth);
 
   // Todos os dias do mês seleccionado para mostrar folgas
   const daysInSelectedMonth = (() => {
@@ -879,8 +904,8 @@ export default function AgendaPage() {
     return days;
   })();
 
-  const eventDates = new Set(filtered.map(e => e.event_date));
-  const leadDates = new Set(filteredLeads.map(l => l.event_date));
+  const eventDates = new Set(filtered.map(e => toIsoDate(e.event_date)));
+  const leadDates = new Set(filteredLeads.map(l => toIsoDate(l.event_date)));
 
   // Dias sem nenhum evento nem lead confirmada = Folga
   const folgaDays = !search ? daysInSelectedMonth.filter(d => !eventDates.has(d) && !leadDates.has(d)) : [];
@@ -899,8 +924,8 @@ export default function AgendaPage() {
   };
 
   const allRows: Row[] = [
-    ...filtered.map(e => ({ kind: "event" as const, date: e.event_date, data: e })),
-    ...filteredLeads.map(l => ({ kind: "lead" as const, date: l.event_date, data: l })),
+    ...filtered.map(e => ({ kind: "event" as const, date: toIsoDate(e.event_date), data: e })),
+    ...filteredLeads.map(l => ({ kind: "lead" as const, date: toIsoDate(l.event_date), data: l })),
     ...folgaDays.map(d => ({ kind: "folga" as const, date: d })),
   ].sort((a, b) => {
     if (a.date !== b.date) return a.date.localeCompare(b.date);
@@ -915,8 +940,8 @@ export default function AgendaPage() {
     .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
   const conflictOverrideKeys = new Set(conflictOverrides.map(o => `${o.event_date}|${o.artist_key}`));
   const conflictItems = [
-    ...filtered.map(e => ({ key: `event-${e.id}`, entityKey: e.event_id || `agenda-${e.id}`, date: e.event_date, title: e.title || "Evento", artists: artistasMap[e.id] || [] })),
-    ...filteredLeads.map(l => ({ key: `lead-${l.id}`, entityKey: l.event_id || `lead-${l.id}`, date: l.event_date, title: l.title || "Lead", artists: artistasMap[-l.id] || [] })),
+    ...filtered.map(e => ({ key: `event-${e.id}`, entityKey: e.event_id || `agenda-${e.id}`, date: toIsoDate(e.event_date), title: e.title || "Evento", artists: artistasMap[e.id] || [] })),
+    ...filteredLeads.map(l => ({ key: `lead-${l.id}`, entityKey: l.event_id || `lead-${l.id}`, date: toIsoDate(l.event_date), title: l.title || "Lead", artists: artistasMap[-l.id] || [] })),
   ];
   const conflictMap = (() => {
     const groups = new Map<string, { artist: string; items: { key: string; entityKey: string; title: string }[] }>();
@@ -1934,8 +1959,32 @@ export default function AgendaPage() {
                   style={inputStyle}
                 />
               </FormField>
-              <FormField label="Materiais / Notas" style={{ gridColumn: "1 / -1" }}>
-                <textarea style={{ ...inputStyle, minHeight: "72px", resize: "vertical" }} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Ex: dual mic, 2 colunas, cabos XLR... / observações" />
+              {modal.editing && (
+                <div style={{ gridColumn: "1 / -1", border: `1px solid ${Colors.borderDim}`, padding: "0.85rem", background: "rgba(255,255,255,0.015)" }}>
+                  <div style={{ fontSize: "7px", letterSpacing: "0.35em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.55rem" }}>Materiais reservados</div>
+                  {loadingMateriaisResumo ? (
+                    <div style={{ color: Colors.textMuted, fontSize: "10px" }}>A carregar materiais reservados...</div>
+                  ) : materiaisReservadosResumo.length ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      {materiaisReservadosResumo.map((m, idx) => {
+                        const voltou = m.quantidade_devolvida || m.quantidade_consumida;
+                        const estado = m.estado_regresso || (m.data_volta ? "Voltou" : "Reservado/Saiu");
+                        return (
+                          <div key={`${m.material_nome}-${idx}`} style={{ color: Colors.textSec, fontSize: "11px", lineHeight: 1.4 }}>
+                            <strong style={{ color: Colors.textPrimary }}>{m.quantidade}x {m.material_nome}</strong>
+                            {voltou ? <span> · voltou/consumido: {voltou}</span> : null}
+                            <span> · {estado}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ color: Colors.textMuted, fontSize: "10px" }}>Sem materiais reservados no sistema.</div>
+                  )}
+                </div>
+              )}
+              <FormField label="Notas de materiais / observações" style={{ gridColumn: "1 / -1" }}>
+                <textarea style={{ ...inputStyle, minHeight: "72px", resize: "vertical" }} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Ex: dual mic extra, 2 colunas, cabos XLR... / observações" />
               </FormField>
             </div>
 

@@ -148,9 +148,23 @@ const C_Light = {
 const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
 
 
+function toIsoDate(s: string) {
+  if (!s) return "";
+  const v = s.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  const m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return v;
+}
+function monthKey(s: string) {
+  const iso = toIsoDate(s);
+  return /^\d{4}-\d{2}/.test(iso) ? iso.slice(0, 7) : "";
+}
 function fmtDate(s: string) {
   if (!s) return "—";
-  const d = new Date(s + "T00:00:00");
+  const iso = toIsoDate(s);
+  const d = new Date(iso + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return s;
   return d.toLocaleDateString("pt-PT", { day: "2-digit", month: "short", year: "numeric" });
 }
 
@@ -589,8 +603,8 @@ export default function LeadsPage() {
   const artistsForLead = (l: Lead) => (l.agenda_event_id ? (artistasMap[l.agenda_event_id] || []) : (artistasMap[-l.id] || []));
   const conflictOverrideKeys = new Set(conflictOverrides.map(o => `${o.event_date}|${o.artist_key}`));
   const conflictItems = [
-    ...agendaEvents.filter(e => !e.cancelled).map(e => ({ key: `event-${e.id}`, entityKey: e.event_id || `agenda-${e.id}`, date: e.event_date, title: e.title || "Evento", artists: artistasMap[e.id] || [] })),
-    ...leads.filter(l => !l.cancelled).map(l => ({ key: `lead-${l.id}`, entityKey: l.event_id || `lead-${l.id}`, date: l.event_date, title: l.title || "Lead", artists: artistsForLead(l) })),
+    ...agendaEvents.filter(e => !e.cancelled).map(e => ({ key: `event-${e.id}`, entityKey: e.event_id || `agenda-${e.id}`, date: toIsoDate(e.event_date), title: e.title || "Evento", artists: artistasMap[e.id] || [] })),
+    ...leads.filter(l => !l.cancelled).map(l => ({ key: `lead-${l.id}`, entityKey: l.event_id || `lead-${l.id}`, date: toIsoDate(l.event_date), title: l.title || "Lead", artists: artistsForLead(l) })),
   ];
   const conflictMap = (() => {
     const groups = new Map<string, { artist: string; items: { key: string; entityKey: string; title: string }[] }>();
@@ -639,7 +653,7 @@ export default function LeadsPage() {
 
   const grouped: Record<string, Lead[]> = {};
   filtered.forEach(l => {
-    const ym = l.event_date && l.event_date.length >= 7 ? l.event_date.slice(0, 7) : "sem-data";
+    const ym = monthKey(l.event_date) || "sem-data";
     if (!grouped[ym]) grouped[ym] = [];
     grouped[ym].push(l);
   });
