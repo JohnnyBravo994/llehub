@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useTheme } from "../useTheme";
 import { ThemeSwitcher } from "../ThemeSwitcher";
 
@@ -479,7 +481,7 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "#C9A96E" : "rgba(245,240,232,0.45)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
+            <Link key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "#C9A96E" : "rgba(245,240,232,0.45)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</Link>
           ))}
         </div>
       </div>
@@ -587,7 +589,7 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
         <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: drawerTitle, textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "0 0.5rem" }}>
           {maisTabs.map(t => (
-            <a key={t.href} href={t.href} onClick={() => setMaisOpen(false)}
+            <Link key={t.href} href={t.href} onClick={() => setMaisOpen(false)}
               style={{
                 display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
                 textDecoration: "none", padding: "0.6rem 1rem", minWidth: "72px",
@@ -597,7 +599,7 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
               }}>
               <span style={{ width: "22px", height: "22px", display: "block" }}>{t.icon}</span>
               <span style={{ fontSize: "9px", letterSpacing: "0.1em", fontFamily: "'Montserrat',sans-serif", fontWeight: active === t.id ? 600 : 400 }}>{t.label}</span>
-            </a>
+            </Link>
           ))}
         </div>
       </div>
@@ -605,10 +607,10 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
       {/* Tab bar principal */}
       <nav className="mob-tabbar">
         {mainTabs.map(l => (
-          <a key={l.href} href={l.href} className={`mob-tab${active === l.id ? " active" : ""}`}>
+          <Link key={l.href} href={l.href} className={`mob-tab${active === l.id ? " active" : ""}`}>
             <span className="mob-tab-icon">{l.icon}</span>
             <span className="mob-tab-label">{l.label}</span>
-          </a>
+          </Link>
         ))}
         {/* Botão "Mais" — só para admin */}
         {maisTabs.length > 0 && (
