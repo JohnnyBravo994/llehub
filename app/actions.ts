@@ -22,6 +22,17 @@ async function ensureColaboradoresExtendedColumns() {
   } catch { }
 }
 
+async function ensureArtistasAssociacaoIgnoradosTable() {
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS artistas_associacao_ignorados (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome_key TEXT NOT NULL UNIQUE,
+      nome_original TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+}
+
 async function ensureValoresFuncoesTable() {
   await turso.execute(`
     CREATE TABLE IF NOT EXISTS valores_funcoes (
@@ -1298,6 +1309,7 @@ type ArtistaPorAssociar = {
 export async function getArtistasPorAssociar(): Promise<{ success: boolean; data: ArtistaPorAssociar[] }> {
   try {
     await setupColaboradores();
+    await ensureArtistasAssociacaoIgnoradosTable();
     const res = await turso.execute(`
       SELECT
         TRIM(nome) as nome,
@@ -1309,6 +1321,10 @@ export async function getArtistasPorAssociar(): Promise<{ success: boolean; data
       FROM artistas_evento
       WHERE TRIM(COALESCE(nome, '')) <> ''
         AND (colaborador_id IS NULL OR colaborador_id = 0)
+        AND NOT EXISTS (
+          SELECT 1 FROM artistas_associacao_ignorados ignored
+          WHERE ignored.nome_key = LOWER(TRIM(artistas_evento.nome))
+        )
       GROUP BY LOWER(TRIM(nome))
       ORDER BY total DESC, nome ASC
     `);
@@ -1326,6 +1342,22 @@ export async function getArtistasPorAssociar(): Promise<{ success: boolean; data
   } catch (error) {
     console.error("Erro getArtistasPorAssociar:", error);
     return { success: false, data: [] };
+  }
+}
+
+export async function ignorarArtistaPorAssociar(nome: string) {
+  try {
+    await ensureArtistasAssociacaoIgnoradosTable();
+    const nomeLimpo = (nome || '').trim();
+    if (!nomeLimpo) return { success: false, message: "Nome obrigatório." };
+    await turso.execute({
+      sql: "INSERT OR IGNORE INTO artistas_associacao_ignorados (nome_key, nome_original) VALUES (LOWER(TRIM(?)), ?)",
+      args: [nomeLimpo, nomeLimpo],
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Erro ignorar artista por associar:", error);
+    return { success: false };
   }
 }
 

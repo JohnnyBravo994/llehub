@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import {
   getAllColaboradores, createColaborador, updateColaborador,
   toggleColaboradorAtivo, setupColaboradores, getArtistasPorAssociar,
-  associarArtistaNomeAColaborador, criarColaboradorEAssociarArtista,
+  associarArtistaNomeAColaborador, criarColaboradorEAssociarArtista, ignorarArtistaPorAssociar,
 } from "../actions";
 
 interface Colaborador {
@@ -149,6 +149,12 @@ export default function ColaboradoresPage() {
     await load();
   };
 
+  const handleIgnorarPorAssociar = async (nome: string) => {
+    const res = await ignorarArtistaPorAssociar(nome);
+    showToast(res.success ? "Nome ocultado da lista" : "Erro ao ocultar nome");
+    await load();
+  };
+
   const toggleSkill = (skill: string) => {
     setForm(f => ({
       ...f,
@@ -247,7 +253,7 @@ export default function ColaboradoresPage() {
               </div>
               <span style={{ fontSize: "18px", fontWeight: 700, color: C.textPrimary }}>{artistasPorAssociar.length}</span>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 90px 1.2fr 95px 120px", gap: "8px", alignItems: "center" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 90px 1.2fr 95px 120px 90px", gap: "8px", alignItems: "center" }}>
               {artistasPorAssociar.slice(0, 12).map(item => (
                 <div key={item.nome} style={{ display: "contents" }}>
                   <div style={{ fontSize: "12px", fontWeight: 700, color: C.textPrimary }}>{item.nome}</div>
@@ -259,10 +265,11 @@ export default function ColaboradoresPage() {
                     style={{ ...inputStyle, padding: "0.48rem 0.6rem" }}
                   >
                     <option value="">Associar a...</option>
-                    {colaboradores.filter(c => c.ativo === 1).map(c => <option key={c.id} value={c.id}>{c.nome_artistico || c.nome}</option>)}
+                    {colaboradores.filter(c => c.ativo === 1).map(c => <option key={c.id} value={c.id}>{c.nome_artistico || c.nome}{c.nome_pessoal ? ` — ${c.nome_pessoal}` : ""}</option>)}
                   </select>
                   <button onClick={() => handleAssociarNome(item.nome)} style={{ ...btnSecStyle, padding: "0.55rem 0.65rem", fontSize: "8px" }}>Associar</button>
                   <button onClick={() => handleCriarEAssociar(item)} style={{ ...btnPrimStyle, padding: "0.55rem 0.65rem", fontSize: "8px" }}>Criar + ligar</button>
+                  <button onClick={() => handleIgnorarPorAssociar(item.nome)} title="Ocultar da lista sem apagar registos" style={{ ...btnSecStyle, padding: "0.55rem 0.65rem", fontSize: "8px", letterSpacing: "0.18em" }}>Dismiss</button>
                 </div>
               ))}
             </div>
@@ -395,10 +402,22 @@ export default function ColaboradoresPage() {
         <div style={{ padding: "0.9rem 1rem", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
           <div style={{ fontSize: "9px", letterSpacing: "0.25em", color: "#C9A96E", textTransform: "uppercase", fontWeight: 700, marginBottom: "0.5rem" }}>Por associar</div>
           {artistasPorAssociar.slice(0, 4).map(item => (
-            <div key={item.nome} style={{ padding: "0.55rem 0", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+            <div key={item.nome} style={{ padding: "0.7rem 0", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
               <div style={{ fontSize: "12px", fontWeight: 700, color: "#F5F0E8" }}>{item.nome}</div>
-              <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.45)", marginTop: "2px" }}>{item.tipos || "Sem função"} · {item.total} reg.</div>
-              <button onClick={() => handleCriarEAssociar(item)} style={{ marginTop: "0.45rem", background: "rgba(201,169,110,0.12)", border: "1px solid rgba(201,169,110,0.2)", color: "#C9A96E", fontSize: "9px", padding: "0.45rem 0.65rem", cursor: "pointer" }}>Criar + ligar</button>
+              <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.45)", marginTop: "2px", marginBottom: "0.5rem" }}>{item.tipos || "Sem função"} · {item.total} reg.</div>
+              <select
+                value={linkDrafts[item.nome] || ""}
+                onChange={e => setLinkDrafts(prev => ({ ...prev, [item.nome]: e.target.value }))}
+                style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#F5F0E8", fontFamily: "inherit", fontSize: "11px", padding: "0.5rem 0.65rem", outline: "none", marginBottom: "0.45rem" }}
+              >
+                <option value="">Ligar a colaborador existente...</option>
+                {colaboradores.filter(c => c.ativo === 1).map(c => <option key={c.id} value={c.id}>{c.nome_artistico || c.nome}{c.nome_pessoal ? ` — ${c.nome_pessoal}` : ""}</option>)}
+              </select>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem" }}>
+                <button onClick={() => handleAssociarNome(item.nome)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,169,110,0.2)", color: "#C9A96E", fontSize: "9px", padding: "0.45rem 0.55rem", cursor: "pointer" }}>Ligar</button>
+                <button onClick={() => handleCriarEAssociar(item)} style={{ background: "rgba(201,169,110,0.12)", border: "1px solid rgba(201,169,110,0.2)", color: "#C9A96E", fontSize: "9px", padding: "0.45rem 0.55rem", cursor: "pointer" }}>Criar + ligar</button>
+                <button onClick={() => handleIgnorarPorAssociar(item.nome)} style={{ gridColumn: "1 / -1", background: "transparent", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(245,240,232,0.45)", fontSize: "9px", padding: "0.45rem 0.55rem", cursor: "pointer" }}>Dismiss / ocultar sem apagar</button>
+              </div>
             </div>
           ))}
         </div>

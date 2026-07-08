@@ -79,6 +79,9 @@ export default function Dashboard() {
   const [userName, setUserName] = useState("");
   const { lightTheme, setLightTheme, mounted } = useTheme();
   const C = getColors(lightTheme);
+  const todayPanelBg = lightTheme ? C.surface : "linear-gradient(135deg, #1a1408 0%, #110f07 100%)";
+  const todayItemBg = lightTheme ? "rgba(0,0,0,0.025)" : "rgba(201,169,110,0.04)";
+  const softItemBg = lightTheme ? "rgba(0,0,0,0.025)" : "rgba(255,255,255,0.02)";
   const [currentTime, setCurrentTime] = useState("");
   const [currentDate, setCurrentDate] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -180,13 +183,13 @@ export default function Dashboard() {
             <p style={{ fontSize: "8px", color: C.textMuted, marginTop: "0.5rem", textTransform: "capitalize" }}>{currentDate}</p>
           </div>
 
-          <div style={{ background: "linear-gradient(135deg, #1a1408 0%, #110f07 100%)", border: `1px solid ${C.border}`, padding: "2rem", position: "relative" }}>
+          <div style={{ background: todayPanelBg, border: `1px solid ${C.border}`, padding: "2rem", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
             <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim, marginBottom: "1.25rem" }}>EVENTOS DE HOJE</p>
             {todayEvs.length > 0 ? (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "0.75rem" }}>
                 {todayEvs.map(e => (
-                  <div key={e.id} style={{ background: "rgba(201,169,110,0.04)", border: `1px solid ${C.border}`, padding: "1rem 1.25rem" }}>
+                  <div key={e.id} style={{ background: todayItemBg, border: `1px solid ${C.border}`, padding: "1rem 1.25rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.35rem" }}>
                       <span style={{ fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: "5px" }}>
                         {artistIcons(e.artistas||[]) && <span style={{ fontSize: "13px", letterSpacing: "1px" }}>{artistIcons(e.artistas||[])}</span>}
@@ -222,7 +225,7 @@ export default function Dashboard() {
           {next7Days.length > 0 ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "1rem" }}>
               {next7Days.map(day => (
-                <div key={day.dateStr} style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${C.borderDim}`, padding: "1rem" }}>
+                <div key={day.dateStr} style={{ background: softItemBg, border: `1px solid ${C.borderDim}`, padding: "1rem" }}>
                   <p style={{ fontSize: "8px", letterSpacing: "0.3em", color: C.gold, fontWeight: 600, marginBottom: "0.75rem", textTransform: "uppercase" }}>{day.label}</p>
                   {day.events.map((e, idx) => (
                     <div key={e.id} style={{ marginBottom: idx < day.events.length - 1 ? "0.6rem" : 0, paddingBottom: idx < day.events.length - 1 ? "0.6rem" : 0, borderBottom: idx < day.events.length - 1 ? `1px solid ${C.borderDim}` : "none" }}>
@@ -258,7 +261,7 @@ export default function Dashboard() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem" }}>
             {activeLeads.slice(0, 6).map(l => (
-              <div key={l.id} style={{ background: "rgba(255,255,255,0.02)", padding: "1.25rem", border: `1px solid ${C.borderDim}` }}>
+              <div key={l.id} style={{ background: softItemBg, padding: "1.25rem", border: `1px solid ${C.borderDim}` }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <span style={{ fontSize: "11px", fontWeight: 700, color: C.gold, flex: 1, marginRight: "0.5rem" }}>{l.title}</span>
                   <span style={{ fontSize: "11px", color: C.textPrimary, whiteSpace: "nowrap" }}>{l.value > 0 ? `${l.value.toLocaleString("pt-PT")}€` : "—"}</span>

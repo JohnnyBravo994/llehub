@@ -1147,3 +1147,24 @@ html.light-theme input[type="date"]::-webkit-calendar-picker-indicator {
     opacity: 0.75 !important;
   }
 }
+
+/* Desktop light theme — navbar contrast fix.
+   Several pages use inline dark nav styles, so these rules intentionally use !important. */
+html.light-theme .mob-page-desktop > nav[style] {
+  background: rgba(255,251,247,0.97) !important;
+  border-bottom: 1px solid rgba(0,0,0,0.12) !important;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.04) !important;
+}
+html.light-theme .mob-page-desktop > nav[style] a[style],
+html.light-theme .mob-page-desktop > nav[style] span[style],
+html.light-theme .mob-page-desktop > nav[style] button[style] {
+  color: rgba(17,17,17,0.72) !important;
+}
+html.light-theme .mob-page-desktop > nav[style] a[style*="#C9A96E"],
+html.light-theme .mob-page-desktop > nav[style] span[style*="#C9A96E"] {
+  color: var(--lle-light-gold) !important;
+}
+html.light-theme .mob-page-desktop > nav[style] button[style] {
+  background: transparent !important;
+  border-color: rgba(0,0,0,0.18) !important;
+}
