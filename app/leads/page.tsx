@@ -80,7 +80,7 @@ import {
   getAllColaboradores, getAllValoresFuncoes, getAllValoresMaster,
   syncArtistasEvento, getArtistasEvento, setupDatabase, syncArtistasParaAgenda,
   getAllMaterialPacks, getMaterialPackIdsLead, syncMaterialPacksLead, reservarMaterialPacksDaLeadParaEvento,
-  syncAllExistingData, getArtistConflictOverrides, dismissArtistConflict,
+  syncAllExistingData, getArtistConflictOverrides, dismissArtistConflict, getLeadsPageBundle,
 } from "../actions";
 
 interface Lead {
@@ -186,6 +186,7 @@ export default function LeadsPage() {
   const { lightTheme, setLightTheme, mounted } = useTheme();
   const C = getColors(lightTheme);
   const [userName, setUserName] = useState("");
+  const [userRole, setUserRole] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [agendaEvents, setAgendaEvents] = useState<AgendaEvent[]>([]);
   const [artistasMap, setArtistasMap] = useState<Record<number, ArtistRow[]>>({});
@@ -223,32 +224,28 @@ export default function LeadsPage() {
   const togglePackSelecionado = (packId: number) => setSelectedPackIds(prev => prev.includes(packId) ? prev.filter(id => id !== packId) : [...prev, packId]);
 
   const load = useCallback(async () => {
-    const [r, ar, aar, cr, colr, vr, vmr, pr, cor] = await Promise.all([getAllLeads(), getAllAgenda(), getAllArtistasAgenda(), getAllClientes(), getAllColaboradores(), getAllValoresFuncoes(), getAllValoresMaster(), getAllMaterialPacks(), getArtistConflictOverrides()]);
-    if (r.success) {
-      setLeads(r.data as Lead[]);
-      // Auto-colapsar meses já passados
-      const currentYM = new Date().toISOString().slice(0, 7);
-      const pastMonths = new Set<string>();
-      (r.data as Lead[]).forEach(l => {
-        if (l.event_date && l.event_date.length >= 7) {
-          const ym = l.event_date.slice(0, 7);
-          if (ym < currentYM) pastMonths.add(ym);
-        }
-      });
-      setCollapsedMonths(pastMonths);
-    }
-    if (ar.success) setAgendaEvents(ar.data as AgendaEvent[]);
-    if (aar.success) setArtistasMap(Object.fromEntries(Object.entries(aar.data as Record<number, any[]>).map(([k, v]) => [k, v.map((a: any) => ({ ...a, colaborador_id: a.colaborador_id ?? null, fee: String(a.fee ?? "") }))])));
-    if (cor.success) setConflictOverrides(cor.data as ConflictOverride[]);
-    if (cr.success) setClientes(cr.data as Cliente[]);
-    if (colr.success) setColaboradores(colr.data as Colaborador[]);
-    if (vr.success) setValoresFuncoes(vr.data as ValorFuncao[]);
-    if (vmr.success) setValoresMaster(vmr.data as ValorMaster[]);
-    if (pr.success) setMaterialPacks(pr.data as MaterialPack[]);
+    const bundle = await getLeadsPageBundle();
+    if (!bundle.success) { setLoading(false); return; }
+    const r = bundle.leads;
+    const ar = bundle.agenda;
+    const aar = bundle.artistas;
+    const cr = bundle.clientes;
+    const colr = bundle.colaboradores;
+    const vr = bundle.valoresFuncoes;
+    const vmr = bundle.valoresMaster;
+    const pr = bundle.packs;
+    const cor = bundle.conflicts;
+    if (r?.success) setLeads(r.data as Lead[]);
+    if (ar?.success) setAgendaEvents(ar.data as AgendaEvent[]);
+    if (aar?.success) setArtistasMap(Object.fromEntries(Object.entries(aar.data as Record<number, any[]>).map(([k, v]) => [k, v.map((a: any) => ({ ...a, colaborador_id: a.colaborador_id ?? null, fee: String(a.fee ?? "") }))])));
+    if (cr?.success) setClientes(cr.data as Cliente[]);
+    if (colr?.success) setColaboradores(colr.data as Colaborador[]);
+    if (vr?.success) setValoresFuncoes(vr.data as ValorFuncao[]);
+    if (vmr?.success) setValoresMaster(vmr.data as ValorMaster[]);
+    if (pr?.success) setMaterialPacks(pr.data as MaterialPack[]);
+    if (cor?.success) setConflictOverrides(cor.data as ConflictOverride[]);
     setLoading(false);
   }, []);
-
-  const [userRole, setUserRole] = useState("");
 
   useEffect(() => {
     const u = localStorage.getItem("lle_user");
@@ -256,13 +253,7 @@ export default function LeadsPage() {
     const parsed = JSON.parse(u);
     setUserName(parsed.name);
     setUserRole(parsed.role || "admin");
-    // Sync inicial: corrigir dados históricos (agenda ganha), silencioso, uma vez por sessão
-    if (!sessionStorage.getItem("lle_sync_done")) {
-      syncAllExistingData().then(r => {
-        if (r.success) sessionStorage.setItem("lle_sync_done", "1");
-      });
-    }
-    setupDatabase().then(() => load());
+    load();
   }, [load]);
 
   const colaboradoresAtivos = colaboradores.filter(c => c.ativo === 1);
@@ -382,27 +373,23 @@ export default function LeadsPage() {
     setClienteSearch(l.cliente_nome || "");
     setClienteDropOpen(false);
     setClienteCreating(false);
-    setArtists([emptyArtist()]);
-    setModal({ open: true, editing: l });
+    setSelectedPackIds([]);
     getMaterialPackIdsLead(l.id).then(packRes => setSelectedPackIds(packRes.success ? (packRes.data as number[]) : []));
-    // Carregar artistas: primeiro tenta evento de agenda ligado, senão usa artistas da lead
-    setLoadingArtists(true);
+    const agendaId = l.agenda_event_id ?? null;
+    const cached = ((agendaId ? artistasMap[agendaId] : []) || artistasMap[-l.id] || []).map(normalizeArtistRow);
+    setArtists(cached.length > 0 ? cached : [emptyArtist()]);
+    setLoadingArtists(cached.length === 0);
+    setModal({ open: true, editing: l });
+    if (cached.length > 0) return;
     (async () => {
-      // Preferir artistas do evento de agenda (fonte de verdade quando há sync)
-      const agendaId = l.agenda_event_id ?? null;
       let loaded: ArtistRow[] = [];
       if (agendaId) {
         const res = await getArtistasEvento(agendaId);
-        if (res.success && res.data.length > 0) {
-          loaded = res.data.map(normalizeArtistRow);
-        }
+        if (res.success && res.data.length > 0) loaded = res.data.map(normalizeArtistRow);
       }
-      // Fallback: artistas guardados directamente na lead (evento_id negativo)
       if (loaded.length === 0) {
         const res = await getArtistasEvento(-l.id);
-        if (res.success && res.data.length > 0) {
-          loaded = res.data.map(normalizeArtistRow);
-        }
+        if (res.success && res.data.length > 0) loaded = res.data.map(normalizeArtistRow);
       }
       setArtists(loaded.length > 0 ? loaded : [emptyArtist()]);
       setLoadingArtists(false);

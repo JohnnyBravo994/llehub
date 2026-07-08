@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import {
   getAllMateriais, createMaterial, updateMaterial, updateMaterialCompraStatus, toggleMaterialAtivo,
   getMovimentosMateriais, registarSaidaMaterial, registarVoltaMaterial, deleteMovimentoMaterial,
-  setupMateriais, getEventosParaMateriais,
+  setupMateriais, getEventosParaMateriais, getMateriaisPageBundle,
 } from "../actions";
 
 interface Material {
@@ -171,11 +171,15 @@ export default function MateriaisPage() {
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
   const load = useCallback(async () => {
-    await setupMateriais();
-    const [mr, movr, evr] = await Promise.all([getAllMateriais(), getMovimentosMateriais(), getEventosParaMateriais()]);
-    if (mr.success) setMateriais(mr.data as Material[]);
-    if (movr.success) setMovimentos(movr.data as Movimento[]);
-    if (evr.success) setEventos(evr.data as EventoOpcao[]);
+    const bundle = await getMateriaisPageBundle();
+    if (bundle.success) {
+      const mr = bundle.materiais;
+      const movr = bundle.movimentos;
+      const evr = bundle.eventos;
+      if (mr?.success) setMateriais(mr.data as Material[]);
+      if (movr?.success) setMovimentos(movr.data as Movimento[]);
+      if (evr?.success) setEventos(evr.data as EventoOpcao[]);
+    }
     setLoading(false);
   }, []);
 

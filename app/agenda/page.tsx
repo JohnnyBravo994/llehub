@@ -81,7 +81,7 @@ import {
   setupMateriais, getAllMateriais, getMovimentosMateriais, registarSaidaMaterial,
   registarVoltaMaterial, deleteMovimentoMaterial,
   getAllMaterialPacks, reservarMaterialPacksParaEvento, getMaterialPackReservasEvento,
-  getArtistConflictOverrides, dismissArtistConflict,
+  getArtistConflictOverrides, dismissArtistConflict, getAgendaPageBundle,
 } from "../actions";
 
 interface AgendaEvent {
@@ -299,6 +299,7 @@ export default function AgendaPage() {
   const [materiais, setMateriais] = useState<MaterialItem[]>([]);
   const [movimentosMateriais, setMovimentosMateriais] = useState<MaterialMovimento[]>([]);
   const [materialPacks, setMaterialPacks] = useState<MaterialPack[]>([]);
+  const [materiaisLoaded, setMateriaisLoaded] = useState(false);
   const [selectedPackIds, setSelectedPackIds] = useState<number[]>([]);
   const [materialModal, setMaterialModal] = useState<{ open: boolean; event: AgendaEvent | null }>({ open: false, event: null });
   const emptyReservaForm = { material_id: 0, quantidade: 1, origem: "Loja", origem_detalhe: "", notas: "" };
@@ -313,28 +314,36 @@ export default function AgendaPage() {
     setToastTimer(t);
   };
 
-  const load = useCallback(async () => {
-    const [r, ar, cr, lr, colr, vr, vmr, rr, cor] = await Promise.all([getAllAgenda(), getAllArtistasAgenda(), getAllClientes(), getAllLeads(), getAllColaboradores(), getAllValoresFuncoes(), getAllValoresMaster(), getAllResidenciasAtivas(), getArtistConflictOverrides()]);
-    if (r.success) setEvents(r.data as AgendaEvent[]);
-    if (ar.success) setArtistasMap(Object.fromEntries(Object.entries(ar.data as Record<number, any[]>).map(([k, v]) => [k, v.map((a: any) => ({ ...a, colaborador_id: a.colaborador_id ?? null, fee: String(a.fee ?? "") }))])));
-    if (cr.success) setClientes(cr.data as Cliente[]);
-    if (colr.success) setColaboradores(colr.data as Colaborador[]);
-    if (vr.success) setValoresFuncoes(vr.data as ValorFuncao[]);
-    if (vmr.success) setValoresMaster(vmr.data as ValorMaster[]);
-    if (rr.success) setResidenciasAtivas((rr.data as ResidenciaAtiva[]).filter(r => r.ativo === 1));
-    if (cor.success) setConflictOverrides(cor.data as ConflictOverride[]);
-    if (lr.success) {
-      const stripEmoji = (s: string) => s.replace(/[\p{Emoji}\u200d\ufe0f]+/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
-      const agendaEvents = r.success ? (r.data as AgendaEvent[]) : [];
+  const load = useCallback(async (nameOverride?: string) => {
+    const bundle = await getAgendaPageBundle(nameOverride || userName || 'Admin');
+    if (!bundle.success) { setLoading(false); return; }
+    const r = bundle.agenda;
+    const ar = bundle.artistas;
+    const cr = bundle.clientes;
+    const lr = bundle.leads;
+    const colr = bundle.colaboradores;
+    const vr = bundle.valoresFuncoes;
+    const vmr = bundle.valoresMaster;
+    const rr = bundle.residencias;
+    const cor = bundle.conflicts;
+    if (r?.success) setEvents(r.data as AgendaEvent[]);
+    if (ar?.success) setArtistasMap(Object.fromEntries(Object.entries(ar.data as Record<number, any[]>).map(([k, v]) => [k, v.map((a: any) => ({ ...a, colaborador_id: a.colaborador_id ?? null, fee: String(a.fee ?? "") }))])));
+    if (cr?.success) setClientes(cr.data as Cliente[]);
+    if (colr?.success) setColaboradores(colr.data as Colaborador[]);
+    if (vr?.success) setValoresFuncoes(vr.data as ValorFuncao[]);
+    if (vmr?.success) setValoresMaster(vmr.data as ValorMaster[]);
+    if (rr?.success) setResidenciasAtivas((rr.data as ResidenciaAtiva[]).filter(r => r.ativo === 1));
+    if (cor?.success) setConflictOverrides(cor.data as ConflictOverride[]);
+    if (lr?.success) {
+      const stripEmoji = (s: string) => s.replace(/[\p{Emoji}‍️]+/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
+      const agendaEvents = r?.success ? (r.data as AgendaEvent[]) : [];
 
       const confirmed = (lr.data as Lead[]).filter(l => {
         if (!CONFIRMED_STATUSES.includes(l.status || "") || !l.event_date) return false;
         const leadTitle = stripEmoji(l.title);
         const leadValue = l.value || 0;
-        // Critério primário: lead já tem evento na agenda com origem_lead_id = l.id
         const hasLinkedEvent = agendaEvents.some(e => e.origem_lead_id === l.id);
         if (hasLinkedEvent) return false;
-        // Critério fallback (leads antigas sem origem_lead_id): título parecido OU mesmo valor na mesma data
         const isDuplicate = agendaEvents.some(e => {
           if (e.event_date !== l.event_date) return false;
           const agendaTitle = stripEmoji(e.title || "");
@@ -347,15 +356,17 @@ export default function AgendaPage() {
       setConfirmedLeads(confirmed);
     }
     setLoading(false);
-  }, []);
+  }, [userName]);
 
-  const loadMateriais = useCallback(async () => {
+  const loadMateriais = useCallback(async (force = false) => {
+    if (materiaisLoaded && !force) return;
     await setupMateriais();
     const [mr, movr, pr] = await Promise.all([getAllMateriais(), getMovimentosMateriais(), getAllMaterialPacks()]);
     if (mr.success) setMateriais(mr.data as MaterialItem[]);
     if (movr.success) setMovimentosMateriais(movr.data as MaterialMovimento[]);
     if (pr.success) setMaterialPacks(pr.data as MaterialPack[]);
-  }, []);
+    setMateriaisLoaded(true);
+  }, [materiaisLoaded]);
 
   const [userRole, setUserRole] = useState("");
 
@@ -365,16 +376,9 @@ export default function AgendaPage() {
     const parsed = JSON.parse(u);
     setUserName(parsed.name);
     setUserRole(parsed.role || "admin");
-    // Sync inicial: corrigir dados históricos (agenda ganha), silencioso, uma vez por sessão
-    if (!sessionStorage.getItem("lle_sync_done")) {
-      syncAllExistingData().then(r => {
-        if (r.success) sessionStorage.setItem("lle_sync_done", "1");
-      });
-    }
-    load();
-    loadMateriais();
+    load(parsed.name);
     setTimeout(() => setMounted(true), 100);
-  }, [load, loadMateriais]);
+  }, [load, router]);
 
   // Apply light theme to html element
   useEffect(() => {
@@ -392,6 +396,7 @@ export default function AgendaPage() {
   const openMaterialModal = (e: AgendaEvent) => {
     setReservaForm(emptyReservaForm);
     setMaterialModal({ open: true, event: e });
+    loadMateriais();
   };
   const closeMaterialModal = () => setMaterialModal({ open: false, event: null });
 
@@ -414,19 +419,19 @@ export default function AgendaPage() {
       responsavel: userName, notas: reservaForm.notas,
     });
     setReservaForm(emptyReservaForm);
-    await loadMateriais();
+    await loadMateriais(true);
     setReservaSaving(false);
     showToast(`Material reservado: ${mat.nome}`);
   };
 
   const handleRemoverReservaMaterial = async (id: number) => {
     await deleteMovimentoMaterial(id);
-    await loadMateriais();
+    await loadMateriais(true);
   };
 
   const handleMaterialVoltou = async (mov: MaterialMovimento) => {
     await registarVoltaMaterial(mov.id, mov.quantidade, mov.quantidade);
-    await loadMateriais();
+    await loadMateriais(true);
   };
 
   const colaboradoresAtivos = colaboradores.filter(c => c.ativo === 1);
@@ -556,7 +561,7 @@ export default function AgendaPage() {
     setModal({ open: true, editing: null });
   };
 
-  const openEdit = async (e: AgendaEvent) => {
+  const openEdit = (e: AgendaEvent) => {
     setForm({
       title: e.title, date: e.event_date, time: e.time_range || "",
       tipo: e.tipo || "", bill: String(e.bill || 0),
@@ -571,22 +576,28 @@ export default function AgendaPage() {
       residencia_id: e.residencia_id ?? null,
     });
     setClienteSearch(e.cliente_nome || "");
-    const packRes = await getMaterialPackReservasEvento(e.id);
-    setSelectedPackIds(packRes.success ? (packRes.data as MaterialPackReserva[]).map(r => r.pack_id) : []);
+    setSelectedPackIds([]);
+    getMaterialPackReservasEvento(e.id).then(packRes => {
+      setSelectedPackIds(packRes.success ? (packRes.data as MaterialPackReserva[]).map(r => r.pack_id) : []);
+    });
     setClienteDropOpen(false);
     setClienteCreating(false);
     setIsResidencia(false);
     setResidenciaDates([]);
     setModal({ open: true, editing: e });
+    const cachedArtists = (artistasMap[e.id] || []).map(normalizeArtistRow);
+    if (cachedArtists.length > 0) {
+      setArtists(cachedArtists);
+      setLoadingArtists(false);
+      return;
+    }
     setArtists([emptyArtist()]);
     setLoadingArtists(true);
-    const r = await getArtistasEvento(e.id);
-    if (r.success && r.data.length > 0) {
-      setArtists(r.data.map(normalizeArtistRow));
-    } else {
-      setArtists([emptyArtist()]);
-    }
-    setLoadingArtists(false);
+    getArtistasEvento(e.id).then(r => {
+      if (r.success && r.data.length > 0) setArtists(r.data.map(normalizeArtistRow));
+      else setArtists([emptyArtist()]);
+      setLoadingArtists(false);
+    });
   };
 
   const closeModal = () => {

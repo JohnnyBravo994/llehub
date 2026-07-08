@@ -150,6 +150,13 @@ async function ensureArtistasAssociacaoIgnoradosTable() {
 }
 
 async function ensureValoresFuncoesTable() {
+  const g = globalThis as typeof globalThis & {
+    __lle_ensure_valores_funcoes_done?: boolean;
+    __lle_ensure_valores_funcoes_promise?: Promise<void>;
+  };
+  if (g.__lle_ensure_valores_funcoes_done) return;
+  if (g.__lle_ensure_valores_funcoes_promise) return g.__lle_ensure_valores_funcoes_promise;
+  g.__lle_ensure_valores_funcoes_promise = (async () => {
   await turso.execute(`
     CREATE TABLE IF NOT EXISTS valores_funcoes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -169,10 +176,26 @@ async function ensureValoresFuncoesTable() {
       });
     } catch { }
   }
+
+  })();
+  try {
+    await g.__lle_ensure_valores_funcoes_promise;
+    g.__lle_ensure_valores_funcoes_done = true;
+  } catch (error) {
+    g.__lle_ensure_valores_funcoes_promise = undefined;
+    throw error;
+  }
 }
 
 
 async function ensureValoresMasterTable() {
+  const g = globalThis as typeof globalThis & {
+    __lle_ensure_valores_master_done?: boolean;
+    __lle_ensure_valores_master_promise?: Promise<void>;
+  };
+  if (g.__lle_ensure_valores_master_done) return;
+  if (g.__lle_ensure_valores_master_promise) return g.__lle_ensure_valores_master_promise;
+  g.__lle_ensure_valores_master_promise = (async () => {
   await turso.execute(`
     CREATE TABLE IF NOT EXISTS valores_master (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -218,6 +241,15 @@ async function ensureValoresMasterTable() {
   }
 
   await seedValoresMasterLLE2026();
+
+  })();
+  try {
+    await g.__lle_ensure_valores_master_promise;
+    g.__lle_ensure_valores_master_done = true;
+  } catch (error) {
+    g.__lle_ensure_valores_master_promise = undefined;
+    throw error;
+  }
 }
 
 function isBlankOrDefaultValorMasterRow(row: any) {
@@ -285,6 +317,13 @@ async function seedValoresMasterLLE2026() {
 }
 
 async function ensureResidenciasAtivasTable() {
+  const g = globalThis as typeof globalThis & {
+    __lle_ensure_residencias_done?: boolean;
+    __lle_ensure_residencias_promise?: Promise<void>;
+  };
+  if (g.__lle_ensure_residencias_done) return;
+  if (g.__lle_ensure_residencias_promise) return g.__lle_ensure_residencias_promise;
+  g.__lle_ensure_residencias_promise = (async () => {
   await turso.execute(`
     CREATE TABLE IF NOT EXISTS residencias_ativas (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -320,9 +359,25 @@ async function ensureResidenciasAtivasTable() {
   for (const col of cols) {
     try { await turso.execute(`ALTER TABLE residencias_ativas ADD COLUMN ${col}`); } catch { }
   }
+
+  })();
+  try {
+    await g.__lle_ensure_residencias_promise;
+    g.__lle_ensure_residencias_done = true;
+  } catch (error) {
+    g.__lle_ensure_residencias_promise = undefined;
+    throw error;
+  }
 }
 
 async function ensureCommercialColumns() {
+  const g = globalThis as typeof globalThis & {
+    __lle_ensure_commercial_cols_done?: boolean;
+    __lle_ensure_commercial_cols_promise?: Promise<void>;
+  };
+  if (g.__lle_ensure_commercial_cols_done) return;
+  if (g.__lle_ensure_commercial_cols_promise) return g.__lle_ensure_commercial_cols_promise;
+  g.__lle_ensure_commercial_cols_promise = (async () => {
   try { await turso.execute("ALTER TABLE agenda ADD COLUMN residencia_id INTEGER"); } catch { }
   try { await turso.execute("ALTER TABLE leads ADD COLUMN residencia_id INTEGER"); } catch { }
   const cols = [
@@ -333,6 +388,15 @@ async function ensureCommercialColumns() {
   for (const col of cols) {
     try { await turso.execute(`ALTER TABLE agenda ADD COLUMN ${col}`); } catch { }
     try { await turso.execute(`ALTER TABLE leads ADD COLUMN ${col}`); } catch { }
+  }
+
+  })();
+  try {
+    await g.__lle_ensure_commercial_cols_promise;
+    g.__lle_ensure_commercial_cols_done = true;
+  } catch (error) {
+    g.__lle_ensure_commercial_cols_promise = undefined;
+    throw error;
   }
 }
 
@@ -2414,6 +2478,13 @@ async function getOrCreateMaterialByName(nome: string, categoria = "Outro") {
 }
 
 async function seedMaterialPacks() {
+  const g = globalThis as typeof globalThis & {
+    __lle_seed_material_packs_done?: boolean;
+    __lle_seed_material_packs_promise?: Promise<void>;
+  };
+  if (g.__lle_seed_material_packs_done) return;
+  if (g.__lle_seed_material_packs_promise) return g.__lle_seed_material_packs_promise;
+  g.__lle_seed_material_packs_promise = (async () => {
   await ensureMaterialPacksTables();
   for (const seed of DEFAULT_MATERIAL_PACKS) {
     const existing = await turso.execute({ sql: "SELECT id FROM material_packs WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) LIMIT 1", args: [seed.nome] });
@@ -2466,6 +2537,15 @@ async function seedMaterialPacks() {
         });
       }
     }
+  }
+
+  })();
+  try {
+    await g.__lle_seed_material_packs_promise;
+    g.__lle_seed_material_packs_done = true;
+  } catch (error) {
+    g.__lle_seed_material_packs_promise = undefined;
+    throw error;
   }
 }
 
@@ -2612,6 +2692,13 @@ export async function reservarMaterialPacksDaLeadParaEvento(leadId: number, even
 // ═══════════════════════════════════════════════════════════════════════════
 
 export async function setupMateriais() {
+  const g = globalThis as typeof globalThis & {
+    __lle_setup_materiais_done?: boolean;
+    __lle_setup_materiais_promise?: Promise<{ success: boolean }>;
+  };
+  if (g.__lle_setup_materiais_done) return { success: true };
+  if (g.__lle_setup_materiais_promise) return g.__lle_setup_materiais_promise;
+  g.__lle_setup_materiais_promise = (async () => {
   try {
     await turso.execute(`
       CREATE TABLE IF NOT EXISTS materiais (
@@ -2690,6 +2777,12 @@ export async function setupMateriais() {
     console.error("Erro setup materiais:", error);
     return { success: false };
   }
+
+  })();
+  const result = await g.__lle_setup_materiais_promise;
+  if (result.success) g.__lle_setup_materiais_done = true;
+  else g.__lle_setup_materiais_promise = undefined;
+  return result;
 }
 
 // Lista leve de eventos da agenda para selecionar no picker de materiais
@@ -2934,4 +3027,76 @@ export async function deleteMovimentoMaterial(id: number) {
     await turso.execute({ sql: "DELETE FROM material_movimentos WHERE id=?", args: [id] });
     return { success: true };
   } catch { return { success: false }; }
+}
+
+
+// ── PAGE BUNDLES: menos round-trips client → server ──────────────────────────
+export async function getAgendaPageBundle(userName: string = 'Admin') {
+  try {
+    const [agenda, artistas, clientes, leads, colaboradores, valoresFuncoes, valoresMaster, residencias, conflicts] = await Promise.all([
+      getAllAgenda(userName),
+      getAllArtistasAgenda(),
+      getAllClientes(),
+      getAllLeads(),
+      getAllColaboradores(),
+      getAllValoresFuncoes(),
+      getAllValoresMaster(),
+      getAllResidenciasAtivas(),
+      getArtistConflictOverrides(),
+    ]);
+    return { success: true, agenda, artistas, clientes, leads, colaboradores, valoresFuncoes, valoresMaster, residencias, conflicts };
+  } catch (error) {
+    console.error('Erro getAgendaPageBundle:', error);
+    return { success: false };
+  }
+}
+
+export async function getLeadsPageBundle() {
+  try {
+    const [leads, agenda, artistas, clientes, colaboradores, valoresFuncoes, valoresMaster, packs, conflicts] = await Promise.all([
+      getAllLeads(),
+      getAllAgenda(),
+      getAllArtistasAgenda(),
+      getAllClientes(),
+      getAllColaboradores(),
+      getAllValoresFuncoes(),
+      getAllValoresMaster(),
+      getAllMaterialPacks(),
+      getArtistConflictOverrides(),
+    ]);
+    return { success: true, leads, agenda, artistas, clientes, colaboradores, valoresFuncoes, valoresMaster, packs, conflicts };
+  } catch (error) {
+    console.error('Erro getLeadsPageBundle:', error);
+    return { success: false };
+  }
+}
+
+export async function getPagamentosPageBundle() {
+  try {
+    const [pagamentos, colaboradores] = await Promise.all([getAllPagamentos(), getAllColaboradores()]);
+    return { success: true, pagamentos, colaboradores };
+  } catch (error) {
+    console.error('Erro getPagamentosPageBundle:', error);
+    return { success: false };
+  }
+}
+
+export async function getFaturacaoPageBundle() {
+  try {
+    const [faturacao, clientes] = await Promise.all([getFaturacaoData(), getAllClientes()]);
+    return { success: true, faturacao, clientes };
+  } catch (error) {
+    console.error('Erro getFaturacaoPageBundle:', error);
+    return { success: false };
+  }
+}
+
+export async function getMateriaisPageBundle() {
+  try {
+    const [materiais, movimentos, eventos] = await Promise.all([getAllMateriais(), getMovimentosMateriais(), getEventosParaMateriais()]);
+    return { success: true, materiais, movimentos, eventos };
+  } catch (error) {
+    console.error('Erro getMateriaisPageBundle:', error);
+    return { success: false };
+  }
 }

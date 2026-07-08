@@ -6,7 +6,7 @@ import { ThemeSwitcher } from "../ThemeSwitcher";
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
-  getFaturacaoData, updateItemBillingStatus, setupDatabase,
+  getFaturacaoData, updateItemBillingStatus, setupDatabase, getFaturacaoPageBundle,
   getAllClientes, createCliente, updateValorRecebido,
 } from "../actions";
 
@@ -115,7 +115,7 @@ export default function FaturacaoPage() {
     if (!["admin", "finance"].includes(parsed.role || "")) { router.push("/agenda"); return; }
     setUserName(parsed.name);
     setUserRole(parsed.role || "admin");
-    setupDatabase().then(() => load());
+    load();
   }, [load]);
 
   async function handleStatusChange(item: FatItem, newStatus: string) {

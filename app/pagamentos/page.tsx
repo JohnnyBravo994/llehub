@@ -6,7 +6,7 @@ import { ThemeSwitcher } from "../ThemeSwitcher";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ARTIST_TIPOS, resolveColaboradorNome } from "../constants";
-import { getAllPagamentos, updatePagamento, deletePagamento, addPagamento, getAllColaboradores } from "../actions";
+import { getPagamentosPageBundle, updatePagamento, deletePagamento, addPagamento, getAllColaboradores, getAllPagamentos } from "../actions";
 
 interface Pagamento {
   id: number; evento_id: number; evento_nome: string; evento_data: string;
@@ -104,9 +104,13 @@ export default function PagamentosPage() {
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
   const load = useCallback(async () => {
-    const [r, cr] = await Promise.all([getAllPagamentos(), getAllColaboradores()]);
-    if (r.success) setPagamentos(r.data as Pagamento[]);
-    if (cr.success) setColaboradores(cr.data as Colaborador[]);
+    const bundle = await getPagamentosPageBundle();
+    if (bundle.success) {
+      const r = bundle.pagamentos;
+      const cr = bundle.colaboradores;
+      if (r?.success) setPagamentos(r.data as Pagamento[]);
+      if (cr?.success) setColaboradores(cr.data as Colaborador[]);
+    }
     setLoading(false);
   }, []);
 

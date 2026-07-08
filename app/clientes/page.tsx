@@ -5,7 +5,7 @@ import { ThemeSwitcher } from "../ThemeSwitcher";
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { getAllClientes, createCliente, updateCliente, deleteCliente, setupDatabase } from "../actions";
+import { getAllClientes, createCliente, updateCliente, deleteCliente } from "../actions";
 
 interface Cliente {
   id: number; nome: string; nif?: string; email?: string;
@@ -61,7 +61,6 @@ export default function ClientesPage() {
   };
 
   const load = useCallback(async () => {
-    await setupDatabase();
     const r = await getAllClientes();
     if (r.success) setClientes(r.data as Cliente[]);
     setLoading(false);
