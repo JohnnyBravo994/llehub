@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-
 import { ARTIST_TIPOS, MODALIDADES, SERVICOS_VENDIDOS, TIPOS_COMERCIAIS, VALOR_CONTEXTOS, resolveColaboradorNome } from "../constants";
 import { useEffect, useState, useCallback, useRef } from "react";
 import React from "react";
@@ -80,7 +78,7 @@ import {
   cancelAgendaEvent, restoreAgendaEvent, deleteAgendaEvent,
   getArtistasEvento, syncArtistasEvento, getAllArtistasAgenda, syncArtistasParaLead,
   getAllClientes, createCliente, getAllLeads, getAllColaboradores, getAllValoresFuncoes, getAllValoresMaster, getAllResidenciasAtivas, syncAllExistingData,
-  setupMateriais, getAllMateriais, getMovimentosMateriais, getMovimentosMateriaisPendentesResumo, registarSaidaMaterial,
+  setupMateriais, getAllMateriais, getMovimentosMateriais, registarSaidaMaterial,
   registarVoltaMaterial, deleteMovimentoMaterial,
   getAllMaterialPacks, reservarMaterialPacksParaEvento, getMaterialPackReservasEvento,
   getArtistConflictOverrides, dismissArtistConflict,
@@ -351,16 +349,6 @@ export default function AgendaPage() {
     setLoading(false);
   }, []);
 
-  const loadMateriaisResumo = useCallback(async () => {
-    const movr = await getMovimentosMateriaisPendentesResumo();
-    if (movr.success) setMovimentosMateriais(movr.data as MaterialMovimento[]);
-  }, []);
-
-  const loadMaterialPacks = useCallback(async () => {
-    const pr = await getAllMaterialPacks();
-    if (pr.success) setMaterialPacks(pr.data as MaterialPack[]);
-  }, []);
-
   const loadMateriais = useCallback(async () => {
     await setupMateriais();
     const [mr, movr, pr] = await Promise.all([getAllMateriais(), getMovimentosMateriais(), getAllMaterialPacks()]);
@@ -384,9 +372,9 @@ export default function AgendaPage() {
       });
     }
     load();
-    loadMateriaisResumo();
+    loadMateriais();
     setTimeout(() => setMounted(true), 100);
-  }, [load, loadMateriaisResumo]);
+  }, [load, loadMateriais]);
 
   // Apply light theme to html element
   useEffect(() => {
@@ -404,7 +392,6 @@ export default function AgendaPage() {
   const openMaterialModal = (e: AgendaEvent) => {
     setReservaForm(emptyReservaForm);
     setMaterialModal({ open: true, event: e });
-    void loadMateriais();
   };
   const closeMaterialModal = () => setMaterialModal({ open: false, event: null });
 
@@ -558,7 +545,6 @@ export default function AgendaPage() {
   };
 
   const openCreate = () => {
-    void loadMaterialPacks();
     setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
     setArtists([emptyArtist()]);
     setClienteSearch("");
@@ -571,7 +557,6 @@ export default function AgendaPage() {
   };
 
   const openEdit = async (e: AgendaEvent) => {
-    await loadMaterialPacks();
     setForm({
       title: e.title, date: e.event_date, time: e.time_range || "",
       tipo: e.tipo || "", bill: String(e.bill || 0),
@@ -2187,7 +2172,7 @@ function Nav({ userName, active, onLogout, lightTheme }: { userName: string; act
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: goldColor, fontWeight: lightTheme ? 700 : 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <Link key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: active === l.href.slice(1) ? (lightTheme ? 700 : 600) : (lightTheme ? 600 : 500), color: active === l.href.slice(1) ? goldColor : textMuted, textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</Link>
+            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: active === l.href.slice(1) ? (lightTheme ? 700 : 600) : (lightTheme ? 600 : 500), color: active === l.href.slice(1) ? goldColor : textMuted, textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
@@ -2382,7 +2367,7 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
         <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: drawerTitle, textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "0 0.5rem" }}>
           {maisTabs.map(t => (
-            <Link key={t.href} href={t.href} onClick={() => setMaisOpen(false)}
+            <a key={t.href} href={t.href} onClick={() => setMaisOpen(false)}
               style={{
                 display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
                 textDecoration: "none", padding: "0.6rem 1rem", minWidth: "72px",
@@ -2392,7 +2377,7 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
               }}>
               <span style={{ width: "22px", height: "22px", display: "block" }}>{t.icon}</span>
               <span style={{ fontSize: "9px", letterSpacing: "0.1em", fontFamily: "'Montserrat',sans-serif", fontWeight: active === t.id ? 600 : 400 }}>{t.label}</span>
-            </Link>
+            </a>
           ))}
         </div>
       </div>
@@ -2400,10 +2385,10 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
       {/* Tab bar principal */}
       <nav className="mob-tabbar">
         {mainTabs.map(l => (
-          <Link key={l.href} href={l.href} className={`mob-tab${active === l.id ? " active" : ""}`}>
+          <a key={l.href} href={l.href} className={`mob-tab${active === l.id ? " active" : ""}`}>
             <span className="mob-tab-icon">{l.icon}</span>
             <span className="mob-tab-label">{l.label}</span>
-          </Link>
+          </a>
         ))}
         {/* Botão "Mais" — só para admin */}
         {maisTabs.length > 0 && (

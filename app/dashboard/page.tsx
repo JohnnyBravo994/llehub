@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-
 import { useTheme } from "../useTheme";
 import { ThemeSwitcher } from "../ThemeSwitcher";
 
@@ -222,7 +220,7 @@ export default function Dashboard() {
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
             <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim }}>PRÓXIMOS 7 DIAS</p>
-            <Link href="/agenda" style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.goldDim, textDecoration: "none", textTransform: "uppercase" }}>Ver agenda →</Link>
+            <a href="/agenda" style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.goldDim, textDecoration: "none", textTransform: "uppercase" }}>Ver agenda →</a>
           </div>
           {next7Days.length > 0 ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "1rem" }}>
@@ -259,7 +257,7 @@ export default function Dashboard() {
         <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "2rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
             <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim }}>LEADS ACTIVAS</p>
-            <Link href="/leads" style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.goldDim, textDecoration: "none", textTransform: "uppercase" }}>Ver todas →</Link>
+            <a href="/leads" style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.goldDim, textDecoration: "none", textTransform: "uppercase" }}>Ver todas →</a>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem" }}>
             {activeLeads.slice(0, 6).map(l => (
@@ -327,7 +325,7 @@ export default function Dashboard() {
         <div style={{ borderBottom:"1px solid rgba(255,255,255,0.05)", flexShrink:0 }}>
           <div style={{ padding:"0.85rem 1.2rem 0.5rem", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div className="mob-dash-section-label" style={{marginBottom:0}}>Próximos dias</div>
-            <Link href="/agenda" style={{ fontSize:"8px", letterSpacing:"0.25em", color:"rgba(201,169,110,0.45)", textDecoration:"none", textTransform:"uppercase" }}>agenda →</Link>
+            <a href="/agenda" style={{ fontSize:"8px", letterSpacing:"0.25em", color:"rgba(201,169,110,0.45)", textDecoration:"none", textTransform:"uppercase" }}>agenda →</a>
           </div>
           <div style={{ paddingBottom:"0.5rem" }}>
             {next7Days.map(day => day.events.map((e, idx) => (
@@ -363,13 +361,13 @@ export default function Dashboard() {
       <div className="mob-dash-scroll">
         {activeLeads.length === 0 && <div className="mob-empty">Sem leads activas</div>}
         {activeLeads.slice(0,15).map((l:any) => (
-          <Link key={l.id} href="/leads" className="mob-dash-lead-card" style={{display:"flex", textDecoration:"none"}}>
+          <a key={l.id} href="/leads" className="mob-dash-lead-card" style={{display:"flex", textDecoration:"none"}}>
             <div style={{flex:1, minWidth:0}}>
               <div className="mob-dash-lead-name">{l.title}</div>
               <div className="mob-dash-lead-meta">{new Date(l.event_date+"T00:00:00").toLocaleDateString("pt-PT",{day:"numeric",month:"short"})}{l.local ? ` · ${l.local}` : ""}</div>
             </div>
             <div className="mob-dash-lead-val">{l.value > 0 ? `${Number(l.value).toLocaleString("pt-PT")}€` : "—"}</div>
-          </Link>
+          </a>
         ))}
       </div>
 
@@ -400,7 +398,7 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <Link key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "#C9A96E" : "rgba(245,240,232,0.45)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</Link>
+            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "#C9A96E" : "rgba(245,240,232,0.45)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
@@ -516,7 +514,7 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
         <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: drawerTitle, textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "0 0.5rem" }}>
           {maisTabs.map(t => (
-            <Link key={t.href} href={t.href} onClick={() => setMaisOpen(false)}
+            <a key={t.href} href={t.href} onClick={() => setMaisOpen(false)}
               style={{
                 display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
                 textDecoration: "none", padding: "0.6rem 1rem", minWidth: "72px",
@@ -526,7 +524,7 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
               }}>
               <span style={{ width: "22px", height: "22px", display: "block" }}>{t.icon}</span>
               <span style={{ fontSize: "9px", letterSpacing: "0.1em", fontFamily: "'Montserrat',sans-serif", fontWeight: active === t.id ? 600 : 400 }}>{t.label}</span>
-            </Link>
+            </a>
           ))}
         </div>
       </div>
@@ -534,10 +532,10 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
       {/* Tab bar principal */}
       <nav className="mob-tabbar">
         {mainTabs.map(l => (
-          <Link key={l.href} href={l.href} className={`mob-tab${active === l.id ? " active" : ""}`}>
+          <a key={l.href} href={l.href} className={`mob-tab${active === l.id ? " active" : ""}`}>
             <span className="mob-tab-icon">{l.icon}</span>
             <span className="mob-tab-label">{l.label}</span>
-          </Link>
+          </a>
         ))}
         {/* Botão "Mais" — só para admin */}
         {maisTabs.length > 0 && (
