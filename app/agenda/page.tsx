@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-
 import { ARTIST_TIPOS, MODALIDADES, SERVICOS_VENDIDOS, TIPOS_COMERCIAIS, VALOR_CONTEXTOS, resolveColaboradorNome } from "../constants";
 import { useEffect, useState, useCallback, useRef } from "react";
 import React from "react";
@@ -76,14 +74,14 @@ function CustomSelect({
   );
 }
 import {
-  getAgendaInitialData, createAgendaEvent, updateAgendaEvent,
+  getAllAgenda, createAgendaEvent, updateAgendaEvent,
   cancelAgendaEvent, restoreAgendaEvent, deleteAgendaEvent,
-  getArtistasEvento, syncArtistasEvento, syncArtistasParaLead,
-  getAllClientes, createCliente, getAllColaboradores, getAllValoresFuncoes, getAllValoresMaster, getAllResidenciasAtivas,
+  getArtistasEvento, syncArtistasEvento, getAllArtistasAgenda, syncArtistasParaLead,
+  getAllClientes, createCliente, getAllLeads, getAllColaboradores, getAllValoresFuncoes, getAllValoresMaster, getAllResidenciasAtivas, syncAllExistingData,
   setupMateriais, getAllMateriais, getMovimentosMateriais, registarSaidaMaterial,
   registarVoltaMaterial, deleteMovimentoMaterial,
   getAllMaterialPacks, reservarMaterialPacksParaEvento, getMaterialPackReservasEvento,
-  dismissArtistConflict,
+  getArtistConflictOverrides, dismissArtistConflict,
 } from "../actions";
 
 interface AgendaEvent {
@@ -315,42 +313,40 @@ export default function AgendaPage() {
     setToastTimer(t);
   };
 
-  const load = useCallback(async (nameOverride?: string, monthOverride?: string) => {
-    const storedName = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("lle_user") || "{}").name : "";
-    setLoading(true);
-    const r = await getAgendaInitialData(nameOverride || storedName || "Admin", monthOverride || selectedMonth);
-    if (r.success) {
-      setEvents(r.events as AgendaEvent[]);
-      setArtistasMap(Object.fromEntries(Object.entries(r.artistasMap as Record<number, any[]>).map(([k, v]) => [k, v.map((a: any) => ({ ...a, colaborador_id: a.colaborador_id ?? null, fee: String(a.fee ?? "") }))])));
-      setClientes(r.clientes as Cliente[]);
-      setConfirmedLeads(r.confirmedLeads as Lead[]);
-      setConflictOverrides(r.conflictOverrides as ConflictOverride[]);
-      setMovimentosMateriais(r.materiaisPendentes as MaterialMovimento[]);
+  const load = useCallback(async () => {
+    const [r, ar, cr, lr, colr, vr, vmr, rr, cor] = await Promise.all([getAllAgenda(), getAllArtistasAgenda(), getAllClientes(), getAllLeads(), getAllColaboradores(), getAllValoresFuncoes(), getAllValoresMaster(), getAllResidenciasAtivas(), getArtistConflictOverrides()]);
+    if (r.success) setEvents(r.data as AgendaEvent[]);
+    if (ar.success) setArtistasMap(Object.fromEntries(Object.entries(ar.data as Record<number, any[]>).map(([k, v]) => [k, v.map((a: any) => ({ ...a, colaborador_id: a.colaborador_id ?? null, fee: String(a.fee ?? "") }))])));
+    if (cr.success) setClientes(cr.data as Cliente[]);
+    if (colr.success) setColaboradores(colr.data as Colaborador[]);
+    if (vr.success) setValoresFuncoes(vr.data as ValorFuncao[]);
+    if (vmr.success) setValoresMaster(vmr.data as ValorMaster[]);
+    if (rr.success) setResidenciasAtivas((rr.data as ResidenciaAtiva[]).filter(r => r.ativo === 1));
+    if (cor.success) setConflictOverrides(cor.data as ConflictOverride[]);
+    if (lr.success) {
+      const stripEmoji = (s: string) => s.replace(/[\p{Emoji}\u200d\ufe0f]+/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
+      const agendaEvents = r.success ? (r.data as AgendaEvent[]) : [];
+
+      const confirmed = (lr.data as Lead[]).filter(l => {
+        if (!CONFIRMED_STATUSES.includes(l.status || "") || !l.event_date) return false;
+        const leadTitle = stripEmoji(l.title);
+        const leadValue = l.value || 0;
+        // Critério primário: lead já tem evento na agenda com origem_lead_id = l.id
+        const hasLinkedEvent = agendaEvents.some(e => e.origem_lead_id === l.id);
+        if (hasLinkedEvent) return false;
+        // Critério fallback (leads antigas sem origem_lead_id): título parecido OU mesmo valor na mesma data
+        const isDuplicate = agendaEvents.some(e => {
+          if (e.event_date !== l.event_date) return false;
+          const agendaTitle = stripEmoji(e.title || "");
+          const titleMatch = agendaTitle.includes(leadTitle.slice(0, 12)) || leadTitle.includes(agendaTitle.slice(0, 12));
+          const valueMatch = leadValue > 0 && Number(e.bill) === leadValue;
+          return titleMatch || valueMatch;
+        });
+        return !isDuplicate;
+      });
+      setConfirmedLeads(confirmed);
     }
     setLoading(false);
-  }, [selectedMonth]);
-
-  const [auxLoaded, setAuxLoaded] = useState(false);
-  const [auxLoading, setAuxLoading] = useState(false);
-  const loadAuxData = useCallback(async () => {
-    if (auxLoaded || auxLoading) return;
-    setAuxLoading(true);
-    try {
-      const [cr, colr, vr, vmr, rr] = await Promise.all([getAllClientes(), getAllColaboradores(), getAllValoresFuncoes(), getAllValoresMaster(), getAllResidenciasAtivas()]);
-      if (cr.success) setClientes(cr.data as Cliente[]);
-      if (colr.success) setColaboradores(colr.data as Colaborador[]);
-      if (vr.success) setValoresFuncoes(vr.data as ValorFuncao[]);
-      if (vmr.success) setValoresMaster(vmr.data as ValorMaster[]);
-      if (rr.success) setResidenciasAtivas((rr.data as ResidenciaAtiva[]).filter(r => r.ativo === 1));
-      setAuxLoaded(true);
-    } finally {
-      setAuxLoading(false);
-    }
-  }, [auxLoaded, auxLoading]);
-
-  const loadMaterialPacks = useCallback(async () => {
-    const pr = await getAllMaterialPacks();
-    if (pr.success) setMaterialPacks(pr.data as MaterialPack[]);
   }, []);
 
   const loadMateriais = useCallback(async () => {
@@ -369,11 +365,16 @@ export default function AgendaPage() {
     const parsed = JSON.parse(u);
     setUserName(parsed.name);
     setUserRole(parsed.role || "admin");
-    // Não correr sync/migrations pesadas ao abrir a Agenda: isso bloqueava a mudança de página.
-    // O alinhamento Lead↔Agenda continua nas ações de criar/editar/guardar.
-    load(parsed.name, selectedMonth);
+    // Sync inicial: corrigir dados históricos (agenda ganha), silencioso, uma vez por sessão
+    if (!sessionStorage.getItem("lle_sync_done")) {
+      syncAllExistingData().then(r => {
+        if (r.success) sessionStorage.setItem("lle_sync_done", "1");
+      });
+    }
+    load();
+    loadMateriais();
     setTimeout(() => setMounted(true), 100);
-  }, [load, selectedMonth]);
+  }, [load, loadMateriais]);
 
   // Apply light theme to html element
   useEffect(() => {
@@ -391,7 +392,6 @@ export default function AgendaPage() {
   const openMaterialModal = (e: AgendaEvent) => {
     setReservaForm(emptyReservaForm);
     setMaterialModal({ open: true, event: e });
-    void loadMateriais();
   };
   const closeMaterialModal = () => setMaterialModal({ open: false, event: null });
 
@@ -545,8 +545,6 @@ export default function AgendaPage() {
   };
 
   const openCreate = () => {
-    void loadAuxData();
-    void loadMaterialPacks();
     setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
     setArtists([emptyArtist()]);
     setClienteSearch("");
@@ -559,8 +557,6 @@ export default function AgendaPage() {
   };
 
   const openEdit = async (e: AgendaEvent) => {
-    void loadAuxData();
-    await loadMaterialPacks();
     setForm({
       title: e.title, date: e.event_date, time: e.time_range || "",
       tipo: e.tipo || "", bill: String(e.bill || 0),
@@ -928,7 +924,7 @@ export default function AgendaPage() {
   const handleDismissConflict = async (date: string, artist: string) => {
     await dismissArtistConflict({ event_date: date, artist_name: artist, note: "Dá para fazer ambos", dismissed_by: userName });
     showToast("Alerta retirado para esse artista nesse dia");
-    await load(undefined, selectedMonth);
+    await load();
   };
   const ConflictAlert = ({ conflicts }: { conflicts: { artist: string; date: string; others: string[] }[] }) => conflicts.length === 0 ? null : (
     <div style={{ marginTop: "5px", display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -2176,7 +2172,7 @@ function Nav({ userName, active, onLogout, lightTheme }: { userName: string; act
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: goldColor, fontWeight: lightTheme ? 700 : 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <Link key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: active === l.href.slice(1) ? (lightTheme ? 700 : 600) : (lightTheme ? 600 : 500), color: active === l.href.slice(1) ? goldColor : textMuted, textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</Link>
+            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: active === l.href.slice(1) ? (lightTheme ? 700 : 600) : (lightTheme ? 600 : 500), color: active === l.href.slice(1) ? goldColor : textMuted, textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
@@ -2371,7 +2367,7 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
         <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: drawerTitle, textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontFamily: "'Montserrat',sans-serif" }}>Mais páginas</p>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "0 0.5rem" }}>
           {maisTabs.map(t => (
-            <Link key={t.href} href={t.href} onClick={() => setMaisOpen(false)}
+            <a key={t.href} href={t.href} onClick={() => setMaisOpen(false)}
               style={{
                 display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
                 textDecoration: "none", padding: "0.6rem 1rem", minWidth: "72px",
@@ -2381,7 +2377,7 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
               }}>
               <span style={{ width: "22px", height: "22px", display: "block" }}>{t.icon}</span>
               <span style={{ fontSize: "9px", letterSpacing: "0.1em", fontFamily: "'Montserrat',sans-serif", fontWeight: active === t.id ? 600 : 400 }}>{t.label}</span>
-            </Link>
+            </a>
           ))}
         </div>
       </div>
@@ -2389,10 +2385,10 @@ function MobTabBar({ active, role, lightTheme }: { active: string; role: string;
       {/* Tab bar principal */}
       <nav className="mob-tabbar">
         {mainTabs.map(l => (
-          <Link key={l.href} href={l.href} className={`mob-tab${active === l.id ? " active" : ""}`}>
+          <a key={l.href} href={l.href} className={`mob-tab${active === l.id ? " active" : ""}`}>
             <span className="mob-tab-icon">{l.icon}</span>
             <span className="mob-tab-label">{l.label}</span>
-          </Link>
+          </a>
         ))}
         {/* Botão "Mais" — só para admin */}
         {maisTabs.length > 0 && (
