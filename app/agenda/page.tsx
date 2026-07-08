@@ -81,7 +81,7 @@ import {
   setupMateriais, getAllMateriais, getMovimentosMateriais, registarSaidaMaterial,
   registarVoltaMaterial, deleteMovimentoMaterial,
   getAllMaterialPacks, reservarMaterialPacksParaEvento, getMaterialPackReservasEvento,
-  getArtistConflictOverrides, dismissArtistConflict, getAgendaPageBundle,
+  getArtistConflictOverrides, dismissArtistConflict, getAgendaPageBundle, getAgendaFormLookups, getMaterialPackIdsForServico,
 } from "../actions";
 
 interface AgendaEvent {
@@ -258,6 +258,9 @@ export default function AgendaPage() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+  const [lookupsLoaded, setLookupsLoaded] = useState(false);
+  const [lookupsLoading, setLookupsLoading] = useState(false);
   const [modal, setModal] = useState<{ open: boolean; editing: AgendaEvent | null }>({ open: false, editing: null });
   const [waModal, setWaModal] = useState(false);
   const [waText, setWaText] = useState("");
@@ -314,30 +317,41 @@ export default function AgendaPage() {
     setToastTimer(t);
   };
 
-  const load = useCallback(async (nameOverride?: string) => {
-    const bundle = await getAgendaPageBundle(nameOverride || userName || 'Admin');
+  const loadLookups = useCallback(async () => {
+    if (lookupsLoaded || lookupsLoading) return;
+    setLookupsLoading(true);
+    const r = await getAgendaFormLookups();
+    if (r.success) {
+      if (r.clientes?.success) setClientes(r.clientes.data as Cliente[]);
+      if (r.colaboradores?.success) setColaboradores(r.colaboradores.data as Colaborador[]);
+      if (r.valoresFuncoes?.success) setValoresFuncoes(r.valoresFuncoes.data as ValorFuncao[]);
+      if (r.valoresMaster?.success) setValoresMaster(r.valoresMaster.data as ValorMaster[]);
+      if (r.residencias?.success) setResidenciasAtivas((r.residencias.data as ResidenciaAtiva[]).filter(r => r.ativo === 1));
+      setLookupsLoaded(true);
+    }
+    setLookupsLoading(false);
+  }, [lookupsLoaded, lookupsLoading]);
+
+  const load = useCallback(async (nameOverride?: string, monthOverride?: string) => {
+    setLoading(true);
+    const targetMonth = monthOverride || selectedMonth;
+    const bundle = await getAgendaPageBundle(nameOverride || userName || 'Admin', targetMonth);
     if (!bundle.success) { setLoading(false); return; }
     const r = bundle.agenda;
     const ar = bundle.artistas;
-    const cr = bundle.clientes;
     const lr = bundle.leads;
-    const colr = bundle.colaboradores;
-    const vr = bundle.valoresFuncoes;
-    const vmr = bundle.valoresMaster;
-    const rr = bundle.residencias;
     const cor = bundle.conflicts;
+    const mr = bundle.months;
+    if (mr?.success) {
+      const months = (mr.data as string[]).filter(Boolean);
+      setAvailableMonths(months.includes(targetMonth) ? months : [...months, targetMonth].sort());
+    }
     if (r?.success) setEvents(r.data as AgendaEvent[]);
     if (ar?.success) setArtistasMap(Object.fromEntries(Object.entries(ar.data as Record<number, any[]>).map(([k, v]) => [k, v.map((a: any) => ({ ...a, colaborador_id: a.colaborador_id ?? null, fee: String(a.fee ?? "") }))])));
-    if (cr?.success) setClientes(cr.data as Cliente[]);
-    if (colr?.success) setColaboradores(colr.data as Colaborador[]);
-    if (vr?.success) setValoresFuncoes(vr.data as ValorFuncao[]);
-    if (vmr?.success) setValoresMaster(vmr.data as ValorMaster[]);
-    if (rr?.success) setResidenciasAtivas((rr.data as ResidenciaAtiva[]).filter(r => r.ativo === 1));
     if (cor?.success) setConflictOverrides(cor.data as ConflictOverride[]);
     if (lr?.success) {
       const stripEmoji = (s: string) => s.replace(/[\p{Emoji}‍️]+/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
       const agendaEvents = r?.success ? (r.data as AgendaEvent[]) : [];
-
       const confirmed = (lr.data as Lead[]).filter(l => {
         if (!CONFIRMED_STATUSES.includes(l.status || "") || !l.event_date) return false;
         const leadTitle = stripEmoji(l.title);
@@ -356,7 +370,7 @@ export default function AgendaPage() {
       setConfirmedLeads(confirmed);
     }
     setLoading(false);
-  }, [userName]);
+  }, [userName, selectedMonth]);
 
   const loadMateriais = useCallback(async (force = false) => {
     if (materiaisLoaded && !force) return;
@@ -376,9 +390,9 @@ export default function AgendaPage() {
     const parsed = JSON.parse(u);
     setUserName(parsed.name);
     setUserRole(parsed.role || "admin");
-    load(parsed.name);
+    load(parsed.name, selectedMonth);
     setTimeout(() => setMounted(true), 100);
-  }, [load, router]);
+  }, [load, router, selectedMonth]);
 
   // Apply light theme to html element
   useEffect(() => {
@@ -550,6 +564,7 @@ export default function AgendaPage() {
   };
 
   const openCreate = () => {
+    loadLookups();
     setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
     setArtists([emptyArtist()]);
     setClienteSearch("");
@@ -562,6 +577,7 @@ export default function AgendaPage() {
   };
 
   const openEdit = (e: AgendaEvent) => {
+    loadLookups();
     setForm({
       title: e.title, date: e.event_date, time: e.time_range || "",
       tipo: e.tipo || "", bill: String(e.bill || 0),
@@ -577,9 +593,6 @@ export default function AgendaPage() {
     });
     setClienteSearch(e.cliente_nome || "");
     setSelectedPackIds([]);
-    getMaterialPackReservasEvento(e.id).then(packRes => {
-      setSelectedPackIds(packRes.success ? (packRes.data as MaterialPackReserva[]).map(r => r.pack_id) : []);
-    });
     setClienteDropOpen(false);
     setClienteCreating(false);
     setIsResidencia(false);
@@ -639,12 +652,15 @@ export default function AgendaPage() {
       fee: parseFloat(a.fee) || 0,
     }));
     const reservarPacksEvento = async (eventoId: number, eventoNome: string) => {
-      if (selectedPackIds.length === 0) return;
+      const manualIds = selectedPackIds;
+      const auto = await getMaterialPackIdsForServico(form.servico_comercial || form.title || cleanTitle, form.valor_contexto || "Normal");
+      const packIds = Array.from(new Set([...(manualIds || []), ...((auto.success ? auto.data : []) as number[])]));
+      if (packIds.length === 0) return;
       await reservarMaterialPacksParaEvento({
         evento_id: eventoId,
         evento_nome: eventoNome,
-        pack_ids: selectedPackIds,
-        servico: form.title || cleanTitle,
+        pack_ids: packIds,
+        servico: form.servico_comercial || form.title || cleanTitle,
         reservado_por: userName,
       });
     };
@@ -679,7 +695,7 @@ export default function AgendaPage() {
     }
     setSaving(false);
     closeModal();
-    load();
+    load(undefined, selectedMonth);
   };
 
   const [cancellingId, setCancellingId] = useState<number | null>(null);
@@ -693,21 +709,21 @@ export default function AgendaPage() {
         showToast(res.message ? `Erro: ${res.message}` : "Erro ao cancelar evento (ver consola)", undefined, 10000);
         return;
       }
-      await load();
+      await load(undefined, selectedMonth);
       showToast("Evento cancelado", {
         label: "Undo",
-        fn: async () => { await restoreAgendaEvent(e.id); setToast(""); setUndoAction(null); load(); },
+        fn: async () => { await restoreAgendaEvent(e.id); setToast(""); setUndoAction(null); load(undefined, selectedMonth); },
       });
     } finally {
       setCancellingId(null);
     }
   };
   const handleRestore = async (e: AgendaEvent) => {
-    await restoreAgendaEvent(e.id); showToast("Evento reposto"); load();
+    await restoreAgendaEvent(e.id); showToast("Evento reposto"); load(undefined, selectedMonth);
   };
   const handleDelete = async (id: number) => {
     if (!confirm("Eliminar este evento definitivamente?")) return;
-    await deleteAgendaEvent(id); showToast("Evento eliminado"); load();
+    await deleteAgendaEvent(id); showToast("Evento eliminado"); load(undefined, selectedMonth);
   };
   const handleCancelFromModal = async () => {
     if (modal.editing && !cancellingId) {
@@ -720,10 +736,10 @@ export default function AgendaPage() {
           showToast(res.message ? `Erro: ${res.message}` : "Erro ao cancelar evento (ver consola)", undefined, 10000);
           return;
         }
-        closeModal(); await load();
+        closeModal(); await load(undefined, selectedMonth);
         showToast("Evento cancelado", {
           label: "Undo",
-          fn: async () => { await restoreAgendaEvent(ev.id); setToast(""); setUndoAction(null); load(); },
+          fn: async () => { await restoreAgendaEvent(ev.id); setToast(""); setUndoAction(null); load(undefined, selectedMonth); },
         });
       } finally {
         setCancellingId(null);
@@ -744,7 +760,7 @@ export default function AgendaPage() {
       valor_contexto: l.valor_contexto || inferValorContexto(l.cliente_nome || "", l.tipo_comercial || "Evento"),
       contacto: (l as any).contacto || "", notas: (l as any).notas || "",
     });
-    if (res.success) { showToast("Lead convertida em evento"); load(); }
+    if (res.success) { showToast("Lead convertida em evento"); load(undefined, selectedMonth); }
     else showToast("Erro ao converter");
   };
 
@@ -786,7 +802,7 @@ export default function AgendaPage() {
     if (res.success) {
       showToast(`Evento movido para ${fmtDataPt(novaData)} (troca registada)`);
       closeModal();
-      await load();
+      await load(undefined, selectedMonth);
     } else {
       showToast("Erro ao registar troca");
     }
@@ -805,7 +821,7 @@ export default function AgendaPage() {
     if (res.success) {
       showToast("Anotação de troca removida");
       setModal(m => m.editing ? { ...m, editing: { ...m.editing, notas: novasNotas } } : m);
-      await load();
+      await load(undefined, selectedMonth);
     }
   };
 
@@ -935,7 +951,7 @@ export default function AgendaPage() {
   const handleDismissConflict = async (date: string, artist: string) => {
     await dismissArtistConflict({ event_date: date, artist_name: artist, note: "Dá para fazer ambos", dismissed_by: userName });
     showToast("Alerta retirado para esse artista nesse dia");
-    await load();
+    await load(undefined, selectedMonth);
   };
   const ConflictAlert = ({ conflicts }: { conflicts: { artist: string; date: string; others: string[] }[] }) => conflicts.length === 0 ? null : (
     <div style={{ marginTop: "5px", display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -948,10 +964,11 @@ export default function AgendaPage() {
     </div>
   );
 
-  const availableMonths = Array.from(new Set([
+  const monthTabs = availableMonths.length ? availableMonths : Array.from(new Set([
     ...events.map(e => e.event_date.slice(0, 7)),
     ...confirmedLeads.map(l => l.event_date.slice(0, 7)),
-  ])).sort();
+    selectedMonth,
+  ])).filter(Boolean).sort();
   const monthLabel = (ym: string) => {
     const [y, m] = ym.split("-");
     const d = new Date(Number(y), Number(m) - 1, 1);
@@ -1146,7 +1163,7 @@ export default function AgendaPage() {
         <div style={{ background: Colors.surface, border: `1px solid ${Colors.borderDim}`, position: "relative" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
           <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${Colors.borderDim}`, overflowX: "auto" }}>
-            {availableMonths.map(ym => (
+            {monthTabs.map(ym => (
               <button key={ym} onClick={() => setSelectedMonth(ym)} style={{ background: selectedMonth === ym ? "rgba(201,169,110,0.08)" : "transparent", border: "none", borderRight: `1px solid ${Colors.borderDim}`, borderBottom: selectedMonth === ym ? `1px solid ${Colors.gold}` : "none", color: selectedMonth === ym ? Colors.gold : Colors.textMuted, fontSize: "8px", letterSpacing: "0.3em", padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize", fontWeight: selectedMonth === ym ? 700 : 400, whiteSpace: "nowrap", transition: "all 0.2s" }}>
                 {monthLabel(ym)}
               </button>
@@ -1364,7 +1381,7 @@ export default function AgendaPage() {
 
       {/* Month pills */}
       <div className="mob-months">
-        {availableMonths.map(ym => (
+        {monthTabs.map(ym => (
           <button key={ym} className={`mob-mpill${selectedMonth === ym ? " active" : ""}`} onClick={() => setSelectedMonth(ym)}>
             {monthLabel(ym).split(" ")[0]}
           </button>
@@ -1917,42 +1934,9 @@ export default function AgendaPage() {
                   style={inputStyle}
                 />
               </FormField>
-              <FormField label="Notas" style={{ gridColumn: "1 / -1" }}>
-                <textarea style={{ ...inputStyle, minHeight: "72px", resize: "vertical" }} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Observações..." />
+              <FormField label="Materiais / Notas" style={{ gridColumn: "1 / -1" }}>
+                <textarea style={{ ...inputStyle, minHeight: "72px", resize: "vertical" }} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Ex: dual mic, 2 colunas, cabos XLR... / observações" />
               </FormField>
-              {materialPacks.length > 0 && (
-                <FormField label="Packs de Material Incluídos" style={{ gridColumn: "1 / -1" }}>
-                  <div style={{ display: "grid", gap: "8px" }}>
-                    {materialPacks.map(pack => {
-                      const active = selectedPackIds.includes(pack.id);
-                      return (
-                        <button
-                          key={pack.id}
-                          type="button"
-                          onClick={() => togglePackSelecionado(pack.id)}
-                          style={{
-                            textAlign: "left", background: active ? "rgba(201,169,110,0.12)" : "rgba(255,255,255,0.03)",
-                            border: `1px solid ${active ? Colors.gold : Colors.borderDim}`,
-                            color: active ? Colors.textPrimary : Colors.textSec,
-                            padding: "0.75rem", cursor: "pointer", fontFamily: "inherit",
-                          }}
-                        >
-                          <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center" }}>
-                            <strong style={{ fontSize: "11px", letterSpacing: "0.08em" }}>{active ? "✓ " : ""}{pack.nome}</strong>
-                            <span style={{ fontSize: "9px", color: Colors.gold, letterSpacing: "0.12em" }}>Oferta {pack.valor_referencia ? `${pack.valor_referencia}€` : ""}</span>
-                          </div>
-                          <div style={{ marginTop: "0.35rem", fontSize: "9px", color: Colors.textMuted, lineHeight: 1.45 }}>
-                            {pack.items.map(i => `${i.quantidade}× ${i.material_nome}`).join(" · ")}
-                          </div>
-                        </button>
-                      );
-                    })}
-                    <p style={{ margin: 0, fontSize: "9px", color: Colors.textMuted, lineHeight: 1.5 }}>
-                      Ao guardar, a app reserva estes materiais no evento como pack incluído/oferta. Não acrescenta valor à faturação.
-                    </p>
-                  </div>
-                </FormField>
-              )}
             </div>
 
             {/* ── Artistas ── */}

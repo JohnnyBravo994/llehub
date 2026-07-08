@@ -80,7 +80,7 @@ import {
   getAllColaboradores, getAllValoresFuncoes, getAllValoresMaster,
   syncArtistasEvento, getArtistasEvento, setupDatabase, syncArtistasParaAgenda,
   getAllMaterialPacks, getMaterialPackIdsLead, syncMaterialPacksLead, reservarMaterialPacksDaLeadParaEvento,
-  syncAllExistingData, getArtistConflictOverrides, dismissArtistConflict, getLeadsPageBundle,
+  syncAllExistingData, getArtistConflictOverrides, dismissArtistConflict, getLeadsPageBundle, getLeadsFormLookups, getMaterialPackIdsForServico,
 } from "../actions";
 
 interface Lead {
@@ -216,6 +216,13 @@ export default function LeadsPage() {
   const [waMonthModal, setWaMonthModal] = useState(false);
   const [selectedWaMonths, setSelectedWaMonths] = useState<Set<string>>(new Set());
   const [waMonthError, setWaMonthError] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+  const [lookupsLoaded, setLookupsLoaded] = useState(false);
+  const [lookupsLoading, setLookupsLoading] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -223,29 +230,40 @@ export default function LeadsPage() {
   };
   const togglePackSelecionado = (packId: number) => setSelectedPackIds(prev => prev.includes(packId) ? prev.filter(id => id !== packId) : [...prev, packId]);
 
-  const load = useCallback(async () => {
-    const bundle = await getLeadsPageBundle();
+  const loadLookups = useCallback(async () => {
+    if (lookupsLoaded || lookupsLoading) return;
+    setLookupsLoading(true);
+    const r = await getLeadsFormLookups();
+    if (r.success) {
+      if (r.clientes?.success) setClientes(r.clientes.data as Cliente[]);
+      if (r.colaboradores?.success) setColaboradores(r.colaboradores.data as Colaborador[]);
+      if (r.valoresFuncoes?.success) setValoresFuncoes(r.valoresFuncoes.data as ValorFuncao[]);
+      if (r.valoresMaster?.success) setValoresMaster(r.valoresMaster.data as ValorMaster[]);
+      setLookupsLoaded(true);
+    }
+    setLookupsLoading(false);
+  }, [lookupsLoaded, lookupsLoading]);
+
+  const load = useCallback(async (monthOverride?: string) => {
+    setLoading(true);
+    const targetMonth = monthOverride || selectedMonth;
+    const bundle = await getLeadsPageBundle(targetMonth);
     if (!bundle.success) { setLoading(false); return; }
     const r = bundle.leads;
     const ar = bundle.agenda;
     const aar = bundle.artistas;
-    const cr = bundle.clientes;
-    const colr = bundle.colaboradores;
-    const vr = bundle.valoresFuncoes;
-    const vmr = bundle.valoresMaster;
-    const pr = bundle.packs;
     const cor = bundle.conflicts;
+    const mr = bundle.months;
+    if (mr?.success) {
+      const months = (mr.data as string[]).filter(Boolean);
+      setAvailableMonths(months.includes(targetMonth) ? months : [...months, targetMonth].sort());
+    }
     if (r?.success) setLeads(r.data as Lead[]);
     if (ar?.success) setAgendaEvents(ar.data as AgendaEvent[]);
     if (aar?.success) setArtistasMap(Object.fromEntries(Object.entries(aar.data as Record<number, any[]>).map(([k, v]) => [k, v.map((a: any) => ({ ...a, colaborador_id: a.colaborador_id ?? null, fee: String(a.fee ?? "") }))])));
-    if (cr?.success) setClientes(cr.data as Cliente[]);
-    if (colr?.success) setColaboradores(colr.data as Colaborador[]);
-    if (vr?.success) setValoresFuncoes(vr.data as ValorFuncao[]);
-    if (vmr?.success) setValoresMaster(vmr.data as ValorMaster[]);
-    if (pr?.success) setMaterialPacks(pr.data as MaterialPack[]);
     if (cor?.success) setConflictOverrides(cor.data as ConflictOverride[]);
     setLoading(false);
-  }, []);
+  }, [selectedMonth]);
 
   useEffect(() => {
     const u = localStorage.getItem("lle_user");
@@ -253,8 +271,8 @@ export default function LeadsPage() {
     const parsed = JSON.parse(u);
     setUserName(parsed.name);
     setUserRole(parsed.role || "admin");
-    load();
-  }, [load]);
+    load(selectedMonth);
+  }, [load, selectedMonth]);
 
   const colaboradoresAtivos = colaboradores.filter(c => c.ativo === 1);
   const colaboradorDisplayName = (c: Colaborador) => c.nome_artistico || c.nome;
@@ -353,6 +371,7 @@ export default function LeadsPage() {
   };
 
   const openCreate = () => {
+    loadLookups();
     setForm({ ...emptyForm, event_date: new Date().toISOString().split("T")[0] });
     setArtists([emptyArtist()]);
     setSelectedPackIds([]);
@@ -361,6 +380,7 @@ export default function LeadsPage() {
   };
 
   const openEdit = (l: Lead) => {
+    loadLookups();
     setForm({
       title: l.title, event_date: l.event_date, value: String(l.value || 0),
       status: l.status || "Contacto", local: l.local || "", contacto: l.contacto || "",
@@ -374,7 +394,6 @@ export default function LeadsPage() {
     setClienteDropOpen(false);
     setClienteCreating(false);
     setSelectedPackIds([]);
-    getMaterialPackIdsLead(l.id).then(packRes => setSelectedPackIds(packRes.success ? (packRes.data as number[]) : []));
     const agendaId = l.agenda_event_id ?? null;
     const cached = ((agendaId ? artistasMap[agendaId] : []) || artistasMap[-l.id] || []).map(normalizeArtistRow);
     setArtists(cached.length > 0 ? cached : [emptyArtist()]);
@@ -418,6 +437,10 @@ export default function LeadsPage() {
       contacto: form.contacto || "", notas: form.notas || "",
     };
     const validArtists = validArtistsPayload();
+    const getAutoPackIds = async () => {
+      const auto = await getMaterialPackIdsForServico(form.servico_comercial || form.title, form.valor_contexto || "Normal");
+      return Array.from(new Set([...(selectedPackIds || []), ...((auto.success ? auto.data : []) as number[])]));
+    };
     if (modal.editing) {
       const previousStatus = modal.editing.status || "";
       const saveResult = await updateLead(modal.editing.id, data);
@@ -428,7 +451,7 @@ export default function LeadsPage() {
       }
       // Save artistas linked to this lead (stored as lead id, will be synced)
       await syncArtistasEvento(modal.editing.id * -1, form.title.trim(), form.event_date, validArtists);
-      await syncMaterialPacksLead(modal.editing.id, selectedPackIds);
+      await syncMaterialPacksLead(modal.editing.id, await getAutoPackIds());
       // Sync artistas para o evento de agenda ligado (se existir)
       await syncArtistasParaAgenda(modal.editing.id, form.title.trim(), form.event_date, validArtists);
       // Auto-importar para Agenda se passou para estado confirmado/avançado
@@ -465,7 +488,7 @@ export default function LeadsPage() {
       const res = await createLead(data);
       if (res.success && res.id) {
         await syncArtistasEvento(res.id * -1, form.title.trim(), form.event_date, validArtists);
-        await syncMaterialPacksLead(res.id, selectedPackIds);
+        await syncMaterialPacksLead(res.id, await getAutoPackIds());
       }
       // Se criar directamente com estado avançado, também importa
       if (AGENDA_AUTO_STATUSES.includes(form.status)) {
@@ -497,7 +520,7 @@ export default function LeadsPage() {
     }
     setSaving(false);
     closeModal();
-    load();
+    load(selectedMonth);
   };
 
   const handleConvertToAgenda = async () => {
@@ -524,13 +547,14 @@ export default function LeadsPage() {
     setConverting(false);
     if (res.success) {
       if (res.id) {
+        const auto = await getMaterialPackIdsForServico(form.servico_comercial || form.title, form.valor_contexto || "Normal");
         await syncArtistasEvento(res.id, form.title.trim(), form.event_date, validArtistsPayload());
-        await syncMaterialPacksLead(modal.editing.id, selectedPackIds);
+        await syncMaterialPacksLead(modal.editing.id, auto.success ? (auto.data as number[]) : []);
         await reservarMaterialPacksDaLeadParaEvento(modal.editing.id, res.id, form.title.trim(), "Lead");
       }
       showToast("Evento criado na Agenda");
       closeModal();
-      load();
+      load(selectedMonth);
     } else {
       showToast("Erro ao converter");
     }
@@ -539,20 +563,20 @@ export default function LeadsPage() {
   const handleCancel = async (l: Lead) => {
     await cancelLead(l.id);
     showToast("Lead cancelada");
-    load();
+    load(selectedMonth);
   };
 
   const handleRestore = async (l: Lead) => {
     await restoreLead(l.id);
     showToast("Lead reposta");
-    load();
+    load(selectedMonth);
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm("Eliminar esta lead definitivamente?")) return;
     await deleteLead(id);
     showToast("Lead eliminada");
-    load();
+    load(selectedMonth);
   };
 
   const filtered = leads.filter(l =>
@@ -600,7 +624,7 @@ export default function LeadsPage() {
   const handleDismissConflict = async (date: string, artist: string) => {
     await dismissArtistConflict({ event_date: date, artist_name: artist, note: "Dá para fazer ambos", dismissed_by: userName });
     showToast("Alerta retirado para esse artista nesse dia");
-    await load();
+    await load(selectedMonth);
   };
   const ConflictAlert = ({ conflicts }: { conflicts: { artist: string; date: string; others: string[] }[] }) => conflicts.length === 0 ? null : (
     <div style={{ marginTop: "5px", display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -624,6 +648,7 @@ export default function LeadsPage() {
     if (b === "sem-data") return -1;
     return a.localeCompare(b);
   });
+  const monthTabs = (availableMonths.length ? availableMonths : [selectedMonth]).filter(Boolean).sort();
 
   const toggleMonth = (ym: string) => {
     setCollapsedMonths(prev => {
@@ -790,6 +815,13 @@ export default function LeadsPage() {
 
         <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+          <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.borderDim}`, overflowX: "auto" }}>
+            {monthTabs.map(ym => (
+              <button key={ym} onClick={() => setSelectedMonth(ym)} style={{ background: selectedMonth === ym ? "rgba(201,169,110,0.08)" : "transparent", border: "none", borderRight: `1px solid ${C.borderDim}`, borderBottom: selectedMonth === ym ? `1px solid ${C.gold}` : "none", color: selectedMonth === ym ? C.gold : C.textMuted, fontSize: "8px", letterSpacing: "0.3em", padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize", fontWeight: selectedMonth === ym ? 700 : 400, whiteSpace: "nowrap" }}>
+                {monthLabel(ym)}
+              </button>
+            ))}
+          </div>
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Pesquisar lead ou estado..."
@@ -869,9 +901,9 @@ export default function LeadsPage() {
 
       {/* Month pills */}
       <div className="mob-months">
-        {sortedMonths.map(ym => (
-          <button key={ym} className={`mob-mpill${true ? "" : " active"}`} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius:20, color:"rgba(245,240,232,0.35)", fontFamily:"'Montserrat',sans-serif", fontSize:"9px", letterSpacing:"0.15em", padding:"0.35rem 0.9rem", cursor:"pointer", textTransform:"capitalize", whiteSpace:"nowrap" }}>
-            {monthLabel(ym).split(" ")[0]} ({grouped[ym].length})
+        {monthTabs.map(ym => (
+          <button key={ym} onClick={() => setSelectedMonth(ym)} className={`mob-mpill${selectedMonth === ym ? " active" : ""}`}>
+            {monthLabel(ym).split(" ")[0]}{grouped[ym] ? ` (${grouped[ym].length})` : ""}
           </button>
         ))}
       </div>
@@ -1188,42 +1220,10 @@ export default function LeadsPage() {
             <FormField label="Contacto">
               <input style={inputStyle} value={form.contacto} onChange={e => setForm(f => ({ ...f, contacto: e.target.value }))} placeholder="Nome ou telefone..." />
             </FormField>
-            <FormField label="Notas">
-              <input style={inputStyle} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Observações..." />
+            <FormField label="Materiais / Notas">
+              <input style={inputStyle} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Ex: dual mic, 2 colunas... / observações" />
             </FormField>
-            {materialPacks.length > 0 && (
-              <FormField label="Packs de Material Incluídos">
-                <div style={{ display: "grid", gap: "8px" }}>
-                  {materialPacks.map(pack => {
-                    const active = selectedPackIds.includes(pack.id);
-                    return (
-                      <button
-                        key={pack.id}
-                        type="button"
-                        onClick={() => togglePackSelecionado(pack.id)}
-                        style={{
-                          textAlign: "left", background: active ? "rgba(201,169,110,0.12)" : "rgba(255,255,255,0.03)",
-                          border: `1px solid ${active ? C.gold : C.borderDim}`,
-                          color: active ? C.textPrimary : C.textSec,
-                          padding: "0.75rem", cursor: "pointer", fontFamily: "inherit",
-                        }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center" }}>
-                          <strong style={{ fontSize: "11px", letterSpacing: "0.08em" }}>{active ? "✓ " : ""}{pack.nome}</strong>
-                          <span style={{ fontSize: "9px", color: C.gold, letterSpacing: "0.12em" }}>Oferta {pack.valor_referencia ? `${pack.valor_referencia}€` : ""}</span>
-                        </div>
-                        <div style={{ marginTop: "0.35rem", fontSize: "9px", color: C.textMuted, lineHeight: 1.45 }}>
-                          {pack.items.map(i => `${i.quantidade}× ${i.material_nome}`).join(" · ")}
-                        </div>
-                      </button>
-                    );
-                  })}
-                  <p style={{ margin: 0, fontSize: "9px", color: C.textMuted, lineHeight: 1.5 }}>
-                    Fica guardado na lead. Quando converter para Agenda, a app reserva estes materiais como pack incluído/oferta.
-                  </p>
-                </div>
-              </FormField>
-            )}
+
 
 
             {/* ── Artistas & Pagamentos ── */}
@@ -1287,7 +1287,7 @@ export default function LeadsPage() {
               <button onClick={closeModal} style={btnSecStyle}>Fechar</button>
               {modal.editing && !modal.editing.cancelled && (
                 <>
-                  <button onClick={async () => { await cancelLead(modal.editing!.id); showToast("Lead cancelada"); closeModal(); load(); }} style={btnDangerStyle}>Cancelar Lead</button>
+                  <button onClick={async () => { await cancelLead(modal.editing!.id); showToast("Lead cancelada"); closeModal(); load(selectedMonth); }} style={btnDangerStyle}>Cancelar Lead</button>
                   <button onClick={handleConvertToAgenda} disabled={converting} style={btnAgendaStyle}>
                     {converting ? "A converter..." : "→ Agenda"}
                   </button>

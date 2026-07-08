@@ -3030,44 +3030,227 @@ export async function deleteMovimentoMaterial(id: number) {
 }
 
 
-// ── PAGE BUNDLES: menos round-trips client → server ──────────────────────────
-export async function getAgendaPageBundle(userName: string = 'Admin') {
+// ── PAGE BUNDLES: carregamento por mês + lazy lookups ────────────────────────
+function monthBounds(ym?: string) {
+  const now = new Date();
+  const safe = /^\d{4}-\d{2}$/.test(ym || '') ? ym! : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const [y, m] = safe.split('-').map(Number);
+  const last = new Date(y, m, 0).getDate();
+  return { ym: safe, start: `${safe}-01`, end: `${safe}-${String(last).padStart(2, '0')}` };
+}
+
+function normalizeAgendaRow(r: any) {
+  return {
+    ...r,
+    id: Number(r.id),
+    title: (r.event_name as string) || '',
+    time_range: (r.location as string) || '',
+    venue: (r.venue as string) || '',
+    tipo: (r.staff_needed as string) || '',
+    bill: Number(r.client_cachet) || 0,
+    cancelled: r.status === 'Cancelado' ? 1 : 0,
+    billing_status: (r.billing_status as string) || '',
+    cliente_id: r.cliente_id || null,
+    cliente_nome: (r.cliente_nome as string) || '',
+    modalidade: (r.modalidade as string) || 'Fatura',
+    tipo_comercial: (r.tipo_comercial as string) || 'Evento',
+    servico_comercial: (r.servico_comercial as string) || '',
+    valor_contexto: (r.valor_contexto as string) || 'Cliente Final',
+    origem_lead_id: r.origem_lead_id ? Number(r.origem_lead_id) : null,
+    contacto: (r.contacto as string) || '',
+    notas: (r.notas as string) || '',
+    event_id: (r.event_id as string) || '',
+    residencia_id: r.residencia_id == null ? null : Number(r.residencia_id),
+  };
+}
+
+function normalizeLeadRow(r: any) {
+  return {
+    ...r,
+    id: Number(r.id),
+    title: r.title || r.project_name || r.event_name || '(sem título)',
+    event_date: (r.event_date as string) || '',
+    value: Number(r.value) || 0,
+    status: (r.status as string) || 'Contacto',
+    status_icon: (r.status_icon as string) || '',
+    local: r.details ? extractField(r.details as string, 'Local') : ((r.local as string) || ''),
+    contacto: r.details ? extractField(r.details as string, 'Contacto') : ((r.contacto as string) || ''),
+    notas: r.details ? extractField(r.details as string, 'Notas') : ((r.notas as string) || ''),
+    cancelled: r.status === 'Cancelado' ? 1 : 0,
+    cliente_id: r.cliente_id || null,
+    cliente_nome: (r.client_name as string) || '',
+    modalidade: (r.modalidade as string) || 'Fatura',
+    tipo_comercial: (r.tipo_comercial as string) || 'Evento',
+    servico_comercial: (r.servico_comercial as string) || '',
+    valor_contexto: (r.valor_contexto as string) || 'Cliente Final',
+    agenda_event_id: r.agenda_event_id ? Number(r.agenda_event_id) : null,
+    event_id: (r.event_id as string) || '',
+    residencia_id: r.residencia_id == null ? null : Number(r.residencia_id),
+  };
+}
+
+async function getArtistasMapForEventoIds(eventoIds: number[]) {
+  await ensureArtistasColaboradorIdColumn();
+  const ids = Array.from(new Set(eventoIds.map(Number).filter(n => Number.isFinite(n) && n !== 0)));
+  if (ids.length === 0) return { success: true, data: {} as Record<number, any[]> };
+  const placeholders = ids.map(() => '?').join(',');
+  const res = await turso.execute({
+    sql: `SELECT id, evento_id, nome, tipo, fee, colaborador_id FROM artistas_evento WHERE evento_id IN (${placeholders}) ORDER BY evento_id ASC, id ASC`,
+    args: ids,
+  });
+  const map: Record<number, { id: number; nome: string; tipo: string; fee: number; colaborador_id: number | null }[]> = {};
+  for (const r of res.rows as any[]) {
+    const eid = Number(r.evento_id);
+    if (!map[eid]) map[eid] = [];
+    map[eid].push({ id: Number(r.id), nome: r.nome as string, tipo: r.tipo as string, fee: Number(r.fee), colaborador_id: r.colaborador_id == null ? null : Number(r.colaborador_id) });
+  }
+  return { success: true, data: map };
+}
+
+export async function getAgendaMonthIndex() {
+  noStore();
   try {
-    const [agenda, artistas, clientes, leads, colaboradores, valoresFuncoes, valoresMaster, residencias, conflicts] = await Promise.all([
-      getAllAgenda(userName),
-      getAllArtistasAgenda(),
-      getAllClientes(),
-      getAllLeads(),
-      getAllColaboradores(),
-      getAllValoresFuncoes(),
-      getAllValoresMaster(),
-      getAllResidenciasAtivas(),
-      getArtistConflictOverrides(),
-    ]);
-    return { success: true, agenda, artistas, clientes, leads, colaboradores, valoresFuncoes, valoresMaster, residencias, conflicts };
+    const agendaMonths = await turso.execute("SELECT DISTINCT substr(event_date,1,7) as ym FROM agenda WHERE event_date IS NOT NULL AND length(event_date)>=7");
+    const leadMonths = await turso.execute("SELECT DISTINCT substr(event_date,1,7) as ym FROM leads WHERE event_date IS NOT NULL AND length(event_date)>=7");
+    const months = Array.from(new Set([
+      ...agendaMonths.rows.map((r: any) => r.ym as string),
+      ...leadMonths.rows.map((r: any) => r.ym as string),
+      monthBounds().ym,
+    ].filter(Boolean))).sort();
+    return { success: true, data: months };
+  } catch (error) {
+    console.error('Erro getAgendaMonthIndex:', error);
+    return { success: false, data: [monthBounds().ym] };
+  }
+}
+
+export async function getAgendaPageBundle(userName: string = 'Admin', month?: string) {
+  noStore();
+  try {
+    const { start, end } = monthBounds(month);
+    const agendaWhere = userName === 'Larissa'
+      ? "WHERE visibility = 'Public' AND event_date >= ? AND event_date <= ?"
+      : "WHERE event_date >= ? AND event_date <= ?";
+    const agendaRes = await turso.execute({
+      sql: `SELECT id, event_name, event_date, location, staff_needed, client_cachet, status, visibility,
+                   billing_status, cliente_id, cliente_nome, modalidade, tipo_comercial, servico_comercial,
+                   valor_contexto, origem_lead_id, venue, contacto, notas, event_id, residencia_id
+            FROM agenda ${agendaWhere}
+            ORDER BY event_date ASC, id ASC`,
+      args: [start, end],
+    });
+    const leadsRes = await turso.execute({
+      sql: `SELECT l.id, l.title, l.project_name, l.event_name, l.event_date, l.value, l.status, l.status_icon,
+                   l.details, l.local, l.contacto, l.notas, l.cliente_id, l.client_name, l.modalidade,
+                   l.tipo_comercial, l.servico_comercial, l.valor_contexto, l.event_id, l.residencia_id,
+                   (SELECT a.id FROM agenda a WHERE a.origem_lead_id = l.id LIMIT 1) as agenda_event_id
+            FROM leads l
+            WHERE l.event_date >= ? AND l.event_date <= ?
+            ORDER BY COALESCE(l.event_date, '9999-99-99') ASC, l.id ASC`,
+      args: [start, end],
+    });
+    const agendaData = agendaRes.rows.map(normalizeAgendaRow);
+    const leadsData = leadsRes.rows.map(normalizeLeadRow);
+    const artists = await getArtistasMapForEventoIds([...agendaData.map((e: any) => Number(e.id)), ...leadsData.map((l: any) => -Number(l.id))]);
+    const [months, conflicts] = await Promise.all([getAgendaMonthIndex(), getArtistConflictOverrides()]);
+    return {
+      success: true,
+      agenda: { success: true, data: agendaData },
+      leads: { success: true, data: leadsData },
+      artistas: artists,
+      conflicts,
+      months,
+    };
   } catch (error) {
     console.error('Erro getAgendaPageBundle:', error);
     return { success: false };
   }
 }
 
-export async function getLeadsPageBundle() {
+export async function getLeadsPageBundle(month?: string) {
+  noStore();
   try {
-    const [leads, agenda, artistas, clientes, colaboradores, valoresFuncoes, valoresMaster, packs, conflicts] = await Promise.all([
-      getAllLeads(),
-      getAllAgenda(),
-      getAllArtistasAgenda(),
+    const { start, end } = monthBounds(month);
+    const leadsRes = await turso.execute({
+      sql: `SELECT l.id, l.title, l.project_name, l.event_name, l.event_date, l.value, l.status, l.status_icon,
+                   l.details, l.local, l.contacto, l.notas, l.cliente_id, l.client_name, l.modalidade,
+                   l.tipo_comercial, l.servico_comercial, l.valor_contexto, l.event_id, l.residencia_id,
+                   (SELECT a.id FROM agenda a WHERE a.origem_lead_id = l.id LIMIT 1) as agenda_event_id
+            FROM leads l
+            WHERE l.event_date >= ? AND l.event_date <= ?
+            ORDER BY COALESCE(l.event_date, '9999-99-99') ASC, l.id ASC`,
+      args: [start, end],
+    });
+    const agendaRes = await turso.execute({
+      sql: `SELECT id, event_name, event_date, origem_lead_id, status FROM agenda WHERE event_date >= ? AND event_date <= ? ORDER BY event_date ASC, id ASC`,
+      args: [start, end],
+    });
+    const leadsData = leadsRes.rows.map(normalizeLeadRow);
+    const agendaData = agendaRes.rows.map((r: any) => ({ id: Number(r.id), title: (r.event_name as string) || '', event_date: (r.event_date as string) || '', event_id: '', origem_lead_id: r.origem_lead_id ? Number(r.origem_lead_id) : null, cancelled: r.status === 'Cancelado' ? 1 : 0 }));
+    const artists = await getArtistasMapForEventoIds([...agendaData.map((e: any) => Number(e.id)), ...leadsData.map((l: any) => -Number(l.id))]);
+    const [months, conflicts] = await Promise.all([getAgendaMonthIndex(), getArtistConflictOverrides()]);
+    return {
+      success: true,
+      leads: { success: true, data: leadsData },
+      agenda: { success: true, data: agendaData },
+      artistas: artists,
+      conflicts,
+      months,
+    };
+  } catch (error) {
+    console.error('Erro getLeadsPageBundle:', error);
+    return { success: false };
+  }
+}
+
+export async function getAgendaFormLookups() {
+  try {
+    const [clientes, colaboradores, valoresFuncoes, valoresMaster, residencias] = await Promise.all([
       getAllClientes(),
       getAllColaboradores(),
       getAllValoresFuncoes(),
       getAllValoresMaster(),
-      getAllMaterialPacks(),
-      getArtistConflictOverrides(),
+      getAllResidenciasAtivas(),
     ]);
-    return { success: true, leads, agenda, artistas, clientes, colaboradores, valoresFuncoes, valoresMaster, packs, conflicts };
+    return { success: true, clientes, colaboradores, valoresFuncoes, valoresMaster, residencias };
   } catch (error) {
-    console.error('Erro getLeadsPageBundle:', error);
+    console.error('Erro getAgendaFormLookups:', error);
     return { success: false };
+  }
+}
+
+export async function getLeadsFormLookups() {
+  try {
+    const [clientes, colaboradores, valoresFuncoes, valoresMaster] = await Promise.all([
+      getAllClientes(),
+      getAllColaboradores(),
+      getAllValoresFuncoes(),
+      getAllValoresMaster(),
+    ]);
+    return { success: true, clientes, colaboradores, valoresFuncoes, valoresMaster };
+  } catch (error) {
+    console.error('Erro getLeadsFormLookups:', error);
+    return { success: false };
+  }
+}
+
+export async function getMaterialPackIdsForServico(servico: string, contexto: string = 'Normal') {
+  try {
+    if (!servico.trim()) return { success: true, data: [] as number[] };
+    await seedMaterialPacks();
+    const q = servico.trim().toLowerCase();
+    const c = (contexto || 'Normal').trim().toLowerCase();
+    const res = await turso.execute({
+      sql: `SELECT DISTINCT pack_id FROM servico_material_packs
+            WHERE ativo=1
+              AND LOWER(TRIM(servico)) = ?
+              AND (LOWER(TRIM(COALESCE(contexto,'Normal'))) = ? OR LOWER(TRIM(COALESCE(contexto,'Normal'))) = 'normal')`,
+      args: [q, c],
+    });
+    return { success: true, data: res.rows.map((r: any) => Number(r.pack_id)).filter(Boolean) };
+  } catch (error) {
+    console.error('Erro getMaterialPackIdsForServico:', error);
+    return { success: false, data: [] as number[] };
   }
 }
 
