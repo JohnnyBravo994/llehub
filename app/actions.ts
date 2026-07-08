@@ -1,18 +1,14 @@
 "use server";
 
 import { createClient } from "@libsql/client";
+import { ARTIST_TIPOS, SERVICOS_VENDIDOS } from "./constants";
 
 const turso = createClient({
   url: process.env.TURSO_DATABASE_URL!,
   authToken: process.env.TURSO_AUTH_TOKEN!,
 });
 
-const DEFAULT_FUNCOES_VALORES = [
-  "DJ", "Singer", "Dancer", "Sax", "Guitar", "Bass", "Drums", "Piano",
-  "Violino", "Acordeão", "Trompete", "Percussão", "Fire", "Host", "MC",
-  "Actor", "Comediante", "Mágico", "Coreógrafa", "Ginasta", "Produtor",
-  "Guarda-Roupa", "Animador", "Karaoke"
-];
+const DEFAULT_FUNCOES_VALORES = [...ARTIST_TIPOS];
 
 async function ensureColaboradoresExtendedColumns() {
   try { await turso.execute("ALTER TABLE colaboradores ADD COLUMN nome_artistico TEXT DEFAULT ''"); } catch { }
@@ -85,6 +81,20 @@ async function ensureValoresMasterTable() {
   ];
   for (const col of cols) {
     try { await turso.execute(`ALTER TABLE valores_master ADD COLUMN ${col}`); } catch { }
+  }
+
+  // Pré-carrega os serviços comerciais que a LLE vende. Não sobrescreve valores existentes.
+  for (const servico of SERVICOS_VENDIDOS) {
+    const exists = await turso.execute({
+      sql: "SELECT id FROM valores_master WHERE LOWER(TRIM(servico)) = LOWER(TRIM(?)) LIMIT 1",
+      args: [servico],
+    });
+    if (exists.rows.length === 0) {
+      await turso.execute({
+        sql: "INSERT INTO valores_master (servico, duracao_formato, contexto, cliente_nome, custo_interno, valor_parceiro, valor_cliente_final, notas, ativo) VALUES (?, '', 'Normal', '', 0, 0, 0, 'Serviço base LLE — preencher valores', 1)",
+        args: [servico],
+      });
+    }
   }
 }
 
@@ -257,6 +267,21 @@ export async function setupDatabase() {
       );
     `);
     try { await turso.execute("ALTER TABLE artistas_evento ADD COLUMN colaborador_id INTEGER"); } catch { }
+
+    await turso.execute(`
+      CREATE TABLE IF NOT EXISTS artist_conflict_overrides (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_date TEXT NOT NULL,
+        artist_key TEXT NOT NULL,
+        artist_name TEXT DEFAULT '',
+        note TEXT DEFAULT '',
+        dismissed_by TEXT DEFAULT '',
+        ativo INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+    try { await turso.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_artist_conflict_overrides_key ON artist_conflict_overrides(event_date, artist_key)"); } catch { }
     await ensureColaboradoresExtendedColumns();
     await ensureValoresFuncoesTable();
     await ensureValoresMasterTable();
@@ -1849,6 +1874,82 @@ export async function syncAllExistingData() {
   }
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ALERTAS DE TROCA — mesmo artista no mesmo dia
+// ═══════════════════════════════════════════════════════════════════════════
+
+function normalizeConflictArtistName(name: string): string {
+  return (name || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+async function ensureArtistConflictOverrides() {
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS artist_conflict_overrides (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_date TEXT NOT NULL,
+      artist_key TEXT NOT NULL,
+      artist_name TEXT DEFAULT '',
+      note TEXT DEFAULT '',
+      dismissed_by TEXT DEFAULT '',
+      ativo INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+  try { await turso.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_artist_conflict_overrides_key ON artist_conflict_overrides(event_date, artist_key)"); } catch { }
+}
+
+export async function getArtistConflictOverrides() {
+  noStore();
+  try {
+    await ensureArtistConflictOverrides();
+    const res = await turso.execute("SELECT * FROM artist_conflict_overrides WHERE ativo=1 ORDER BY event_date ASC, artist_name ASC");
+    return {
+      success: true,
+      data: res.rows.map((r: any) => ({
+        id: Number(r.id),
+        event_date: (r.event_date as string) || '',
+        artist_key: (r.artist_key as string) || '',
+        artist_name: (r.artist_name as string) || '',
+        note: (r.note as string) || '',
+        dismissed_by: (r.dismissed_by as string) || '',
+      })),
+    };
+  } catch (error) {
+    console.error("Erro getArtistConflictOverrides:", error);
+    return { success: false, data: [] };
+  }
+}
+
+export async function dismissArtistConflict(data: { event_date: string; artist_name: string; note?: string; dismissed_by?: string }) {
+  try {
+    await ensureArtistConflictOverrides();
+    const artistKey = normalizeConflictArtistName(data.artist_name);
+    if (!data.event_date || !artistKey) return { success: false, message: "Dados inválidos." };
+    await turso.execute({
+      sql: "DELETE FROM artist_conflict_overrides WHERE event_date=? AND artist_key=?",
+      args: [data.event_date, artistKey],
+    });
+    await turso.execute({
+      sql: `INSERT INTO artist_conflict_overrides
+        (event_date, artist_key, artist_name, note, dismissed_by, ativo, updated_at)
+        VALUES (?, ?, ?, ?, ?, 1, datetime('now'))`,
+      args: [data.event_date, artistKey, data.artist_name || '', data.note || '', data.dismissed_by || ''],
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Erro dismissArtistConflict:", error);
+    return { success: false, message: "Erro ao retirar alerta." };
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // MATERIAIS — catálogo de equipamento + controlo de saídas/entradas
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1885,10 +1986,36 @@ export async function setupMateriais() {
         created_at TEXT DEFAULT (datetime('now'))
       )
     `);
-    // Migração: liga o movimento a um evento da agenda (ou fica null = pessoal)
-    try {
-      await turso.execute(`ALTER TABLE material_movimentos ADD COLUMN evento_id INTEGER`);
-    } catch { /* coluna já existe */ }
+
+    const materialCols = [
+      "dono TEXT DEFAULT 'LLE'",
+      "local_habitual TEXT DEFAULT 'Loja'",
+      "consumivel INTEGER DEFAULT 0",
+      "stock_minimo INTEGER DEFAULT 0",
+      "precisa_comprar INTEGER DEFAULT 0",
+      "motivo_compra TEXT DEFAULT ''",
+      "quantidade_comprar INTEGER DEFAULT 0",
+      "notas_compra TEXT DEFAULT ''",
+    ];
+    for (const col of materialCols) {
+      try { await turso.execute(`ALTER TABLE materiais ADD COLUMN ${col}`); } catch { }
+    }
+
+    const movimentoCols = [
+      "evento_id INTEGER",
+      "dono_material TEXT DEFAULT ''",
+      "quem_levou TEXT DEFAULT ''",
+      "estado_regresso TEXT DEFAULT ''",
+      "quantidade_consumida INTEGER DEFAULT 0",
+      "precisa_comprar INTEGER DEFAULT 0",
+      "motivo_compra TEXT DEFAULT ''",
+      "quantidade_comprar INTEGER DEFAULT 0",
+      "quem_confirmou_regresso TEXT DEFAULT ''",
+      "notas_regresso TEXT DEFAULT ''",
+    ];
+    for (const col of movimentoCols) {
+      try { await turso.execute(`ALTER TABLE material_movimentos ADD COLUMN ${col}`); } catch { }
+    }
     return { success: true };
   } catch (error) {
     console.error("Erro setup materiais:", error);
@@ -1918,6 +2045,7 @@ export async function getEventosParaMateriais() {
 
 export async function getAllMateriais() {
   try {
+    await setupMateriais();
     const res = await turso.execute("SELECT * FROM materiais ORDER BY nome ASC");
     return {
       success: true,
@@ -1927,6 +2055,14 @@ export async function getAllMateriais() {
         categoria: (r.categoria as string) || '',
         imagem: (r.imagem as string) || '',
         quantidade_total: Number(r.quantidade_total) || 0,
+        dono: (r.dono as string) || 'LLE',
+        local_habitual: (r.local_habitual as string) || 'Loja',
+        consumivel: r.consumivel === 1 || r.consumivel === true ? 1 : 0,
+        stock_minimo: Number(r.stock_minimo) || 0,
+        precisa_comprar: r.precisa_comprar === 1 || r.precisa_comprar === true ? 1 : 0,
+        motivo_compra: (r.motivo_compra as string) || '',
+        quantidade_comprar: Number(r.quantidade_comprar) || 0,
+        notas_compra: (r.notas_compra as string) || '',
         notas: (r.notas as string) || '',
         ativo: r.ativo === 1 || r.ativo === true ? 1 : 0,
       })),
@@ -1939,11 +2075,20 @@ export async function getAllMateriais() {
 
 export async function createMaterial(data: {
   nome: string; categoria?: string; imagem?: string; quantidade_total?: number; notas?: string;
+  dono?: string; local_habitual?: string; consumivel?: number; stock_minimo?: number;
+  precisa_comprar?: number; motivo_compra?: string; quantidade_comprar?: number; notas_compra?: string;
 }) {
   try {
+    await setupMateriais();
     await turso.execute({
-      sql: "INSERT INTO materiais (nome, categoria, imagem, quantidade_total, notas) VALUES (?, ?, ?, ?, ?)",
-      args: [data.nome, data.categoria || '', data.imagem || '', data.quantidade_total ?? 1, data.notas || ''],
+      sql: `INSERT INTO materiais
+        (nome, categoria, imagem, quantidade_total, dono, local_habitual, consumivel, stock_minimo, precisa_comprar, motivo_compra, quantidade_comprar, notas_compra, notas)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        data.nome, data.categoria || '', data.imagem || '', data.quantidade_total ?? 1,
+        data.dono || 'LLE', data.local_habitual || 'Loja', data.consumivel ?? 0, data.stock_minimo ?? 0,
+        data.precisa_comprar ?? 0, data.motivo_compra || '', data.quantidade_comprar ?? 0, data.notas_compra || '', data.notas || '',
+      ],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
     return { success: true, id: Number(last.rows[0].id) };
@@ -1955,15 +2100,41 @@ export async function createMaterial(data: {
 
 export async function updateMaterial(id: number, data: {
   nome: string; categoria?: string; imagem?: string; quantidade_total?: number; notas?: string;
+  dono?: string; local_habitual?: string; consumivel?: number; stock_minimo?: number;
+  precisa_comprar?: number; motivo_compra?: string; quantidade_comprar?: number; notas_compra?: string;
 }) {
   try {
+    await setupMateriais();
     await turso.execute({
-      sql: "UPDATE materiais SET nome=?, categoria=?, imagem=?, quantidade_total=?, notas=? WHERE id=?",
-      args: [data.nome, data.categoria || '', data.imagem || '', data.quantidade_total ?? 1, data.notas || '', id],
+      sql: `UPDATE materiais SET
+        nome=?, categoria=?, imagem=?, quantidade_total=?, dono=?, local_habitual=?, consumivel=?, stock_minimo=?,
+        precisa_comprar=?, motivo_compra=?, quantidade_comprar=?, notas_compra=?, notas=?
+        WHERE id=?`,
+      args: [
+        data.nome, data.categoria || '', data.imagem || '', data.quantidade_total ?? 1,
+        data.dono || 'LLE', data.local_habitual || 'Loja', data.consumivel ?? 0, data.stock_minimo ?? 0,
+        data.precisa_comprar ?? 0, data.motivo_compra || '', data.quantidade_comprar ?? 0, data.notas_compra || '', data.notas || '', id,
+      ],
     });
     return { success: true };
   } catch (error) {
     console.error("Erro update material:", error);
+    return { success: false };
+  }
+}
+
+export async function updateMaterialCompraStatus(id: number, data: {
+  precisa_comprar: number; motivo_compra?: string; quantidade_comprar?: number; notas_compra?: string;
+}) {
+  try {
+    await setupMateriais();
+    await turso.execute({
+      sql: "UPDATE materiais SET precisa_comprar=?, motivo_compra=?, quantidade_comprar=?, notas_compra=? WHERE id=?",
+      args: [data.precisa_comprar, data.motivo_compra || '', data.quantidade_comprar ?? 0, data.notas_compra || '', id],
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Erro updateMaterialCompraStatus:", error);
     return { success: false };
   }
 }
@@ -1977,6 +2148,7 @@ export async function toggleMaterialAtivo(id: number, ativo: number) {
 
 export async function getMovimentosMateriais() {
   try {
+    await setupMateriais();
     const res = await turso.execute("SELECT * FROM material_movimentos ORDER BY data_saida DESC");
     return {
       success: true,
@@ -1987,12 +2159,21 @@ export async function getMovimentosMateriais() {
         material_imagem: (r.material_imagem as string) || '',
         quantidade: Number(r.quantidade) || 0,
         quantidade_devolvida: Number(r.quantidade_devolvida) || 0,
+        quantidade_consumida: Number(r.quantidade_consumida) || 0,
         origem: (r.origem as string) || 'Loja',
         origem_detalhe: (r.origem_detalhe as string) || '',
+        dono_material: (r.dono_material as string) || '',
+        quem_levou: (r.quem_levou as string) || (r.responsavel as string) || '',
         evento: (r.evento as string) || '',
         evento_id: r.evento_id !== null && r.evento_id !== undefined ? Number(r.evento_id) : null,
         responsavel: (r.responsavel as string) || '',
         notas: (r.notas as string) || '',
+        estado_regresso: (r.estado_regresso as string) || '',
+        precisa_comprar: r.precisa_comprar === 1 || r.precisa_comprar === true ? 1 : 0,
+        motivo_compra: (r.motivo_compra as string) || '',
+        quantidade_comprar: Number(r.quantidade_comprar) || 0,
+        quem_confirmou_regresso: (r.quem_confirmou_regresso as string) || '',
+        notas_regresso: (r.notas_regresso as string) || '',
         data_saida: (r.data_saida as string) || '',
         data_volta: (r.data_volta as string) || null,
       })),
@@ -2006,16 +2187,19 @@ export async function getMovimentosMateriais() {
 export async function registarSaidaMaterial(data: {
   material_id: number; material_nome: string; material_imagem?: string;
   quantidade: number; origem: string; origem_detalhe?: string;
+  dono_material?: string; quem_levou?: string;
   evento?: string; evento_id?: number | null; responsavel?: string; notas?: string;
 }) {
   try {
+    await setupMateriais();
     await turso.execute({
       sql: `INSERT INTO material_movimentos
-        (material_id, material_nome, material_imagem, quantidade, quantidade_devolvida, origem, origem_detalhe, evento, evento_id, responsavel, notas, data_saida)
-        VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+        (material_id, material_nome, material_imagem, quantidade, quantidade_devolvida, quantidade_consumida, origem, origem_detalhe, dono_material, quem_levou, evento, evento_id, responsavel, notas, data_saida)
+        VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
       args: [
         data.material_id, data.material_nome, data.material_imagem || '',
         data.quantidade, data.origem, data.origem_detalhe || '',
+        data.dono_material || '', data.quem_levou || data.responsavel || '',
         data.evento || '', data.evento_id ?? null, data.responsavel || '', data.notas || '',
       ],
     });
@@ -2027,13 +2211,47 @@ export async function registarSaidaMaterial(data: {
   }
 }
 
-export async function registarVoltaMaterial(id: number, quantidade_devolvida: number, quantidade_total: number) {
+export async function registarVoltaMaterial(id: number, quantidade_devolvida: number, quantidade_total: number, detalhes?: {
+  quantidade_consumida?: number;
+  estado_regresso?: string;
+  precisa_comprar?: number;
+  motivo_compra?: string;
+  quantidade_comprar?: number;
+  quem_confirmou_regresso?: string;
+  notas_regresso?: string;
+}) {
   try {
-    const fechado = quantidade_devolvida >= quantidade_total;
+    await setupMateriais();
+    const quantidadeConsumida = Math.max(0, detalhes?.quantidade_consumida ?? 0);
+    const fechado = quantidade_devolvida + quantidadeConsumida >= quantidade_total;
     await turso.execute({
-      sql: `UPDATE material_movimentos SET quantidade_devolvida=?, data_volta=? WHERE id=?`,
-      args: [quantidade_devolvida, fechado ? new Date().toISOString().slice(0, 19).replace('T', ' ') : null, id],
+      sql: `UPDATE material_movimentos SET
+        quantidade_devolvida=?, quantidade_consumida=?, data_volta=?, estado_regresso=?, precisa_comprar=?, motivo_compra=?, quantidade_comprar=?, quem_confirmou_regresso=?, notas_regresso=?
+        WHERE id=?`,
+      args: [
+        quantidade_devolvida,
+        quantidadeConsumida,
+        fechado ? new Date().toISOString().slice(0, 19).replace('T', ' ') : null,
+        detalhes?.estado_regresso || (fechado ? 'OK' : 'Parcial'),
+        detalhes?.precisa_comprar ?? 0,
+        detalhes?.motivo_compra || '',
+        detalhes?.quantidade_comprar ?? 0,
+        detalhes?.quem_confirmou_regresso || '',
+        detalhes?.notas_regresso || '',
+        id,
+      ],
     });
+
+    if (detalhes?.precisa_comprar) {
+      const row = await turso.execute({ sql: "SELECT material_id FROM material_movimentos WHERE id=?", args: [id] });
+      const materialId = Number((row.rows[0] as any)?.material_id || 0);
+      if (materialId) {
+        await turso.execute({
+          sql: "UPDATE materiais SET precisa_comprar=1, motivo_compra=?, quantidade_comprar=?, notas_compra=? WHERE id=?",
+          args: [detalhes.motivo_compra || '', detalhes.quantidade_comprar ?? 0, detalhes.notas_regresso || '', materialId],
+        });
+      }
+    }
     return { success: true };
   } catch (error) {
     console.error("Erro registar volta material:", error);

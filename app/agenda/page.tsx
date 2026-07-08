@@ -80,6 +80,7 @@ import {
   getAllClientes, createCliente, getAllLeads, getAllColaboradores, getAllValoresFuncoes, getAllResidenciasAtivas, syncAllExistingData,
   setupMateriais, getAllMateriais, getMovimentosMateriais, registarSaidaMaterial,
   registarVoltaMaterial, deleteMovimentoMaterial,
+  getArtistConflictOverrides, dismissArtistConflict,
 } from "../actions";
 
 interface AgendaEvent {
@@ -87,12 +88,13 @@ interface AgendaEvent {
   tipo?: string; bill?: number; status?: string; cancelled?: number;
   billing_status?: string; cliente_nome?: string; modalidade?: string;
   origem_lead_id?: number | null; venue?: string;
-  contacto?: string; notas?: string; residencia_id?: number | null;
+  contacto?: string; notas?: string; residencia_id?: number | null; event_id?: string;
 }
 
 interface Lead {
   id: number; title: string; event_date: string; value: number;
   status?: string; cancelled?: number; cliente_nome?: string; modalidade?: string; cliente_id?: number | null;
+  agenda_event_id?: number | null; event_id?: string;
 }
 
 const CONFIRMED_STATUSES = ["Confirmado", "Em Adjudicação", "Adjudicado", "Pago"];
@@ -100,6 +102,8 @@ const CONFIRMED_STATUSES = ["Confirmado", "Em Adjudicação", "Adjudicado", "Pag
 interface ArtistRow {
   id?: number; colaborador_id?: number | null; nome: string; tipo: string; fee: string;
 }
+
+interface ConflictOverride { event_date: string; artist_key: string; artist_name: string; note?: string; }
 
 interface Cliente {
   id: number; nome: string; nif?: string; alias?: string;
@@ -126,7 +130,7 @@ interface MaterialItem {
 
 interface MaterialMovimento {
   id: number; material_id: number; material_nome: string; material_imagem: string;
-  quantidade: number; quantidade_devolvida: number;
+  quantidade: number; quantidade_devolvida: number; quantidade_consumida?: number;
   origem: string; origem_detalhe: string; evento: string; evento_id: number | null;
   responsavel: string; notas: string; data_saida: string; data_volta: string | null;
 }
@@ -137,12 +141,19 @@ const BILLING_ESTADOS = ["Contacto", "Proposta Enviada", "Em Negociação", "Con
 
 // Mapeamento tipo artista → emoji
 const TIPO_ICON: Record<string, string> = {
-  "DJ": "🎧", "Singer": "🎤", "Dancer": "💃", "Sax": "🎷",
-  "Guitar": "🎸", "Bass": "🎸", "Drums": "🥁", "Piano": "🎹",
-  "Violino": "🎻", "Acordeão": "🪗", "Trompete": "🎺", "Percussão": "🥁",
-  "Fire": "🔥", "Host": "🎙️", "MC": "🎤", "Actor": "🎭",
-  "Comediante": "😂", "Mágico": "🪄", "Coreógrafa": "🩰", "Ginasta": "🤸",
-  "Produtor": "🧑🏽‍💻", "Guarda-Roupa": "🥻", "Animador": "🎪",
+  "DJ": "🎧", "Karaoke Host": "🎤", "Técnico de Som": "🔊", "Técnico AV": "🎚️", "Técnico de Luz": "💡",
+  "Saxofonista": "🎷", "Sax": "🎷", "Violinista": "🎻", "Violino": "🎻", "Acordionista": "🪗", "Acordeão": "🪗",
+  "Cantor(a)": "🎤", "Singer": "🎤", "Cantor(a) Fado": "🎙️", "Guitarra Portuguesa": "🪕", "Viola/Guitarra Fado": "🎸",
+  "Guitarrista": "🎸", "Guitar": "🎸", "Baixista": "🎸", "Bass": "🎸", "Baterista": "🥁", "Drums": "🥁",
+  "Percussionista": "🥁", "Percussão": "🥁", "Trompetista": "🎺", "Trompete": "🎺",
+  "Bailarino(a)": "💃", "Dancer": "💃", "Bailarino(a) Asas Isis": "🪽",
+  "Artista de Fogo": "🔥", "Fire": "🔥", "Malabarista": "🤹", "Performer Bolas de Sabão": "🫧",
+  "Mágico(a)": "🪄", "Mágico": "🪄", "Performer Cubo": "⬛",
+  "Acrobata": "🤸", "Acrobata Aéreo(a)": "🎪", "Performer Lyra": "⭕", "Performer Straps": "🎪", "Performer Plataforma": "💎",
+  "Técnico de Rigging": "🧰", "Animador / Host": "🎙️", "Host": "🎙️", "MC": "🎤", "Ator(a)": "🎭", "Actor": "🎭",
+  "Animador Infantil": "🎈", "Make-up & Hair": "💄", "Guarda-Roupa": "🥻", "Produtor": "🧑🏽‍💻",
+  "Assistente de Produção": "📋", "Coreógrafo(a)": "🩰", "Coreógrafa": "🩰", "Fotógrafo/Videógrafo": "📷",
+  "Animador": "🎪", "Comediante": "😂", "Ginasta": "🤸",
 };
 
 // Equipa: João=azul 🔵, Annia=flor 🌸, Empresa=castanho 🟤
@@ -206,14 +217,14 @@ function normalizeText(v: string) {
 function tipoFromSkills(skills?: string) {
   const first = (skills || "").split(",").map(s => s.trim()).filter(Boolean)[0] || "";
   const map: Record<string, string> = {
-    "Cantor/a": "Singer", "DJ": "DJ", "Saxofonista": "Sax", "Violinista": "Violino",
-    "Pianista": "Piano", "Guitarrista": "Guitar", "Baterista": "Drums", "Percussionista": "Percussão",
-    "Bailarino/a": "Dancer", "Ator/Host": "Host", "Animador/a": "Animador",
-    "Produtor/Coordenador": "Produtor", "Técnico de Som": "Produtor", "Técnico de Luz": "Produtor",
-    "Makeup & Hair": "Guarda-Roupa", "Assistente de Guarda-Roupa": "Guarda-Roupa", "Coreógrafo/a": "Coreógrafa",
+    "Cantor/a": "Cantor(a)", "Cantor(a)": "Cantor(a)", "DJ": "DJ", "Saxofonista": "Saxofonista", "Violinista": "Violinista",
+    "Pianista": "Pianista", "Guitarrista": "Guitarrista", "Baterista": "Baterista", "Percussionista": "Percussionista",
+    "Bailarino/a": "Bailarino(a)", "Ator/Host": "Animador / Host", "Animador/a": "Animador / Host",
+    "Produtor/Coordenador": "Produtor", "Makeup & Hair": "Make-up & Hair", "Assistente de Guarda-Roupa": "Guarda-Roupa",
+    "Coreógrafo/a": "Coreógrafo(a)",
   };
   const mapped = map[first] || first || "DJ";
-  return ARTIST_TIPOS.includes(mapped) ? mapped : "DJ";
+  return (ARTIST_TIPOS as readonly string[]).includes(mapped) ? mapped : "DJ";
 }
 
 export default function AgendaPage() {
@@ -221,6 +232,7 @@ export default function AgendaPage() {
   const [userName, setUserName] = useState("");
   const [events, setEvents] = useState<AgendaEvent[]>([]);
   const [artistasMap, setArtistasMap] = useState<Record<number, ArtistRow[]>>({});
+  const [conflictOverrides, setConflictOverrides] = useState<ConflictOverride[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterArtista, setFilterArtista] = useState("");
@@ -283,13 +295,14 @@ export default function AgendaPage() {
   };
 
   const load = useCallback(async () => {
-    const [r, ar, cr, lr, colr, vr, rr] = await Promise.all([getAllAgenda(), getAllArtistasAgenda(), getAllClientes(), getAllLeads(), getAllColaboradores(), getAllValoresFuncoes(), getAllResidenciasAtivas()]);
+    const [r, ar, cr, lr, colr, vr, rr, cor] = await Promise.all([getAllAgenda(), getAllArtistasAgenda(), getAllClientes(), getAllLeads(), getAllColaboradores(), getAllValoresFuncoes(), getAllResidenciasAtivas(), getArtistConflictOverrides()]);
     if (r.success) setEvents(r.data as AgendaEvent[]);
     if (ar.success) setArtistasMap(Object.fromEntries(Object.entries(ar.data as Record<number, any[]>).map(([k, v]) => [k, v.map((a: any) => ({ ...a, colaborador_id: a.colaborador_id ?? null, fee: String(a.fee ?? "") }))])));
     if (cr.success) setClientes(cr.data as Cliente[]);
     if (colr.success) setColaboradores(colr.data as Colaborador[]);
     if (vr.success) setValoresFuncoes(vr.data as ValorFuncao[]);
     if (rr.success) setResidenciasAtivas((rr.data as ResidenciaAtiva[]).filter(r => r.ativo === 1));
+    if (cor.success) setConflictOverrides(cor.data as ConflictOverride[]);
     if (lr.success) {
       const stripEmoji = (s: string) => s.replace(/[\p{Emoji}\u200d\ufe0f]+/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
       const agendaEvents = r.success ? (r.data as AgendaEvent[]) : [];
@@ -362,7 +375,7 @@ export default function AgendaPage() {
   const closeMaterialModal = () => setMaterialModal({ open: false, event: null });
 
   const materiaisDoEvento = (eventoId: number) => movimentosMateriais.filter(m => m.evento_id === eventoId);
-  const materiaisPendentesDoEvento = (eventoId: number) => materiaisDoEvento(eventoId).filter(m => m.quantidade_devolvida < m.quantidade);
+  const materiaisPendentesDoEvento = (eventoId: number) => materiaisDoEvento(eventoId).filter(m => (m.quantidade_devolvida + (m.quantidade_consumida || 0)) < m.quantidade);
 
   const handleReservarMaterial = async () => {
     if (!materialModal.event) return;
@@ -786,6 +799,60 @@ export default function AgendaPage() {
     return aTime - bTime;
   });
 
+  const normalizeConflictName = (name: string) => resolveColaboradorNome(name || '')
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+  const conflictOverrideKeys = new Set(conflictOverrides.map(o => `${o.event_date}|${o.artist_key}`));
+  const conflictItems = [
+    ...filtered.map(e => ({ key: `event-${e.id}`, entityKey: e.event_id || `agenda-${e.id}`, date: e.event_date, title: e.title || "Evento", artists: artistasMap[e.id] || [] })),
+    ...filteredLeads.map(l => ({ key: `lead-${l.id}`, entityKey: l.event_id || `lead-${l.id}`, date: l.event_date, title: l.title || "Lead", artists: artistasMap[-l.id] || [] })),
+  ];
+  const conflictMap = (() => {
+    const groups = new Map<string, { artist: string; items: { key: string; entityKey: string; title: string }[] }>();
+    for (const item of conflictItems) {
+      const seenArtists = new Set<string>();
+      for (const a of item.artists) {
+        const display = resolveColaboradorNome(a.nome || '').trim();
+        const artistKey = normalizeConflictName(display);
+        if (!artistKey || seenArtists.has(artistKey)) continue;
+        seenArtists.add(artistKey);
+        const key = `${item.date}|${artistKey}`;
+        if (conflictOverrideKeys.has(key)) continue;
+        if (!groups.has(key)) groups.set(key, { artist: display, items: [] });
+        groups.get(key)!.items.push({ key: item.key, entityKey: item.entityKey, title: item.title });
+      }
+    }
+    const result = new Map<string, { artist: string; date: string; artistKey: string; others: string[] }[]>();
+    for (const [key, group] of groups.entries()) {
+      const uniqueEntities = Array.from(new Set(group.items.map(i => i.entityKey)));
+      if (uniqueEntities.length < 2) continue;
+      const [date, artistKey] = key.split('|');
+      for (const item of group.items) {
+        const others = group.items.filter(i => i.entityKey !== item.entityKey).map(i => i.title);
+        if (!result.has(item.key)) result.set(item.key, []);
+        result.get(item.key)!.push({ artist: group.artist, date, artistKey, others: Array.from(new Set(others)) });
+      }
+    }
+    return result;
+  })();
+  const conflictsForEvent = (e: AgendaEvent) => conflictMap.get(`event-${e.id}`) || [];
+  const conflictsForLead = (l: Lead) => conflictMap.get(`lead-${l.id}`) || [];
+  const handleDismissConflict = async (date: string, artist: string) => {
+    await dismissArtistConflict({ event_date: date, artist_name: artist, note: "Dá para fazer ambos", dismissed_by: userName });
+    showToast("Alerta retirado para esse artista nesse dia");
+    await load();
+  };
+  const ConflictAlert = ({ conflicts }: { conflicts: { artist: string; date: string; others: string[] }[] }) => conflicts.length === 0 ? null : (
+    <div style={{ marginTop: "5px", display: "flex", flexDirection: "column", gap: "4px" }}>
+      {conflicts.map(c => (
+        <div key={`${c.date}-${c.artist}`} style={{ background: "rgba(226,75,74,0.10)", border: "1px solid rgba(226,75,74,0.35)", color: Colors.red, padding: "5px 7px", fontSize: "9px", lineHeight: 1.35, fontWeight: 700 }}>
+          🚨🚨 {c.artist} também está em {c.others.join(" / ")} 🚨🚨
+          <button onClick={(ev) => { ev.stopPropagation(); handleDismissConflict(c.date, c.artist); }} style={{ marginLeft: "8px", background: "transparent", border: "none", color: Colors.red, textDecoration: "underline", cursor: "pointer", fontSize: "9px", fontFamily: "inherit" }}>retirar alerta</button>
+        </div>
+      ))}
+    </div>
+  );
+
   const availableMonths = Array.from(new Set([
     ...events.map(e => e.event_date.slice(0, 7)),
     ...confirmedLeads.map(l => l.event_date.slice(0, 7)),
@@ -1063,6 +1130,7 @@ export default function AgendaPage() {
                               <span style={{ fontSize: "11px" }}>{l.title}</span>
                             </span>
                             <span style={{ fontSize: "8px", color: Colors.goldDim, letterSpacing: "0.25em", textTransform: "uppercase" }}>Lead · {l.status}</span>
+                            <ConflictAlert conflicts={conflictsForLead(l)} />
                           </div>
                         </td>
                         <td style={createTdStyle(lightTheme, { muted: true })} colSpan={3}>—</td>
@@ -1107,6 +1175,7 @@ export default function AgendaPage() {
                           <span style={{ fontSize: "11px" }}>{e.title.replace(/^\p{Emoji}[\p{Emoji}\u200d\s]*/u, "")}</span>
                         </span>
                         {!!e.cancelled && <span style={{ fontSize: "8px", color: Colors.red, letterSpacing: "0.2em" }}>[CANCELADO]</span>}
+                        <ConflictAlert conflicts={conflictsForEvent(e)} />
                       </div>
                     </td>
                     <td style={createTdStyle(lightTheme, { muted: true, nowrap: true })}>{e.time_range || "—"}</td>
@@ -1311,6 +1380,7 @@ export default function AgendaPage() {
                 </div>
                 <div className="mob-card-body">
                   <div className="mob-card-title">{l.title}</div>
+                  <ConflictAlert conflicts={conflictsForLead(l)} />
                   <div className="mob-card-meta">
                     <span className="mob-badge" style={{background:"rgba(201,169,110,0.08)",color:"#C9A96E"}}>
                       <span className="mob-badge-dot" style={{background:"#C9A96E"}}/>Lead
@@ -1347,6 +1417,7 @@ export default function AgendaPage() {
                   {artistIcons(artistasMap[e.id]||[]) && <span style={{marginRight:4}}>{artistIcons(artistasMap[e.id]||[])}</span>}
                   {e.title.replace(/^\p{Emoji}[\p{Emoji}‍\s]*/u,"")}
                 </div>
+                <ConflictAlert conflicts={conflictsForEvent(e)} />
                 <div className="mob-card-meta">
                   {e.time_range && <><span>{e.time_range}</span><span className="mob-card-meta-dot">·</span></>}
                   {e.venue && <><span style={{color:"rgba(201,169,110,0.7)"}}>📍 {e.venue}</span><span className="mob-card-meta-dot">·</span></>}

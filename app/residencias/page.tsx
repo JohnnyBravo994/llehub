@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "../useTheme";
 import { ThemeSwitcher } from "../ThemeSwitcher";
-import { ARTIST_TIPOS } from "../constants";
+import { SERVICOS_VENDIDOS } from "../constants";
 import {
   setupResidenciasAtivas, getAllResidenciasAtivas, createResidenciaAtiva,
   updateResidenciaAtiva, toggleResidenciaAtiva, getAllClientes, getAllColaboradores,
@@ -106,6 +106,10 @@ export default function ResidenciasPage() {
           <div><p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.4rem" }}>Residências Ativas</p><p style={{ fontSize: "11px", color: C.textMuted, letterSpacing: "0.06em" }}>Regras recorrentes por cliente/local. A Agenda pode usar isto para criar ocorrências sem confundir com eventos normais.</p></div>
           <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
         </div>
+        <datalist id="residencias-servicos-list">
+          {SERVICOS_VENDIDOS.map(s => <option key={s} value={s} />)}
+        </datalist>
+
         <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative", overflowX: "auto" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: lightTheme ? "rgba(0,0,0,0.2)" : "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
           <div style={{ minWidth: 1320 }}>
@@ -114,7 +118,7 @@ export default function ResidenciasPage() {
               <input value={d?.nome || ""} onChange={e => updateDraft(row.id, "nome", e.target.value)} placeholder="ICON Fridays" style={inputStyle} />
               <select value={d?.cliente_id || ""} onChange={e => setDrafts(prev => ({ ...prev, [row.id]: applyCliente(prev[row.id], e.target.value) }))} style={inputStyle}><option value="">Manual</option>{clientes.map(c => <option key={c.id} value={c.id}>{(c as any).alias || c.nome}</option>)}</select>
               <input value={d?.local || ""} onChange={e => updateDraft(row.id, "local", e.target.value)} placeholder="ICON" style={inputStyle} />
-              <select value={d?.servico || "DJ"} onChange={e => updateDraft(row.id, "servico", e.target.value)} style={inputStyle}>{ARTIST_TIPOS.map(t => <option key={t} value={t}>{t}</option>)}</select>
+              <input list="residencias-servicos-list" value={d?.servico || "DJ"} onChange={e => updateDraft(row.id, "servico", e.target.value)} placeholder="DJ" style={inputStyle} />
               <input value={d?.duracao_formato || ""} onChange={e => updateDraft(row.id, "duracao_formato", e.target.value)} placeholder="4h" style={inputStyle} />
               <input value={d?.custo_interno || ""} onChange={e => updateDraft(row.id, "custo_interno", e.target.value)} inputMode="decimal" placeholder="0" style={{ ...inputStyle, textAlign: "right" }} />
               <input value={d?.valor_cliente || ""} onChange={e => updateDraft(row.id, "valor_cliente", e.target.value)} inputMode="decimal" placeholder="0" style={{ ...inputStyle, textAlign: "right" }} />
@@ -127,7 +131,7 @@ export default function ResidenciasPage() {
               <input value={newRow.nome} onChange={e => setNewRow(r => ({ ...r, nome: e.target.value }))} placeholder="Nova residência..." style={inputStyle} />
               <select value={newRow.cliente_id} onChange={e => setNewRow(r => applyCliente(r, e.target.value))} style={inputStyle}><option value="">Manual</option>{clientes.map(c => <option key={c.id} value={c.id}>{(c as any).alias || c.nome}</option>)}</select>
               <input value={newRow.local} onChange={e => setNewRow(r => ({ ...r, local: e.target.value }))} placeholder="Local" style={inputStyle} />
-              <select value={newRow.servico} onChange={e => setNewRow(r => ({ ...r, servico: e.target.value }))} style={inputStyle}>{ARTIST_TIPOS.map(t => <option key={t} value={t}>{t}</option>)}</select>
+              <input list="residencias-servicos-list" value={newRow.servico} onChange={e => setNewRow(r => ({ ...r, servico: e.target.value }))} placeholder="DJ" style={inputStyle} />
               <input value={newRow.duracao_formato} onChange={e => setNewRow(r => ({ ...r, duracao_formato: e.target.value }))} placeholder="4h" style={inputStyle} />
               <input value={newRow.custo_interno} onChange={e => setNewRow(r => ({ ...r, custo_interno: e.target.value }))} inputMode="decimal" placeholder="Custo" style={{ ...inputStyle, textAlign: "right" }} />
               <input value={newRow.valor_cliente} onChange={e => setNewRow(r => ({ ...r, valor_cliente: e.target.value }))} inputMode="decimal" placeholder="Cliente" style={{ ...inputStyle, textAlign: "right" }} />

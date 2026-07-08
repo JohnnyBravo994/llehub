@@ -1,6 +1,6 @@
 "use client";
 
-import { ARTIST_TIPOS, MODALIDADES } from "../constants";
+import { ARTIST_TIPOS, MODALIDADES, resolveColaboradorNome } from "../constants";
 import { useTheme } from "../useTheme";
 import { ThemeSwitcher } from "../ThemeSwitcher";
 import React, { useEffect, useState, useCallback, useRef } from "react";
@@ -76,9 +76,10 @@ import { useRouter } from "next/navigation";
 import {
   getAllLeads, createLead, updateLead,
   cancelLead, restoreLead, deleteLead,
-  getAllClientes, createCliente, createAgendaEvent, getAllColaboradores, getAllValoresFuncoes,
+  getAllClientes, createCliente, createAgendaEvent, getAllAgenda, getAllArtistasAgenda,
+  getAllColaboradores, getAllValoresFuncoes,
   syncArtistasEvento, getArtistasEvento, setupDatabase, syncArtistasParaAgenda,
-  syncAllExistingData,
+  syncAllExistingData, getArtistConflictOverrides, dismissArtistConflict,
 } from "../actions";
 
 interface Lead {
@@ -86,9 +87,13 @@ interface Lead {
   status?: string; cancelled?: number;
   local?: string; contacto?: string; notas?: string;
   cliente_nome?: string; cliente_id?: number | null; modalidade?: string;
-  agenda_event_id?: number | null;
+  agenda_event_id?: number | null; event_id?: string;
 }
 
+interface AgendaEvent {
+  id: number; title: string; event_date: string; event_id?: string; origem_lead_id?: number | null; cancelled?: number;
+}
+interface ConflictOverride { event_date: string; artist_key: string; artist_name: string; note?: string; }
 interface Cliente { id: number; nome: string; nif?: string; alias?: string; }
 interface Colaborador {
   id: number; nome: string; nome_artistico?: string; nome_pessoal?: string; contacto?: string; email?: string; iban?: string;
@@ -144,14 +149,14 @@ function normalizeText(v: string) {
 function tipoFromSkills(skills?: string) {
   const first = (skills || "").split(",").map(s => s.trim()).filter(Boolean)[0] || "";
   const map: Record<string, string> = {
-    "Cantor/a": "Singer", "DJ": "DJ", "Saxofonista": "Sax", "Violinista": "Violino",
-    "Pianista": "Piano", "Guitarrista": "Guitar", "Baterista": "Drums", "Percussionista": "Percussão",
-    "Bailarino/a": "Dancer", "Ator/Host": "Host", "Animador/a": "Animador",
-    "Produtor/Coordenador": "Produtor", "Técnico de Som": "Produtor", "Técnico de Luz": "Produtor",
-    "Makeup & Hair": "Guarda-Roupa", "Assistente de Guarda-Roupa": "Guarda-Roupa", "Coreógrafo/a": "Coreógrafa",
+    "Cantor/a": "Cantor(a)", "Cantor(a)": "Cantor(a)", "DJ": "DJ", "Saxofonista": "Saxofonista", "Violinista": "Violinista",
+    "Pianista": "Pianista", "Guitarrista": "Guitarrista", "Baterista": "Baterista", "Percussionista": "Percussionista",
+    "Bailarino/a": "Bailarino(a)", "Ator/Host": "Animador / Host", "Animador/a": "Animador / Host",
+    "Produtor/Coordenador": "Produtor", "Makeup & Hair": "Make-up & Hair", "Assistente de Guarda-Roupa": "Guarda-Roupa",
+    "Coreógrafo/a": "Coreógrafo(a)",
   };
   const mapped = map[first] || first || "DJ";
-  return ARTIST_TIPOS.includes(mapped) ? mapped : "DJ";
+  return (ARTIST_TIPOS as readonly string[]).includes(mapped) ? mapped : "DJ";
 }
 
 const STATUS_OPTIONS = ["Contacto", "Proposta Enviada", "Em Negociação", "Confirmado", "Em Adjudicação", "Adjudicado", "Faturado", "Pago", "Cancelado"];
@@ -170,6 +175,9 @@ export default function LeadsPage() {
   const C = getColors(lightTheme);
   const [userName, setUserName] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [agendaEvents, setAgendaEvents] = useState<AgendaEvent[]>([]);
+  const [artistasMap, setArtistasMap] = useState<Record<number, ArtistRow[]>>({});
+  const [conflictOverrides, setConflictOverrides] = useState<ConflictOverride[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [valoresFuncoes, setValoresFuncoes] = useState<ValorFuncao[]>([]);
@@ -199,7 +207,7 @@ export default function LeadsPage() {
   };
 
   const load = useCallback(async () => {
-    const [r, cr, colr, vr] = await Promise.all([getAllLeads(), getAllClientes(), getAllColaboradores(), getAllValoresFuncoes()]);
+    const [r, ar, aar, cr, colr, vr, cor] = await Promise.all([getAllLeads(), getAllAgenda(), getAllArtistasAgenda(), getAllClientes(), getAllColaboradores(), getAllValoresFuncoes(), getArtistConflictOverrides()]);
     if (r.success) {
       setLeads(r.data as Lead[]);
       // Auto-colapsar meses já passados
@@ -213,6 +221,9 @@ export default function LeadsPage() {
       });
       setCollapsedMonths(pastMonths);
     }
+    if (ar.success) setAgendaEvents(ar.data as AgendaEvent[]);
+    if (aar.success) setArtistasMap(Object.fromEntries(Object.entries(aar.data as Record<number, any[]>).map(([k, v]) => [k, v.map((a: any) => ({ ...a, colaborador_id: a.colaborador_id ?? null, fee: String(a.fee ?? "") }))])));
+    if (cor.success) setConflictOverrides(cor.data as ConflictOverride[]);
     if (cr.success) setClientes(cr.data as Cliente[]);
     if (colr.success) setColaboradores(colr.data as Colaborador[]);
     if (vr.success) setValoresFuncoes(vr.data as ValorFuncao[]);
@@ -485,6 +496,60 @@ export default function LeadsPage() {
 
   const filtered = leads.filter(l =>
     !search || l.title.toLowerCase().includes(search.toLowerCase()) || (l.status || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  const normalizeConflictName = (name: string) => resolveColaboradorNome(name || '')
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+  const artistsForLead = (l: Lead) => (l.agenda_event_id ? (artistasMap[l.agenda_event_id] || []) : (artistasMap[-l.id] || []));
+  const conflictOverrideKeys = new Set(conflictOverrides.map(o => `${o.event_date}|${o.artist_key}`));
+  const conflictItems = [
+    ...agendaEvents.filter(e => !e.cancelled).map(e => ({ key: `event-${e.id}`, entityKey: e.event_id || `agenda-${e.id}`, date: e.event_date, title: e.title || "Evento", artists: artistasMap[e.id] || [] })),
+    ...leads.filter(l => !l.cancelled).map(l => ({ key: `lead-${l.id}`, entityKey: l.event_id || `lead-${l.id}`, date: l.event_date, title: l.title || "Lead", artists: artistsForLead(l) })),
+  ];
+  const conflictMap = (() => {
+    const groups = new Map<string, { artist: string; items: { key: string; entityKey: string; title: string }[] }>();
+    for (const item of conflictItems) {
+      const seenArtists = new Set<string>();
+      for (const a of item.artists) {
+        const display = resolveColaboradorNome(a.nome || '').trim();
+        const artistKey = normalizeConflictName(display);
+        if (!artistKey || seenArtists.has(artistKey)) continue;
+        seenArtists.add(artistKey);
+        const key = `${item.date}|${artistKey}`;
+        if (conflictOverrideKeys.has(key)) continue;
+        if (!groups.has(key)) groups.set(key, { artist: display, items: [] });
+        groups.get(key)!.items.push({ key: item.key, entityKey: item.entityKey, title: item.title });
+      }
+    }
+    const result = new Map<string, { artist: string; date: string; others: string[] }[]>();
+    for (const [key, group] of groups.entries()) {
+      const uniqueEntities = Array.from(new Set(group.items.map(i => i.entityKey)));
+      if (uniqueEntities.length < 2) continue;
+      const [date] = key.split('|');
+      for (const item of group.items) {
+        const others = group.items.filter(i => i.entityKey !== item.entityKey).map(i => i.title);
+        if (!result.has(item.key)) result.set(item.key, []);
+        result.get(item.key)!.push({ artist: group.artist, date, others: Array.from(new Set(others)) });
+      }
+    }
+    return result;
+  })();
+  const conflictsForLead = (l: Lead) => conflictMap.get(`lead-${l.id}`) || [];
+  const handleDismissConflict = async (date: string, artist: string) => {
+    await dismissArtistConflict({ event_date: date, artist_name: artist, note: "Dá para fazer ambos", dismissed_by: userName });
+    showToast("Alerta retirado para esse artista nesse dia");
+    await load();
+  };
+  const ConflictAlert = ({ conflicts }: { conflicts: { artist: string; date: string; others: string[] }[] }) => conflicts.length === 0 ? null : (
+    <div style={{ marginTop: "5px", display: "flex", flexDirection: "column", gap: "4px" }}>
+      {conflicts.map(c => (
+        <div key={`${c.date}-${c.artist}`} style={{ background: "rgba(226,75,74,0.10)", border: "1px solid rgba(226,75,74,0.35)", color: C.red, padding: "5px 7px", fontSize: "9px", lineHeight: 1.35, fontWeight: 700 }}>
+          🚨🚨 {c.artist} também está em {c.others.join(" / ")} 🚨🚨
+          <button onClick={(ev) => { ev.stopPropagation(); handleDismissConflict(c.date, c.artist); }} style={{ marginLeft: "8px", background: "transparent", border: "none", color: C.red, textDecoration: "underline", cursor: "pointer", fontSize: "9px", fontFamily: "inherit" }}>retirar alerta</button>
+        </div>
+      ))}
+    </div>
   );
 
   const grouped: Record<string, Lead[]> = {};
@@ -792,6 +857,7 @@ export default function LeadsPage() {
                   </div>
                   <div className="mob-card-body">
                     <div className={`mob-card-title${l.cancelled?" cancelled":""}`}>{l.title}</div>
+                    <ConflictAlert conflicts={conflictsForLead(l)} />
                     {l.local && <div className="mob-card-meta" style={{color:"rgba(201,169,110,0.7)"}}>📍 {l.local}</div>}
                     {l.cliente_nome && <div className="mob-card-meta">{displayClienteNome(l, clientes)}</div>}
                     {l.notas && <div className="mob-card-meta" style={{fontStyle:"italic", marginTop:2}}>"{l.notas}"</div>}

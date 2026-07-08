@@ -10,6 +10,7 @@ import {
   toggleColaboradorAtivo, setupColaboradores, getArtistasPorAssociar,
   associarArtistaNomeAColaborador, criarColaboradorEAssociarArtista, ignorarArtistaPorAssociar,
 } from "../actions";
+import { COLABORADOR_SKILLS } from "../constants";
 
 interface Colaborador {
   id: number; nome: string; nome_artistico?: string; nome_pessoal?: string;
@@ -37,13 +38,7 @@ const C_Light = {
 const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
 
 
-const ALL_SKILLS = [
-  "Cantor/a", "DJ", "Saxofonista", "Violinista", "Pianista", "Guitarrista",
-  "Baterista", "Percussionista", "Bailarino/a", "Ator/Host", "Animador/a",
-  "Produtor/Coordenador", "Técnico de Som", "Técnico de Luz",
-  "Makeup & Hair", "Assistente de Guarda-Roupa", "Coreógrafo/a",
-  "Fotógrafo/Videógrafo", "Outro",
-];
+const ALL_SKILLS = COLABORADOR_SKILLS;
 
 const emptyForm = {
   nome: "", nome_pessoal: "", contacto: "", email: "", iban: "", skills: [] as string[], notas: "", ativo: 1,

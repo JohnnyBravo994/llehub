@@ -9,6 +9,7 @@ import {
   updateValorMaster, toggleValorMasterAtivo, getServicosPorCriarNaMaster,
   criarValorMasterAPartirServico,
 } from "../actions";
+import { SERVICOS_VENDIDOS } from "../constants";
 
 interface ValorMaster {
   id: number;
@@ -170,6 +171,10 @@ export default function ValoresPage() {
           </div>
         )}
 
+        <datalist id="servicos-vendidos-list">
+          {SERVICOS_VENDIDOS.map(s => <option key={s} value={s} />)}
+        </datalist>
+
         <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative", overflowX: "auto" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: lightTheme ? "rgba(0,0,0,0.2)" : "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
           <div style={{ minWidth: 1220 }}>
@@ -179,7 +184,7 @@ export default function ValoresPage() {
             {rows.map(row => {
               const d = drafts[row.id];
               return <div key={row.id} style={{ display: "grid", gridTemplateColumns: grid, gap: "8px", alignItems: "center", padding: "0.6rem 1rem", borderBottom: `1px solid ${C.borderDim}`, opacity: row.ativo === 0 ? 0.45 : 1 }}>
-                <input value={d?.servico || ""} onChange={e => updateDraft(row.id, "servico", e.target.value)} placeholder="DJ s/ AV" style={inputStyle} />
+                <input list="servicos-vendidos-list" value={d?.servico || ""} onChange={e => updateDraft(row.id, "servico", e.target.value)} placeholder="DJ s/ AV" style={inputStyle} />
                 <input value={d?.duracao_formato || ""} onChange={e => updateDraft(row.id, "duracao_formato", e.target.value)} placeholder="até 4h" style={inputStyle} />
                 <select value={d?.contexto || "Normal"} onChange={e => updateDraft(row.id, "contexto", e.target.value)} style={inputStyle}>{CONTEXTOS.map(c => <option key={c} value={c}>{c}</option>)}</select>
                 <input value={d?.cliente_nome || ""} onChange={e => updateDraft(row.id, "cliente_nome", e.target.value)} placeholder="Opcional" style={inputStyle} />
@@ -192,7 +197,7 @@ export default function ValoresPage() {
               </div>;
             })}
             <div style={{ display: "grid", gridTemplateColumns: grid, gap: "8px", alignItems: "center", padding: "1rem", background: lightTheme ? "rgba(0,0,0,0.02)" : "rgba(201,169,110,0.03)" }}>
-              <input value={newRow.servico} onChange={e => setNewRow(r => ({ ...r, servico: e.target.value }))} placeholder="Novo serviço..." style={inputStyle} />
+              <input list="servicos-vendidos-list" value={newRow.servico} onChange={e => setNewRow(r => ({ ...r, servico: e.target.value }))} placeholder="Novo serviço..." style={inputStyle} />
               <input value={newRow.duracao_formato} onChange={e => setNewRow(r => ({ ...r, duracao_formato: e.target.value }))} placeholder="até 4h" style={inputStyle} />
               <select value={newRow.contexto} onChange={e => setNewRow(r => ({ ...r, contexto: e.target.value }))} style={inputStyle}>{CONTEXTOS.map(c => <option key={c} value={c}>{c}</option>)}</select>
               <input value={newRow.cliente_nome} onChange={e => setNewRow(r => ({ ...r, cliente_nome: e.target.value }))} placeholder="Cliente/local" style={inputStyle} />

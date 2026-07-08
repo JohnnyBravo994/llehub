@@ -6,20 +6,25 @@ import { ThemeSwitcher } from "../ThemeSwitcher";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  getAllMateriais, createMaterial, updateMaterial, toggleMaterialAtivo,
+  getAllMateriais, createMaterial, updateMaterial, updateMaterialCompraStatus, toggleMaterialAtivo,
   getMovimentosMateriais, registarSaidaMaterial, registarVoltaMaterial, deleteMovimentoMaterial,
   setupMateriais, getEventosParaMateriais,
 } from "../actions";
 
 interface Material {
   id: number; nome: string; categoria: string; imagem: string;
-  quantidade_total: number; notas: string; ativo: number;
+  quantidade_total: number; dono: string; local_habitual: string; consumivel: number;
+  stock_minimo: number; precisa_comprar: number; motivo_compra: string; quantidade_comprar: number; notas_compra: string;
+  notas: string; ativo: number;
 }
 
 interface Movimento {
   id: number; material_id: number; material_nome: string; material_imagem: string;
-  quantidade: number; quantidade_devolvida: number;
-  origem: string; origem_detalhe: string; evento: string; evento_id: number | null; responsavel: string; notas: string;
+  quantidade: number; quantidade_devolvida: number; quantidade_consumida: number;
+  origem: string; origem_detalhe: string; dono_material: string; quem_levou: string;
+  evento: string; evento_id: number | null; responsavel: string; notas: string;
+  estado_regresso: string; precisa_comprar: number; motivo_compra: string; quantidade_comprar: number;
+  quem_confirmou_regresso: string; notas_regresso: string;
   data_saida: string; data_volta: string | null;
 }
 
@@ -46,10 +51,10 @@ const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
 
 
 const CATEGORIAS = ["Som", "Luz", "DJ / Cabine", "Microfones", "Estrutura", "Decoração", "Roupa", "Outro"];
-const ORIGENS = ["Loja", "João", "Annia", "Outro"];
+const ORIGENS = ["Loja", "João", "Annia", "Tânia", "Fornecedor", "Outro"];
 
-const emptyMaterialForm = { nome: "", categoria: "", imagem: "", quantidade_total: 1, notas: "" };
-const emptySaidaForm = { material_id: 0, quantidade: 1, origem: "Loja", origem_detalhe: "", evento_sel: SEL_PESSOAL, evento: "", evento_id: null as number | null, notas: "" };
+const emptyMaterialForm = { nome: "", categoria: "", imagem: "", quantidade_total: 1, dono: "LLE", local_habitual: "Loja", consumivel: 0, stock_minimo: 0, precisa_comprar: 0, motivo_compra: "", quantidade_comprar: 0, notas_compra: "", notas: "" };
+const emptySaidaForm = { material_id: 0, quantidade: 1, origem: "Loja", origem_detalhe: "", quem_levou: "", evento_sel: SEL_PESSOAL, evento: "", evento_id: null as number | null, notas: "" };
 
 function fmtDateTime(s: string) {
   if (!s) return "—";
@@ -95,6 +100,10 @@ function compressImage(file: File): Promise<string> {
 
 function origemLabel(m: Movimento) {
   return m.origem === "Outro" && m.origem_detalhe ? m.origem_detalhe : m.origem;
+}
+
+function pendenteMovimento(m: Movimento) {
+  return Math.max(0, m.quantidade - (m.quantidade_devolvida || 0) - (m.quantidade_consumida || 0));
 }
 
 function fmtDateShort(s: string) {
@@ -156,6 +165,8 @@ export default function MateriaisPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [voltaQty, setVoltaQty] = useState<Record<number, number>>({});
+  const [voltaModal, setVoltaModal] = useState<{ open: boolean; movimento: Movimento | null }>({ open: false, movimento: null });
+  const [voltaForm, setVoltaForm] = useState({ quantidade_devolvida: 1, quantidade_consumida: 0, estado_regresso: "OK", precisa_comprar: 0, motivo_compra: "", quantidade_comprar: 0, notas_regresso: "" });
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
@@ -179,16 +190,16 @@ export default function MateriaisPage() {
   }, [load]);
 
   const materiaisAtivos = materiais.filter(m => m.ativo === 1);
-  const movimentosAbertos = movimentos.filter(m => m.quantidade_devolvida < m.quantidade);
-  const movimentosFechados = movimentos.filter(m => m.quantidade_devolvida >= m.quantidade);
+  const movimentosAbertos = movimentos.filter(m => pendenteMovimento(m) > 0);
+  const movimentosFechados = movimentos.filter(m => pendenteMovimento(m) <= 0);
   const foraAgrupados = agruparPorEvento(movimentosAbertos, eventos);
   const totalUnidades = materiaisAtivos.reduce((s, m) => s + m.quantidade_total, 0);
-  const totalFora = movimentosAbertos.reduce((s, m) => s + (m.quantidade - m.quantidade_devolvida), 0);
+  const totalFora = movimentosAbertos.reduce((s, m) => s + pendenteMovimento(m), 0);
 
   function pendenteAtualDoMaterial(materialId: number) {
     return movimentosAbertos
       .filter(m => m.material_id === materialId)
-      .reduce((s, m) => s + (m.quantidade - m.quantidade_devolvida), 0);
+      .reduce((s, m) => s + pendenteMovimento(m), 0);
   }
 
   // ── Saída ──────────────────────────────────────────────────────────────
@@ -209,6 +220,7 @@ export default function MateriaisPage() {
     await registarSaidaMaterial({
       material_id: mat.id, material_nome: mat.nome, material_imagem: mat.imagem,
       quantidade: saidaForm.quantidade, origem: saidaForm.origem, origem_detalhe: saidaForm.origem_detalhe,
+      dono_material: mat.dono || "LLE", quem_levou: saidaForm.quem_levou || userName,
       evento: isPessoal ? PESSOAL : (eventoSelecionado?.title || ""),
       evento_id: isPessoal ? null : (eventoSelecionado?.id ?? null),
       responsavel: userName, notas: saidaForm.notas,
@@ -220,13 +232,42 @@ export default function MateriaisPage() {
   };
 
   // ── Volta ──────────────────────────────────────────────────────────────
-  const handleVoltou = async (mov: Movimento, quantidade?: number) => {
-    const pendente = mov.quantidade - mov.quantidade_devolvida;
-    const qtd = quantidade ?? pendente;
-    if (qtd <= 0) return;
-    const novaDevolvida = Math.min(mov.quantidade, mov.quantidade_devolvida + qtd);
-    await registarVoltaMaterial(mov.id, novaDevolvida, mov.quantidade);
-    showToast(novaDevolvida >= mov.quantidade ? `${mov.material_nome} voltou` : `Devolução parcial registada`);
+  const openVolta = (mov: Movimento, quantidade?: number) => {
+    const pendente = pendenteMovimento(mov);
+    const qtd = Math.max(0, Math.min(pendente, quantidade ?? pendente));
+    setVoltaForm({
+      quantidade_devolvida: qtd,
+      quantidade_consumida: 0,
+      estado_regresso: "OK",
+      precisa_comprar: 0,
+      motivo_compra: "",
+      quantidade_comprar: 0,
+      notas_regresso: "",
+    });
+    setVoltaModal({ open: true, movimento: mov });
+  };
+  const closeVolta = () => setVoltaModal({ open: false, movimento: null });
+
+  const handleGuardarVolta = async () => {
+    const mov = voltaModal.movimento;
+    if (!mov) return;
+    const pendente = pendenteMovimento(mov);
+    const qtdVoltou = Math.max(0, Math.min(pendente, Number(voltaForm.quantidade_devolvida) || 0));
+    const maxConsumivel = Math.max(0, pendente - qtdVoltou);
+    const qtdConsumida = Math.max(0, Math.min(maxConsumivel, Number(voltaForm.quantidade_consumida) || 0));
+    const novaDevolvida = Math.min(mov.quantidade, (mov.quantidade_devolvida || 0) + qtdVoltou);
+    const novaConsumida = Math.min(mov.quantidade, (mov.quantidade_consumida || 0) + qtdConsumida);
+    await registarVoltaMaterial(mov.id, novaDevolvida, mov.quantidade, {
+      quantidade_consumida: novaConsumida,
+      estado_regresso: voltaForm.estado_regresso,
+      precisa_comprar: voltaForm.precisa_comprar,
+      motivo_compra: voltaForm.motivo_compra,
+      quantidade_comprar: voltaForm.quantidade_comprar,
+      quem_confirmou_regresso: userName,
+      notas_regresso: voltaForm.notas_regresso,
+    });
+    showToast(pendenteMovimento({ ...mov, quantidade_devolvida: novaDevolvida, quantidade_consumida: novaConsumida }) <= 0 ? `${mov.material_nome} fechado` : `Regresso parcial registado`);
+    closeVolta();
     await load();
   };
 
@@ -240,7 +281,7 @@ export default function MateriaisPage() {
   // ── Catálogo ───────────────────────────────────────────────────────────
   const openCreateMaterial = () => { setMaterialForm(emptyMaterialForm); setMaterialModal({ open: true, editing: null }); };
   const openEditMaterial = (m: Material) => {
-    setMaterialForm({ nome: m.nome, categoria: m.categoria, imagem: m.imagem, quantidade_total: m.quantidade_total, notas: m.notas });
+    setMaterialForm({ nome: m.nome, categoria: m.categoria, imagem: m.imagem, quantidade_total: m.quantidade_total, dono: m.dono || "LLE", local_habitual: m.local_habitual || "Loja", consumivel: m.consumivel || 0, stock_minimo: m.stock_minimo || 0, precisa_comprar: m.precisa_comprar || 0, motivo_compra: m.motivo_compra || "", quantidade_comprar: m.quantidade_comprar || 0, notas_compra: m.notas_compra || "", notas: m.notas });
     setMaterialModal({ open: true, editing: m });
   };
   const closeMaterialModal = () => setMaterialModal({ open: false, editing: null });
@@ -275,6 +316,18 @@ export default function MateriaisPage() {
     const novo = m.ativo === 1 ? 0 : 1;
     await toggleMaterialAtivo(m.id, novo);
     showToast(novo === 1 ? "Material reativado" : "Material arquivado");
+    await load();
+  };
+
+  const handleToggleCompraMaterial = async (m: Material) => {
+    const novo = m.precisa_comprar === 1 ? 0 : 1;
+    await updateMaterialCompraStatus(m.id, {
+      precisa_comprar: novo,
+      motivo_compra: novo ? (m.motivo_compra || "precisa de mais") : "",
+      quantidade_comprar: novo ? (m.quantidade_comprar || Math.max(1, m.stock_minimo || 1)) : 0,
+      notas_compra: novo ? m.notas_compra : "",
+    });
+    showToast(novo ? "Marcado para comprar" : "Compra resolvida");
     await load();
   };
 
@@ -367,7 +420,7 @@ export default function MateriaisPage() {
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: "0.6rem", padding: "0.85rem" }}>
                   {group.items.map(mov => {
-                    const pendente = mov.quantidade - mov.quantidade_devolvida;
+                    const pendente = pendenteMovimento(mov);
                     const dias = diasFora(mov.data_saida);
                     return (
                       <div key={mov.id} style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${C.borderDim}`, padding: "0.85rem", display: "flex", gap: "0.75rem" }}>
@@ -380,15 +433,16 @@ export default function MateriaisPage() {
                           <div style={{ fontSize: "10px", color: C.textSec, marginTop: "2px" }}>
                             Com <span style={{ color: C.gold }}>{origemLabel(mov)}</span> · {dias === 0 ? "hoje" : dias === 1 ? "há 1 dia" : `há ${dias} dias`}
                           </div>
-                          <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px" }}>Saída: {fmtDateTime(mov.data_saida)} · {mov.responsavel}</div>
+                          <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px" }}>Saiu de {origemLabel(mov)} · Levou: {mov.quem_levou || mov.responsavel || "—"} · Dono: {mov.dono_material || "—"}</div>
+                          <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px" }}>Registo: {fmtDateTime(mov.data_saida)} · {mov.responsavel}</div>
                           <div style={{ display: "flex", gap: "6px", marginTop: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
-                            <button onClick={() => handleVoltou(mov)} style={{ background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: C.green, fontSize: "9px", letterSpacing: "0.15em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
+                            <button onClick={() => openVolta(mov)} style={{ background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: C.green, fontSize: "9px", letterSpacing: "0.15em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
                             {pendente > 1 && (
                               <>
                                 <input type="number" min={1} max={pendente} value={voltaQty[mov.id] ?? 1}
                                   onChange={e => setVoltaQty(v => ({ ...v, [mov.id]: Math.max(1, Math.min(pendente, Number(e.target.value) || 1)) }))}
                                   style={{ width: "44px", background: "rgba(255,255,255,0.05)", border: `1px solid ${C.border}`, color: C.textPrimary, fontSize: "10px", padding: "5px", textAlign: "center", outline: "none"   }} />
-                                <button onClick={() => handleVoltou(mov, voltaQty[mov.id] ?? 1)} style={{ ...btnSecStyle, padding: "5px 10px", fontSize: "8px" }}>Parcial</button>
+                                <button onClick={() => openVolta(mov, voltaQty[mov.id] ?? 1)} style={{ ...btnSecStyle, padding: "5px 10px", fontSize: "8px" }}>Parcial</button>
                               </>
                             )}
                             <button onClick={() => handleDeleteMovimento(mov.id)} title="Apagar registo" style={{ marginLeft: "auto", background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: "13px" }}>×</button>
@@ -420,10 +474,18 @@ export default function MateriaisPage() {
                     <td style={{ fontSize: "11px", padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}`, display: "flex", alignItems: "center", gap: "8px" }}>
                       <MaterialThumb src={mov.material_imagem} size={28} />{mov.material_nome}
                     </td>
-                    <td style={{ fontSize: "11px", color: C.textSec, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}` }}>{mov.quantidade}</td>
+                    <td style={{ fontSize: "11px", color: C.textSec, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}` }}>
+                      {mov.quantidade_devolvida > 0 && <span>{mov.quantidade_devolvida} voltou</span>}
+                      {mov.quantidade_consumida > 0 && <span>{mov.quantidade_devolvida > 0 ? " · " : ""}{mov.quantidade_consumida} consumido</span>}
+                      {!mov.quantidade_devolvida && !mov.quantidade_consumida && <span>{mov.quantidade}</span>}
+                    </td>
                     <td style={{ fontSize: "11px", color: C.textSec, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}` }}>{origemLabel(mov)}</td>
                     <td style={{ fontSize: "10px", color: C.textMuted, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}`, whiteSpace: "nowrap" }}>{fmtDateTime(mov.data_saida)}</td>
-                    <td style={{ fontSize: "10px", color: C.green, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}`, whiteSpace: "nowrap" }}>{mov.data_volta ? fmtDateTime(mov.data_volta) : "—"}</td>
+                    <td style={{ fontSize: "10px", color: C.green, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}`, whiteSpace: "nowrap" }}>
+                      {mov.data_volta ? fmtDateTime(mov.data_volta) : "—"}
+                      {mov.estado_regresso && <div style={{ color: mov.estado_regresso === "OK" ? C.green : C.amber }}>{mov.estado_regresso}</div>}
+                      {mov.precisa_comprar === 1 && <div style={{ color: C.red }}>Comprar ×{mov.quantidade_comprar || "?"}</div>}
+                    </td>
                     <td style={{ padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}`, textAlign: "right" }}>
                       <button onClick={() => handleDeleteMovimento(mov.id)} title="Apagar" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.06)", color: C.textMuted, padding: "4px 7px", cursor: "pointer" }}>
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 4h10M6 4V2.5h4V4M4 4l.5 9.5A1 1 0 005.5 14.5h5A1 1 0 0011.5 13.5L12 4" /></svg>
@@ -457,8 +519,16 @@ export default function MateriaisPage() {
                       Total: <b style={{ color: C.textPrimary }}>{m.quantidade_total}</b>
                       {fora > 0 && <span style={{ color: C.amber }}> · {fora} fora</span>}
                     </div>
+                    <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "3px" }}>Dono: {m.dono || "—"} · Local: {m.local_habitual || "—"}</div>
+                    <div style={{ display: "flex", gap: "4px", marginTop: "0.45rem", flexWrap: "wrap" }}>
+                      {m.consumivel === 1 && <span style={{ fontSize: "8px", color: C.amber, border: `1px solid ${C.border}`, padding: "2px 6px" }}>Consumível</span>}
+                      {m.precisa_comprar === 1 && <span style={{ fontSize: "8px", color: C.red, border: "1px solid rgba(226,75,74,0.35)", padding: "2px 6px" }}>Comprar ×{m.quantidade_comprar || "?"}</span>}
+                    </div>
                     <div style={{ display: "flex", gap: "6px", marginTop: "0.6rem" }}>
                       <button onClick={() => openSaida(m.id)} style={{ ...btnSecStyle, flex: 1, padding: "6px 8px", fontSize: "8px" }}>Registar Saída</button>
+                      <button onClick={() => handleToggleCompraMaterial(m)} title={m.precisa_comprar === 1 ? "Compra resolvida" : "Marcar para comprar"} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.06)", color: m.precisa_comprar === 1 ? C.green : C.amber, padding: "6px 8px", cursor: "pointer", fontSize: "10px" }}>
+                        🛒
+                      </button>
                       <button onClick={() => openEditMaterial(m)} title="Editar" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.06)", color: C.textMuted, padding: "6px 8px", cursor: "pointer" }}>
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M11 2l3 3-9 9H2v-3L11 2z" /></svg>
                       </button>
@@ -520,7 +590,7 @@ export default function MateriaisPage() {
               <span style={{ fontSize: "9px", color: "rgba(245,240,232,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 7px", borderRadius: "8px" }}>{group.items.length}</span>
             </div>
             {group.items.map(mov => {
-              const pendente = mov.quantidade - mov.quantidade_devolvida;
+              const pendente = pendenteMovimento(mov);
               const dias = diasFora(mov.data_saida);
               return (
                 <div key={mov.id} style={{ padding: "0.9rem 1.1rem", borderTop: "1px solid rgba(255,255,255,0.03)", display: "flex", gap: "0.75rem" }}>
@@ -531,9 +601,10 @@ export default function MateriaisPage() {
                       <span style={{ fontSize: "12px", fontWeight: 700, color: "#EF9F27" }}>×{pendente}</span>
                     </div>
                     <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.45)", marginTop: "2px" }}>
-                      Com <span style={{ color: "#C9A96E" }}>{origemLabel(mov)}</span> · {dias === 0 ? "hoje" : `há ${dias}d`}
+                      Saiu de <span style={{ color: "#C9A96E" }}>{origemLabel(mov)}</span> · levou {mov.quem_levou || mov.responsavel || "—"} · {dias === 0 ? "hoje" : `há ${dias}d`}
                     </div>
-                    <button onClick={() => handleVoltou(mov)} style={{ marginTop: "0.5rem", background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: "#5DCAA5", fontSize: "10px", letterSpacing: "0.1em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
+                    <div style={{ fontSize: "9px", color: "rgba(245,240,232,0.35)", marginTop: "1px" }}>Dono: {mov.dono_material || "—"}</div>
+                    <button onClick={() => openVolta(mov)} style={{ marginTop: "0.5rem", background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: "#5DCAA5", fontSize: "10px", letterSpacing: "0.1em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
                   </div>
                 </div>
               );
@@ -547,8 +618,9 @@ export default function MateriaisPage() {
             <MaterialThumb src={mov.material_imagem} size={40} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: "12px", fontWeight: 600 }}>{mov.material_nome} <span style={{ color: "rgba(245,240,232,0.4)", fontWeight: 400 }}>×{mov.quantidade}</span></div>
-              <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.45)" }}>Com {origemLabel(mov)}</div>
+              <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.45)" }}>Saiu de {origemLabel(mov)} · levou {mov.quem_levou || mov.responsavel || "—"}</div>
               <div style={{ fontSize: "9px", color: "rgba(245,240,232,0.25)" }}>{fmtDateTime(mov.data_saida)} → {mov.data_volta ? fmtDateTime(mov.data_volta) : "—"}</div>
+              {(mov.estado_regresso || mov.precisa_comprar === 1) && <div style={{ fontSize: "9px", color: mov.precisa_comprar === 1 ? "#E24B4A" : "#5DCAA5" }}>{mov.estado_regresso || ""}{mov.precisa_comprar === 1 ? ` · Comprar ×${mov.quantidade_comprar || "?"}` : ""}</div>}
             </div>
           </div>
         ))}
@@ -562,6 +634,8 @@ export default function MateriaisPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: "12px", fontWeight: 600 }}>{m.nome}</div>
                 <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.45)" }}>Total {m.quantidade_total}{fora > 0 && <span style={{ color: "#EF9F27" }}> · {fora} fora</span>}</div>
+                <div style={{ fontSize: "9px", color: "rgba(245,240,232,0.35)" }}>{m.dono || "—"} · {m.local_habitual || "—"}{m.consumivel === 1 ? " · Consumível" : ""}</div>
+                {m.precisa_comprar === 1 && <div style={{ fontSize: "9px", color: "#E24B4A", marginTop: "2px" }}>🛒 Comprar ×{m.quantidade_comprar || "?"}</div>}
               </div>
               <button onClick={() => openSaida(m.id)} style={{ background: "rgba(201,169,110,0.1)", border: "1px solid rgba(201,169,110,0.25)", color: "#C9A96E", fontSize: "9px", padding: "6px 10px", cursor: "pointer", fontFamily: "inherit" }}>Saída</button>
               <button onClick={() => openEditMaterial(m)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(245,240,232,0.5)", fontSize: "10px", padding: "6px 8px", cursor: "pointer" }}>✏️</button>
@@ -593,6 +667,22 @@ export default function MateriaisPage() {
         <div className="mob-shell" onClick={e => e.target === e.currentTarget && closeSaida()} style={overlayBottomStyle}>
           <div style={modalMobStyle}><div style={topLineStyle} />
             <SaidaModalContent {...{ materiais: materiaisAtivos, eventos, saidaForm, setSaidaForm, saving, closeSaida, handleRegistarSaida, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C, MaterialThumb   }} />
+          </div>
+        </div>
+      </>
+    )}
+
+    {/* ── Modal: Regresso de Material ── */}
+    {voltaModal.open && voltaModal.movimento && (
+      <>
+        <div className="mob-page-desktop" onClick={e => e.target === e.currentTarget && closeVolta()} style={overlayStyle}>
+          <div style={modalStyle}><div style={topLineStyle} />
+            <VoltaModalContent {...{ voltaForm, setVoltaForm, movimento: voltaModal.movimento, pendente: pendenteMovimento(voltaModal.movimento), saving, closeVolta, handleGuardarVolta, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C }} />
+          </div>
+        </div>
+        <div className="mob-shell" onClick={e => e.target === e.currentTarget && closeVolta()} style={overlayBottomStyle}>
+          <div style={modalMobStyle}><div style={topLineStyle} />
+            <VoltaModalContent {...{ voltaForm, setVoltaForm, movimento: voltaModal.movimento, pendente: pendenteMovimento(voltaModal.movimento), saving, closeVolta, handleGuardarVolta, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C }} />
           </div>
         </div>
       </>
@@ -638,7 +728,11 @@ function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving
       {selected && (
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem", padding: "0.6rem", background: "rgba(255,255,255,0.02)", border: `1px solid ${C.borderDim}` }}>
           <MaterialThumb src={selected.imagem} size={36} />
-          <span style={{ fontSize: "10px", color: C.textSec }}>Total no catálogo: <b style={{ color: C.textPrimary }}>{selected.quantidade_total}</b></span>
+          <span style={{ fontSize: "10px", color: C.textSec }}>
+            Total no catálogo: <b style={{ color: C.textPrimary }}>{selected.quantidade_total}</b>
+            <br />Dono: <b style={{ color: C.textPrimary }}>{selected.dono || "—"}</b> · Habitual: <b style={{ color: C.textPrimary }}>{selected.local_habitual || "—"}</b>
+            {selected.consumivel === 1 && <><br /><span style={{ color: C.amber }}>Consumível</span></>}
+          </span>
         </div>
       )}
 
@@ -648,7 +742,7 @@ function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving
       </div>
 
       <div style={{ marginBottom: "1rem" }}>
-        <label style={labelStyle}>De onde é / Para onde vai *</label>
+        <label style={labelStyle}>Saiu de onde *</label>
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
           {ORIGENS.map((o: string) => (
             <button key={o} onClick={() => setSaidaForm((f: any) => ({ ...f, origem: o }))} style={{
@@ -662,6 +756,11 @@ function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving
         {saidaForm.origem === "Outro" && (
           <input style={{ ...inputStyle, marginTop: "0.5rem" }} placeholder="Especificar..." value={saidaForm.origem_detalhe} onChange={(e: any) => setSaidaForm((f: any) => ({ ...f, origem_detalhe: e.target.value }))} />
         )}
+      </div>
+
+      <div style={{ marginBottom: "1rem" }}>
+        <label style={labelStyle}>Quem levou</label>
+        <input style={inputStyle} placeholder="Ex: João, Tânia, técnico, artista..." value={saidaForm.quem_levou} onChange={(e: any) => setSaidaForm((f: any) => ({ ...f, quem_levou: e.target.value }))} />
       </div>
 
       <div style={{ marginBottom: "1rem" }}>
@@ -682,6 +781,67 @@ function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving
       <div style={{ display: "flex", gap: "0.75rem" }}>
         <button onClick={closeSaida} style={{ ...btnSecStyle, flex: 1 }}>Cancelar</button>
         <button onClick={handleRegistarSaida} disabled={saving || !saidaForm.material_id} style={{ ...btnPrimStyle, flex: 2, opacity: !saidaForm.material_id ? 0.5 : 1 }}>{saving ? "A registar..." : "Registar Saída"}</button>
+      </div>
+    </>
+  );
+}
+
+function VoltaModalContent({ voltaForm, setVoltaForm, movimento, pendente, saving, closeVolta, handleGuardarVolta, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C }: any) {
+  const estados = ["OK", "Parcial", "Danificado", "Em falta", "Perdido", "Consumido"];
+  return (
+    <>
+      <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Regresso de Material</p>
+      <div style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${C.borderDim}`, padding: "0.8rem", marginBottom: "1rem" }}>
+        <div style={{ fontSize: "12px", color: C.textPrimary, fontWeight: 700 }}>{movimento.material_nome}</div>
+        <div style={{ fontSize: "10px", color: C.textSec, marginTop: "3px" }}>Pendente: {pendente} · Levou: {movimento.quem_levou || movimento.responsavel || "—"} · Dono: {movimento.dono_material || "—"}</div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+        <div>
+          <label style={labelStyle}>Quantidade que voltou</label>
+          <input type="number" min={0} max={pendente} style={inputStyle} value={voltaForm.quantidade_devolvida} onChange={(e: any) => setVoltaForm((f: any) => ({ ...f, quantidade_devolvida: Math.max(0, Math.min(pendente, Number(e.target.value) || 0)) }))} />
+        </div>
+        <div>
+          <label style={labelStyle}>Quantidade consumida / não volta</label>
+          <input type="number" min={0} max={pendente} style={inputStyle} value={voltaForm.quantidade_consumida} onChange={(e: any) => setVoltaForm((f: any) => ({ ...f, quantidade_consumida: Math.max(0, Math.min(pendente, Number(e.target.value) || 0)) }))} />
+        </div>
+      </div>
+
+      <div style={{ marginBottom: "1rem" }}>
+        <label style={labelStyle}>Estado no regresso</label>
+        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+          {estados.map((estado: string) => (
+            <button key={estado} onClick={() => setVoltaForm((f: any) => ({ ...f, estado_regresso: estado }))} style={{
+              background: voltaForm.estado_regresso === estado ? "rgba(201,169,110,0.18)" : "rgba(255,255,255,0.04)",
+              border: `1px solid ${voltaForm.estado_regresso === estado ? "rgba(201,169,110,0.4)" : "rgba(255,255,255,0.1)"}`,
+              color: voltaForm.estado_regresso === estado ? C.gold : C.textMuted,
+              fontSize: "10px", padding: "8px 10px", cursor: "pointer", fontFamily: "inherit",
+            }}>{estado}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: "1rem", padding: "0.75rem", border: `1px solid ${voltaForm.precisa_comprar ? "rgba(226,75,74,0.35)" : C.borderDim}`, background: voltaForm.precisa_comprar ? "rgba(226,75,74,0.06)" : "rgba(255,255,255,0.02)" }}>
+        <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+          <input type="checkbox" checked={voltaForm.precisa_comprar === 1} onChange={(e: any) => setVoltaForm((f: any) => ({ ...f, precisa_comprar: e.target.checked ? 1 : 0 }))} />
+          Precisa comprar / repor stock
+        </label>
+        {voltaForm.precisa_comprar === 1 && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.75rem" }}>
+            <input style={inputStyle} placeholder="Motivo: acabou / precisa mais..." value={voltaForm.motivo_compra} onChange={(e: any) => setVoltaForm((f: any) => ({ ...f, motivo_compra: e.target.value }))} />
+            <input type="number" min={0} style={inputStyle} placeholder="Qtd comprar" value={voltaForm.quantidade_comprar} onChange={(e: any) => setVoltaForm((f: any) => ({ ...f, quantidade_comprar: Math.max(0, Number(e.target.value) || 0) }))} />
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginBottom: "1.5rem" }}>
+        <label style={labelStyle}>Notas de regresso</label>
+        <textarea style={{ ...inputStyle, height: "64px", resize: "vertical" as any }} value={voltaForm.notas_regresso} onChange={(e: any) => setVoltaForm((f: any) => ({ ...f, notas_regresso: e.target.value }))} placeholder="Ex: voltou riscado, falta cabo, consumido no evento..." />
+      </div>
+
+      <div style={{ display: "flex", gap: "0.75rem" }}>
+        <button onClick={closeVolta} style={{ ...btnSecStyle, flex: 1 }}>Cancelar</button>
+        <button onClick={handleGuardarVolta} disabled={saving} style={{ ...btnPrimStyle, flex: 2 }}>{saving ? "A guardar..." : "Guardar Regresso"}</button>
       </div>
     </>
   );
@@ -730,6 +890,80 @@ function MaterialModalContent({ materialForm, setMaterialForm, materialModal, sa
           <label style={labelStyle}>Quantidade total</label>
           <input type="number" min={1} style={inputStyle} value={materialForm.quantidade_total} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, quantidade_total: Math.max(1, Number(e.target.value) || 1) }))} />
         </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+        <div>
+          <label style={labelStyle}>Dono do material</label>
+          <input style={inputStyle} value={materialForm.dono} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, dono: e.target.value }))} placeholder="LLE / João / Tânia / Alugado..." />
+        </div>
+        <div>
+          <label style={labelStyle}>Local habitual</label>
+          <input style={inputStyle} value={materialForm.local_habitual} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, local_habitual: e.target.value }))} placeholder="Loja / casa João / SUD..." />
+        </div>
+      </div>
+
+      <div style={{ marginBottom: "1rem", padding: "0.75rem", border: `1px solid ${C.borderDim}`, background: "rgba(255,255,255,0.02)" }}>
+        <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", marginBottom: "0.75rem" }}>
+          <input type="checkbox" checked={materialForm.consumivel === 1} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, consumivel: e.target.checked ? 1 : 0 }))} />
+          Material consumível
+        </label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+          <div>
+            <label style={labelStyle}>Stock mínimo</label>
+            <input type="number" min={0} style={inputStyle} value={materialForm.stock_minimo} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, stock_minimo: Math.max(0, Number(e.target.value) || 0) }))} />
+          </div>
+          <div>
+            <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", marginTop: "1.4rem" }}>
+              <input type="checkbox" checked={materialForm.precisa_comprar === 1} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, precisa_comprar: e.target.checked ? 1 : 0 }))} />
+              Precisa comprar
+            </label>
+          </div>
+        </div>
+        {materialForm.precisa_comprar === 1 && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.75rem" }}>
+            <input style={inputStyle} placeholder="Motivo" value={materialForm.motivo_compra} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, motivo_compra: e.target.value }))} />
+            <input type="number" min={0} style={inputStyle} placeholder="Qtd comprar" value={materialForm.quantidade_comprar} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, quantidade_comprar: Math.max(0, Number(e.target.value) || 0) }))} />
+            <textarea style={{ ...inputStyle, gridColumn: "1 / -1", height: "54px", resize: "vertical" as any }} placeholder="Notas de compra" value={materialForm.notas_compra} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, notas_compra: e.target.value }))} />
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+        <div>
+          <label style={labelStyle}>Dono do material</label>
+          <input style={inputStyle} value={materialForm.dono} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, dono: e.target.value }))} placeholder="LLE / João / Tânia / Alugado..." />
+        </div>
+        <div>
+          <label style={labelStyle}>Local habitual</label>
+          <input style={inputStyle} value={materialForm.local_habitual} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, local_habitual: e.target.value }))} placeholder="Loja / casa João / SUD..." />
+        </div>
+      </div>
+
+      <div style={{ marginBottom: "1rem", padding: "0.75rem", border: `1px solid ${C.borderDim}`, background: "rgba(255,255,255,0.02)" }}>
+        <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", marginBottom: "0.75rem" }}>
+          <input type="checkbox" checked={materialForm.consumivel === 1} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, consumivel: e.target.checked ? 1 : 0 }))} />
+          Material consumível
+        </label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+          <div>
+            <label style={labelStyle}>Stock mínimo</label>
+            <input type="number" min={0} style={inputStyle} value={materialForm.stock_minimo} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, stock_minimo: Math.max(0, Number(e.target.value) || 0) }))} />
+          </div>
+          <div>
+            <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", marginTop: "1.4rem" }}>
+              <input type="checkbox" checked={materialForm.precisa_comprar === 1} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, precisa_comprar: e.target.checked ? 1 : 0 }))} />
+              Precisa comprar
+            </label>
+          </div>
+        </div>
+        {materialForm.precisa_comprar === 1 && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.75rem" }}>
+            <input style={inputStyle} placeholder="Motivo" value={materialForm.motivo_compra} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, motivo_compra: e.target.value }))} />
+            <input type="number" min={0} style={inputStyle} placeholder="Qtd comprar" value={materialForm.quantidade_comprar} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, quantidade_comprar: Math.max(0, Number(e.target.value) || 0) }))} />
+            <textarea style={{ ...inputStyle, gridColumn: "1 / -1", height: "54px", resize: "vertical" as any }} placeholder="Notas de compra" value={materialForm.notas_compra} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, notas_compra: e.target.value }))} />
+          </div>
+        )}
       </div>
 
       <div style={{ marginBottom: "1.5rem" }}>
