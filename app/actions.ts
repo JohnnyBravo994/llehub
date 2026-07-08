@@ -799,14 +799,14 @@ export async function getAgendaMetadata(userName: string = 'Admin') {
 }
 
 // Mantém função original para compatibilidade (deprecated, usar getAgendaPaginated)
-export async function getAllAgenda(userName: string = 'Admin') {
+export async function getAllAgenda(userName: string = 'Admin', limit: number = 500) {
   noStore();
   try {
-    let sqlQuery = "SELECT * FROM agenda ORDER BY event_date ASC, id ASC";
+    let sqlQuery = "SELECT * FROM agenda ORDER BY event_date DESC, id DESC LIMIT ?";
     // Larissa mantém restrição anterior (só Public); Soraya e Tânia vêem tudo
-    if (userName === 'Larissa') sqlQuery = "SELECT * FROM agenda WHERE visibility = 'Public' ORDER BY event_date ASC, id ASC";
+    if (userName === 'Larissa') sqlQuery = "SELECT * FROM agenda WHERE visibility = 'Public' ORDER BY event_date DESC, id DESC LIMIT ?";
 
-    const res = await turso.execute(sqlQuery);
+    const res = await turso.execute({ sql: sqlQuery, args: [limit] });
     return {
       success: true,
       data: res.rows.map((r: any) => {
@@ -1114,11 +1114,10 @@ export async function syncArtistasParaAgenda(leadId: number, eventoNome: string,
 
 
 
-export async function getAllPagamentos() {
+export async function getAllPagamentos(limit: number = 500) {
   try {
-    const res = await turso.execute(
-      "SELECT ae.*, a.status as evento_status, a.client_cachet as evento_cachet FROM artistas_evento ae LEFT JOIN agenda a ON ae.evento_id = a.id ORDER BY ae.evento_data ASC, ae.id ASC"
-    );
+    const sql = "SELECT ae.*, a.status as evento_status, a.client_cachet as evento_cachet FROM artistas_evento ae LEFT JOIN agenda a ON ae.evento_id = a.id ORDER BY ae.evento_data DESC, ae.id DESC LIMIT ?";
+    const res = await turso.execute({ sql, args: [limit] });
     return {
       success: true,
       data: res.rows.map((r: any) => ({
@@ -1165,10 +1164,11 @@ export async function addPagamento(data: { evento_id: number; evento_nome: strin
 
 // ── LEADS ─────────────────────────────────────────────────────────────────────
 
-export async function getAllLeads() {
+export async function getAllLeads(limit: number = 500) {
   noStore();
   try {
-    const res = await turso.execute("SELECT l.*, (SELECT a.id FROM agenda a WHERE a.origem_lead_id = l.id LIMIT 1) as agenda_event_id FROM leads l ORDER BY COALESCE(l.event_date, '9999-99-99') ASC, l.id ASC");
+    const sql = "SELECT l.*, (SELECT a.id FROM agenda a WHERE a.origem_lead_id = l.id LIMIT 1) as agenda_event_id FROM leads l ORDER BY COALESCE(l.event_date, '9999-99-99') DESC, l.id DESC LIMIT ?";
+    const res = await turso.execute({ sql, args: [limit] });
     return {
       success: true,
       data: res.rows.map((r: any) => ({
@@ -2712,10 +2712,11 @@ export async function getEventosParaMateriais() {
   }
 }
 
-export async function getAllMateriais() {
+export async function getAllMateriais(limit: number = 500) {
   try {
     await setupMateriais();
-    const res = await turso.execute("SELECT * FROM materiais ORDER BY nome ASC");
+    const sql = "SELECT * FROM materiais ORDER BY nome ASC LIMIT ?";
+    const res = await turso.execute({ sql, args: [limit] });
     return {
       success: true,
       data: res.rows.map((r: any) => ({
