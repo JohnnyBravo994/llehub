@@ -8,6 +8,9 @@ const turso = createClient({
   authToken: process.env.TURSO_AUTH_TOKEN!,
 });
 
+// Evita repetir migrations/seeds pesadas em cada mudança de página no mesmo processo Next.
+type SetupResult = { success: boolean; [key: string]: unknown };
+
 const DEFAULT_FUNCOES_VALORES = [...ARTIST_TIPOS];
 
 
@@ -130,7 +133,15 @@ const DEFAULT_VALORES_MASTER: ValorMasterSeed[] = [
 
 ];
 
+let ensureColaboradoresExtendedColumnsPromise: Promise<void> | null = null;
 async function ensureColaboradoresExtendedColumns() {
+  if (!ensureColaboradoresExtendedColumnsPromise) {
+    ensureColaboradoresExtendedColumnsPromise = ensureColaboradoresExtendedColumnsUncached().catch((error) => { ensureColaboradoresExtendedColumnsPromise = null; throw error; });
+  }
+  return ensureColaboradoresExtendedColumnsPromise;
+}
+
+async function ensureColaboradoresExtendedColumnsUncached() {
   try { await turso.execute("ALTER TABLE colaboradores ADD COLUMN nome_artistico TEXT DEFAULT ''"); } catch { }
   try { await turso.execute("ALTER TABLE colaboradores ADD COLUMN nome_pessoal TEXT DEFAULT ''"); } catch { }
   try {
@@ -138,7 +149,15 @@ async function ensureColaboradoresExtendedColumns() {
   } catch { }
 }
 
+let ensureArtistasAssociacaoIgnoradosTablePromise: Promise<void> | null = null;
 async function ensureArtistasAssociacaoIgnoradosTable() {
+  if (!ensureArtistasAssociacaoIgnoradosTablePromise) {
+    ensureArtistasAssociacaoIgnoradosTablePromise = ensureArtistasAssociacaoIgnoradosTableUncached().catch((error) => { ensureArtistasAssociacaoIgnoradosTablePromise = null; throw error; });
+  }
+  return ensureArtistasAssociacaoIgnoradosTablePromise;
+}
+
+async function ensureArtistasAssociacaoIgnoradosTableUncached() {
   await turso.execute(`
     CREATE TABLE IF NOT EXISTS artistas_associacao_ignorados (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -149,7 +168,15 @@ async function ensureArtistasAssociacaoIgnoradosTable() {
   `);
 }
 
+let ensureValoresFuncoesTablePromise: Promise<void> | null = null;
 async function ensureValoresFuncoesTable() {
+  if (!ensureValoresFuncoesTablePromise) {
+    ensureValoresFuncoesTablePromise = ensureValoresFuncoesTableUncached().catch((error) => { ensureValoresFuncoesTablePromise = null; throw error; });
+  }
+  return ensureValoresFuncoesTablePromise;
+}
+
+async function ensureValoresFuncoesTableUncached() {
   await turso.execute(`
     CREATE TABLE IF NOT EXISTS valores_funcoes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -172,7 +199,15 @@ async function ensureValoresFuncoesTable() {
 }
 
 
+let ensureValoresMasterTablePromise: Promise<void> | null = null;
 async function ensureValoresMasterTable() {
+  if (!ensureValoresMasterTablePromise) {
+    ensureValoresMasterTablePromise = ensureValoresMasterTableUncached().catch((error) => { ensureValoresMasterTablePromise = null; throw error; });
+  }
+  return ensureValoresMasterTablePromise;
+}
+
+async function ensureValoresMasterTableUncached() {
   await turso.execute(`
     CREATE TABLE IF NOT EXISTS valores_master (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -284,7 +319,15 @@ async function seedValoresMasterLLE2026() {
   }
 }
 
+let ensureResidenciasAtivasTablePromise: Promise<void> | null = null;
 async function ensureResidenciasAtivasTable() {
+  if (!ensureResidenciasAtivasTablePromise) {
+    ensureResidenciasAtivasTablePromise = ensureResidenciasAtivasTableUncached().catch((error) => { ensureResidenciasAtivasTablePromise = null; throw error; });
+  }
+  return ensureResidenciasAtivasTablePromise;
+}
+
+async function ensureResidenciasAtivasTableUncached() {
   await turso.execute(`
     CREATE TABLE IF NOT EXISTS residencias_ativas (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -322,7 +365,15 @@ async function ensureResidenciasAtivasTable() {
   }
 }
 
+let ensureCommercialColumnsPromise: Promise<void> | null = null;
 async function ensureCommercialColumns() {
+  if (!ensureCommercialColumnsPromise) {
+    ensureCommercialColumnsPromise = ensureCommercialColumnsUncached().catch((error) => { ensureCommercialColumnsPromise = null; throw error; });
+  }
+  return ensureCommercialColumnsPromise;
+}
+
+async function ensureCommercialColumnsUncached() {
   try { await turso.execute("ALTER TABLE agenda ADD COLUMN residencia_id INTEGER"); } catch { }
   try { await turso.execute("ALTER TABLE leads ADD COLUMN residencia_id INTEGER"); } catch { }
   const cols = [
@@ -420,7 +471,17 @@ function getEventIcon(title: string): string {
 }
 
 
+let setupDatabasePromise: Promise<SetupResult> | null = null;
 export async function setupDatabase() {
+  if (!setupDatabasePromise) {
+    setupDatabasePromise = setupDatabaseUncached()
+      .then((result) => { if (!result?.success) setupDatabasePromise = null; return result; })
+      .catch((error) => { setupDatabasePromise = null; throw error; });
+  }
+  return setupDatabasePromise;
+}
+
+async function setupDatabaseUncached() {
   try {
     await turso.executeMultiple(`
       CREATE TABLE IF NOT EXISTS clientes (
@@ -693,112 +754,168 @@ export async function getDashboardData(userName: string = 'Admin', clientTodaySt
   }
 }
 
-// ⚡ OTIMIZADO: Paginado com limite, sem SELECT * 
-export async function getAgendaPaginated(userName: string = 'Admin', page: number = 1, pageSize: number = 50, filters?: { startDate?: string; endDate?: string; search?: string }) {
+
+
+export async function getAgendaInitialData(userName: string = 'Admin', month?: string) {
   noStore();
   try {
-    const offset = (page - 1) * pageSize;
-    
-    // Build WHERE clause
-    let whereClause = '';
-    const args: any[] = [];
-    
+    // Uma única server action para a entrada na Agenda.
+    // Além disso, carrega só o mês visível — não a base inteira.
+    try { await turso.execute("ALTER TABLE clientes ADD COLUMN alias TEXT DEFAULT ''"); } catch { }
+    try { await ensureArtistConflictOverrides(); } catch { }
+
+    const monthKey = /^\d{4}-\d{2}$/.test(month || '') ? month! : new Date().toISOString().slice(0, 7);
+    const [yy, mm] = monthKey.split('-').map(Number);
+    const startDate = `${monthKey}-01`;
+    const endDate = `${yy}-${String(mm + 1).padStart(2, '0')}-01`;
+    const rolloverEndDate = mm === 12 ? `${yy + 1}-01-01` : endDate;
+
+    let agendaSql = "SELECT * FROM agenda WHERE event_date >= ? AND event_date < ? ORDER BY event_date ASC, id ASC";
+    const agendaArgs: any[] = [startDate, rolloverEndDate];
     if (userName === 'Larissa') {
-      whereClause = "WHERE visibility = 'Public'";
+      agendaSql = "SELECT * FROM agenda WHERE visibility = 'Public' AND event_date >= ? AND event_date < ? ORDER BY event_date ASC, id ASC";
     }
-    
-    if (filters?.startDate) {
-      whereClause = whereClause ? whereClause + " AND event_date >= ?" : "WHERE event_date >= ?";
-      args.push(filters.startDate);
-    }
-    
-    if (filters?.endDate) {
-      whereClause = whereClause ? whereClause + " AND event_date <= ?" : "WHERE event_date <= ?";
-      args.push(filters.endDate);
-    }
-    
-    if (filters?.search) {
-      const search = `%${filters.search}%`;
-      whereClause = whereClause ? whereClause + " AND (event_name LIKE ? OR cliente_nome LIKE ? OR venue LIKE ?)" : "WHERE (event_name LIKE ? OR cliente_nome LIKE ? OR venue LIKE ?)";
-      args.push(search, search, search);
-    }
-    
-    // Contagem total
-    const countRes = await turso.execute({
-      sql: `SELECT COUNT(*) as total FROM agenda ${whereClause}`,
-      args,
+
+    const confirmedStatuses = ['Confirmado', 'Em Adjudicação', 'Adjudicado', 'Pago'];
+    const placeholders = confirmedStatuses.map(() => '?').join(',');
+
+    const [agendaRes, clientesRes, leadsRes, overridesRes, materiaisPendentesRes] = await Promise.all([
+      turso.execute({ sql: agendaSql, args: agendaArgs }),
+      turso.execute("SELECT id, nome, nif, alias FROM clientes ORDER BY nome ASC"),
+      turso.execute({
+        sql: `SELECT * FROM leads WHERE status IN (${placeholders}) AND event_date >= ? AND event_date < ? ORDER BY event_date ASC, id ASC`,
+        args: [...confirmedStatuses, startDate, rolloverEndDate],
+      }),
+      turso.execute({ sql: "SELECT * FROM artist_conflict_overrides WHERE ativo=1 AND event_date >= ? AND event_date < ? ORDER BY event_date ASC, artist_name ASC", args: [startDate, rolloverEndDate] }).catch(() => ({ rows: [] as any[] })),
+      turso.execute(`
+        SELECT id, material_id, material_nome, quantidade, quantidade_devolvida, quantidade_consumida, evento, evento_id, data_saida
+        FROM material_movimentos
+        WHERE evento_id IS NOT NULL
+          AND (COALESCE(quantidade_devolvida, 0) + COALESCE(quantidade_consumida, 0)) < quantidade
+        ORDER BY data_saida DESC
+      `).catch(() => ({ rows: [] as any[] })),
+    ]);
+
+    const events = agendaRes.rows.map((r: any) => {
+      const eventTitle = r.event_name as string;
+      return {
+        ...r, id: r.id, title: eventTitle, time_range: r.location || '', venue: r.venue || '',
+        tipo: r.staff_needed || '', bill: r.client_cachet || 0,
+        cancelled: r.status === 'Cancelado' ? 1 : 0,
+        billing_status: r.billing_status || '', cliente_id: r.cliente_id || null,
+        cliente_nome: r.cliente_nome || '', modalidade: r.modalidade || 'Fatura',
+        tipo_comercial: r.tipo_comercial || 'Evento',
+        servico_comercial: r.servico_comercial || '',
+        valor_contexto: r.valor_contexto || 'Cliente Final',
+        origem_lead_id: r.origem_lead_id ? Number(r.origem_lead_id) : null,
+        contacto: r.contacto || '', notas: r.notas || '',
+        event_id: (r.event_id as string) || '',
+        residencia_id: r.residencia_id == null ? null : Number(r.residencia_id),
+      };
     });
-    const total = (countRes.rows[0] as any).total || 0;
-    
-    // Query de dados - apenas colunas necessárias
-    const dataArgs = [...args, pageSize, offset];
-    const sqlQuery = `
-      SELECT id, event_name, event_date, location, staff_needed, client_cachet, status, visibility,
-             billing_status, cliente_id, cliente_nome, modalidade, tipo_comercial, servico_comercial,
-             valor_contexto, origem_lead_id, venue, contacto, notas, event_id, residencia_id
-      FROM agenda
-      ${whereClause}
-      ORDER BY event_date ASC, id ASC
-      LIMIT ? OFFSET ?
-    `;
-    
-    const res = await turso.execute({ sql: sqlQuery, args: dataArgs });
-    
-    const data = res.rows.map((r: any) => ({
-      ...r,
-      id: r.id,
-      title: r.event_name || '',
-      time_range: r.location || '',
-      tipo: r.staff_needed || '',
-      bill: r.client_cachet || 0,
+
+    const leadRows = leadsRes.rows as any[];
+    const artistIds = [
+      ...events.map(e => Number(e.id)),
+      ...leadRows.map(l => -Number(l.id)),
+    ].filter(Number.isFinite);
+
+    let artistasRows: any[] = [];
+    if (artistIds.length > 0) {
+      const artistPlaceholders = artistIds.map(() => '?').join(',');
+      const artistasRes = await turso.execute({
+        sql: `SELECT id, evento_id, nome, tipo, fee, colaborador_id FROM artistas_evento WHERE evento_id IN (${artistPlaceholders}) ORDER BY evento_id ASC, id ASC`,
+        args: artistIds,
+      });
+      artistasRows = artistasRes.rows as any[];
+    }
+
+    const artistasMap: Record<number, { id: number; nome: string; tipo: string; fee: number; colaborador_id: number | null }[]> = {};
+    for (const r of artistasRows) {
+      const eid = Number(r.evento_id);
+      if (!artistasMap[eid]) artistasMap[eid] = [];
+      artistasMap[eid].push({
+        id: Number(r.id),
+        nome: (r.nome as string) || '',
+        tipo: (r.tipo as string) || 'DJ',
+        fee: Number(r.fee) || 0,
+        colaborador_id: r.colaborador_id == null ? null : Number(r.colaborador_id),
+      });
+    }
+
+    const stripEmoji = (value: string) => (value || '').replace(/[\p{Emoji}\u200d\ufe0f]+/gu, '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const confirmedLeads = leadRows.filter(l => {
+      if (!l.event_date) return false;
+      const leadTitle = stripEmoji(l.title || '');
+      const leadValue = Number(l.value) || 0;
+      const hasLinkedEvent = events.some(e => e.origem_lead_id === Number(l.id));
+      if (hasLinkedEvent) return false;
+      const isDuplicate = events.some(e => {
+        if (e.event_date !== l.event_date) return false;
+        const agendaTitle = stripEmoji(e.title || '');
+        const titleMatch = agendaTitle.includes(leadTitle.slice(0, 12)) || leadTitle.includes(agendaTitle.slice(0, 12));
+        const valueMatch = leadValue > 0 && Number(e.bill) === leadValue;
+        return titleMatch || valueMatch;
+      });
+      return !isDuplicate;
+    }).map((r: any) => ({
+      id: Number(r.id),
+      title: (r.title as string) || '',
+      event_date: (r.event_date as string) || '',
+      value: Number(r.value) || 0,
+      status: (r.status as string) || 'Contacto',
       cancelled: r.status === 'Cancelado' ? 1 : 0,
-      billing_status: r.billing_status || '',
-      cliente_id: r.cliente_id || null,
-      cliente_nome: r.cliente_nome || '',
-      modalidade: r.modalidade || 'Fatura',
-      tipo_comercial: r.tipo_comercial || 'Evento',
-      servico_comercial: r.servico_comercial || '',
-      valor_contexto: r.valor_contexto || 'Cliente Final',
-      origem_lead_id: r.origem_lead_id ? Number(r.origem_lead_id) : null,
-      contacto: r.contacto || '',
-      notas: r.notas || '',
+      cliente_nome: (r.client_name as string) || (r.cliente_nome as string) || '',
+      modalidade: (r.modalidade as string) || 'Fatura',
+      cliente_id: r.cliente_id == null ? null : Number(r.cliente_id),
+      agenda_event_id: r.agenda_event_id == null ? null : Number(r.agenda_event_id),
       event_id: (r.event_id as string) || '',
-      residencia_id: r.residencia_id == null ? null : Number(r.residencia_id),
+      tipo_comercial: (r.tipo_comercial as string) || 'Evento',
+      servico_comercial: (r.servico_comercial as string) || '',
+      valor_contexto: (r.valor_contexto as string) || 'Cliente Final',
     }));
-    
+
+    const visibleEventIds = new Set(events.map(e => Number(e.id)));
+
     return {
       success: true,
-      data,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
+      month: monthKey,
+      events,
+      artistasMap,
+      clientes: clientesRes.rows.map((r: any) => ({ ...r })),
+      confirmedLeads,
+      conflictOverrides: overridesRes.rows.map((r: any) => ({
+        id: Number(r.id),
+        event_date: (r.event_date as string) || '',
+        artist_key: (r.artist_key as string) || '',
+        artist_name: (r.artist_name as string) || '',
+        note: (r.note as string) || '',
+        dismissed_by: (r.dismissed_by as string) || '',
+      })),
+      materiaisPendentes: materiaisPendentesRes.rows
+        .filter((r: any) => r.evento_id !== null && r.evento_id !== undefined && visibleEventIds.has(Number(r.evento_id)))
+        .map((r: any) => ({
+          id: Number(r.id),
+          material_id: Number(r.material_id),
+          material_nome: (r.material_nome as string) || '',
+          material_imagem: '',
+          quantidade: Number(r.quantidade) || 0,
+          quantidade_devolvida: Number(r.quantidade_devolvida) || 0,
+          quantidade_consumida: Number(r.quantidade_consumida) || 0,
+          origem: '', origem_detalhe: '', dono_material: '', quem_levou: '',
+          evento: (r.evento as string) || '',
+          evento_id: Number(r.evento_id),
+          responsavel: '', notas: '', estado_regresso: '', precisa_comprar: 0, motivo_compra: '',
+          quantidade_comprar: 0, quem_confirmou_regresso: '', notas_regresso: '',
+          data_saida: (r.data_saida as string) || '', data_volta: null,
+        })),
     };
   } catch (error) {
-    console.error("Erro agenda paginada:", error);
-    return { success: false, data: [], total: 0, page: 1, pageSize: 50, totalPages: 0 };
+    console.error('Erro getAgendaInitialData:', error);
+    return { success: false, month: month || '', events: [], artistasMap: {}, clientes: [], confirmedLeads: [], conflictOverrides: [], materiaisPendentes: [] };
   }
 }
 
-// ⚡ OTIMIZADO: Apenas metadados de eventos (IDs, datas, títulos)
-export async function getAgendaMetadata(userName: string = 'Admin') {
-  noStore();
-  try {
-    let sqlQuery = "SELECT id, event_name, event_date, cliente_nome, origem_lead_id FROM agenda ORDER BY event_date ASC, id ASC";
-    if (userName === 'Larissa') sqlQuery = "SELECT id, event_name, event_date, cliente_nome, origem_lead_id FROM agenda WHERE visibility = 'Public' ORDER BY event_date ASC, id ASC";
-
-    const res = await turso.execute(sqlQuery);
-    return {
-      success: true,
-      data: res.rows,
-    };
-  } catch (error) {
-    console.error("Erro agenda metadata:", error);
-    return { success: false, data: [] };
-  }
-}
-
-// Mantém função original para compatibilidade (deprecated, usar getAgendaPaginated)
 export async function getAllAgenda(userName: string = 'Admin') {
   noStore();
   try {
@@ -1003,33 +1120,18 @@ export async function deleteAgendaEvent(id: number) {
 
 type ArtistaPayload = { nome: string; tipo: string; fee: number; colaborador_id?: number | null };
 
+let ensureArtistasColaboradorIdColumnPromise: Promise<void> | null = null;
 async function ensureArtistasColaboradorIdColumn() {
+  if (!ensureArtistasColaboradorIdColumnPromise) {
+    ensureArtistasColaboradorIdColumnPromise = ensureArtistasColaboradorIdColumnUncached().catch((error) => { ensureArtistasColaboradorIdColumnPromise = null; throw error; });
+  }
+  return ensureArtistasColaboradorIdColumnPromise;
+}
+
+async function ensureArtistasColaboradorIdColumnUncached() {
   try { await turso.execute("ALTER TABLE artistas_evento ADD COLUMN colaborador_id INTEGER"); } catch { }
 }
 
-// ⚡ OTIMIZADO: Lazy-load artistas de um evento específico
-export async function getArtistasEvento(eventoId: number): Promise<{ success: boolean; data: { id: number; nome: string; tipo: string; fee: number; colaborador_id: number | null }[] }> {
-  try {
-    await ensureArtistasColaboradorIdColumn();
-    const res = await turso.execute({
-      sql: "SELECT id, nome, tipo, fee, colaborador_id FROM artistas_evento WHERE evento_id=? ORDER BY id ASC",
-      args: [eventoId],
-    });
-    const data = (res.rows as any[]).map(r => ({
-      id: Number(r.id),
-      nome: r.nome as string,
-      tipo: r.tipo as string,
-      fee: Number(r.fee),
-      colaborador_id: r.colaborador_id == null ? null : Number(r.colaborador_id),
-    }));
-    return { success: true, data };
-  } catch (error) {
-    console.error("Erro getArtistasEvento:", error);
-    return { success: false, data: [] };
-  }
-}
-
-// Mantém getAllArtistasAgenda para compatibilidade mas comentado como deprecated
 export async function getAllArtistasAgenda(): Promise<{ success: boolean; data: Record<number, { id: number; nome: string; tipo: string; fee: number; colaborador_id: number | null }[]> }> {
   try {
     await ensureArtistasColaboradorIdColumn();
@@ -1583,7 +1685,17 @@ export async function updateValorRecebido(origem: 'agenda' | 'lead', id: number,
 
 // ── COLABORADORES ─────────────────────────────────────────────────────────────
 
+let setupColaboradoresPromise: Promise<SetupResult> | null = null;
 export async function setupColaboradores() {
+  if (!setupColaboradoresPromise) {
+    setupColaboradoresPromise = setupColaboradoresUncached()
+      .then((result) => { if (!result?.success) setupColaboradoresPromise = null; return result; })
+      .catch((error) => { setupColaboradoresPromise = null; throw error; });
+  }
+  return setupColaboradoresPromise;
+}
+
+async function setupColaboradoresUncached() {
   try {
     await turso.execute(`
       CREATE TABLE IF NOT EXISTS colaboradores (
@@ -1788,7 +1900,17 @@ export async function criarColaboradorEAssociarArtista(nome: string, skill?: str
 
 // ── VALORES MASTER POR FUNÇÃO ────────────────────────────────────────────────
 
+let setupValoresFuncoesPromise: Promise<SetupResult> | null = null;
 export async function setupValoresFuncoes() {
+  if (!setupValoresFuncoesPromise) {
+    setupValoresFuncoesPromise = setupValoresFuncoesUncached()
+      .then((result) => { if (!result?.success) setupValoresFuncoesPromise = null; return result; })
+      .catch((error) => { setupValoresFuncoesPromise = null; throw error; });
+  }
+  return setupValoresFuncoesPromise;
+}
+
+async function setupValoresFuncoesUncached() {
   try {
     await ensureValoresFuncoesTable();
     return { success: true };
@@ -1889,7 +2011,17 @@ export async function toggleValorFuncaoAtivo(id: number, ativo: number) {
 
 // ── MASTER DE VALORES COMERCIAL ──────────────────────────────────────────────
 
+let setupValoresMasterPromise: Promise<SetupResult> | null = null;
 export async function setupValoresMaster() {
+  if (!setupValoresMasterPromise) {
+    setupValoresMasterPromise = setupValoresMasterUncached()
+      .then((result) => { if (!result?.success) setupValoresMasterPromise = null; return result; })
+      .catch((error) => { setupValoresMasterPromise = null; throw error; });
+  }
+  return setupValoresMasterPromise;
+}
+
+async function setupValoresMasterUncached() {
   try {
     await ensureValoresMasterTable();
     return { success: true };
@@ -2038,7 +2170,17 @@ export async function criarValorMasterAPartirServico(servico: string, custoInter
 
 // ── RESIDÊNCIAS ATIVAS ───────────────────────────────────────────────────────
 
+let setupResidenciasAtivasPromise: Promise<SetupResult> | null = null;
 export async function setupResidenciasAtivas() {
+  if (!setupResidenciasAtivasPromise) {
+    setupResidenciasAtivasPromise = setupResidenciasAtivasUncached()
+      .then((result) => { if (!result?.success) setupResidenciasAtivasPromise = null; return result; })
+      .catch((error) => { setupResidenciasAtivasPromise = null; throw error; });
+  }
+  return setupResidenciasAtivasPromise;
+}
+
+async function setupResidenciasAtivasUncached() {
   try {
     await ensureResidenciasAtivasTable();
     return { success: true };
@@ -2247,7 +2389,15 @@ function normalizeConflictArtistName(name: string): string {
     .replace(/\s+/g, ' ');
 }
 
+let ensureArtistConflictOverridesPromise: Promise<void> | null = null;
 async function ensureArtistConflictOverrides() {
+  if (!ensureArtistConflictOverridesPromise) {
+    ensureArtistConflictOverridesPromise = ensureArtistConflictOverridesUncached().catch((error) => { ensureArtistConflictOverridesPromise = null; throw error; });
+  }
+  return ensureArtistConflictOverridesPromise;
+}
+
+async function ensureArtistConflictOverridesUncached() {
   await turso.execute(`
     CREATE TABLE IF NOT EXISTS artist_conflict_overrides (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2360,7 +2510,15 @@ const DEFAULT_MATERIAL_PACKS: MaterialPackSeed[] = [
   },
 ];
 
+let ensureMaterialPacksTablesPromise: Promise<void> | null = null;
 async function ensureMaterialPacksTables() {
+  if (!ensureMaterialPacksTablesPromise) {
+    ensureMaterialPacksTablesPromise = ensureMaterialPacksTablesUncached().catch((error) => { ensureMaterialPacksTablesPromise = null; throw error; });
+  }
+  return ensureMaterialPacksTablesPromise;
+}
+
+async function ensureMaterialPacksTablesUncached() {
   await turso.execute(`
     CREATE TABLE IF NOT EXISTS material_packs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2432,7 +2590,15 @@ async function getOrCreateMaterialByName(nome: string, categoria = "Outro") {
   return inserted.rows[0] as any;
 }
 
+let seedMaterialPacksPromise: Promise<void> | null = null;
 async function seedMaterialPacks() {
+  if (!seedMaterialPacksPromise) {
+    seedMaterialPacksPromise = seedMaterialPacksUncached().catch((error) => { seedMaterialPacksPromise = null; throw error; });
+  }
+  return seedMaterialPacksPromise;
+}
+
+async function seedMaterialPacksUncached() {
   await ensureMaterialPacksTables();
   for (const seed of DEFAULT_MATERIAL_PACKS) {
     const existing = await turso.execute({ sql: "SELECT id FROM material_packs WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) LIMIT 1", args: [seed.nome] });
@@ -2630,7 +2796,17 @@ export async function reservarMaterialPacksDaLeadParaEvento(leadId: number, even
 // MATERIAIS — catálogo de equipamento + controlo de saídas/entradas
 // ═══════════════════════════════════════════════════════════════════════════
 
+let setupMateriaisPromise: Promise<SetupResult> | null = null;
 export async function setupMateriais() {
+  if (!setupMateriaisPromise) {
+    setupMateriaisPromise = setupMateriaisUncached()
+      .then((result) => { if (!result?.success) setupMateriaisPromise = null; return result; })
+      .catch((error) => { setupMateriaisPromise = null; throw error; });
+  }
+  return setupMateriaisPromise;
+}
+
+async function setupMateriaisUncached() {
   try {
     await turso.execute(`
       CREATE TABLE IF NOT EXISTS materiais (
@@ -2832,6 +3008,40 @@ export async function toggleMaterialAtivo(id: number, ativo: number) {
     await turso.execute({ sql: "UPDATE materiais SET ativo=? WHERE id=?", args: [ativo, id] });
     return { success: true };
   } catch { return { success: false }; }
+}
+
+export async function getMovimentosMateriaisPendentesResumo() {
+  try {
+    await setupMateriais();
+    const res = await turso.execute(`
+      SELECT id, material_id, material_nome, quantidade, quantidade_devolvida, quantidade_consumida, evento, evento_id, data_saida
+      FROM material_movimentos
+      WHERE evento_id IS NOT NULL
+        AND (COALESCE(quantidade_devolvida, 0) + COALESCE(quantidade_consumida, 0)) < quantidade
+      ORDER BY data_saida DESC
+    `);
+    return {
+      success: true,
+      data: res.rows.map((r: any) => ({
+        id: Number(r.id),
+        material_id: Number(r.material_id),
+        material_nome: (r.material_nome as string) || '',
+        material_imagem: '',
+        quantidade: Number(r.quantidade) || 0,
+        quantidade_devolvida: Number(r.quantidade_devolvida) || 0,
+        quantidade_consumida: Number(r.quantidade_consumida) || 0,
+        origem: '', origem_detalhe: '', dono_material: '', quem_levou: '',
+        evento: (r.evento as string) || '',
+        evento_id: r.evento_id !== null && r.evento_id !== undefined ? Number(r.evento_id) : null,
+        responsavel: '', notas: '', estado_regresso: '', precisa_comprar: 0, motivo_compra: '',
+        quantidade_comprar: 0, quem_confirmou_regresso: '', notas_regresso: '',
+        data_saida: (r.data_saida as string) || '', data_volta: null,
+      })),
+    };
+  } catch (error) {
+    console.error("Erro getMovimentosMateriaisPendentesResumo:", error);
+    return { success: false, data: [] };
+  }
 }
 
 export async function getMovimentosMateriais() {
