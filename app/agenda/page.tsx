@@ -2030,7 +2030,7 @@ export default function AgendaPage() {
                           onNomeChange={nome => updateArtistNome(i, nome)}
                           onTipoChange={tipo => updateArtistTipo(i, tipo)}
                           artistHistory={artistHistory}
-                          allTipos={ARTIST_TIPOS as any[]}
+                          allTipos={[...ARTIST_TIPOS]}
                           colaboradores={colaboradoresAtivos.map(c => ({ 
                             nome: c.nome, 
                             nome_artistico: c.nome_artistico 
