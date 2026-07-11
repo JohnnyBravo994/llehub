@@ -1,6 +1,7 @@
 "use client";
 
 import { ARTIST_TIPOS, MODALIDADES, SERVICOS_VENDIDOS, TIPOS_COMERCIAIS, VALOR_CONTEXTOS, resolveColaboradorNome } from "../constants";
+import { ArtistAutocomplete } from "../ArtistAutocomplete";
 import { useTheme } from "../useTheme";
 import { ThemeSwitcher } from "../ThemeSwitcher";
 import React, { useEffect, useState, useCallback, useRef } from "react";
@@ -596,6 +597,14 @@ export default function LeadsPage() {
   const filtered = leads.filter(l =>
     !search || l.title.toLowerCase().includes(search.toLowerCase()) || (l.status || "").toLowerCase().includes(search.toLowerCase())
   );
+
+  // Histórico de artistas com tipos para autocomplete
+  const artistHistory = Array.from(new Set(
+    Object.values(artistasMap)
+      .flat()
+      .filter(a => a.nome?.trim() && a.tipo?.trim())
+      .map(a => JSON.stringify({ nome: a.nome, tipo: a.tipo }))
+  )).map(j => JSON.parse(j)).sort((a, b) => a.nome.localeCompare(b.nome));
 
   const normalizeConflictName = (name: string) => resolveColaboradorNome(name || '')
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -1259,14 +1268,23 @@ export default function LeadsPage() {
                 {colaboradoresAtivos.map(c => <option key={c.id} value={colaboradorDisplayName(c)}>{c.nome_pessoal || c.skills || "Colaborador"}</option>)}
               </datalist>
               {artists.map((a, i) => (
-                <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
-                  <input
-                    value={a.nome}
-                    list="leads-colaboradores-list"
-                    onChange={e => updateArtistNome(i, e.target.value)}
-                    placeholder="Escolher colaborador..."
-                    style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
-                  />
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "4px", alignItems: "flex-start" }}>
+                  <div style={{ position: "relative" }}>
+                    <ArtistAutocomplete
+                      value={a.nome}
+                      tipoValue={a.tipo}
+                      onNomeChange={nome => updateArtistNome(i, nome)}
+                      onTipoChange={tipo => updateArtistTipo(i, tipo)}
+                      artistHistory={artistHistory}
+                      allTipos={ARTIST_TIPOS as any[]}
+                      colaboradores={colaboradoresAtivos.map(c => ({ 
+                        nome: c.nome, 
+                        nome_artistico: c.nome_artistico 
+                      }))}
+                      placeholder="Escolher colaborador..."
+                      inputStyle={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
+                    />
+                  </div>
                   <CustomSelect
                     value={a.tipo}
                     onChange={v => updateArtistTipo(i, v)}

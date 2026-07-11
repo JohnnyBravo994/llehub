@@ -1,6 +1,7 @@
 "use client";
 
 import { ARTIST_TIPOS, MODALIDADES, SERVICOS_VENDIDOS, TIPOS_COMERCIAIS, VALOR_CONTEXTOS, resolveColaboradorNome } from "../constants";
+import { ArtistAutocomplete } from "../ArtistAutocomplete";
 import { useEffect, useState, useCallback, useRef } from "react";
 import React from "react";
 import { useRouter } from "next/navigation";
@@ -892,6 +893,14 @@ export default function AgendaPage() {
   );
 
   const filteredLeads = confirmedLeads.filter(l => monthKey(l.event_date) === selectedMonth);
+
+  // Histórico de artistas com tipos para autocomplete
+  const artistHistory = Array.from(new Set(
+    Object.values(artistasMap)
+      .flat()
+      .filter(a => a.nome?.trim() && a.tipo?.trim())
+      .map(a => JSON.stringify({ nome: a.nome, tipo: a.tipo }))
+  )).map(j => JSON.parse(j)).sort((a, b) => a.nome.localeCompare(b.nome));
 
   // Todos os dias do mês seleccionado para mostrar folgas
   const daysInSelectedMonth = (() => {
@@ -2013,14 +2022,23 @@ export default function AgendaPage() {
                     {colaboradoresAtivos.map(c => <option key={c.id} value={colaboradorDisplayName(c)}>{c.nome_pessoal || c.skills || "Colaborador"}</option>)}
                   </datalist>
                   {artists.map((a, i) => (
-                    <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
-                      <input
-                        value={a.nome}
-                        list="agenda-colaboradores-list"
-                        onChange={e => updateArtistNome(i, e.target.value)}
-                        placeholder="Escolher colaborador..."
-                        style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
-                      />
+                    <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "4px", alignItems: "flex-start" }}>
+                      <div style={{ position: "relative" }}>
+                        <ArtistAutocomplete
+                          value={a.nome}
+                          tipoValue={a.tipo}
+                          onNomeChange={nome => updateArtistNome(i, nome)}
+                          onTipoChange={tipo => updateArtistTipo(i, tipo)}
+                          artistHistory={artistHistory}
+                          allTipos={ARTIST_TIPOS as any[]}
+                          colaboradores={colaboradoresAtivos.map(c => ({ 
+                            nome: c.nome, 
+                            nome_artistico: c.nome_artistico 
+                          }))}
+                          placeholder="Escolher colaborador..."
+                          inputStyle={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
+                        />
+                      </div>
                       <CustomSelect
                         value={a.tipo}
                         onChange={v => updateArtistTipo(i, v)}

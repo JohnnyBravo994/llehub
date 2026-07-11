@@ -1168,3 +1168,21 @@ html.light-theme .mob-page-desktop > nav[style] button[style] {
   background: transparent !important;
   border-color: rgba(0,0,0,0.18) !important;
 }
+
+/* ═══════════════════════════════════════════════════
+   MODAL OVERLAYS — Light theme adaptation fix
+═══════════════════════════════════════════════════ */
+
+/* Override dark overlay backgrounds for light theme */
+html.light-theme div[style*="rgba(0,0,0,0.8)"],
+html.light-theme div[style*="rgba(0,0,0,0.82)"],
+html.light-theme div[style*="rgba(0,0,0,0.45)"] {
+  background: rgba(255,255,255,0.65) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+
+/* Light theme: ensure modal content is readable */
+html.light-theme [style*="position: fixed"][style*="inset: 0"][style*="background: rgba(0,0,0"] {
+  background: rgba(255,255,255,0.65) !important;
+}
