@@ -20,10 +20,10 @@ const C = {
 };
 
 const C_Light = {
-  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF", pageBg: "#FFFBF7",
+  gold: "#8B4513", goldDim: "#6F3A18", surface: "#FFFFFF", pageBg: "#FFFBF7",
   border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
-  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
-  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
+  textPrimary: "#111827", textSec: "rgba(17,24,39,0.82)", textMuted: "rgba(17,24,39,0.62)",
+  green: "#2E7D32", amber: "#A65300", blue: "#1565C0", red: "#C62828", purple: "#6A1B9A",
 };
 
 const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
@@ -137,7 +137,7 @@ export default function ClientesPage() {
   });
 
   const btnPrimStyle: React.CSSProperties = {
-    background: C.gold, border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.4em",
+    background: C.gold, border: "none", color: "var(--theme-accent-contrast)", fontSize: "9px", letterSpacing: "0.4em",
     fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase",
   };
   const btnSecStyle: React.CSSProperties = {
@@ -146,11 +146,11 @@ export default function ClientesPage() {
     padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase",
   };
   const overlayStyle: React.CSSProperties = {
-    position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 1000,
+    position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000,
     display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)",
   };
   const overlayBottomStyle: React.CSSProperties = {
-    position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 1000,
+    position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000,
     display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)",
   };
 
@@ -186,7 +186,7 @@ export default function ClientesPage() {
             <input
               value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Pesquisar por nome, alias, NIF ou email..."
-              style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "none", color: C.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "0.9rem 1.5rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" }}
+              style={{ width: "100%", background: "var(--theme-subtle-bg)", border: "none", color: C.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "0.9rem 1.5rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" }}
             />
           </div>
 
@@ -242,8 +242,8 @@ export default function ClientesPage() {
     </div>
 
     {/* ═══ MOBILE ═══ */}
-    <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "#F5F0E8", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(12,11,9,0.97)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
+    <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "var(--theme-text)", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", background: "rgba(12,11,9,0.97)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
           <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.4rem 0.5rem" }} />
@@ -252,32 +252,32 @@ export default function ClientesPage() {
         </div>
       </div>
 
-      <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+      <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--theme-border)", display: "flex", gap: "0.5rem", flexShrink: 0 }}>
         <input
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Pesquisar cliente..."
-          style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#F5F0E8", fontFamily: "inherit", fontSize: "12px", padding: "0.6rem 0.9rem", outline: "none" }}
+          style={{ flex: 1, background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "12px", padding: "0.6rem 0.9rem", outline: "none" }}
         />
         <button onClick={openCreate} style={{ background: "rgba(201,169,110,0.12)", border: "1px solid rgba(201,169,110,0.2)", color: "#C9A96E", fontSize: "16px", padding: "0.6rem 0.9rem", cursor: "pointer" }}>+</button>
       </div>
 
       <div className="mob-list">
         {filtered.map(c => (
-          <div key={c.id} style={{ padding: "1rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+          <div key={c.id} style={{ padding: "1rem 1.1rem", borderBottom: "1px solid var(--theme-border)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "14px", fontWeight: 700, color: "#F5F0E8", marginBottom: "2px" }}>
+                <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--theme-text)", marginBottom: "2px" }}>
                   {c.alias?.trim() || c.nome}
                 </div>
                 {c.alias?.trim() && (
-                  <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.35)", marginBottom: "3px" }}>{c.nome}</div>
+                  <div style={{ fontSize: "10px", color: "var(--theme-text-subtle)", marginBottom: "3px" }}>{c.nome}</div>
                 )}
-                {c.nif && <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.4)" }}>NIF: {c.nif}</div>}
-                {c.email && <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.4)" }}>{c.email}</div>}
-                {c.telefone && <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.4)" }}>{c.telefone}</div>}
+                {c.nif && <div style={{ fontSize: "10px", color: "var(--theme-text-muted)" }}>NIF: {c.nif}</div>}
+                {c.email && <div style={{ fontSize: "10px", color: "var(--theme-text-muted)" }}>{c.email}</div>}
+                {c.telefone && <div style={{ fontSize: "10px", color: "var(--theme-text-muted)" }}>{c.telefone}</div>}
               </div>
               <div style={{ display: "flex", gap: "4px", marginLeft: "0.75rem" }}>
-                <button onClick={() => openEdit(c)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(245,240,232,0.5)", fontSize: "10px", padding: "6px 10px", cursor: "pointer" }}>✏️</button>
+                <button onClick={() => openEdit(c)} style={{ background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-muted)", fontSize: "10px", padding: "6px 10px", cursor: "pointer" }}>✏️</button>
                 <button onClick={() => handleDelete(c)} style={{ background: "rgba(226,75,74,0.08)", border: "1px solid rgba(226,75,74,0.2)", color: "#E24B4A", fontSize: "10px", padding: "6px 10px", cursor: "pointer" }}>🗑</button>
               </div>
             </div>
@@ -298,7 +298,7 @@ export default function ClientesPage() {
       <>
         {/* Desktop modal */}
         <div className="mob-page-desktop" onClick={e => e.target === e.currentTarget && closeModal()} style={overlayStyle}>
-          <div style={{ background: "#131108", border: `1px solid ${C.border}`, padding: "2.5rem", width: "560px", maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", position: "relative" }}>
+          <div style={{ background: "var(--theme-surface)", border: `1px solid ${C.border}`, padding: "2.5rem", width: "560px", maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
             <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "1.75rem" }}>
               {modal.editing ? "Editar Cliente" : "Novo Cliente"}
@@ -312,7 +312,7 @@ export default function ClientesPage() {
         </div>
         {/* Mobile bottom sheet */}
         <div className="mob-shell" onClick={e => e.target === e.currentTarget && closeModal()} style={overlayBottomStyle}>
-          <div style={{ background: "#131108", borderTop: `1px solid ${C.border}`, width: "100%", maxHeight: "92dvh", overflowY: "auto", padding: "1.5rem 1.25rem", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))", borderRadius: "12px 12px 0 0", position: "relative" }}>
+          <div style={{ background: "var(--theme-surface)", borderTop: `1px solid ${C.border}`, width: "100%", maxHeight: "92dvh", overflowY: "auto", padding: "1.5rem 1.25rem", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))", borderRadius: "12px 12px 0 0", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
               <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600 }}>
@@ -334,7 +334,7 @@ export default function ClientesPage() {
     {confirmDelete && (
       <>
         <div className="mob-page-desktop" onClick={() => setConfirmDelete(null)} style={overlayStyle}>
-          <div style={{ background: "#131108", border: `1px solid ${C.border}`, padding: "2rem", width: "400px", maxWidth: "90vw", position: "relative" }}>
+          <div style={{ background: "var(--theme-surface)", border: `1px solid ${C.border}`, padding: "2rem", width: "400px", maxWidth: "90vw", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #E24B4A, transparent)" }} />
             <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: "#E24B4A", textTransform: "uppercase", fontWeight: 600, marginBottom: "1rem" }}>Confirmar eliminação</p>
             <p style={{ fontSize: "12px", color: C.textSec, marginBottom: "1.5rem" }}>Eliminar <strong style={{ color: C.textPrimary }}>{displayName(confirmDelete)}</strong>? Esta acção pode ser desfeita com Undo.</p>
@@ -345,7 +345,7 @@ export default function ClientesPage() {
           </div>
         </div>
         <div className="mob-shell" onClick={() => setConfirmDelete(null)} style={overlayBottomStyle}>
-          <div style={{ background: "#131108", borderTop: `1px solid ${C.border}`, width: "100%", padding: "1.5rem 1.25rem", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))", borderRadius: "12px 12px 0 0", position: "relative" }}>
+          <div style={{ background: "var(--theme-surface)", borderTop: `1px solid ${C.border}`, width: "100%", padding: "1.5rem 1.25rem", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))", borderRadius: "12px 12px 0 0", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #E24B4A, transparent)" }} />
             <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: "#E24B4A", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Eliminar cliente?</p>
             <p style={{ fontSize: "12px", color: C.textSec, marginBottom: "1.25rem" }}><strong style={{ color: C.textPrimary }}>{displayName(confirmDelete)}</strong></p>
@@ -359,7 +359,7 @@ export default function ClientesPage() {
     )}
 
     {/* Toast */}
-    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "#1a1408", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "1rem" }}>
+    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "var(--theme-toast-bg)", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "1rem" }}>
       <span>{toast}</span>
       {undoAction && (
         <button onClick={undoAction.fn} style={{ background: "rgba(201,169,110,0.15)", border: "1px solid rgba(201,169,110,0.3)", color: C.gold, fontSize: "9px", letterSpacing: "0.3em", padding: "0.3rem 0.75rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
@@ -374,11 +374,11 @@ export default function ClientesPage() {
 // ── Formulário do modal — fora do componente principal para evitar remount a cada keystroke ──
 const labelStyle: React.CSSProperties = {
   display: "block", fontSize: "7px", letterSpacing: "0.4em",
-  color: "rgba(245,240,232,0.22)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.5rem",
+  color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.5rem",
 };
 const inputStyleBase: React.CSSProperties = {
-  width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-  color: "#F5F0E8", fontFamily: "'Montserrat',sans-serif", fontSize: "11px",
+  width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)",
+  color: "var(--theme-text)", fontFamily: "'Montserrat',sans-serif", fontSize: "11px",
   padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box",
 };
 
@@ -396,7 +396,7 @@ function ClienteModalForm({ form, setForm }: {
           onChange={e => setForm(f => ({ ...f, alias: e.target.value }))}
           placeholder="Ex: Hyatt, Epic Sana..."
         />
-        <p style={{ fontSize: "9px", color: "rgba(245,240,232,0.22)", marginTop: "0.4rem", letterSpacing: "0.05em" }}>Aparece nos dropdowns e listagens. Se vazio, usa o nome oficial.</p>
+        <p style={{ fontSize: "9px", color: "var(--theme-text-faint)", marginTop: "0.4rem", letterSpacing: "0.05em" }}>Aparece nos dropdowns e listagens. Se vazio, usa o nome oficial.</p>
       </div>
       <div style={{ marginBottom: "1rem" }}>
         <label style={labelStyle}>Nome Oficial *</label>
@@ -437,14 +437,14 @@ function ClienteModalForm({ form, setForm }: {
 function tdS({ muted, nowrap }: { muted?: boolean; nowrap?: boolean } = {}): React.CSSProperties {
   return {
     fontSize: "11px", color: muted ? "rgba(245,240,232,0.45)" : "#F5F0E8",
-    padding: "0.75rem 1.25rem", borderBottom: "1px solid rgba(255,255,255,0.04)",
+    padding: "0.75rem 1.25rem", borderBottom: "1px solid var(--theme-border)",
     whiteSpace: nowrap ? "nowrap" : undefined,
   };
 }
 
 const iconBtnStyle: React.CSSProperties = {
   background: "transparent", border: "1px solid rgba(255,255,255,0.06)",
-  color: "rgba(245,240,232,0.35)", padding: "5px 7px", cursor: "pointer",
+  color: "var(--theme-text-subtle)", padding: "5px 7px", cursor: "pointer",
   display: "flex", alignItems: "center", justifyContent: "center",
 };
 
@@ -473,7 +473,7 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     ...((role !== "limited_novalues" && role !== "finance") ? [{ href: "/materiais", label: "Materiais" }] : []),
   ];
   return (
-    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid rgba(255,255,255,0.05)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
+    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
@@ -483,8 +483,8 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "rgba(245,240,232,0.22)", textTransform: "uppercase" }}>{userName}</span>
-        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "rgba(245,240,232,0.22)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
+        <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
+        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
       </div>
     </nav>
   );

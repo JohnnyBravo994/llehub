@@ -44,7 +44,7 @@ function CustomSelect({
       {open && (
         <div style={{
           position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0,
-          background: "#1a1710", border: "1px solid rgba(201,169,110,0.2)",
+          background: "var(--theme-surface-elevated)", border: "1px solid rgba(201,169,110,0.2)",
           zIndex: 9999, maxHeight: 240, overflowY: "auto",
           boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
         }}>
@@ -60,7 +60,7 @@ function CustomSelect({
                 color: o.value === value ? "#C9A96E" : "#F5F0E8",
                 background: o.value === value ? "rgba(201,169,110,0.1)" : "transparent",
                 cursor: "pointer",
-                borderBottom: "1px solid rgba(255,255,255,0.04)",
+                borderBottom: "1px solid var(--theme-border)",
               }}
               onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.08)")}
               onMouseLeave={e => (e.currentTarget.style.background = o.value === value ? "rgba(201,169,110,0.1)" : "transparent")}
@@ -140,10 +140,10 @@ const C = {
 };
 
 const C_Light = {
-  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF", pageBg: "#FFFBF7",
+  gold: "#8B4513", goldDim: "#6F3A18", surface: "#FFFFFF", pageBg: "#FFFBF7",
   border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
-  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
-  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
+  textPrimary: "#111827", textSec: "rgba(17,24,39,0.82)", textMuted: "rgba(17,24,39,0.62)",
+  green: "#2E7D32", amber: "#A65300", blue: "#1565C0", red: "#C62828", purple: "#6A1B9A",
 };
 
 const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
@@ -848,7 +848,7 @@ export default function LeadsPage() {
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Pesquisar lead ou estado..."
-            style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "none", borderBottom: `1px solid ${C.borderDim}`, color: C.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "1rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
+            style={{ width: "100%", background: "var(--theme-subtle-bg)", border: "none", borderBottom: `1px solid ${C.borderDim}`, color: C.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "1rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
           />
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -913,7 +913,7 @@ export default function LeadsPage() {
     </div>{/* end desktop */}
 
     {/* ═══ MOBILE ═══ */}
-    <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "#F5F0E8", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
+    <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "var(--theme-text)", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(255,255,255,0.05)", background:"rgba(12,11,9,0.97)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
         <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"#C9A96E", fontWeight:300 }}>LLE</span>
         <div style={{ display:"flex", gap:"0.5rem", alignItems:"center" }}>
@@ -1004,14 +1004,14 @@ export default function LeadsPage() {
     {/* ═══ MODAL (partilhado desktop+mobile) ═══ */}
       {/* WhatsApp — Modal de Seleção de Meses */}
       {waMonthModal && (
-        <div onClick={e => e.target === e.currentTarget && setWaMonthModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "#131108", border: "1px solid rgba(201,169,110,0.12)", padding: "2rem", width: "380px", maxWidth: "95vw", position: "relative" }}>
+        <div onClick={e => e.target === e.currentTarget && setWaMonthModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.12)", padding: "2rem", width: "380px", maxWidth: "95vw", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
               <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.6)", textTransform: "uppercase", fontWeight: 600 }}>Copiar Leads para WhatsApp</p>
               <button onClick={() => setWaMonthModal(false)} style={{ background: "transparent", border: "none", color: "rgba(245,240,232,0.3)", cursor: "pointer", fontSize: "16px" }}>✕</button>
             </div>
-            <p style={{ fontSize: "9px", color: "rgba(245,240,232,0.35)", letterSpacing: "0.15em", marginBottom: "1rem" }}>Seleciona os meses a incluir:</p>
+            <p style={{ fontSize: "9px", color: "var(--theme-text-subtle)", letterSpacing: "0.15em", marginBottom: "1rem" }}>Seleciona os meses a incluir:</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "1.25rem", maxHeight: "280px", overflowY: "auto" }}>
               {availableWaMonths().length === 0 && (
                 <p style={{ fontSize: "11px", color: "rgba(245,240,232,0.3)", textAlign: "center", padding: "1rem" }}>Sem leads disponíveis.</p>
@@ -1042,7 +1042,7 @@ export default function LeadsPage() {
               <p style={{ fontSize: "9px", color: "#E24B4A", letterSpacing: "0.2em", marginBottom: "0.85rem", textTransform: "uppercase" }}>Selecione pelo menos um mês.</p>
             )}
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
-              <button onClick={() => setWaMonthModal(false)} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(245,240,232,0.35)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Cancelar</button>
+              <button onClick={() => setWaMonthModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Cancelar</button>
               <button onClick={handleCopySelectedMonths} style={{ background: "#5DCAA5", border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Copiar Leads Selecionadas</button>
             </div>
           </div>
@@ -1051,8 +1051,8 @@ export default function LeadsPage() {
 
     {/* WhatsApp Modal — Pré-visualização */}
       {waModal && (
-        <div onClick={e => e.target === e.currentTarget && setWaModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "#131108", border: "1px solid rgba(201,169,110,0.12)", padding: "2rem", width: "500px", maxWidth: "95vw", maxHeight: "85vh", display: "flex", flexDirection: "column", position: "relative" }}>
+        <div onClick={e => e.target === e.currentTarget && setWaModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.12)", padding: "2rem", width: "500px", maxWidth: "95vw", maxHeight: "85vh", display: "flex", flexDirection: "column", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
               <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.6)", textTransform: "uppercase", fontWeight: 600 }}>Copiar Leads para WhatsApp</p>
@@ -1064,11 +1064,11 @@ export default function LeadsPage() {
             <textarea
               readOnly
               value={waText}
-              style={{ flex: 1, minHeight: "300px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", color: "#F5F0E8", fontFamily: "monospace", fontSize: "11px", padding: "0.75rem", outline: "none", resize: "vertical", letterSpacing: "0.02em", lineHeight: "1.6" }}
+              style={{ flex: 1, minHeight: "300px", background: "var(--theme-subtle-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "monospace", fontSize: "11px", padding: "0.75rem", outline: "none", resize: "vertical", letterSpacing: "0.02em", lineHeight: "1.6" }}
               onClick={e => (e.target as HTMLTextAreaElement).select()}
             />
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1rem" }}>
-              <button onClick={() => setWaModal(false)} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(245,240,232,0.35)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Fechar</button>
+              <button onClick={() => setWaModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Fechar</button>
               <button
                 onClick={() => {
                   if (navigator.clipboard) {
@@ -1143,7 +1143,7 @@ export default function LeadsPage() {
                     placeholder="Pesquisar cliente..."
                   />
                   {clienteDropOpen && (
-                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#1a1710", border: "1px solid rgba(201,169,110,0.18)", zIndex: 1500, maxHeight: "200px", overflowY: "auto" }}>
+                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--theme-surface-elevated)", border: "1px solid rgba(201,169,110,0.18)", zIndex: 1500, maxHeight: "200px", overflowY: "auto" }}>
                       {clientesUnicos
                         .filter(c => c.nome.toLowerCase().includes(clienteSearch.toLowerCase()))
                         .map(c => (
@@ -1154,7 +1154,7 @@ export default function LeadsPage() {
                               setClienteSearch(c.nome);
                               setClienteDropOpen(false);
                             }}
-                            style={{ padding: "0.6rem 1rem", fontSize: "11px", color: C.textSec, cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                            style={{ padding: "0.6rem 1rem", fontSize: "11px", color: C.textSec, cursor: "pointer", borderBottom: "1px solid var(--theme-border)" }}
                             onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.08)")}
                             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                           >
@@ -1332,7 +1332,7 @@ export default function LeadsPage() {
       )}
 
     {/* Toast (partilhado desktop+mobile) */}
-    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "#1a1408", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
+    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "var(--theme-toast-bg)", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
       {toast}
     </div>
     </>
@@ -1357,7 +1357,7 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     ...((role !== "limited_novalues" && role !== "finance") ? [{ href: "/materiais", label: "Materiais" }] : []),
   ];
   return (
-    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid rgba(255,255,255,0.05)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
+    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
@@ -1367,8 +1367,8 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "rgba(245,240,232,0.22)", textTransform: "uppercase" }}>{userName}</span>
-        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "rgba(245,240,232,0.22)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
+        <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
+        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
       </div>
     </nav>
   );
@@ -1409,7 +1409,7 @@ function IconBtn({ title, onClick, icon, danger, success }: { title: string; onC
 function FormField({ label, children, style }: { label: string; children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <div style={{ marginBottom: "1.25rem", ...style }}>
-      <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.4em", color: "rgba(245,240,232,0.22)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.6rem" }}>{label}</label>
+      <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.4em", color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.6rem" }}>{label}</label>
       {children}
     </div>
   );
@@ -1417,13 +1417,13 @@ function FormField({ label, children, style }: { label: string; children: React.
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const addBtnStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "#8a7350", fontSize: "8px", letterSpacing: "0.35em", padding: "0.5rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s" };
-const tdStyle = ({ muted, nowrap, maxW }: { muted?: boolean; nowrap?: boolean; maxW?: string }): React.CSSProperties => ({ fontSize: "12px", color: muted ? "rgba(245,240,232,0.45)" : "#F5F0E8", padding: "0.85rem 1.25rem", borderBottom: "1px solid rgba(255,255,255,0.05)", whiteSpace: nowrap ? "nowrap" : undefined, maxWidth: maxW, overflow: maxW ? "hidden" : undefined, textOverflow: maxW ? "ellipsis" : undefined });
-const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
-const modalStyle: React.CSSProperties = { background: "#131108", border: "1px solid rgba(201,169,110,0.12)", padding: "2.5rem", width: "520px", maxWidth: "90vw", maxHeight: "90vh", overflowY: "auto", position: "relative" };
+const tdStyle = ({ muted, nowrap, maxW }: { muted?: boolean; nowrap?: boolean; maxW?: string }): React.CSSProperties => ({ fontSize: "12px", color: muted ? "rgba(245,240,232,0.45)" : "#F5F0E8", padding: "0.85rem 1.25rem", borderBottom: "1px solid var(--theme-border)", whiteSpace: nowrap ? "nowrap" : undefined, maxWidth: maxW, overflow: maxW ? "hidden" : undefined, textOverflow: maxW ? "ellipsis" : undefined });
+const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
+const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.12)", padding: "2.5rem", width: "520px", maxWidth: "90vw", maxHeight: "90vh", overflowY: "auto", position: "relative" };
 const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" };
-const inputStyle: React.CSSProperties = { width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#F5F0E8", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
-const btnPrimStyle: React.CSSProperties = { background: "#C9A96E", border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "rgba(245,240,232,0.35)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
+const btnPrimStyle: React.CSSProperties = { background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 const btnDangerStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(226,75,74,0.3)", color: "#E24B4A", fontSize: "8px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 const btnAgendaStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(93,202,165,0.3)", color: "#5DCAA5", fontSize: "8px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 

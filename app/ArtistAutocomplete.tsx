@@ -44,10 +44,24 @@ export const ArtistAutocomplete: React.FC<ArtistAutocompleteProps> = ({
 
     const query = value.toLowerCase();
     
+    // **CORREÇÃO 1**: Remover duplicatas por nome ANTES de filtrar
+    // Mantém apenas a primeira ocorrência de cada nome
+    const seenNames = new Set<string>();
+    const artistHistoryUnique = artistHistory.filter(a => {
+      const nome = a.nome.toLowerCase();
+      if (seenNames.has(nome)) return false;
+      seenNames.add(nome);
+      return true;
+    });
+
     // Filtrar artistas do histórico baseado no tipo selecionado e no texto escrito
-    let filtered = artistHistory.filter(a => {
+    let filtered = artistHistoryUnique.filter(a => {
       const matchesQuery = a.nome.toLowerCase().startsWith(query);
+      
+      // **CORREÇÃO 2**: Se tipoValue está vazio (filtro neutro), mostrar todos
+      // Se tipoValue tem valor, filtrar exatamente por esse tipo
       const matchesTipo = !tipoValue || a.tipo === tipoValue;
+      
       return matchesQuery && matchesTipo;
     });
 
@@ -56,20 +70,22 @@ export const ArtistAutocomplete: React.FC<ArtistAutocompleteProps> = ({
       filtered = colaboradores
         .filter(c => {
           const displayName = c.nome_artistico || c.nome;
+          // **CORREÇÃO 3**: Procura desde o início (startsWith), não em qualquer posição
           return displayName.toLowerCase().startsWith(query);
         })
         .map(c => ({
           nome: c.nome_artistico || c.nome,
-          tipo: tipoValue || 'DJ', // Usar tipo selecionado ou default
+          // **CORREÇÃO 4**: Se tipoValue está vazio, não forçar DJ - deixar vazio para que o utilizador escolha
+          tipo: tipoValue || '', // Deixar vazio se tipo não selecionado
         }));
     }
 
-    // Remover duplicatas
-    const seen = new Set<string>();
+    // Remover duplicatas por nome (não por nome+tipo)
+    const seenSuggestions = new Set<string>();
     const unique = filtered.filter(a => {
-      const key = `${a.nome}|${a.tipo}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
+      const key = a.nome.toLowerCase();
+      if (seenSuggestions.has(key)) return false;
+      seenSuggestions.add(key);
       return true;
     });
 
@@ -91,7 +107,10 @@ export const ArtistAutocomplete: React.FC<ArtistAutocompleteProps> = ({
 
   const handleSelectSuggestion = (suggestion: ArtistOption) => {
     onNomeChange(suggestion.nome);
-    onTipoChange(suggestion.tipo);
+    // Se a sugestão tem tipo, usar; senão manter o tipo atual
+    if (suggestion.tipo) {
+      onTipoChange(suggestion.tipo);
+    }
     setShowSuggestions(false);
   };
 
@@ -132,7 +151,7 @@ export const ArtistAutocomplete: React.FC<ArtistAutocompleteProps> = ({
         >
           {suggestions.map((suggestion, i) => (
             <div
-              key={`${suggestion.nome}-${suggestion.tipo}-${i}`}
+              key={`${suggestion.nome.toLowerCase()}-${i}`}
               onClick={() => handleSelectSuggestion(suggestion)}
               style={{
                 padding: '0.6rem 0.75rem',
@@ -152,9 +171,11 @@ export const ArtistAutocomplete: React.FC<ArtistAutocompleteProps> = ({
               }}
             >
               <span style={{ fontWeight: 600 }}>{suggestion.nome}</span>
-              <span style={{ color: 'var(--theme-text-muted)', marginLeft: '0.5rem', fontSize: '9px' }}>
-                - {suggestion.tipo}
-              </span>
+              {suggestion.tipo && (
+                <span style={{ color: 'var(--theme-text-muted)', marginLeft: '0.5rem', fontSize: '9px' }}>
+                  - {suggestion.tipo}
+                </span>
+              )}
             </div>
           ))}
         </div>

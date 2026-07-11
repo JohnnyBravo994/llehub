@@ -41,10 +41,10 @@ const C = {
 };
 
 const C_Light = {
-  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF", pageBg: "#FFFBF7",
+  gold: "#8B4513", goldDim: "#6F3A18", surface: "#FFFFFF", pageBg: "#FFFBF7",
   border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
-  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
-  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000", purple: "#000000",
+  textPrimary: "#111827", textSec: "rgba(17,24,39,0.82)", textMuted: "rgba(17,24,39,0.62)",
+  green: "#2E7D32", amber: "#A65300", blue: "#1565C0", red: "#C62828", purple: "#6A1B9A",
 };
 
 const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
@@ -336,14 +336,14 @@ export default function MateriaisPage() {
   };
 
   // ── Styles ─────────────────────────────────────────────────────────────
-  const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
-  const overlayBottomStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)" };
-  const modalStyle: React.CSSProperties = { background: "#131108", border: `1px solid ${C.border}`, padding: "2.5rem", width: "480px", maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", position: "relative" };
-  const modalMobStyle: React.CSSProperties = { background: "#131108", borderTop: `1px solid ${C.border}`, width: "100%", maxHeight: "92dvh", overflowY: "auto", padding: "1.5rem 1.25rem", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))", borderRadius: "12px 12px 0 0", position: "relative" };
+  const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
+  const overlayBottomStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)" };
+  const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: `1px solid ${C.border}`, padding: "2.5rem", width: "480px", maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", position: "relative" };
+  const modalMobStyle: React.CSSProperties = { background: "var(--theme-surface)", borderTop: `1px solid ${C.border}`, width: "100%", maxHeight: "92dvh", overflowY: "auto", padding: "1.5rem 1.25rem", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))", borderRadius: "12px 12px 0 0", position: "relative" };
   const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" };
   const labelStyle: React.CSSProperties = { display: "block", fontSize: "7px", letterSpacing: "0.4em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.5rem" };
-  const inputStyle: React.CSSProperties = { width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid rgba(255,255,255,0.08)`, color: C.textPrimary, fontFamily: "'Montserrat',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
-  const btnPrimStyle: React.CSSProperties = { background: C.gold, border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+  const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: `1px solid var(--theme-input-border)`, color: C.textPrimary, fontFamily: "'Montserrat',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
+  const btnPrimStyle: React.CSSProperties = { background: C.gold, border: "none", color: "var(--theme-accent-contrast)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
   const btnSecStyle: React.CSSProperties = { background: "transparent", border: `1px solid ${C.border}`, color: C.textSec, fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 
   if (loading) {
@@ -369,7 +369,7 @@ export default function MateriaisPage() {
   const MaterialThumb = ({ src, size = 44 }: { src: string; size?: number }) => (
     src
       ? <img src={src} alt="" style={{ width: size, height: size, objectFit: "cover", border: `1px solid ${C.border}`, flexShrink: 0   }} />
-      : <div style={{ width: size, height: size, background: "rgba(255,255,255,0.04)", border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      : <div style={{ width: size, height: size, background: "var(--theme-input-bg)", border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <svg width={size * 0.45} height={size * 0.45} viewBox="0 0 24 24" fill="none" stroke={C.textMuted} strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
         </div>
   );
@@ -511,7 +511,7 @@ export default function MateriaisPage() {
               const fora = pendenteAtualDoMaterial(m.id);
               return (
                 <div key={m.id} style={{ background: C.surface, border: `1px solid ${C.borderDim}`, overflow: "hidden" }}>
-                  <div style={{ width: "100%", aspectRatio: "1.3/1", background: "rgba(255,255,255,0.03)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ width: "100%", aspectRatio: "1.3/1", background: "var(--theme-subtle-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {m.imagem
                       ? <img src={m.imagem} alt={m.nome} style={{ width: "100%", height: "100%", objectFit: "cover"   }} />
                       : <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={C.textMuted} strokeWidth="1.4"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>}
@@ -551,8 +551,8 @@ export default function MateriaisPage() {
     </div>
 
     {/* ═══ MOBILE ═══ */}
-    <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "#F5F0E8", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(12,11,9,0.97)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
+    <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "var(--theme-text)", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", background: "rgba(12,11,9,0.97)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
           <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.4rem 0.5rem" }} />
@@ -560,14 +560,14 @@ export default function MateriaisPage() {
         </div>
       </div>
 
-      <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.05)", flexShrink: 0 }}>
+      <div style={{ display: "flex", borderBottom: "1px solid var(--theme-border)", flexShrink: 0 }}>
         <TabBtn id="fora" label="Fora" count={movimentosAbertos.length} />
         <TabBtn id="historico" label="Histórico" count={movimentosFechados.length} />
         <TabBtn id="catalogo" label="Catálogo" count={materiaisAtivos.length} />
       </div>
 
       {tab === "fora" && (
-        <div style={{ display: "flex", gap: "1.25rem", padding: "0.85rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+        <div style={{ display: "flex", gap: "1.25rem", padding: "0.85rem 1.1rem", borderBottom: "1px solid var(--theme-border)" }}>
           {[
             { label: "Ativos", value: materiaisAtivos.length },
             { label: "Total", value: totalUnidades },
@@ -583,7 +583,7 @@ export default function MateriaisPage() {
 
       <div className="mob-list">
         {tab === "fora" && foraAgrupados.map(group => (
-          <div key={group.key} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+          <div key={group.key} style={{ borderBottom: "1px solid var(--theme-border)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.7rem 1.1rem", background: "rgba(201,169,110,0.05)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontSize: "9px", letterSpacing: "0.15em", fontWeight: 700, color: group.isPessoal ? "rgba(245,240,232,0.45)" : "#C9A96E", textTransform: "uppercase" }}>
@@ -604,10 +604,10 @@ export default function MateriaisPage() {
                       <span style={{ fontSize: "12px", fontWeight: 600 }}>{mov.material_nome}</span>
                       <span style={{ fontSize: "12px", fontWeight: 700, color: "#EF9F27" }}>×{pendente}</span>
                     </div>
-                    <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.45)", marginTop: "2px" }}>
+                    <div style={{ fontSize: "10px", color: "var(--theme-text-muted)", marginTop: "2px" }}>
                       Saiu de <span style={{ color: "#C9A96E" }}>{origemLabel(mov)}</span> · levou {mov.quem_levou || mov.responsavel || "—"} · {dias === 0 ? "hoje" : `há ${dias}d`}
                     </div>
-                    <div style={{ fontSize: "9px", color: "rgba(245,240,232,0.35)", marginTop: "1px" }}>Dono: {mov.dono_material || "—"}</div>
+                    <div style={{ fontSize: "9px", color: "var(--theme-text-subtle)", marginTop: "1px" }}>Dono: {mov.dono_material || "—"}</div>
                     <button onClick={() => openVolta(mov)} style={{ marginTop: "0.5rem", background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: "#5DCAA5", fontSize: "10px", letterSpacing: "0.1em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
                   </div>
                 </div>
@@ -618,11 +618,11 @@ export default function MateriaisPage() {
         {tab === "fora" && movimentosAbertos.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "rgba(245,240,232,0.2)", letterSpacing: "0.2em" }}>Nada fora — tudo na loja</div>}
 
         {tab === "historico" && movimentosFechados.map(mov => (
-          <div key={mov.id} style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: "0.75rem" }}>
+          <div key={mov.id} style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", display: "flex", gap: "0.75rem" }}>
             <MaterialThumb src={mov.material_imagem} size={40} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: "12px", fontWeight: 600 }}>{mov.material_nome} <span style={{ color: "rgba(245,240,232,0.4)", fontWeight: 400 }}>×{mov.quantidade}</span></div>
-              <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.45)" }}>Saiu de {origemLabel(mov)} · levou {mov.quem_levou || mov.responsavel || "—"}</div>
+              <div style={{ fontSize: "12px", fontWeight: 600 }}>{mov.material_nome} <span style={{ color: "var(--theme-text-muted)", fontWeight: 400 }}>×{mov.quantidade}</span></div>
+              <div style={{ fontSize: "10px", color: "var(--theme-text-muted)" }}>Saiu de {origemLabel(mov)} · levou {mov.quem_levou || mov.responsavel || "—"}</div>
               <div style={{ fontSize: "9px", color: "rgba(245,240,232,0.25)" }}>{fmtDateTime(mov.data_saida)} → {mov.data_volta ? fmtDateTime(mov.data_volta) : "—"}</div>
               {(mov.estado_regresso || mov.precisa_comprar === 1) && <div style={{ fontSize: "9px", color: mov.precisa_comprar === 1 ? "#E24B4A" : "#5DCAA5" }}>{mov.estado_regresso || ""}{mov.precisa_comprar === 1 ? ` · Comprar ×${mov.quantidade_comprar || "?"}` : ""}</div>}
             </div>
@@ -633,16 +633,16 @@ export default function MateriaisPage() {
         {tab === "catalogo" && materiaisAtivos.map(m => {
           const fora = pendenteAtualDoMaterial(m.id);
           return (
-            <div key={m.id} style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: "0.75rem", alignItems: "center" }}>
+            <div key={m.id} style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", display: "flex", gap: "0.75rem", alignItems: "center" }}>
               <MaterialThumb src={m.imagem} size={44} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: "12px", fontWeight: 600 }}>{m.nome}</div>
-                <div style={{ fontSize: "10px", color: "rgba(245,240,232,0.45)" }}>Total {m.quantidade_total}{fora > 0 && <span style={{ color: "#EF9F27" }}> · {fora} fora</span>}</div>
-                <div style={{ fontSize: "9px", color: "rgba(245,240,232,0.35)" }}>{m.dono || "—"} · {m.local_habitual || "—"}{m.consumivel === 1 ? " · Consumível" : ""}</div>
+                <div style={{ fontSize: "10px", color: "var(--theme-text-muted)" }}>Total {m.quantidade_total}{fora > 0 && <span style={{ color: "#EF9F27" }}> · {fora} fora</span>}</div>
+                <div style={{ fontSize: "9px", color: "var(--theme-text-subtle)" }}>{m.dono || "—"} · {m.local_habitual || "—"}{m.consumivel === 1 ? " · Consumível" : ""}</div>
                 {m.precisa_comprar === 1 && <div style={{ fontSize: "9px", color: "#E24B4A", marginTop: "2px" }}>🛒 Comprar ×{m.quantidade_comprar || "?"}</div>}
               </div>
               <button onClick={() => openSaida(m.id)} style={{ background: "rgba(201,169,110,0.1)", border: "1px solid rgba(201,169,110,0.25)", color: "#C9A96E", fontSize: "9px", padding: "6px 10px", cursor: "pointer", fontFamily: "inherit" }}>Saída</button>
-              <button onClick={() => openEditMaterial(m)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(245,240,232,0.5)", fontSize: "10px", padding: "6px 8px", cursor: "pointer" }}>✏️</button>
+              <button onClick={() => openEditMaterial(m)} style={{ background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-muted)", fontSize: "10px", padding: "6px 8px", cursor: "pointer" }}>✏️</button>
             </div>
           );
         })}
@@ -652,9 +652,9 @@ export default function MateriaisPage() {
       {/* FABs mobile */}
       <div style={{ position: "fixed", bottom: "calc(74px + env(safe-area-inset-bottom))", right: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem", zIndex: 50 }}>
         {tab === "catalogo" && (
-          <button onClick={openCreateMaterial} style={{ background: "#131108", border: "1px solid rgba(201,169,110,0.3)", color: "#C9A96E", width: "44px", height: "44px", borderRadius: "50%", fontSize: "20px", cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.5)" }}>+</button>
+          <button onClick={openCreateMaterial} style={{ background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.3)", color: "#C9A96E", width: "44px", height: "44px", borderRadius: "50%", fontSize: "20px", cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.5)" }}>+</button>
         )}
-        <button onClick={() => openSaida()} style={{ background: "#C9A96E", border: "none", color: "#0C0B09", width: "50px", height: "50px", borderRadius: "50%", fontSize: "22px", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.5)" }}>↗</button>
+        <button onClick={() => openSaida()} style={{ background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", width: "50px", height: "50px", borderRadius: "50%", fontSize: "22px", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.5)" }}>↗</button>
       </div>
 
       <MobTabBar active="materiais" role={userRole} lightTheme={lightTheme} />
@@ -708,7 +708,7 @@ export default function MateriaisPage() {
       </>
     )}
 
-    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "#1a1408", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
+    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "var(--theme-toast-bg)", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
       {toast}
     </div>
     </>
@@ -795,7 +795,7 @@ function VoltaModalContent({ voltaForm, setVoltaForm, movimento, pendente, savin
   return (
     <>
       <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Regresso de Material</p>
-      <div style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${C.borderDim}`, padding: "0.8rem", marginBottom: "1rem" }}>
+      <div style={{ background: "var(--theme-subtle-bg)", border: `1px solid ${C.borderDim}`, padding: "0.8rem", marginBottom: "1rem" }}>
         <div style={{ fontSize: "12px", color: C.textPrimary, fontWeight: 700 }}>{movimento.material_nome}</div>
         <div style={{ fontSize: "10px", color: C.textSec, marginTop: "3px" }}>Pendente: {pendente} · Levou: {movimento.quem_levou || movimento.responsavel || "—"} · Dono: {movimento.dono_material || "—"}</div>
       </div>
@@ -861,7 +861,7 @@ function MaterialModalContent({ materialForm, setMaterialForm, materialModal, sa
       <div style={{ marginBottom: "1rem" }}>
         <label style={labelStyle}>Foto</label>
         <div onClick={() => fileInputRef.current?.click()} style={{
-          width: "100%", height: "140px", background: "rgba(255,255,255,0.03)", border: `1px dashed ${C.border}`,
+          width: "100%", height: "140px", background: "var(--theme-subtle-bg)", border: `1px dashed ${C.border}`,
           display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", overflow: "hidden",
         }}>
           {imgUploading
@@ -1010,7 +1010,7 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
         return true;
       });
   return (
-    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid rgba(255,255,255,0.05)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
+    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
@@ -1020,8 +1020,8 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "rgba(245,240,232,0.22)", textTransform: "uppercase" }}>{userName}</span>
-        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "rgba(245,240,232,0.22)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
+        <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
+        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
       </div>
     </nav>
   );

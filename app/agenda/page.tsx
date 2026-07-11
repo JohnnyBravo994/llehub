@@ -45,7 +45,7 @@ function CustomSelect({
       {open && (
         <div style={{
           position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0,
-          background: "#1a1710", border: "1px solid rgba(201,169,110,0.2)",
+          background: "var(--theme-surface-elevated)", border: "1px solid rgba(201,169,110,0.2)",
           zIndex: 9999, maxHeight: 240, overflowY: "auto",
           boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
         }}>
@@ -61,7 +61,7 @@ function CustomSelect({
                 color: o.value === value ? "#C9A96E" : "#F5F0E8",
                 background: o.value === value ? "rgba(201,169,110,0.1)" : "transparent",
                 cursor: "pointer",
-                borderBottom: "1px solid rgba(255,255,255,0.04)",
+                borderBottom: "1px solid var(--theme-border)",
               }}
               onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.08)")}
               onMouseLeave={e => (e.currentTarget.style.background = o.value === value ? "rgba(201,169,110,0.1)" : "transparent")}
@@ -203,10 +203,10 @@ const C = {
 
 // Light theme colors - 100% contrast, document-style
 const C_Light = {
-  gold: "#000000", goldDim: "#000000", surface: "#FFFFFF", pageBg: "#FFFBF7",
+  gold: "#8B4513", goldDim: "#6F3A18", surface: "#FFFFFF", pageBg: "#FFFBF7",
   border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
-  textPrimary: "#000000", textSec: "rgba(0,0,0,0.75)", textMuted: "rgba(0,0,0,0.55)",
-  green: "#000000", amber: "#000000", blue: "#000000", red: "#000000",
+  textPrimary: "#111827", textSec: "rgba(17,24,39,0.82)", textMuted: "rgba(17,24,39,0.62)",
+  green: "#2E7D32", amber: "#A65300", blue: "#1565C0", red: "#C62828",
 };
 
 // Helper to get colors based on theme
@@ -1207,7 +1207,7 @@ export default function AgendaPage() {
             <input
               value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Pesquisar evento..."
-              style={{ flex: 1, background: "rgba(255,255,255,0.03)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: Colors.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "0.9rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
+              style={{ flex: 1, background: "var(--theme-subtle-bg)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: Colors.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "0.9rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
             />
             {/* Artista dropdown */}
             <CustomSelect
@@ -1403,9 +1403,9 @@ export default function AgendaPage() {
     </div>{/* end desktop */}
 
     {/* ═══ MOBILE ═══ */}
-    <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "#F5F0E8", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
+    <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "var(--theme-text)", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       {/* Mobile top nav */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(12,11,9,0.97)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", background: "rgba(12,11,9,0.97)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
           <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.4rem 0.5rem" }} />
@@ -1457,11 +1457,11 @@ export default function AgendaPage() {
 
       {/* Mobile filter panel */}
       {mobFilterOpen && (
-        <div style={{ background: "#131108", borderBottom: "1px solid rgba(255,255,255,0.07)", padding: "0.75rem 1rem", flexShrink: 0 }}>
+        <div style={{ background: "var(--theme-surface)", borderBottom: "1px solid rgba(255,255,255,0.07)", padding: "0.75rem 1rem", flexShrink: 0 }}>
           {!mobFilterCategory ? (
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
               {(["equipa", "artista", "cliente"] as const).map(cat => (
-                <button key={cat} onClick={() => setMobFilterCategory(cat)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(245,240,232,0.6)", fontSize: "9px", letterSpacing: "0.2em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>
+                <button key={cat} onClick={() => setMobFilterCategory(cat)} style={{ background: "var(--theme-input-bg)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(245,240,232,0.6)", fontSize: "9px", letterSpacing: "0.2em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>
                   {cat === "equipa" ? "Equipa" : cat === "artista" ? "Artistas" : "Clientes"}
                 </button>
               ))}
@@ -1623,8 +1623,8 @@ export default function AgendaPage() {
     {/* ═══ MODAL (shared) ═══ */}
       {/* WhatsApp — Modal de Período */}
       {waPeriodModal && (
-        <div onClick={e => e.target === e.currentTarget && setWaPeriodModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "#131108", border: "1px solid rgba(201,169,110,0.12)", padding: "2rem", width: "400px", maxWidth: "95vw", position: "relative" }}>
+        <div onClick={e => e.target === e.currentTarget && setWaPeriodModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.12)", padding: "2rem", width: "400px", maxWidth: "95vw", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
               <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.6)", textTransform: "uppercase", fontWeight: 600 }}>Copiar Agenda para WhatsApp</p>
@@ -1649,17 +1649,17 @@ export default function AgendaPage() {
               <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.35em", color: "rgba(245,240,232,0.3)", textTransform: "uppercase", marginBottom: "0.4rem" }}>De</label>
-                  <input type="date" value={waCustomStart} onChange={e => { setWaCustomStart(e.target.value); setWaPeriodError(""); }} style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#F5F0E8", fontFamily: "inherit", fontSize: "11px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
+                  <input type="date" value={waCustomStart} onChange={e => { setWaCustomStart(e.target.value); setWaPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "11px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.35em", color: "rgba(245,240,232,0.3)", textTransform: "uppercase", marginBottom: "0.4rem" }}>Até</label>
-                  <input type="date" value={waCustomEnd} onChange={e => { setWaCustomEnd(e.target.value); setWaPeriodError(""); }} style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#F5F0E8", fontFamily: "inherit", fontSize: "11px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
+                  <input type="date" value={waCustomEnd} onChange={e => { setWaCustomEnd(e.target.value); setWaPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "11px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
                 </div>
               </div>
             )}
             {waPeriodError && <p style={{ fontSize: "9px", color: "#E24B4A", letterSpacing: "0.2em", marginBottom: "0.85rem", textTransform: "uppercase" }}>{waPeriodError}</p>}
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
-              <button onClick={() => setWaPeriodModal(false)} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(245,240,232,0.35)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Cancelar</button>
+              <button onClick={() => setWaPeriodModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Cancelar</button>
               <button onClick={handleCopyAgenda} style={{ background: "#5DCAA5", border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Copiar Agenda</button>
             </div>
           </div>
@@ -1668,8 +1668,8 @@ export default function AgendaPage() {
 
       {/* WhatsApp Modal */}
       {waModal && (
-        <div onClick={e => e.target === e.currentTarget && setWaModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "#131108", border: "1px solid rgba(201,169,110,0.12)", padding: "2rem", width: "500px", maxWidth: "95vw", maxHeight: "85vh", display: "flex", flexDirection: "column", position: "relative" }}>
+        <div onClick={e => e.target === e.currentTarget && setWaModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.12)", padding: "2rem", width: "500px", maxWidth: "95vw", maxHeight: "85vh", display: "flex", flexDirection: "column", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
               <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.6)", textTransform: "uppercase", fontWeight: 600 }}>Copiar para WhatsApp</p>
@@ -1681,11 +1681,11 @@ export default function AgendaPage() {
             <textarea
               readOnly
               value={waText}
-              style={{ flex: 1, minHeight: "300px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", color: "#F5F0E8", fontFamily: "monospace", fontSize: "11px", padding: "0.75rem", outline: "none", resize: "vertical", letterSpacing: "0.02em", lineHeight: "1.6" }}
+              style={{ flex: 1, minHeight: "300px", background: "var(--theme-subtle-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "monospace", fontSize: "11px", padding: "0.75rem", outline: "none", resize: "vertical", letterSpacing: "0.02em", lineHeight: "1.6" }}
               onClick={e => (e.target as HTMLTextAreaElement).select()}
             />
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1rem" }}>
-              <button onClick={() => setWaModal(false)} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(245,240,232,0.35)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Fechar</button>
+              <button onClick={() => setWaModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Fechar</button>
               <button
                 onClick={() => {
                   if (navigator.clipboard) {
@@ -1869,7 +1869,7 @@ export default function AgendaPage() {
                       placeholder="Pesquisar cliente..."
                     />
                     {clienteDropOpen && (
-                      <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#1a1710", border: "1px solid rgba(201,169,110,0.18)", zIndex: 500, maxHeight: "200px", overflowY: "auto" }}>
+                      <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--theme-surface-elevated)", border: "1px solid rgba(201,169,110,0.18)", zIndex: 500, maxHeight: "200px", overflowY: "auto" }}>
                         {clientes
                           .filter((c, idx, arr) => arr.findIndex(x => x.nome === c.nome) === idx)
                           .filter(c => c.nome.toLowerCase().includes(clienteSearch.toLowerCase()))
@@ -1881,7 +1881,7 @@ export default function AgendaPage() {
                                 setClienteSearch((c as any).alias?.trim() || c.nome);
                                 setClienteDropOpen(false);
                               }}
-                              style={{ padding: "0.6rem 1rem", fontSize: "11px", color: Colors.textSec, cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                              style={{ padding: "0.6rem 1rem", fontSize: "11px", color: Colors.textSec, cursor: "pointer", borderBottom: "1px solid var(--theme-border)" }}
                               onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.08)")}
                               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                             >
@@ -2042,7 +2042,10 @@ export default function AgendaPage() {
                       <CustomSelect
                         value={a.tipo}
                         onChange={v => updateArtistTipo(i, v)}
-                        options={ARTIST_TIPOS.map(t => ({ value: t, label: t }))}
+                        options={[
+                          { value: "", label: "Sem tipo" },
+                          ...ARTIST_TIPOS.map(t => ({ value: t, label: t }))
+                        ]}
                         style={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "10px" }}
                       />
                       <input
@@ -2074,7 +2077,7 @@ export default function AgendaPage() {
 
             {modal.editing && !modal.editing.cancelled && (
               <div style={{ marginTop: "1.5rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.4em", color: "rgba(245,240,232,0.22)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Troca de Dia</label>
+                <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.4em", color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Troca de Dia</label>
                 {getTrocaNota(modal.editing.notas || "") ? (
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", background: "rgba(201,169,110,0.06)", border: "1px solid rgba(201,169,110,0.18)", padding: "0.65rem 0.85rem" }}>
                     <span style={{ fontSize: "10px", color: Colors.gold, letterSpacing: "0.03em" }}>
@@ -2082,7 +2085,7 @@ export default function AgendaPage() {
                     </span>
                     <button
                       onClick={() => handleRemoverNotaTroca(modal.editing as AgendaEvent)}
-                      style={{ background: "transparent", border: "none", color: "rgba(245,240,232,0.35)", fontSize: "8px", letterSpacing: "0.2em", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", flexShrink: 0 }}
+                      style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", fontSize: "8px", letterSpacing: "0.2em", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", flexShrink: 0 }}
                     >Remover</button>
                   </div>
                 ) : (
@@ -2119,8 +2122,8 @@ export default function AgendaPage() {
 
       {/* ── Modal: Reservar Material ── */}
       {materialModal.open && materialModal.event && (
-        <div onClick={e => e.target === e.currentTarget && closeMaterialModal()} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", zIndex: 1150, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "#131108", border: `1px solid ${Colors.border}`, padding: "2rem", width: "480px", maxWidth: "95vw", maxHeight: "88vh", overflowY: "auto", position: "relative" }}>
+        <div onClick={e => e.target === e.currentTarget && closeMaterialModal()} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1150, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "var(--theme-surface)", border: `1px solid ${Colors.border}`, padding: "2rem", width: "480px", maxWidth: "95vw", maxHeight: "88vh", overflowY: "auto", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
               <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.6)", textTransform: "uppercase", fontWeight: 600 }}>Material do Evento</p>
@@ -2133,7 +2136,7 @@ export default function AgendaPage() {
                 {materiaisDoEvento(materialModal.event.id).map(mov => {
                   const devolvido = mov.quantidade_devolvida >= mov.quantidade;
                   return (
-                    <div key={mov.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "0.55rem 0.75rem", background: "rgba(255,255,255,0.03)", border: `1px solid ${Colors.borderDim}` }}>
+                    <div key={mov.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "0.55rem 0.75rem", background: "var(--theme-subtle-bg)", border: `1px solid ${Colors.borderDim}` }}>
                       <span style={{ flex: 1, fontSize: "11px", color: Colors.textPrimary }}>{mov.material_nome} <span style={{ color: Colors.textMuted }}>×{mov.quantidade}</span></span>
                       <span style={{ fontSize: "9px", color: devolvido ? Colors.green : Colors.amber, letterSpacing: "0.1em", textTransform: "uppercase" }}>
                         {devolvido ? "Devolvido" : `Com ${mov.origem === "Outro" && mov.origem_detalhe ? mov.origem_detalhe : mov.origem}`}
@@ -2182,7 +2185,7 @@ export default function AgendaPage() {
         </div>
       )}
 
-      <div style={{ position: "fixed", bottom: "2rem", right: "2rem", maxWidth: "420px", background: "#1a1408", border: `1px solid ${Colors.border}`, color: Colors.gold, fontSize: "10px", letterSpacing: toast.length > 40 ? "0.02em" : "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: toast.length > 40 ? "none" : "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "1rem" }}>
+      <div style={{ position: "fixed", bottom: "2rem", right: "2rem", maxWidth: "420px", background: "var(--theme-toast-bg)", border: `1px solid ${Colors.border}`, color: Colors.gold, fontSize: "10px", letterSpacing: toast.length > 40 ? "0.02em" : "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: toast.length > 40 ? "none" : "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "1rem" }}>
         <span style={{ wordBreak: "break-word", userSelect: "text" }}>{toast}</span>
         {undoAction && (
           <button onClick={undoAction.fn} style={{ background: "rgba(201,169,110,0.15)", border: "1px solid rgba(201,169,110,0.3)", color: Colors.gold, fontSize: "9px", letterSpacing: "0.3em", padding: "0.3rem 0.75rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, flexShrink: 0 }}>
@@ -2282,7 +2285,7 @@ function IconBtn({ title, onClick, icon, danger, success, disabled }: { title: s
 function FormField({ label, children, style }: { label: string; children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <div style={{ marginBottom: "1.25rem", ...style }}>
-      <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.4em", color: "rgba(245,240,232,0.22)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.6rem" }}>{label}</label>
+      <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.4em", color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.6rem" }}>{label}</label>
       {children}
     </div>
   );
@@ -2325,12 +2328,12 @@ const createTdStyle = (lightTheme: boolean, { muted, nowrap, maxW }: { muted?: b
     textOverflow: maxW ? "ellipsis" : undefined
   };
 };
-const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)" };
-const modalStyle: React.CSSProperties = { background: "#131108", border: "1px solid rgba(201,169,110,0.12)", padding: "clamp(1.25rem, 4vw, 2.5rem)", width: "640px", maxWidth: "96vw", maxHeight: "92dvh", overflowY: "auto", position: "relative" };
+const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)" };
+const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.12)", padding: "clamp(1.25rem, 4vw, 2.5rem)", width: "640px", maxWidth: "96vw", maxHeight: "92dvh", overflowY: "auto", position: "relative" };
 const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" };
-const inputStyle: React.CSSProperties = { width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#F5F0E8", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
-const btnPrimStyle: React.CSSProperties = { background: "#C9A96E", border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "rgba(245,240,232,0.35)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
+const btnPrimStyle: React.CSSProperties = { background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 const btnDangerStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(226,75,74,0.3)", color: "#E24B4A", fontSize: "8px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 
 // ── Mobile Tab Bar — 4 fixos + "Mais" drawer ───────────────────────────────
