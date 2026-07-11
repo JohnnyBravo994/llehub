@@ -1,7 +1,7 @@
 "use client";
 
 import { ARTIST_TIPOS, MODALIDADES, SERVICOS_VENDIDOS, TIPOS_COMERCIAIS, VALOR_CONTEXTOS, resolveColaboradorNome } from "../constants";
-import { ArtistAutocomplete } from "../ArtistAutocomplete";
+import { ArtistAutocomplete, type ArtistOption } from "../ArtistAutocomplete";
 import { useEffect, useState, useCallback, useRef } from "react";
 import React from "react";
 import { useRouter } from "next/navigation";
@@ -526,17 +526,29 @@ export default function AgendaPage() {
     };
   };
 
+  // Escrever/apagar no campo nunca deve selecionar automaticamente um colaborador.
+  // A associação só acontece quando a pessoa clica numa sugestão.
   const updateArtistNome = (i: number, nome: string) => {
-    const col = findColaboradorByNome(nome);
+    setArtists(prev => prev.map((a, idx) => idx === i ? {
+      ...a,
+      colaborador_id: null,
+      nome,
+    } : a));
+  };
+
+  const selectArtistSuggestion = (i: number, suggestion: ArtistOption) => {
+    const col = suggestion.colaborador_id
+      ? findColaboradorById(suggestion.colaborador_id)
+      : findColaboradorByNome(suggestion.nome);
     setArtists(prev => prev.map((a, idx) => {
       if (idx !== i) return a;
-      const nextTipo = col ? tipoFromSkills(col.skills) : a.tipo;
+      const nextTipo = suggestion.tipo || (col ? tipoFromSkills(col.skills) : a.tipo);
       return {
         ...a,
-        colaborador_id: col?.id ?? null,
-        nome: col ? colaboradorDisplayName(col) : nome,
+        colaborador_id: col?.id ?? suggestion.colaborador_id ?? null,
+        nome: col ? colaboradorDisplayName(col) : suggestion.nome,
         tipo: nextTipo,
-        fee: col && isEmptyFee(a.fee) ? suggestedFeeString(nextTipo) : a.fee,
+        fee: isEmptyFee(a.fee) && nextTipo ? suggestedFeeString(nextTipo) : a.fee,
       };
     }));
   };
@@ -2029,11 +2041,14 @@ export default function AgendaPage() {
                           tipoValue={a.tipo}
                           onNomeChange={nome => updateArtistNome(i, nome)}
                           onTipoChange={tipo => updateArtistTipo(i, tipo)}
+                          onSelectSuggestion={suggestion => selectArtistSuggestion(i, suggestion)}
                           artistHistory={artistHistory}
                           allTipos={[...ARTIST_TIPOS]}
                           colaboradores={colaboradoresAtivos.map(c => ({ 
-                            nome: c.nome, 
-                            nome_artistico: c.nome_artistico 
+                            id: c.id,
+                            nome: c.nome,
+                            nome_artistico: c.nome_artistico,
+                            skills: c.skills,
                           }))}
                           placeholder="Escolher colaborador..."
                           inputStyle={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}

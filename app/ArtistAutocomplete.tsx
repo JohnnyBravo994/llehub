@@ -1,10 +1,18 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
-interface ArtistOption {
+export interface ArtistOption {
   nome: string;
   tipo: string;
+  colaborador_id?: number | null;
+}
+
+interface ColaboradorOption {
+  id?: number;
+  nome: string;
+  nome_artistico?: string;
+  skills?: string;
 }
 
 interface ArtistAutocompleteProps {
@@ -12,91 +20,128 @@ interface ArtistAutocompleteProps {
   tipoValue: string;
   onNomeChange: (nome: string) => void;
   onTipoChange: (tipo: string) => void;
-  artistHistory: ArtistOption[]; // Histórico de artistas já usados (nome + tipo)
-  allTipos: string[]; // Lista de tipos disponíveis
-  colaboradores: { nome: string; nome_artistico?: string }[]; // Lista de colaboradores
+  onSelectSuggestion?: (suggestion: ArtistOption) => void;
+  artistHistory: ArtistOption[];
+  allTipos: string[];
+  colaboradores: ColaboradorOption[];
   placeholder?: string;
   inputStyle?: React.CSSProperties;
 }
+
+const normalize = (value: string) => value
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .toLowerCase();
+
+const SKILL_ALIASES: Record<string, string> = {
+  'cantor/a': 'Cantor(a)',
+  'cantor(a)': 'Cantor(a)',
+  'bailarino/a': 'Bailarino(a)',
+  'ator/host': 'Animador / Host',
+  'animador/a': 'Animador / Host',
+  'produtor/coordenador': 'Produtor',
+  'makeup & hair': 'Make-up & Hair',
+  'assistente de guarda-roupa': 'Guarda-Roupa',
+  'coreógrafo/a': 'Coreógrafo(a)',
+  'coreografo/a': 'Coreógrafo(a)',
+};
+
+const canonicalSkill = (skill: string, allTipos: string[]) => {
+  const clean = skill.trim();
+  const alias = SKILL_ALIASES[normalize(clean)];
+  if (alias) return alias;
+  return allTipos.find(tipo => normalize(tipo) === normalize(clean)) || clean;
+};
+
+const collaboratorTypes = (colaborador: ColaboradorOption, allTipos: string[]) =>
+  (colaborador.skills || '')
+    .split(',')
+    .map(skill => canonicalSkill(skill, allTipos))
+    .filter(Boolean);
+
+const displayName = (colaborador: ColaboradorOption) =>
+  colaborador.nome_artistico?.trim() || colaborador.nome.trim();
 
 export const ArtistAutocomplete: React.FC<ArtistAutocompleteProps> = ({
   value,
   tipoValue,
   onNomeChange,
   onTipoChange,
+  onSelectSuggestion,
   artistHistory,
   allTipos,
   colaboradores,
-  placeholder = "Escolher colaborador...",
+  placeholder = 'Escolher colaborador...',
   inputStyle = {},
 }) => {
-  const [suggestions, setSuggestions] = useState<ArtistOption[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputId = useId().replace(/:/g, '');
 
-  // Quando muda o input de nome, atualiza sugestões
+  const suggestions = useMemo<ArtistOption[]>(() => {
+    const trimmedValue = value.trim();
+    if (!trimmedValue) return [];
+
+    const query = normalize(trimmedValue);
+    const selectedType = normalize(tipoValue);
+    const findColaborador = (nome: string) => colaboradores.find(colaborador => {
+      const names = [colaborador.nome, colaborador.nome_artistico || ''];
+      return names.some(candidate => normalize(candidate) === normalize(nome));
+    });
+    const supportsSelectedType = (colaborador?: ColaboradorOption) => {
+      if (!selectedType) return true;
+      if (!colaborador) return true; // histórico livre, sem ficha de colaborador associada
+      return collaboratorTypes(colaborador, allTipos)
+        .some(tipo => normalize(tipo) === selectedType);
+    };
+
+    // Histórico primeiro, mas validado contra as skills atuais quando existe ficha.
+    const historyMatches: ArtistOption[] = artistHistory
+      .filter(item => {
+        if (!normalize(item.nome).startsWith(query)) return false;
+        if (selectedType && normalize(item.tipo) !== selectedType) return false;
+        return supportsSelectedType(findColaborador(item.nome));
+      })
+      .map(item => {
+        const colaborador = findColaborador(item.nome);
+        return {
+          nome: colaborador ? displayName(colaborador) : item.nome,
+          tipo: item.tipo,
+          colaborador_id: colaborador?.id ?? item.colaborador_id ?? null,
+        };
+      });
+
+    // Colaboradores só entram se tiverem efetivamente o tipo escolhido nas skills.
+    const collaboratorMatches: ArtistOption[] = colaboradores
+      .filter(colaborador => {
+        if (!normalize(displayName(colaborador)).startsWith(query)) return false;
+        return supportsSelectedType(colaborador);
+      })
+      .map(colaborador => {
+        const tipos = collaboratorTypes(colaborador, allTipos);
+        return {
+          nome: displayName(colaborador),
+          tipo: tipoValue || tipos[0] || '',
+          colaborador_id: colaborador.id ?? null,
+        };
+      });
+
+    // Junta as duas fontes, remove duplicados e nunca sugere o valor já escolhido.
+    const seen = new Set<string>();
+    return [...historyMatches, ...collaboratorMatches]
+      .filter(item => {
+        const key = normalize(item.nome);
+        if (key === normalize(trimmedValue) || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 8);
+  }, [value, tipoValue, artistHistory, colaboradores, allTipos]);
+
   useEffect(() => {
-    if (!value.trim()) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    const query = value.toLowerCase();
-    
-    // **CORREÇÃO 1**: Remover duplicatas por nome ANTES de filtrar
-    // Mantém apenas a primeira ocorrência de cada nome
-    const seenNames = new Set<string>();
-    const artistHistoryUnique = artistHistory.filter(a => {
-      const nome = a.nome.toLowerCase();
-      if (seenNames.has(nome)) return false;
-      seenNames.add(nome);
-      return true;
-    });
-
-    // Filtrar artistas do histórico baseado no tipo selecionado e no texto escrito
-    let filtered = artistHistoryUnique.filter(a => {
-      const matchesQuery = a.nome.toLowerCase().startsWith(query);
-      
-      // **CORREÇÃO 2**: Se tipoValue está vazio (filtro neutro), mostrar todos
-      // Se tipoValue tem valor, filtrar exatamente por esse tipo
-      const matchesTipo = !tipoValue || a.tipo === tipoValue;
-      
-      return matchesQuery && matchesTipo;
-    });
-
-    // Se não há resultados no histórico, mostrar colaboradores disponíveis
-    if (filtered.length === 0) {
-      filtered = colaboradores
-        .filter(c => {
-          const displayName = c.nome_artistico || c.nome;
-          // **CORREÇÃO 3**: Procura desde o início (startsWith), não em qualquer posição
-          return displayName.toLowerCase().startsWith(query);
-        })
-        .map(c => ({
-          nome: c.nome_artistico || c.nome,
-          // **CORREÇÃO 4**: Se tipoValue está vazio, não forçar DJ - deixar vazio para que o utilizador escolha
-          tipo: tipoValue || '', // Deixar vazio se tipo não selecionado
-        }));
-    }
-
-    // Remover duplicatas por nome (não por nome+tipo)
-    const seenSuggestions = new Set<string>();
-    const unique = filtered.filter(a => {
-      const key = a.nome.toLowerCase();
-      if (seenSuggestions.has(key)) return false;
-      seenSuggestions.add(key);
-      return true;
-    });
-
-    setSuggestions(unique.slice(0, 8)); // Limitar a 8 sugestões
-    setShowSuggestions(unique.length > 0);
-  }, [value, tipoValue, artistHistory, colaboradores]);
-
-  // Ao clicar fora, fechar sugestões
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
       }
     };
@@ -106,20 +151,26 @@ export const ArtistAutocomplete: React.FC<ArtistAutocompleteProps> = ({
   }, []);
 
   const handleSelectSuggestion = (suggestion: ArtistOption) => {
-    onNomeChange(suggestion.nome);
-    // Se a sugestão tem tipo, usar; senão manter o tipo atual
-    if (suggestion.tipo) {
-      onTipoChange(suggestion.tipo);
-    }
     setShowSuggestions(false);
+    if (onSelectSuggestion) {
+      onSelectSuggestion(suggestion);
+      return;
+    }
+    onNomeChange(suggestion.nome);
+    if (suggestion.tipo) onTipoChange(suggestion.tipo);
   };
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
       <input
+        id={`artist-${inputId}`}
+        name={`artist-search-${inputId}`}
         type="text"
         value={value}
-        onChange={e => onNomeChange(e.target.value)}
+        onChange={event => {
+          onNomeChange(event.target.value);
+          setShowSuggestions(Boolean(event.target.value.trim()));
+        }}
         onFocus={() => value.trim() && suggestions.length > 0 && setShowSuggestions(true)}
         placeholder={placeholder}
         style={{
@@ -128,19 +179,23 @@ export const ArtistAutocomplete: React.FC<ArtistAutocompleteProps> = ({
           position: 'relative',
           zIndex: 1,
         }}
-        autoComplete="off"
+        autoComplete="new-password"
+        aria-autocomplete="list"
+        spellCheck={false}
+        data-1p-ignore="true"
+        data-lpignore="true"
       />
 
-      {/* Dropdown de sugestões */}
       {showSuggestions && suggestions.length > 0 && (
         <div
+          role="listbox"
           style={{
             position: 'absolute',
             top: '100%',
             left: 0,
             right: 0,
             background: 'var(--theme-surface)',
-            border: `1px solid var(--theme-border)`,
+            border: '1px solid var(--theme-border)',
             borderRadius: '6px',
             marginTop: '2px',
             zIndex: 1000,
@@ -149,25 +204,30 @@ export const ArtistAutocomplete: React.FC<ArtistAutocompleteProps> = ({
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
           }}
         >
-          {suggestions.map((suggestion, i) => (
+          {suggestions.map((suggestion, index) => (
             <div
-              key={`${suggestion.nome.toLowerCase()}-${i}`}
-              onClick={() => handleSelectSuggestion(suggestion)}
+              role="option"
+              aria-selected="false"
+              key={`${normalize(suggestion.nome)}-${suggestion.colaborador_id ?? index}`}
+              onMouseDown={event => {
+                event.preventDefault();
+                handleSelectSuggestion(suggestion);
+              }}
               style={{
                 padding: '0.6rem 0.75rem',
                 fontSize: '11px',
                 cursor: 'pointer',
-                borderBottom: i < suggestions.length - 1 ? `1px solid var(--theme-border)` : 'none',
+                borderBottom: index < suggestions.length - 1 ? '1px solid var(--theme-border)' : 'none',
                 transition: 'background 0.1s',
                 backgroundColor: 'transparent',
               }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--theme-accent)';
-                (e.currentTarget as HTMLElement).style.color = 'var(--theme-bg)';
+              onMouseEnter={event => {
+                event.currentTarget.style.backgroundColor = 'var(--theme-accent)';
+                event.currentTarget.style.color = 'var(--theme-bg)';
               }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
-                (e.currentTarget as HTMLElement).style.color = 'inherit';
+              onMouseLeave={event => {
+                event.currentTarget.style.backgroundColor = 'transparent';
+                event.currentTarget.style.color = 'inherit';
               }}
             >
               <span style={{ fontWeight: 600 }}>{suggestion.nome}</span>
