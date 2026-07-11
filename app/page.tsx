@@ -4,7 +4,6 @@ import { useState } from "react";
 
 const USERS: Record<string, { password: string; name: string; role: string }> = {
   "João":    { password: "Issimple1!",   name: "João",    role: "admin" },
-  "Annia":   { password: "#Num3r0121!",  name: "Annia",   role: "admin" },
   "Tânia":   { password: "#Num3r0121!",  name: "Tânia",   role: "admin" },
   "Soraya":  { password: "SorayaLLE!",   name: "Soraya",  role: "admin" },
   "Inês":    { password: "InesLLE2407!", name: "Inês",    role: "finance" },
@@ -33,7 +32,6 @@ export default function Home() {
 
   const members = [
     { value: "João",    label: "João" },
-    { value: "Annia",   label: "Annia" },
     { value: "Tânia",   label: "Tânia" },
     { value: "Soraya",  label: "Soraya" },
     { value: "Inês",    label: "Inês" },

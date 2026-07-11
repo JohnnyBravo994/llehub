@@ -911,7 +911,7 @@ export default function AgendaPage() {
     Object.values(artistasMap)
       .flat()
       .filter(a => a.nome?.trim() && a.tipo?.trim())
-      .map(a => JSON.stringify({ nome: a.nome, tipo: a.tipo }))
+      .map(a => JSON.stringify({ nome: a.nome, tipo: a.tipo, colaborador_id: a.colaborador_id ?? null }))
   )).map(j => JSON.parse(j)).sort((a, b) => a.nome.localeCompare(b.nome));
 
   // Todos os dias do mês seleccionado para mostrar folgas
@@ -2048,6 +2048,7 @@ export default function AgendaPage() {
                             id: c.id,
                             nome: c.nome,
                             nome_artistico: c.nome_artistico,
+                            nome_pessoal: c.nome_pessoal,
                             skills: c.skills,
                           }))}
                           placeholder="Escolher colaborador..."
