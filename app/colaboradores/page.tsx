@@ -283,7 +283,7 @@ export default function ColaboradoresPage() {
             />
             <select
               value={filterSkill} onChange={e => setFilterSkill(e.target.value)}
-              style={{ background: filterSkill ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: filterSkill ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", appearance: "none" as any, minWidth: "150px", textTransform: "uppercase" }}
+              style={{ background: filterSkill ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: filterSkill ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", appearance: "none" as any, minWidth: "150px", textTransform: "uppercase" }}
             >
               <option value="">Função / Skill</option>
               {ALL_SKILLS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -386,7 +386,7 @@ export default function ColaboradoresPage() {
       <div style={{ padding: "0.5rem 1rem", borderBottom: "1px solid var(--theme-border)" }}>
         <select
           value={filterSkill} onChange={e => setFilterSkill(e.target.value)}
-          style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: filterSkill ? "#C9A96E" : "rgba(245,240,232,0.4)", fontFamily: "inherit", fontSize: "11px", padding: "0.5rem 0.75rem", outline: "none" }}
+          style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: filterSkill ? "var(--theme-accent)" : "var(--theme-text-muted)", fontFamily: "inherit", fontSize: "11px", padding: "0.5rem 0.75rem", outline: "none" }}
         >
           <option value="">Todas as funções</option>
           {ALL_SKILLS.map(s => <option key={s} value={s}>{s}</option>)}

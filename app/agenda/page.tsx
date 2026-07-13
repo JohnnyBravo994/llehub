@@ -45,9 +45,10 @@ function CustomSelect({
       {open && (
         <div style={{
           position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0,
-          background: "var(--theme-surface-elevated)", border: "1px solid rgba(201,169,110,0.2)",
+          background: "var(--theme-surface-elevated)", border: "1px solid var(--theme-input-border)",
+          color: "var(--theme-text)",
           zIndex: 9999, maxHeight: 240, overflowY: "auto",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+          boxShadow: "var(--theme-dropdown-shadow)",
         }}>
           {options.map(o => (
             <div
@@ -58,13 +59,13 @@ function CustomSelect({
                 fontSize: style?.fontSize ?? "11px",
                 fontFamily: style?.fontFamily ?? "inherit",
                 letterSpacing: style?.letterSpacing ?? "0.05em",
-                color: o.value === value ? "#C9A96E" : "#F5F0E8",
-                background: o.value === value ? "rgba(201,169,110,0.1)" : "transparent",
+                color: o.value === value ? "var(--theme-accent)" : "var(--theme-text)",
+                background: o.value === value ? "var(--theme-dropdown-selected)" : "transparent",
                 cursor: "pointer",
                 borderBottom: "1px solid var(--theme-border)",
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.08)")}
-              onMouseLeave={e => (e.currentTarget.style.background = o.value === value ? "rgba(201,169,110,0.1)" : "transparent")}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--theme-dropdown-hover)")}
+              onMouseLeave={e => (e.currentTarget.style.background = o.value === value ? "var(--theme-dropdown-selected)" : "transparent")}
             >
               {o.label}
             </div>
@@ -1453,7 +1454,7 @@ export default function AgendaPage() {
           {/* Mobile filter button */}
           <button
             onClick={() => { setMobFilterOpen(o => !o); setMobFilterCategory(""); }}
-            style={{ background: (filterArtista || filterCliente || filterEquipa) ? "rgba(201,169,110,0.12)" : "rgba(255,255,255,0.05)", border: `1px solid ${(filterArtista || filterCliente || filterEquipa) ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.1)"}`, color: (filterArtista || filterCliente || filterEquipa) ? "#C9A96E" : "rgba(245,240,232,0.4)", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px", display: "flex", alignItems: "center", gap: "4px" }}
+            style={{ background: (filterArtista || filterCliente || filterEquipa) ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: `1px solid ${(filterArtista || filterCliente || filterEquipa) ? "var(--theme-accent)" : "var(--theme-input-border)"}`, color: (filterArtista || filterCliente || filterEquipa) ? "var(--theme-accent)" : "var(--theme-text-muted)", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px", display: "flex", alignItems: "center", gap: "4px" }}
             title="Filtros"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
@@ -1469,11 +1470,11 @@ export default function AgendaPage() {
 
       {/* Mobile filter panel */}
       {mobFilterOpen && (
-        <div style={{ background: "var(--theme-surface)", borderBottom: "1px solid rgba(255,255,255,0.07)", padding: "0.75rem 1rem", flexShrink: 0 }}>
+        <div style={{ background: "var(--theme-surface)", borderBottom: "1px solid var(--theme-border)", padding: "0.75rem 1rem", flexShrink: 0 }}>
           {!mobFilterCategory ? (
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
               {(["equipa", "artista", "cliente"] as const).map(cat => (
-                <button key={cat} onClick={() => setMobFilterCategory(cat)} style={{ background: "var(--theme-input-bg)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(245,240,232,0.6)", fontSize: "9px", letterSpacing: "0.2em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>
+                <button key={cat} onClick={() => setMobFilterCategory(cat)} style={{ background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-secondary)", fontSize: "9px", letterSpacing: "0.2em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>
                   {cat === "equipa" ? "Equipa" : cat === "artista" ? "Artistas" : "Clientes"}
                 </button>
               ))}
@@ -1485,20 +1486,20 @@ export default function AgendaPage() {
             </div>
           ) : (
             <div>
-              <button onClick={() => setMobFilterCategory("")} style={{ background: "transparent", border: "none", color: "rgba(201,169,110,0.6)", fontSize: "8px", letterSpacing: "0.3em", cursor: "pointer", fontFamily: "inherit", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "4px" }}>← Voltar</button>
+              <button onClick={() => setMobFilterCategory("")} style={{ background: "transparent", border: "none", color: "var(--theme-accent)", fontSize: "8px", letterSpacing: "0.3em", cursor: "pointer", fontFamily: "inherit", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "4px" }}>← Voltar</button>
               <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                 {mobFilterCategory === "equipa" && dropdownEquipa.map(n => (
-                  <button key={n} onClick={() => { setFilterEquipa(filterEquipa === n ? "" : n); setMobFilterOpen(false); }} style={{ background: filterEquipa === n ? "rgba(201,169,110,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${filterEquipa === n ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.1)"}`, color: filterEquipa === n ? "#C9A96E" : "rgba(245,240,232,0.6)", fontSize: "10px", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
+                  <button key={n} onClick={() => { setFilterEquipa(filterEquipa === n ? "" : n); setMobFilterOpen(false); }} style={{ background: filterEquipa === n ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: `1px solid ${filterEquipa === n ? "var(--theme-accent)" : "var(--theme-input-border)"}`, color: filterEquipa === n ? "var(--theme-accent)" : "var(--theme-text-secondary)", fontSize: "10px", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
                     {EQUIPA_SYMBOL[n]} {n}
                   </button>
                 ))}
                 {mobFilterCategory === "artista" && dropdownArtistas.map(a => (
-                  <button key={a} onClick={() => { setFilterArtista(filterArtista === a ? "" : a); setMobFilterOpen(false); }} style={{ background: filterArtista === a ? "rgba(201,169,110,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${filterArtista === a ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.1)"}`, color: filterArtista === a ? "#C9A96E" : "rgba(245,240,232,0.6)", fontSize: "10px", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
+                  <button key={a} onClick={() => { setFilterArtista(filterArtista === a ? "" : a); setMobFilterOpen(false); }} style={{ background: filterArtista === a ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: `1px solid ${filterArtista === a ? "var(--theme-accent)" : "var(--theme-input-border)"}`, color: filterArtista === a ? "var(--theme-accent)" : "var(--theme-text-secondary)", fontSize: "10px", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
                     {a}
                   </button>
                 ))}
                 {mobFilterCategory === "cliente" && dropdownClientes.map(c => (
-                  <button key={c} onClick={() => { setFilterCliente(filterCliente === c ? "" : c); setMobFilterOpen(false); }} style={{ background: filterCliente === c ? "rgba(201,169,110,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${filterCliente === c ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.1)"}`, color: filterCliente === c ? "#C9A96E" : "rgba(245,240,232,0.6)", fontSize: "10px", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
+                  <button key={c} onClick={() => { setFilterCliente(filterCliente === c ? "" : c); setMobFilterOpen(false); }} style={{ background: filterCliente === c ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: `1px solid ${filterCliente === c ? "var(--theme-accent)" : "var(--theme-input-border)"}`, color: filterCliente === c ? "var(--theme-accent)" : "var(--theme-text-secondary)", fontSize: "10px", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
                     {c}
                   </button>
                 ))}
@@ -1881,7 +1882,7 @@ export default function AgendaPage() {
                       placeholder="Pesquisar cliente..."
                     />
                     {clienteDropOpen && (
-                      <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--theme-surface-elevated)", border: "1px solid rgba(201,169,110,0.18)", zIndex: 500, maxHeight: "200px", overflowY: "auto" }}>
+                      <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--theme-surface-elevated)", color: "var(--theme-text)", border: "1px solid var(--theme-input-border)", boxShadow: "var(--theme-dropdown-shadow)", zIndex: 500, maxHeight: "200px", overflowY: "auto" }}>
                         {clientes
                           .filter((c, idx, arr) => arr.findIndex(x => x.nome === c.nome) === idx)
                           .filter(c => c.nome.toLowerCase().includes(clienteSearch.toLowerCase()))
@@ -1893,8 +1894,8 @@ export default function AgendaPage() {
                                 setClienteSearch((c as any).alias?.trim() || c.nome);
                                 setClienteDropOpen(false);
                               }}
-                              style={{ padding: "0.6rem 1rem", fontSize: "11px", color: Colors.textSec, cursor: "pointer", borderBottom: "1px solid var(--theme-border)" }}
-                              onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.08)")}
+                              style={{ padding: "0.6rem 1rem", fontSize: "11px", color: "var(--theme-text-secondary)", cursor: "pointer", borderBottom: "1px solid var(--theme-border)" }}
+                              onMouseEnter={e => (e.currentTarget.style.background = "var(--theme-dropdown-hover)")}
                               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                             >
                               {(c as any).alias?.trim() || c.nome}
@@ -1906,7 +1907,7 @@ export default function AgendaPage() {
                         <div
                           onMouseDown={() => { setClienteCreating(true); setClienteDropOpen(false); }}
                           style={{ padding: "0.6rem 1rem", fontSize: "10px", color: Colors.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(201,169,110,0.12)", display: "flex", alignItems: "center", gap: "6px" }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.06)")}
+                          onMouseEnter={e => (e.currentTarget.style.background = "var(--theme-dropdown-hover)")}
                           onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                         >
                           <span>+</span> Criar novo cliente

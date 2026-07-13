@@ -241,14 +241,15 @@ export const ArtistAutocomplete: React.FC<ArtistAutocompleteProps> = ({
             top: '100%',
             left: 0,
             right: 0,
-            background: 'var(--theme-surface)',
-            border: '1px solid var(--theme-border)',
+            background: 'var(--theme-surface-elevated)',
+            color: 'var(--theme-text)',
+            border: '1px solid var(--theme-input-border)',
             borderRadius: '6px',
             marginTop: '2px',
             zIndex: 1000,
             maxHeight: '200px',
             overflowY: 'auto',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            boxShadow: 'var(--theme-dropdown-shadow)',
           }}
         >
           {suggestions.map((suggestion, index) => (
@@ -267,19 +268,20 @@ export const ArtistAutocomplete: React.FC<ArtistAutocompleteProps> = ({
                 borderBottom: index < suggestions.length - 1 ? '1px solid var(--theme-border)' : 'none',
                 transition: 'background 0.1s',
                 backgroundColor: 'transparent',
+                color: 'var(--theme-text)',
               }}
               onMouseEnter={event => {
                 event.currentTarget.style.backgroundColor = 'var(--theme-accent)';
-                event.currentTarget.style.color = 'var(--theme-bg)';
+                event.currentTarget.style.color = 'var(--theme-accent-contrast)';
               }}
               onMouseLeave={event => {
                 event.currentTarget.style.backgroundColor = 'transparent';
-                event.currentTarget.style.color = 'inherit';
+                event.currentTarget.style.color = 'var(--theme-text)';
               }}
             >
               <span style={{ fontWeight: 600 }}>{suggestion.nome}</span>
               {suggestion.tipo && (
-                <span style={{ color: 'var(--theme-text-muted)', marginLeft: '0.5rem', fontSize: '9px' }}>
+                <span style={{ color: 'inherit', opacity: 0.72, marginLeft: '0.5rem', fontSize: '9px' }}>
                   - {suggestion.tipo}
                 </span>
               )}

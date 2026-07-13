@@ -31,6 +31,10 @@
   --theme-info: #85B7EB;
   --theme-danger: #E24B4A;
   --theme-purple: #AFA9EC;
+  --theme-dropdown-hover: rgba(201,169,110,0.10);
+  --theme-dropdown-selected: rgba(201,169,110,0.14);
+  --theme-dropdown-shadow: 0 10px 32px rgba(0,0,0,0.55);
+  color-scheme: dark;
 }
 
 html.light-theme {
@@ -55,6 +59,10 @@ html.light-theme {
   --theme-info: #1565C0;
   --theme-danger: #C62828;
   --theme-purple: #6A1B9A;
+  --theme-dropdown-hover: rgba(139,69,19,0.09);
+  --theme-dropdown-selected: rgba(139,69,19,0.14);
+  --theme-dropdown-shadow: 0 10px 30px rgba(17,24,39,0.16);
+  color-scheme: light;
 }
 
 html, body {
@@ -889,6 +897,36 @@ html.light-theme input::placeholder,
 html.light-theme textarea::placeholder {
   color: var(--theme-text-muted);
   opacity: 1;
+}
+
+/* Menus nativos de select/datalist: força paleta coerente no popup do browser. */
+select,
+input[list] {
+  color-scheme: inherit;
+}
+
+select option,
+select optgroup {
+  color: var(--theme-text);
+  background-color: var(--theme-surface-elevated);
+  font-family: inherit;
+}
+
+html.light-theme select option,
+html.light-theme select optgroup {
+  color: #111827 !important;
+  background-color: #FFFFFF !important;
+}
+
+html:not(.light-theme) select option,
+html:not(.light-theme) select optgroup {
+  color: #F5F0E8 !important;
+  background-color: #1A1710 !important;
+}
+
+select:disabled {
+  color: var(--theme-text-faint);
+  opacity: 0.72;
 }
 
 /* Topbars mobile têm background dark inline em várias páginas. */

@@ -670,7 +670,7 @@ const tds = ({ muted, nowrap, maxW }: { muted?: boolean; nowrap?: boolean; maxW?
   whiteSpace: nowrap ? "nowrap" : undefined, maxWidth: maxW,
   overflow: maxW ? "hidden" : undefined, textOverflow: maxW ? "ellipsis" : undefined,
 });
-const inlineInput: React.CSSProperties = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "var(--theme-text)", fontFamily: "'Montserrat',sans-serif", fontSize: "11px", padding: "4px 8px", outline: "none" };
+const inlineInput: React.CSSProperties = { background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat',sans-serif", fontSize: "11px", padding: "4px 8px", outline: "none" };
 const smallBtn: React.CSSProperties = { background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-muted)", fontSize: "8px", letterSpacing: "0.2em", padding: "3px 8px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 };
 const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
 const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.12)", padding: "2.5rem", width: "460px", maxWidth: "90vw", position: "relative" };

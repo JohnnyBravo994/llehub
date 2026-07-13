@@ -540,7 +540,7 @@ export default function FaturacaoPage() {
           <select
             value={bulkStatus}
             onChange={e => setBulkStatus(e.target.value)}
-            style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.05)", border: `1px solid ${C.borderDim}`, color: bulkStatus ? C.textPrimary : C.textMuted, fontFamily: "inherit", fontSize: "10px", padding: "0.45rem 0.6rem", letterSpacing: "0.05em", outline: "none", appearance: "none" as any }}
+            style={{ flex: 1, minWidth: 0, background: "var(--theme-input-bg)", border: `1px solid ${C.borderDim}`, color: bulkStatus ? C.textPrimary : C.textMuted, fontFamily: "inherit", fontSize: "10px", padding: "0.45rem 0.6rem", letterSpacing: "0.05em", outline: "none", appearance: "none" as any }}
           >
             <option value="">Alterar estado...</option>
             {TODOS_ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}

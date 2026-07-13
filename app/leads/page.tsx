@@ -44,9 +44,10 @@ function CustomSelect({
       {open && (
         <div style={{
           position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0,
-          background: "var(--theme-surface-elevated)", border: "1px solid rgba(201,169,110,0.2)",
+          background: "var(--theme-surface-elevated)", border: "1px solid var(--theme-input-border)",
+          color: "var(--theme-text)",
           zIndex: 9999, maxHeight: 240, overflowY: "auto",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+          boxShadow: "var(--theme-dropdown-shadow)",
         }}>
           {options.map(o => (
             <div
@@ -57,13 +58,13 @@ function CustomSelect({
                 fontSize: style?.fontSize ?? "11px",
                 fontFamily: style?.fontFamily ?? "inherit",
                 letterSpacing: style?.letterSpacing ?? "0.05em",
-                color: o.value === value ? "#C9A96E" : "#F5F0E8",
-                background: o.value === value ? "rgba(201,169,110,0.1)" : "transparent",
+                color: o.value === value ? "var(--theme-accent)" : "var(--theme-text)",
+                background: o.value === value ? "var(--theme-dropdown-selected)" : "transparent",
                 cursor: "pointer",
                 borderBottom: "1px solid var(--theme-border)",
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.08)")}
-              onMouseLeave={e => (e.currentTarget.style.background = o.value === value ? "rgba(201,169,110,0.1)" : "transparent")}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--theme-dropdown-hover)")}
+              onMouseLeave={e => (e.currentTarget.style.background = o.value === value ? "var(--theme-dropdown-selected)" : "transparent")}
             >
               {o.label}
             </div>
@@ -1155,7 +1156,7 @@ export default function LeadsPage() {
                     placeholder="Pesquisar cliente..."
                   />
                   {clienteDropOpen && (
-                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--theme-surface-elevated)", border: "1px solid rgba(201,169,110,0.18)", zIndex: 1500, maxHeight: "200px", overflowY: "auto" }}>
+                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--theme-surface-elevated)", color: "var(--theme-text)", border: "1px solid var(--theme-input-border)", boxShadow: "var(--theme-dropdown-shadow)", zIndex: 1500, maxHeight: "200px", overflowY: "auto" }}>
                       {clientesUnicos
                         .filter(c => c.nome.toLowerCase().includes(clienteSearch.toLowerCase()))
                         .map(c => (
@@ -1166,8 +1167,8 @@ export default function LeadsPage() {
                               setClienteSearch(c.nome);
                               setClienteDropOpen(false);
                             }}
-                            style={{ padding: "0.6rem 1rem", fontSize: "11px", color: C.textSec, cursor: "pointer", borderBottom: "1px solid var(--theme-border)" }}
-                            onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.08)")}
+                            style={{ padding: "0.6rem 1rem", fontSize: "11px", color: "var(--theme-text-secondary)", cursor: "pointer", borderBottom: "1px solid var(--theme-border)" }}
+                            onMouseEnter={e => (e.currentTarget.style.background = "var(--theme-dropdown-hover)")}
                             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                           >
                             {c.nome}
@@ -1178,7 +1179,7 @@ export default function LeadsPage() {
                       <div
                         onMouseDown={() => { setClienteCreating(true); setClienteDropOpen(false); }}
                         style={{ padding: "0.6rem 1rem", fontSize: "10px", color: C.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(201,169,110,0.12)", display: "flex", alignItems: "center", gap: "6px" }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.06)")}
+                        onMouseEnter={e => (e.currentTarget.style.background = "var(--theme-dropdown-hover)")}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                       >
                         <span>+</span> Criar novo cliente
