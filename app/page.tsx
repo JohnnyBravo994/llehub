@@ -45,7 +45,7 @@ export default function Home() {
     border: "rgba(201,169,110,0.18)",
     borderDim: "rgba(255,255,255,0.05)",
     textPrimary: "#F5F0E8",
-    textMuted: "rgba(245,240,232,0.25)",
+    textMuted: "rgba(245,240,232,0.6)",
   };
 
   return (
