@@ -19,10 +19,10 @@ interface Colaborador {
 }
 
 const C = {
-  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009", pageBg: "#0C0B09",
-  border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
-  textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
-  green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
+  gold: "var(--theme-accent)", goldDim: "var(--theme-accent-muted)", surface: "var(--theme-surface)", pageBg: "var(--theme-bg)",
+  border: "rgba(var(--theme-accent-rgb),0.12)", borderDim: "rgba(var(--theme-contrast-rgb),0.05)",
+  textPrimary: "var(--theme-text)", textSec: "var(--theme-text-muted)", textMuted: "var(--theme-text-faint)",
+  green: "var(--theme-success)", amber: "var(--theme-warning)", blue: "var(--theme-info)", red: "var(--theme-danger)",
 };
 
 const C_Light = {
@@ -252,7 +252,7 @@ export default function PagamentosPage() {
             {/* Year selector */}
             <div style={{ display: "flex", gap: "4px" }}>
               {years.map(y => (
-                <button key={y} onClick={() => setSelectedYear(y)} style={{ background: selectedYear === y ? "rgba(201,169,110,0.12)" : "transparent", border: `1px solid ${selectedYear === y ? C.gold : C.borderDim}`, color: selectedYear === y ? C.gold : C.textMuted, fontSize: "9px", letterSpacing: "0.3em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit", fontWeight: selectedYear === y ? 700 : 400 }}>{y}</button>
+                <button key={y} onClick={() => setSelectedYear(y)} style={{ background: selectedYear === y ? "rgba(var(--theme-accent-rgb),0.12)" : "transparent", border: `1px solid ${selectedYear === y ? C.gold : C.borderDim}`, color: selectedYear === y ? C.gold : C.textMuted, fontSize: "9px", letterSpacing: "0.3em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit", fontWeight: selectedYear === y ? 700 : 400 }}>{y}</button>
               ))}
             </div>
             <button
@@ -290,7 +290,7 @@ export default function PagamentosPage() {
                     key={month}
                     onClick={() => setSelectedMonth(month)}
                     style={{
-                      background: isActive ? "rgba(201,169,110,0.07)" : "transparent",
+                      background: isActive ? "rgba(var(--theme-accent-rgb),0.07)" : "transparent",
                       border: "none",
                       borderBottom: isActive ? `2px solid ${C.gold}` : "2px solid transparent",
                       color: isActive ? C.gold : C.textMuted,
@@ -351,7 +351,7 @@ export default function PagamentosPage() {
 
                 {/* Table */}
                 <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative" }}>
-                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E44, transparent)" }} />
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent)44, transparent)" }} />
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
@@ -467,7 +467,7 @@ export default function PagamentosPage() {
                               <td style={{ padding: "0.5rem 0.75rem", borderBottom: `1px solid ${C.borderDim}` }}>
                                 <div style={{ display: "flex", flexWrap: "wrap", gap: "3px" }}>
                                   {[...days].sort((a, b) => a - b).map((d, i) => (
-                                    <span key={i} style={{ fontSize: "9px", background: "rgba(255,255,255,0.05)", border: `1px solid ${C.borderDim}`, color: C.textSec, padding: "1px 6px", minWidth: "20px", textAlign: "center" }}>
+                                    <span key={i} style={{ fontSize: "9px", background: "rgba(var(--theme-contrast-rgb),0.05)", border: `1px solid ${C.borderDim}`, color: C.textSec, padding: "1px 6px", minWidth: "20px", textAlign: "center" }}>
                                       {d}
                                     </span>
                                   ))}
@@ -532,18 +532,18 @@ export default function PagamentosPage() {
 
     {/* ═══ MOBILE ═══ */}
     <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "var(--theme-text)", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(255,255,255,0.05)", background:"rgba(12,11,9,0.97)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
-        <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"#C9A96E", fontWeight:300 }}>LLE</span>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(var(--theme-contrast-rgb),0.05)", background:"var(--theme-nav-bg)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
+        <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"var(--theme-accent)", fontWeight:300 }}>LLE</span>
         <div style={{ display:"flex", gap:"0.6rem", alignItems:"center" }}>
           <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.5rem 0.5rem" }} />
-          <span style={{ fontSize:"8px", letterSpacing:"0.35em", color:"rgba(245,240,232,0.2)", textTransform:"uppercase" }}>{userName}</span>
+          <span style={{ fontSize:"8px", letterSpacing:"0.35em", color:"var(--theme-text-faint)", textTransform:"uppercase" }}>{userName}</span>
         </div>
       </div>
 
       {/* Year selector */}
-      <div style={{ display:"flex", gap:0, borderBottom:"1px solid rgba(255,255,255,0.05)", overflowX:"auto", flexShrink:0 }}>
+      <div style={{ display:"flex", gap:0, borderBottom:"1px solid rgba(var(--theme-contrast-rgb),0.05)", overflowX:"auto", flexShrink:0 }}>
         {years.map(y => (
-          <button key={y} onClick={() => setSelectedYear(y)} style={{ flex:1, background: selectedYear===y ? "rgba(201,169,110,0.08)" : "transparent", border:"none", borderBottom: selectedYear===y ? "2px solid #C9A96E" : "2px solid transparent", color: selectedYear===y ? "#C9A96E" : "rgba(245,240,232,0.3)", fontFamily:"'Montserrat',sans-serif", fontSize:"11px", letterSpacing:"0.2em", padding:"0.7rem", cursor:"pointer" }}>{y}</button>
+          <button key={y} onClick={() => setSelectedYear(y)} style={{ flex:1, background: selectedYear===y ? "rgba(var(--theme-accent-rgb),0.08)" : "transparent", border:"none", borderBottom: selectedYear===y ? "2px solid var(--theme-accent)" : "2px solid transparent", color: selectedYear===y ? "var(--theme-accent)" : "var(--theme-text-subtle)", fontFamily:"'Montserrat',sans-serif", fontSize:"11px", letterSpacing:"0.2em", padding:"0.7rem", cursor:"pointer" }}>{y}</button>
         ))}
       </div>
 
@@ -551,15 +551,15 @@ export default function PagamentosPage() {
       <div className="mob-stats-row">
         <div className="mob-stat-cell">
           <span className="mob-stat-label">Faturado</span>
-          <span className="mob-stat-value" style={{color:"#C9A96E"}}>{faturadoAno.toLocaleString("pt-PT")}€</span>
+          <span className="mob-stat-value" style={{color:"var(--theme-accent)"}}>{faturadoAno.toLocaleString("pt-PT")}€</span>
         </div>
         <div className="mob-stat-cell">
           <span className="mob-stat-label">Custos</span>
-          <span className="mob-stat-value" style={{color:"#E24B4A"}}>−{custosAno.toLocaleString("pt-PT")}€</span>
+          <span className="mob-stat-value" style={{color:"var(--theme-danger)"}}>−{custosAno.toLocaleString("pt-PT")}€</span>
         </div>
         <div className="mob-stat-cell">
           <span className="mob-stat-label">Lucro</span>
-          <span className="mob-stat-value" style={{color: lucroAno>=0 ? "#5DCAA5" : "#E24B4A"}}>{lucroAno.toLocaleString("pt-PT")}€</span>
+          <span className="mob-stat-value" style={{color: lucroAno>=0 ? "var(--theme-success)" : "var(--theme-danger)"}}>{lucroAno.toLocaleString("pt-PT")}€</span>
         </div>
       </div>
 
@@ -585,19 +585,19 @@ export default function PagamentosPage() {
             <>
               <div className="mob-section-header">
                 <span>{new Date(selectedMonth+"-01T00:00:00").toLocaleDateString("pt-PT",{month:"long",year:"numeric"})}</span>
-                <span className="mob-section-count" style={{color: lucro>=0?"#5DCAA5":"#E24B4A"}}>{lucro.toLocaleString("pt-PT")}€</span>
+                <span className="mob-section-count" style={{color: lucro>=0?"var(--theme-success)":"var(--theme-danger)"}}>{lucro.toLocaleString("pt-PT")}€</span>
               </div>
               {rows.map((row: Pagamento) => (
                 <div key={row.id} className="mob-artist-row">
                   <div style={{flex:1, minWidth:0}}>
                     <div className="mob-artist-name">{row.evento_nome}</div>
                     <div className="mob-artist-tipo">{resolveNome(row.nome)} · {row.tipo}</div>
-                    <div style={{fontSize:"10px", color:"rgba(245,240,232,0.25)", marginTop:2}}>
+                    <div style={{fontSize:"10px", color:"var(--theme-text-faint)", marginTop:2}}>
                       {new Date(row.evento_data+"T00:00:00").toLocaleDateString("pt-PT",{day:"numeric",month:"short"})}
                     </div>
                   </div>
                   <div style={{flexShrink:0, display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4}}>
-                    <span className="mob-artist-fee" style={{color: "#EF9F27"}}>{row.fee.toLocaleString("pt-PT")}€</span>
+                    <span className="mob-artist-fee" style={{color: "var(--theme-warning)"}}>{row.fee.toLocaleString("pt-PT")}€</span>
                   </div>
                 </div>
               ))}
@@ -639,18 +639,18 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     ...((role !== "limited_novalues" && role !== "finance") ? [{ href: "/materiais", label: "Materiais" }] : []),
   ];
   return (
-    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
+    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
+        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "#C9A96E" : "rgba(245,240,232,0.45)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
+            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "var(--theme-accent)" : "var(--theme-text-muted)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
         <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
-        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
+        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
       </div>
     </nav>
   );
@@ -659,13 +659,13 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
 function Loading() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.pageBg }}>
-      <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
+      <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
     </div>
   );
 }
 
 const tds = ({ muted, nowrap, maxW }: { muted?: boolean; nowrap?: boolean; maxW?: string }): React.CSSProperties => ({
-  fontSize: "11px", color: muted ? "rgba(245,240,232,0.45)" : "#F5F0E8",
+  fontSize: "11px", color: muted ? "var(--theme-text-muted)" : "var(--theme-text)",
   padding: "0.75rem 1rem", borderBottom: "1px solid var(--theme-border)",
   whiteSpace: nowrap ? "nowrap" : undefined, maxWidth: maxW,
   overflow: maxW ? "hidden" : undefined, textOverflow: maxW ? "ellipsis" : undefined,
@@ -673,24 +673,24 @@ const tds = ({ muted, nowrap, maxW }: { muted?: boolean; nowrap?: boolean; maxW?
 const inlineInput: React.CSSProperties = { background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat',sans-serif", fontSize: "11px", padding: "4px 8px", outline: "none" };
 const smallBtn: React.CSSProperties = { background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-muted)", fontSize: "8px", letterSpacing: "0.2em", padding: "3px 8px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 };
 const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
-const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.12)", padding: "2.5rem", width: "460px", maxWidth: "90vw", position: "relative" };
-const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" };
+const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2.5rem", width: "460px", maxWidth: "90vw", position: "relative" };
+const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" };
 const labelStyle: React.CSSProperties = { display: "block", fontSize: "7px", letterSpacing: "0.4em", color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.6rem" };
 const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
 const btnPrimStyle: React.CSSProperties = { background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 
 // ── Mobile Tab Bar — 4 fixos + "Mais" drawer ───────────────────────────────
 function MobTabBar({ active, role, lightTheme }: { active: string; role: string; lightTheme: boolean }) {
   const [maisOpen, setMaisOpen] = useState(false);
-  const drawerBg = lightTheme ? "#FFFFFF" : "#131108";
-  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(201,169,110,0.15)";
+  const drawerBg = lightTheme ? "#FFFFFF" : "var(--theme-surface)";
+  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(var(--theme-accent-rgb),0.15)";
   const drawerShadow = lightTheme ? "0 -8px 32px rgba(0,0,0,0.15)" : "0 -8px 32px rgba(0,0,0,0.6)";
-  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "rgba(245,240,232,0.4)";
-  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(201,169,110,0.08)";
-  const drawerGold = lightTheme ? "#000000" : "#C9A96E";
-  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(201,169,110,0.25)";
-  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(201,169,110,0.4)";
+  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "var(--theme-text-muted)";
+  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(var(--theme-accent-rgb),0.08)";
+  const drawerGold = lightTheme ? "#000000" : "var(--theme-accent)";
+  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(var(--theme-accent-rgb),0.25)";
+  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(var(--theme-accent-rgb),0.4)";
 
   // Os 4 tabs fixos — sempre visíveis
   const mainTabs = [

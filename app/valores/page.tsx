@@ -34,10 +34,10 @@ type Draft = {
 };
 
 const C_Dark = {
-  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009", pageBg: "#0C0B09",
-  border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
-  textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
-  green: "#5DCAA5",
+  gold: "var(--theme-accent)", goldDim: "var(--theme-accent-muted)", surface: "var(--theme-surface)", pageBg: "var(--theme-bg)",
+  border: "rgba(var(--theme-accent-rgb),0.12)", borderDim: "rgba(var(--theme-contrast-rgb),0.05)",
+  textPrimary: "var(--theme-text)", textSec: "var(--theme-text-muted)", textMuted: "var(--theme-text-faint)",
+  green: "var(--theme-success)",
 };
 const C_Light = {
   gold: "#8B4513", goldDim: "#6F3A18", surface: "#FFFFFF", pageBg: "#FFFBF7",
@@ -95,7 +95,7 @@ export default function ValoresPage() {
   }, [load, router]);
 
   const inputStyle: React.CSSProperties = {
-    width: "100%", background: lightTheme ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.04)",
+    width: "100%", background: lightTheme ? "rgba(0,0,0,0.03)" : "rgba(var(--theme-contrast-rgb),0.04)",
     border: `1px solid ${C.borderDim}`, color: C.textPrimary, fontFamily: "inherit", fontSize: "10px",
     padding: "0.52rem 0.6rem", outline: "none", boxSizing: "border-box", letterSpacing: "0.02em",
   };
@@ -148,7 +148,7 @@ export default function ValoresPage() {
 
         {servicosPorCriar.length > 0 && (
           <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative", marginBottom: "1rem", padding: "1rem" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: lightTheme ? "rgba(0,0,0,0.2)" : "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: lightTheme ? "rgba(0,0,0,0.2)" : "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "flex-start", marginBottom: "0.9rem" }}>
               <div>
                 <p style={{ fontSize: "8px", letterSpacing: "0.35em", color: C.goldDim, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.35rem" }}>Serviços por criar na Master</p>
@@ -163,7 +163,7 @@ export default function ValoresPage() {
                   <div style={{ fontSize: "10px", color: C.textMuted }}>{row.total} usos</div>
                   <div style={{ fontSize: "10px", color: C.textSec }}>fee médio {euro(row.fee_medio)}</div>
                   <div style={{ fontSize: "10px", color: C.textMuted }}>{row.primeira_data || "—"} → {row.ultima_data || "—"}</div>
-                  <button onClick={() => criarServicoPendente(row)} style={{ ...btnStyle, background: lightTheme ? "rgba(0,0,0,0.04)" : "rgba(201,169,110,0.08)" }}>Criar na Master</button>
+                  <button onClick={() => criarServicoPendente(row)} style={{ ...btnStyle, background: lightTheme ? "rgba(0,0,0,0.04)" : "rgba(var(--theme-accent-rgb),0.08)" }}>Criar na Master</button>
                 </div>
               ))}
             </div>
@@ -176,7 +176,7 @@ export default function ValoresPage() {
         </datalist>
 
         <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative", overflowX: "auto" }}>
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: lightTheme ? "rgba(0,0,0,0.2)" : "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: lightTheme ? "rgba(0,0,0,0.2)" : "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
           <div style={{ minWidth: 1220 }}>
             <div style={{ display: "grid", gridTemplateColumns: grid, gap: "8px", padding: "0.8rem 1rem", borderBottom: `1px solid ${C.border}` }}>
               {["Serviço", "Formato", "Contexto", "Cliente/Local", "Custo Interno", "Parceiro", "Cliente Final", "Notas", "Estado", "Ações"].map(h => <span key={h} style={{ fontSize: "7px", letterSpacing: "0.22em", color: C.goldDim, textTransform: "uppercase", fontWeight: 700 }}>{h}</span>)}
@@ -193,10 +193,10 @@ export default function ValoresPage() {
                 <input value={d?.valor_cliente_final || ""} onChange={e => updateDraft(row.id, "valor_cliente_final", e.target.value)} inputMode="decimal" placeholder="0" style={{ ...inputStyle, textAlign: "right" }} />
                 <input value={d?.notas || ""} onChange={e => updateDraft(row.id, "notas", e.target.value)} placeholder="Exceções..." style={inputStyle} />
                 <button onClick={() => toggleAtivo(row)} style={{ ...btnStyle, color: row.ativo === 1 ? C.green : C.textMuted }}>{row.ativo === 1 ? "Ativo" : "Inativo"}</button>
-                <button onClick={() => saveRow(row.id)} disabled={savingId === row.id} style={{ ...btnStyle, background: lightTheme ? "rgba(0,0,0,0.04)" : "rgba(201,169,110,0.08)" }}>{savingId === row.id ? "..." : "Guardar"}</button>
+                <button onClick={() => saveRow(row.id)} disabled={savingId === row.id} style={{ ...btnStyle, background: lightTheme ? "rgba(0,0,0,0.04)" : "rgba(var(--theme-accent-rgb),0.08)" }}>{savingId === row.id ? "..." : "Guardar"}</button>
               </div>;
             })}
-            <div style={{ display: "grid", gridTemplateColumns: grid, gap: "8px", alignItems: "center", padding: "1rem", background: lightTheme ? "rgba(0,0,0,0.02)" : "rgba(201,169,110,0.03)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: grid, gap: "8px", alignItems: "center", padding: "1rem", background: lightTheme ? "rgba(0,0,0,0.02)" : "rgba(var(--theme-accent-rgb),0.03)" }}>
               <input list="servicos-vendidos-list" value={newRow.servico} onChange={e => setNewRow(r => ({ ...r, servico: e.target.value }))} placeholder="Novo serviço..." style={inputStyle} />
               <input value={newRow.duracao_formato} onChange={e => setNewRow(r => ({ ...r, duracao_formato: e.target.value }))} placeholder="até 4h" style={inputStyle} />
               <select value={newRow.contexto} onChange={e => setNewRow(r => ({ ...r, contexto: e.target.value }))} style={inputStyle}>{CONTEXTOS.map(c => <option key={c} value={c}>{c}</option>)}</select>
@@ -206,7 +206,7 @@ export default function ValoresPage() {
               <input value={newRow.valor_cliente_final} onChange={e => setNewRow(r => ({ ...r, valor_cliente_final: e.target.value }))} inputMode="decimal" placeholder="Cliente" style={{ ...inputStyle, textAlign: "right" }} />
               <input value={newRow.notas} onChange={e => setNewRow(r => ({ ...r, notas: e.target.value }))} placeholder="Notas..." style={inputStyle} />
               <span style={{ fontSize: "8px", color: C.textMuted, letterSpacing: "0.2em", textTransform: "uppercase" }}>Novo</span>
-              <button onClick={createRow} style={{ ...btnStyle, background: C.gold, color: lightTheme ? "#FFFFFF" : "#0C0B09" }}>Criar</button>
+              <button onClick={createRow} style={{ ...btnStyle, background: C.gold, color: lightTheme ? "#FFFFFF" : "var(--theme-bg)" }}>Criar</button>
             </div>
           </div>
         </div>
@@ -236,7 +236,7 @@ export default function ValoresPage() {
             <div key={row.servico} style={{ padding: "0.55rem 0", borderTop: `1px solid ${C.borderDim}` }}>
               <div style={{ fontSize: "12px", fontWeight: 700, color: C.textPrimary }}>{row.servico}</div>
               <div style={{ fontSize: "10px", color: C.textSec, marginTop: "2px" }}>{row.total} usos · fee médio {euro(row.fee_medio)}</div>
-              <button onClick={() => criarServicoPendente(row)} style={{ marginTop: "0.45rem", background: lightTheme ? "rgba(0,0,0,0.04)" : "rgba(201,169,110,0.12)", border: `1px solid ${C.border}`, color: C.gold, fontSize: "9px", padding: "0.45rem 0.65rem", cursor: "pointer" }}>Criar na Master</button>
+              <button onClick={() => criarServicoPendente(row)} style={{ marginTop: "0.45rem", background: lightTheme ? "rgba(0,0,0,0.04)" : "rgba(var(--theme-accent-rgb),0.12)", border: `1px solid ${C.border}`, color: C.gold, fontSize: "9px", padding: "0.45rem 0.65rem", cursor: "pointer" }}>Criar na Master</button>
             </div>
           ))}
         </div>
@@ -280,19 +280,19 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     ...baseLinks,
     ...((role !== "limited_novalues" && role !== "finance") ? [{ href: "/materiais", label: "Materiais" }] : []),
   ];
-  return <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
-    <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}><span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span><div style={{ display: "flex", gap: "0.25rem" }}>{links.map(l => <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.25em", padding: "0.5rem 0.65rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "#C9A96E" : "rgba(245,240,232,0.45)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>)}</div></div>
-    <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}><span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span><button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button></div>
+  return <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}><span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span><div style={{ display: "flex", gap: "0.25rem" }}>{links.map(l => <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.25em", padding: "0.5rem 0.65rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "var(--theme-accent)" : "var(--theme-text-muted)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>)}</div></div>
+    <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}><span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span><button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button></div>
   </nav>;
 }
 
 function MobTabBar({ active, role, lightTheme }: { active: string; role: string; lightTheme: boolean }) {
   const [maisOpen, setMaisOpen] = useState(false);
-  const drawerBg = lightTheme ? "#FFFFFF" : "#131108";
-  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(201,169,110,0.15)";
-  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "rgba(245,240,232,0.4)";
-  const drawerGold = lightTheme ? "#000000" : "#C9A96E";
-  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(201,169,110,0.08)";
+  const drawerBg = lightTheme ? "#FFFFFF" : "var(--theme-surface)";
+  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(var(--theme-accent-rgb),0.15)";
+  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "var(--theme-text-muted)";
+  const drawerGold = lightTheme ? "#000000" : "var(--theme-accent)";
+  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(var(--theme-accent-rgb),0.08)";
   const mainTabs = [{ href: "/agenda", label: "Agenda", id: "agenda" }, { href: "/leads", label: "Leads", id: "leads" }, { href: "/faturacao", label: "Faturação", id: "faturacao" }, { href: "/colaboradores", label: "Equipa", id: "colaboradores" }];
   const maisTabs = role === "admin" ? [
     { href: "/clientes", label: "Clientes", id: "clientes" }, { href: "/pagamentos", label: "Pagamentos", id: "pagamentos" }, { href: "/dashboard", label: "Dashboard", id: "dashboard" },

@@ -34,10 +34,10 @@ const PESSOAL = "Pessoal";
 const SEL_PESSOAL = "pessoal";
 
 const C = {
-  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009", pageBg: "#0C0B09",
-  border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
-  textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
-  green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
+  gold: "var(--theme-accent)", goldDim: "var(--theme-accent-muted)", surface: "var(--theme-surface)", pageBg: "var(--theme-bg)",
+  border: "rgba(var(--theme-accent-rgb),0.12)", borderDim: "rgba(var(--theme-contrast-rgb),0.05)",
+  textPrimary: "var(--theme-text)", textSec: "var(--theme-text-muted)", textMuted: "var(--theme-text-faint)",
+  green: "var(--theme-success)", amber: "var(--theme-warning)", blue: "var(--theme-info)", red: "var(--theme-danger)",
 };
 
 const C_Light = {
@@ -340,7 +340,7 @@ export default function MateriaisPage() {
   const overlayBottomStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)" };
   const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: `1px solid ${C.border}`, padding: "2.5rem", width: "480px", maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", position: "relative" };
   const modalMobStyle: React.CSSProperties = { background: "var(--theme-surface)", borderTop: `1px solid ${C.border}`, width: "100%", maxHeight: "92dvh", overflowY: "auto", padding: "1.5rem 1.25rem", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))", borderRadius: "12px 12px 0 0", position: "relative" };
-  const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" };
+  const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" };
   const labelStyle: React.CSSProperties = { display: "block", fontSize: "7px", letterSpacing: "0.4em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.5rem" };
   const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: `1px solid var(--theme-input-border)`, color: C.textPrimary, fontFamily: "'Montserrat',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
   const btnPrimStyle: React.CSSProperties = { background: C.gold, border: "none", color: "var(--theme-accent-contrast)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
@@ -356,13 +356,13 @@ export default function MateriaisPage() {
 
   const TabBtn = ({ id, label, count }: { id: "fora" | "historico" | "catalogo"; label: string; count?: number }) => (
     <button onClick={() => setTab(id)} style={{
-      background: tab === id ? "rgba(201,169,110,0.1)" : "transparent",
+      background: tab === id ? "rgba(var(--theme-accent-rgb),0.1)" : "transparent",
       border: "none", borderBottom: tab === id ? `2px solid ${C.gold}` : "2px solid transparent",
       color: tab === id ? C.gold : C.textSec, fontSize: "9px", letterSpacing: "0.25em", fontWeight: 600,
       padding: "0.85rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase",
       display: "flex", alignItems: "center", gap: "6px",
     }}>
-      {label}{typeof count === "number" && <span style={{ background: tab === id ? "rgba(201,169,110,0.2)" : "rgba(255,255,255,0.06)", color: tab === id ? C.gold : C.textMuted, fontSize: "9px", padding: "1px 6px", borderRadius: "8px" }}>{count}</span>}
+      {label}{typeof count === "number" && <span style={{ background: tab === id ? "rgba(var(--theme-accent-rgb),0.2)" : "rgba(var(--theme-contrast-rgb),0.06)", color: tab === id ? C.gold : C.textMuted, fontSize: "9px", padding: "1px 6px", borderRadius: "8px" }}>{count}</span>}
     </button>
   );
 
@@ -413,21 +413,21 @@ export default function MateriaisPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
             {foraAgrupados.map(group => (
               <div key={group.key} style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1.1rem", borderBottom: `1px solid ${C.borderDim}`, background: "rgba(201,169,110,0.04)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1.1rem", borderBottom: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-accent-rgb),0.04)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     <span style={{ fontSize: "9px", letterSpacing: "0.2em", fontWeight: 700, color: group.isPessoal ? C.textSec : C.gold, textTransform: "uppercase" }}>
                       {group.isPessoal ? "👤 Pessoal" : `🎪 ${group.label}`}
                     </span>
                     {group.date && <span style={{ fontSize: "9px", color: C.textMuted, letterSpacing: "0.1em" }}>{fmtDateShort(group.date)}</span>}
                   </div>
-                  <span style={{ fontSize: "9px", color: C.textMuted, background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: "8px" }}>{group.items.length} {group.items.length === 1 ? "item" : "itens"}</span>
+                  <span style={{ fontSize: "9px", color: C.textMuted, background: "rgba(var(--theme-contrast-rgb),0.05)", padding: "2px 8px", borderRadius: "8px" }}>{group.items.length} {group.items.length === 1 ? "item" : "itens"}</span>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: "0.6rem", padding: "0.85rem" }}>
                   {group.items.map(mov => {
                     const pendente = pendenteMovimento(mov);
                     const dias = diasFora(mov.data_saida);
                     return (
-                      <div key={mov.id} style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${C.borderDim}`, padding: "0.85rem", display: "flex", gap: "0.75rem" }}>
+                      <div key={mov.id} style={{ background: "rgba(var(--theme-contrast-rgb),0.02)", border: `1px solid ${C.borderDim}`, padding: "0.85rem", display: "flex", gap: "0.75rem" }}>
                         <MaterialThumb src={mov.material_imagem} size={48} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
@@ -445,7 +445,7 @@ export default function MateriaisPage() {
                               <>
                                 <input type="number" min={1} max={pendente} value={voltaQty[mov.id] ?? 1}
                                   onChange={e => setVoltaQty(v => ({ ...v, [mov.id]: Math.max(1, Math.min(pendente, Number(e.target.value) || 1)) }))}
-                                  style={{ width: "44px", background: "rgba(255,255,255,0.05)", border: `1px solid ${C.border}`, color: C.textPrimary, fontSize: "10px", padding: "5px", textAlign: "center", outline: "none"   }} />
+                                  style={{ width: "44px", background: "rgba(var(--theme-contrast-rgb),0.05)", border: `1px solid ${C.border}`, color: C.textPrimary, fontSize: "10px", padding: "5px", textAlign: "center", outline: "none"   }} />
                                 <button onClick={() => openVolta(mov, voltaQty[mov.id] ?? 1)} style={{ ...btnSecStyle, padding: "5px 10px", fontSize: "8px" }}>Parcial</button>
                               </>
                             )}
@@ -491,7 +491,7 @@ export default function MateriaisPage() {
                       {mov.precisa_comprar === 1 && <div style={{ color: C.red }}>Comprar ×{mov.quantidade_comprar || "?"}</div>}
                     </td>
                     <td style={{ padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}`, textAlign: "right" }}>
-                      <button onClick={() => handleDeleteMovimento(mov.id)} title="Apagar" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.06)", color: C.textMuted, padding: "4px 7px", cursor: "pointer" }}>
+                      <button onClick={() => handleDeleteMovimento(mov.id)} title="Apagar" style={{ background: "transparent", border: "1px solid rgba(var(--theme-contrast-rgb),0.06)", color: C.textMuted, padding: "4px 7px", cursor: "pointer" }}>
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 4h10M6 4V2.5h4V4M4 4l.5 9.5A1 1 0 005.5 14.5h5A1 1 0 0011.5 13.5L12 4" /></svg>
                       </button>
                     </td>
@@ -530,13 +530,13 @@ export default function MateriaisPage() {
                     </div>
                     <div style={{ display: "flex", gap: "6px", marginTop: "0.6rem" }}>
                       <button onClick={() => openSaida(m.id)} style={{ ...btnSecStyle, flex: 1, padding: "6px 8px", fontSize: "8px" }}>Registar Saída</button>
-                      <button onClick={() => handleToggleCompraMaterial(m)} title={m.precisa_comprar === 1 ? "Compra resolvida" : "Marcar para comprar"} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.06)", color: m.precisa_comprar === 1 ? C.green : C.amber, padding: "6px 8px", cursor: "pointer", fontSize: "10px" }}>
+                      <button onClick={() => handleToggleCompraMaterial(m)} title={m.precisa_comprar === 1 ? "Compra resolvida" : "Marcar para comprar"} style={{ background: "transparent", border: "1px solid rgba(var(--theme-contrast-rgb),0.06)", color: m.precisa_comprar === 1 ? C.green : C.amber, padding: "6px 8px", cursor: "pointer", fontSize: "10px" }}>
                         🛒
                       </button>
-                      <button onClick={() => openEditMaterial(m)} title="Editar" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.06)", color: C.textMuted, padding: "6px 8px", cursor: "pointer" }}>
+                      <button onClick={() => openEditMaterial(m)} title="Editar" style={{ background: "transparent", border: "1px solid rgba(var(--theme-contrast-rgb),0.06)", color: C.textMuted, padding: "6px 8px", cursor: "pointer" }}>
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M11 2l3 3-9 9H2v-3L11 2z" /></svg>
                       </button>
-                      <button onClick={() => handleToggleMaterialAtivo(m)} title="Arquivar" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.06)", color: C.red, padding: "6px 8px", cursor: "pointer" }}>
+                      <button onClick={() => handleToggleMaterialAtivo(m)} title="Arquivar" style={{ background: "transparent", border: "1px solid rgba(var(--theme-contrast-rgb),0.06)", color: C.red, padding: "6px 8px", cursor: "pointer" }}>
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 4h10M6 4V2.5h4V4M4 4l.5 9.5A1 1 0 005.5 14.5h5A1 1 0 0011.5 13.5L12 4" /></svg>
                       </button>
                     </div>
@@ -552,11 +552,11 @@ export default function MateriaisPage() {
 
     {/* ═══ MOBILE ═══ */}
     <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "var(--theme-text)", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", background: "rgba(12,11,9,0.97)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
-        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
+        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
           <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.4rem 0.5rem" }} />
-          <span style={{ fontSize: "8px", letterSpacing: "0.35em", color: "rgba(245,240,232,0.2)", textTransform: "uppercase" }}>{userName}</span>
+          <span style={{ fontSize: "8px", letterSpacing: "0.35em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
         </div>
       </div>
 
@@ -571,11 +571,11 @@ export default function MateriaisPage() {
           {[
             { label: "Ativos", value: materiaisAtivos.length },
             { label: "Total", value: totalUnidades },
-            { label: "Fora", value: totalFora, color: totalFora > 0 ? "#EF9F27" : undefined },
+            { label: "Fora", value: totalFora, color: totalFora > 0 ? "var(--theme-warning)" : undefined },
           ].map(s => (
             <div key={s.label} style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-              <span style={{ fontSize: "14px", fontWeight: 700, color: s.color || "#F5F0E8" }}>{s.value}</span>
-              <span style={{ fontSize: "7px", letterSpacing: "0.15em", color: "rgba(245,240,232,0.3)", textTransform: "uppercase" }}>{s.label}</span>
+              <span style={{ fontSize: "14px", fontWeight: 700, color: s.color || "var(--theme-text)" }}>{s.value}</span>
+              <span style={{ fontSize: "7px", letterSpacing: "0.15em", color: "var(--theme-text-subtle)", textTransform: "uppercase" }}>{s.label}</span>
             </div>
           ))}
         </div>
@@ -584,38 +584,38 @@ export default function MateriaisPage() {
       <div className="mob-list">
         {tab === "fora" && foraAgrupados.map(group => (
           <div key={group.key} style={{ borderBottom: "1px solid var(--theme-border)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.7rem 1.1rem", background: "rgba(201,169,110,0.05)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.7rem 1.1rem", background: "rgba(var(--theme-accent-rgb),0.05)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "9px", letterSpacing: "0.15em", fontWeight: 700, color: group.isPessoal ? "rgba(245,240,232,0.45)" : "#C9A96E", textTransform: "uppercase" }}>
+                <span style={{ fontSize: "9px", letterSpacing: "0.15em", fontWeight: 700, color: group.isPessoal ? "var(--theme-text-muted)" : "var(--theme-accent)", textTransform: "uppercase" }}>
                   {group.isPessoal ? "👤 Pessoal" : `🎪 ${group.label}`}
                 </span>
-                {group.date && <span style={{ fontSize: "9px", color: "rgba(245,240,232,0.25)" }}>{fmtDateShort(group.date)}</span>}
+                {group.date && <span style={{ fontSize: "9px", color: "var(--theme-text-faint)" }}>{fmtDateShort(group.date)}</span>}
               </div>
-              <span style={{ fontSize: "9px", color: "rgba(245,240,232,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 7px", borderRadius: "8px" }}>{group.items.length}</span>
+              <span style={{ fontSize: "9px", color: "var(--theme-text-subtle)", background: "rgba(var(--theme-contrast-rgb),0.05)", padding: "2px 7px", borderRadius: "8px" }}>{group.items.length}</span>
             </div>
             {group.items.map(mov => {
               const pendente = pendenteMovimento(mov);
               const dias = diasFora(mov.data_saida);
               return (
-                <div key={mov.id} style={{ padding: "0.9rem 1.1rem", borderTop: "1px solid rgba(255,255,255,0.03)", display: "flex", gap: "0.75rem" }}>
+                <div key={mov.id} style={{ padding: "0.9rem 1.1rem", borderTop: "1px solid rgba(var(--theme-contrast-rgb),0.03)", display: "flex", gap: "0.75rem" }}>
                   <MaterialThumb src={mov.material_imagem} size={48} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <span style={{ fontSize: "12px", fontWeight: 600 }}>{mov.material_nome}</span>
-                      <span style={{ fontSize: "12px", fontWeight: 700, color: "#EF9F27" }}>×{pendente}</span>
+                      <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--theme-warning)" }}>×{pendente}</span>
                     </div>
                     <div style={{ fontSize: "10px", color: "var(--theme-text-muted)", marginTop: "2px" }}>
-                      Saiu de <span style={{ color: "#C9A96E" }}>{origemLabel(mov)}</span> · levou {mov.quem_levou || mov.responsavel || "—"} · {dias === 0 ? "hoje" : `há ${dias}d`}
+                      Saiu de <span style={{ color: "var(--theme-accent)" }}>{origemLabel(mov)}</span> · levou {mov.quem_levou || mov.responsavel || "—"} · {dias === 0 ? "hoje" : `há ${dias}d`}
                     </div>
                     <div style={{ fontSize: "9px", color: "var(--theme-text-subtle)", marginTop: "1px" }}>Dono: {mov.dono_material || "—"}</div>
-                    <button onClick={() => openVolta(mov)} style={{ marginTop: "0.5rem", background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: "#5DCAA5", fontSize: "10px", letterSpacing: "0.1em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
+                    <button onClick={() => openVolta(mov)} style={{ marginTop: "0.5rem", background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: "var(--theme-success)", fontSize: "10px", letterSpacing: "0.1em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
                   </div>
                 </div>
               );
             })}
           </div>
         ))}
-        {tab === "fora" && movimentosAbertos.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "rgba(245,240,232,0.2)", letterSpacing: "0.2em" }}>Nada fora — tudo na loja</div>}
+        {tab === "fora" && movimentosAbertos.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "var(--theme-text-faint)", letterSpacing: "0.2em" }}>Nada fora — tudo na loja</div>}
 
         {tab === "historico" && movimentosFechados.map(mov => (
           <div key={mov.id} style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", display: "flex", gap: "0.75rem" }}>
@@ -623,12 +623,12 @@ export default function MateriaisPage() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: "12px", fontWeight: 600 }}>{mov.material_nome} <span style={{ color: "var(--theme-text-muted)", fontWeight: 400 }}>×{mov.quantidade}</span></div>
               <div style={{ fontSize: "10px", color: "var(--theme-text-muted)" }}>Saiu de {origemLabel(mov)} · levou {mov.quem_levou || mov.responsavel || "—"}</div>
-              <div style={{ fontSize: "9px", color: "rgba(245,240,232,0.25)" }}>{fmtDateTime(mov.data_saida)} → {mov.data_volta ? fmtDateTime(mov.data_volta) : "—"}</div>
-              {(mov.estado_regresso || mov.precisa_comprar === 1) && <div style={{ fontSize: "9px", color: mov.precisa_comprar === 1 ? "#E24B4A" : "#5DCAA5" }}>{mov.estado_regresso || ""}{mov.precisa_comprar === 1 ? ` · Comprar ×${mov.quantidade_comprar || "?"}` : ""}</div>}
+              <div style={{ fontSize: "9px", color: "var(--theme-text-faint)" }}>{fmtDateTime(mov.data_saida)} → {mov.data_volta ? fmtDateTime(mov.data_volta) : "—"}</div>
+              {(mov.estado_regresso || mov.precisa_comprar === 1) && <div style={{ fontSize: "9px", color: mov.precisa_comprar === 1 ? "var(--theme-danger)" : "var(--theme-success)" }}>{mov.estado_regresso || ""}{mov.precisa_comprar === 1 ? ` · Comprar ×${mov.quantidade_comprar || "?"}` : ""}</div>}
             </div>
           </div>
         ))}
-        {tab === "historico" && movimentosFechados.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "rgba(245,240,232,0.2)", letterSpacing: "0.2em" }}>Sem histórico</div>}
+        {tab === "historico" && movimentosFechados.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "var(--theme-text-faint)", letterSpacing: "0.2em" }}>Sem histórico</div>}
 
         {tab === "catalogo" && materiaisAtivos.map(m => {
           const fora = pendenteAtualDoMaterial(m.id);
@@ -637,22 +637,22 @@ export default function MateriaisPage() {
               <MaterialThumb src={m.imagem} size={44} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: "12px", fontWeight: 600 }}>{m.nome}</div>
-                <div style={{ fontSize: "10px", color: "var(--theme-text-muted)" }}>Total {m.quantidade_total}{fora > 0 && <span style={{ color: "#EF9F27" }}> · {fora} fora</span>}</div>
+                <div style={{ fontSize: "10px", color: "var(--theme-text-muted)" }}>Total {m.quantidade_total}{fora > 0 && <span style={{ color: "var(--theme-warning)" }}> · {fora} fora</span>}</div>
                 <div style={{ fontSize: "9px", color: "var(--theme-text-subtle)" }}>{m.dono || "—"} · {m.local_habitual || "—"}{m.consumivel === 1 ? " · Consumível" : ""}</div>
-                {m.precisa_comprar === 1 && <div style={{ fontSize: "9px", color: "#E24B4A", marginTop: "2px" }}>🛒 Comprar ×{m.quantidade_comprar || "?"}</div>}
+                {m.precisa_comprar === 1 && <div style={{ fontSize: "9px", color: "var(--theme-danger)", marginTop: "2px" }}>🛒 Comprar ×{m.quantidade_comprar || "?"}</div>}
               </div>
-              <button onClick={() => openSaida(m.id)} style={{ background: "rgba(201,169,110,0.1)", border: "1px solid rgba(201,169,110,0.25)", color: "#C9A96E", fontSize: "9px", padding: "6px 10px", cursor: "pointer", fontFamily: "inherit" }}>Saída</button>
+              <button onClick={() => openSaida(m.id)} style={{ background: "rgba(var(--theme-accent-rgb),0.1)", border: "1px solid rgba(var(--theme-accent-rgb),0.25)", color: "var(--theme-accent)", fontSize: "9px", padding: "6px 10px", cursor: "pointer", fontFamily: "inherit" }}>Saída</button>
               <button onClick={() => openEditMaterial(m)} style={{ background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-muted)", fontSize: "10px", padding: "6px 8px", cursor: "pointer" }}>✏️</button>
             </div>
           );
         })}
-        {tab === "catalogo" && materiaisAtivos.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "rgba(245,240,232,0.2)", letterSpacing: "0.2em" }}>Sem material — cria o primeiro</div>}
+        {tab === "catalogo" && materiaisAtivos.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "var(--theme-text-faint)", letterSpacing: "0.2em" }}>Sem material — cria o primeiro</div>}
       </div>
 
       {/* FABs mobile */}
       <div style={{ position: "fixed", bottom: "calc(74px + env(safe-area-inset-bottom))", right: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem", zIndex: 50 }}>
         {tab === "catalogo" && (
-          <button onClick={openCreateMaterial} style={{ background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.3)", color: "#C9A96E", width: "44px", height: "44px", borderRadius: "50%", fontSize: "20px", cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.5)" }}>+</button>
+          <button onClick={openCreateMaterial} style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.3)", color: "var(--theme-accent)", width: "44px", height: "44px", borderRadius: "50%", fontSize: "20px", cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.5)" }}>+</button>
         )}
         <button onClick={() => openSaida()} style={{ background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", width: "50px", height: "50px", borderRadius: "50%", fontSize: "22px", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.5)" }}>↗</button>
       </div>
@@ -730,7 +730,7 @@ function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving
       </div>
 
       {selected && (
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem", padding: "0.6rem", background: "rgba(255,255,255,0.02)", border: `1px solid ${C.borderDim}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem", padding: "0.6rem", background: "rgba(var(--theme-contrast-rgb),0.02)", border: `1px solid ${C.borderDim}` }}>
           <MaterialThumb src={selected.imagem} size={36} />
           <span style={{ fontSize: "10px", color: C.textSec }}>
             Total no catálogo: <b style={{ color: C.textPrimary }}>{selected.quantidade_total}</b>
@@ -750,8 +750,8 @@ function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
           {ORIGENS.map((o: string) => (
             <button key={o} onClick={() => setSaidaForm((f: any) => ({ ...f, origem: o }))} style={{
-              background: saidaForm.origem === o ? "rgba(201,169,110,0.18)" : "rgba(255,255,255,0.04)",
-              border: `1px solid ${saidaForm.origem === o ? "rgba(201,169,110,0.4)" : "rgba(255,255,255,0.1)"}`,
+              background: saidaForm.origem === o ? "rgba(var(--theme-accent-rgb),0.18)" : "rgba(var(--theme-contrast-rgb),0.04)",
+              border: `1px solid ${saidaForm.origem === o ? "rgba(var(--theme-accent-rgb),0.4)" : "rgba(var(--theme-contrast-rgb),0.1)"}`,
               color: saidaForm.origem === o ? C.gold : C.textMuted,
               fontSize: "10px", padding: "8px 14px", cursor: "pointer", fontFamily: "inherit",
             }}>{o}</button>
@@ -816,8 +816,8 @@ function VoltaModalContent({ voltaForm, setVoltaForm, movimento, pendente, savin
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
           {estados.map((estado: string) => (
             <button key={estado} onClick={() => setVoltaForm((f: any) => ({ ...f, estado_regresso: estado }))} style={{
-              background: voltaForm.estado_regresso === estado ? "rgba(201,169,110,0.18)" : "rgba(255,255,255,0.04)",
-              border: `1px solid ${voltaForm.estado_regresso === estado ? "rgba(201,169,110,0.4)" : "rgba(255,255,255,0.1)"}`,
+              background: voltaForm.estado_regresso === estado ? "rgba(var(--theme-accent-rgb),0.18)" : "rgba(var(--theme-contrast-rgb),0.04)",
+              border: `1px solid ${voltaForm.estado_regresso === estado ? "rgba(var(--theme-accent-rgb),0.4)" : "rgba(var(--theme-contrast-rgb),0.1)"}`,
               color: voltaForm.estado_regresso === estado ? C.gold : C.textMuted,
               fontSize: "10px", padding: "8px 10px", cursor: "pointer", fontFamily: "inherit",
             }}>{estado}</button>
@@ -825,7 +825,7 @@ function VoltaModalContent({ voltaForm, setVoltaForm, movimento, pendente, savin
         </div>
       </div>
 
-      <div style={{ marginBottom: "1rem", padding: "0.75rem", border: `1px solid ${voltaForm.precisa_comprar ? "rgba(226,75,74,0.35)" : C.borderDim}`, background: voltaForm.precisa_comprar ? "rgba(226,75,74,0.06)" : "rgba(255,255,255,0.02)" }}>
+      <div style={{ marginBottom: "1rem", padding: "0.75rem", border: `1px solid ${voltaForm.precisa_comprar ? "rgba(226,75,74,0.35)" : C.borderDim}`, background: voltaForm.precisa_comprar ? "rgba(226,75,74,0.06)" : "rgba(var(--theme-contrast-rgb),0.02)" }}>
         <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
           <input type="checkbox" checked={voltaForm.precisa_comprar === 1} onChange={(e: any) => setVoltaForm((f: any) => ({ ...f, precisa_comprar: e.target.checked ? 1 : 0 }))} />
           Precisa comprar / repor stock
@@ -907,7 +907,7 @@ function MaterialModalContent({ materialForm, setMaterialForm, materialModal, sa
         </div>
       </div>
 
-      <div style={{ marginBottom: "1rem", padding: "0.75rem", border: `1px solid ${C.borderDim}`, background: "rgba(255,255,255,0.02)" }}>
+      <div style={{ marginBottom: "1rem", padding: "0.75rem", border: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-contrast-rgb),0.02)" }}>
         <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", marginBottom: "0.75rem" }}>
           <input type="checkbox" checked={materialForm.consumivel === 1} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, consumivel: e.target.checked ? 1 : 0 }))} />
           Material consumível
@@ -944,7 +944,7 @@ function MaterialModalContent({ materialForm, setMaterialForm, materialModal, sa
         </div>
       </div>
 
-      <div style={{ marginBottom: "1rem", padding: "0.75rem", border: `1px solid ${C.borderDim}`, background: "rgba(255,255,255,0.02)" }}>
+      <div style={{ marginBottom: "1rem", padding: "0.75rem", border: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-contrast-rgb),0.02)" }}>
         <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", marginBottom: "0.75rem" }}>
           <input type="checkbox" checked={materialForm.consumivel === 1} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, consumivel: e.target.checked ? 1 : 0 }))} />
           Material consumível
@@ -1010,18 +1010,18 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
         return true;
       });
   return (
-    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
+    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
+        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "#C9A96E" : "rgba(245,240,232,0.45)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
+            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "var(--theme-accent)" : "var(--theme-text-muted)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
         <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
-        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
+        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
       </div>
     </nav>
   );
@@ -1030,14 +1030,14 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
 // ── Mobile Tab Bar — 4 fixos + "Mais" drawer ───────────────────────────────
 function MobTabBar({ active, role, lightTheme }: { active: string; role: string; lightTheme: boolean }) {
   const [maisOpen, setMaisOpen] = useState(false);
-  const drawerBg = lightTheme ? "#FFFFFF" : "#131108";
-  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(201,169,110,0.15)";
+  const drawerBg = lightTheme ? "#FFFFFF" : "var(--theme-surface)";
+  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(var(--theme-accent-rgb),0.15)";
   const drawerShadow = lightTheme ? "0 -8px 32px rgba(0,0,0,0.15)" : "0 -8px 32px rgba(0,0,0,0.6)";
-  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "rgba(245,240,232,0.4)";
-  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(201,169,110,0.08)";
-  const drawerGold = lightTheme ? "#000000" : "#C9A96E";
-  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(201,169,110,0.25)";
-  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(201,169,110,0.4)";
+  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "var(--theme-text-muted)";
+  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(var(--theme-accent-rgb),0.08)";
+  const drawerGold = lightTheme ? "#000000" : "var(--theme-accent)";
+  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(var(--theme-accent-rgb),0.25)";
+  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(var(--theme-accent-rgb),0.4)";
 
   const mainTabs = [
     { href: "/agenda", label: "Agenda", id: "agenda", icon: (

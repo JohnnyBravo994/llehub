@@ -178,7 +178,7 @@ const TIPO_ICON: Record<string, string> = {
 // Equipa: João=azul 🔵, Annia=flor 🌸, Empresa=castanho 🟤
 const EQUIPA_NOMES = ["João", "Annia", "Empresa"] as const;
 const EQUIPA_SYMBOL: Record<string, string> = { "João": "🔵", "Annia": "🌸", "Empresa": "🟤" };
-const EQUIPA_COLOR: Record<string, string> = { "João": "#85B7EB", "Annia": "#F4A7C0", "Empresa": "#A07850" };
+const EQUIPA_COLOR: Record<string, string> = { "João": "var(--theme-info)", "Annia": "#F4A7C0", "Empresa": "#A07850" };
 
 function parseEquipa(tipo: string): string[] {
   if (!tipo) return [];
@@ -196,10 +196,10 @@ function artistIcons(artistas: ArtistRow[]): string {
 
 // Color constants - will be adapted for light theme by JS
 const C = {
-  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009", pageBg: "#0C0B09",
-  border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
-  textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
-  green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
+  gold: "var(--theme-accent)", goldDim: "var(--theme-accent-muted)", surface: "var(--theme-surface)", pageBg: "var(--theme-bg)",
+  border: "rgba(var(--theme-accent-rgb),0.12)", borderDim: "rgba(var(--theme-contrast-rgb),0.05)",
+  textPrimary: "var(--theme-text)", textSec: "var(--theme-text-muted)", textMuted: "var(--theme-text-faint)",
+  green: "var(--theme-success)", amber: "var(--theme-warning)", blue: "var(--theme-info)", red: "var(--theme-danger)",
 };
 
 // Light theme colors - 100% contrast, document-style
@@ -1174,7 +1174,7 @@ export default function AgendaPage() {
   // Get colors based on current theme
   const Colors = getColors(lightTheme);
   const bsColors: Record<string, string> = {
-    "Contacto": "rgba(245,240,232,0.4)", "Proposta Enviada": Colors.blue,
+    "Contacto": "var(--theme-text-muted)", "Proposta Enviada": Colors.blue,
     "Em Negociação": Colors.amber, "Confirmado": Colors.green,
     "Em Adjudicação": Colors.gold, "Adjudicado": Colors.gold,
     "Faturado": "#A78BFA", "Pago": Colors.green, "Cancelado": Colors.red,
@@ -1183,7 +1183,7 @@ export default function AgendaPage() {
   return (
     <>
     {/* ═══ DESKTOP ═══ */}
-    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: lightTheme ? "#FFFBF7" : "#0C0B09", color: lightTheme ? Colors.textPrimary : Colors.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
+    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: lightTheme ? "#FFFBF7" : "var(--theme-bg)", color: lightTheme ? Colors.textPrimary : Colors.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <Nav userName={userName} active="agenda" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} lightTheme={lightTheme} />
 
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
@@ -1193,7 +1193,7 @@ export default function AgendaPage() {
             <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
             <button
               onClick={openWaPeriodModal}
-              style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "#5DCAA5", fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
+              style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
               WhatsApp
@@ -1208,10 +1208,10 @@ export default function AgendaPage() {
         </div>
 
         <div style={{ background: Colors.surface, border: `1px solid ${Colors.borderDim}`, position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
           <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${Colors.borderDim}`, overflowX: "auto" }}>
             {monthTabs.map(ym => (
-              <button key={ym} onClick={() => setSelectedMonth(ym)} style={{ background: selectedMonth === ym ? "rgba(201,169,110,0.08)" : "transparent", border: "none", borderRight: `1px solid ${Colors.borderDim}`, borderBottom: selectedMonth === ym ? `1px solid ${Colors.gold}` : "none", color: selectedMonth === ym ? Colors.gold : Colors.textMuted, fontSize: "8px", letterSpacing: "0.3em", padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize", fontWeight: selectedMonth === ym ? 700 : 400, whiteSpace: "nowrap", transition: "all 0.2s" }}>
+              <button key={ym} onClick={() => setSelectedMonth(ym)} style={{ background: selectedMonth === ym ? "rgba(var(--theme-accent-rgb),0.08)" : "transparent", border: "none", borderRight: `1px solid ${Colors.borderDim}`, borderBottom: selectedMonth === ym ? `1px solid ${Colors.gold}` : "none", color: selectedMonth === ym ? Colors.gold : Colors.textMuted, fontSize: "8px", letterSpacing: "0.3em", padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize", fontWeight: selectedMonth === ym ? 700 : 400, whiteSpace: "nowrap", transition: "all 0.2s" }}>
                 {monthLabel(ym)}
               </button>
             ))}
@@ -1228,7 +1228,7 @@ export default function AgendaPage() {
               onChange={v => setFilterArtista(v)}
               placeholder="Artista"
               options={[{ value: "", label: "Artista" }, ...dropdownArtistas.map(a => ({ value: a, label: a }))]}
-              style={{ background: filterArtista ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: filterArtista ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
+              style={{ background: filterArtista ? "rgba(var(--theme-accent-rgb),0.08)" : "rgba(var(--theme-contrast-rgb),0.02)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: filterArtista ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
             />
             {/* Cliente dropdown */}
             <CustomSelect
@@ -1236,7 +1236,7 @@ export default function AgendaPage() {
               onChange={v => setFilterCliente(v)}
               placeholder="Cliente"
               options={[{ value: "", label: "Cliente" }, ...dropdownClientes.map(c => ({ value: c, label: c }))]}
-              style={{ background: filterCliente ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: filterCliente ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
+              style={{ background: filterCliente ? "rgba(var(--theme-accent-rgb),0.08)" : "rgba(var(--theme-contrast-rgb),0.02)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: filterCliente ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
             />
             {/* Equipa dropdown */}
             <CustomSelect
@@ -1244,7 +1244,7 @@ export default function AgendaPage() {
               onChange={v => setFilterEquipa(v)}
               placeholder="Equipa"
               options={[{ value: "", label: "Equipa" }, ...dropdownEquipa.map(n => ({ value: n, label: `${EQUIPA_SYMBOL[n]} ${n}` }))]}
-              style={{ background: filterEquipa ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)", border: "none", color: filterEquipa ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "120px", textTransform: "uppercase" as any }}
+              style={{ background: filterEquipa ? "rgba(var(--theme-accent-rgb),0.08)" : "rgba(var(--theme-contrast-rgb),0.02)", border: "none", color: filterEquipa ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "120px", textTransform: "uppercase" as any }}
             />
             {/* Clear filters — só aparece se houver algum filtro activo */}
             {(filterArtista || filterCliente || filterEquipa) && (
@@ -1269,8 +1269,8 @@ export default function AgendaPage() {
                   if (row.kind === "folga") {
                     const isFolgaToday = row.date === todayStr;
                     return (
-                      <tr key={`folga-${row.date}`} style={{ opacity: 0.38, background: isFolgaToday ? "rgba(201,169,110,0.04)" : undefined }}>
-                        <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), color: isFolgaToday ? "#C9A96E" : undefined, fontWeight: isFolgaToday ? 700 : undefined }}>{fmtDate(row.date)}</td>
+                      <tr key={`folga-${row.date}`} style={{ opacity: 0.38, background: isFolgaToday ? "rgba(var(--theme-accent-rgb),0.04)" : undefined }}>
+                        <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), color: isFolgaToday ? "var(--theme-accent)" : undefined, fontWeight: isFolgaToday ? 700 : undefined }}>{fmtDate(row.date)}</td>
                         <td colSpan={8} style={{ ...createTdStyle(lightTheme, {}), fontSize: "10px", color: Colors.textMuted, letterSpacing: "0.2em", fontStyle: "italic" }}>
                           ⛱️ Folga
                         </td>
@@ -1281,7 +1281,7 @@ export default function AgendaPage() {
                     const l = row.data;
                     const isLeadToday = l.event_date === todayStr;
                     return (
-                      <tr key={`lead-${l.id}`} style={{ background: isLeadToday ? "rgba(201,169,110,0.07)" : "rgba(201,169,110,0.04)", borderLeft: isLeadToday ? `3px solid ${Colors.gold}` : `2px solid rgba(201,169,110,0.35)` }}>
+                      <tr key={`lead-${l.id}`} style={{ background: isLeadToday ? "rgba(var(--theme-accent-rgb),0.07)" : "rgba(var(--theme-accent-rgb),0.04)", borderLeft: isLeadToday ? `3px solid ${Colors.gold}` : `2px solid rgba(var(--theme-accent-rgb),0.35)` }}>
                         <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), color: isLeadToday ? Colors.gold : undefined, fontWeight: isLeadToday ? 700 : undefined }}>{fmtDate(l.event_date)}</td>
                         <td style={{ ...createTdStyle(lightTheme, {}), maxWidth: "280px" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
@@ -1319,7 +1319,7 @@ export default function AgendaPage() {
                   const e = row.data;
                   const isEventToday = e.event_date === todayStr;
                   return (
-                  <tr key={e.id} style={{ opacity: e.cancelled ? 0.45 : 1, background: isEventToday ? "rgba(201,169,110,0.06)" : undefined, borderLeft: isEventToday ? `3px solid ${Colors.gold}` : undefined }}>
+                  <tr key={e.id} style={{ opacity: e.cancelled ? 0.45 : 1, background: isEventToday ? "rgba(var(--theme-accent-rgb),0.06)" : undefined, borderLeft: isEventToday ? `3px solid ${Colors.gold}` : undefined }}>
                     <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), color: isEventToday ? Colors.gold : undefined, fontWeight: isEventToday ? 700 : undefined }}>{fmtDate(e.event_date)}</td>
                     <td style={{ ...createTdStyle(lightTheme, {}), maxWidth: "280px" }}>
                       <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
@@ -1418,11 +1418,11 @@ export default function AgendaPage() {
     {/* ═══ MOBILE ═══ */}
     <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "var(--theme-text)", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       {/* Mobile top nav */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", background: "rgba(12,11,9,0.97)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
-        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
+        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
           <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.4rem 0.5rem" }} />
-          <span style={{ fontSize: "8px", letterSpacing: "0.35em", color: "rgba(245,240,232,0.2)", textTransform: "uppercase" }}>{userName}</span>
+          <span style={{ fontSize: "8px", letterSpacing: "0.35em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
         </div>
       </div>
 
@@ -1446,7 +1446,7 @@ export default function AgendaPage() {
         <div style={{ display: "flex", gap: "0.5rem" }}>
           <button
             onClick={openWaPeriodModal}
-            style={{ background: "rgba(93,202,165,0.08)", border: "1px solid rgba(93,202,165,0.2)", color: "#5DCAA5", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px" }}
+            style={{ background: "rgba(93,202,165,0.08)", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px" }}
             title="Copiar Agenda para WhatsApp"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
@@ -1479,7 +1479,7 @@ export default function AgendaPage() {
                 </button>
               ))}
               {(filterArtista || filterCliente || filterEquipa) && (
-                <button onClick={() => { setFilterArtista(""); setFilterCliente(""); setFilterEquipa(""); setMobFilterOpen(false); }} style={{ background: "rgba(226,75,74,0.08)", border: "1px solid rgba(226,75,74,0.2)", color: "#E24B4A", fontSize: "9px", letterSpacing: "0.2em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
+                <button onClick={() => { setFilterArtista(""); setFilterCliente(""); setFilterEquipa(""); setMobFilterOpen(false); }} style={{ background: "rgba(226,75,74,0.08)", border: "1px solid rgba(226,75,74,0.2)", color: "var(--theme-danger)", fontSize: "9px", letterSpacing: "0.2em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
                   Limpar filtros
                 </button>
               )}
@@ -1541,10 +1541,10 @@ export default function AgendaPage() {
                   <div className="mob-card-title">{l.title}</div>
                   <ConflictAlert conflicts={conflictsForLead(l)} />
                   <div className="mob-card-meta">
-                    <span className="mob-badge" style={{background:"rgba(201,169,110,0.08)",color:"#C9A96E"}}>
-                      <span className="mob-badge-dot" style={{background:"#C9A96E"}}/>Lead
+                    <span className="mob-badge" style={{background:"rgba(var(--theme-accent-rgb),0.08)",color:"var(--theme-accent)"}}>
+                      <span className="mob-badge-dot" style={{background:"var(--theme-accent)"}}/>Lead
                     </span>
-                    <span className="mob-badge" style={{background:"rgba(239,159,39,0.08)",color:"#EF9F27"}}>{l.status}</span>
+                    <span className="mob-badge" style={{background:"rgba(239,159,39,0.08)",color:"var(--theme-warning)"}}>{l.status}</span>
                   </div>
                 </div>
                 <div className="mob-card-right">
@@ -1553,7 +1553,7 @@ export default function AgendaPage() {
                     : <span className="mob-card-value muted">—</span>
                   }
                   {userRole !== "limited_novalues" && (
-                    <button onClick={() => handleLeadConvert(l)} style={{background:"transparent",border:"none",color:"#5DCAA5",fontSize:"16px",cursor:"pointer",padding:"2px"}}>→</button>
+                    <button onClick={() => handleLeadConvert(l)} style={{background:"transparent",border:"none",color:"var(--theme-success)",fontSize:"16px",cursor:"pointer",padding:"2px"}}>→</button>
                   )}
                 </div>
               </div>
@@ -1564,7 +1564,7 @@ export default function AgendaPage() {
           const isToday = e.event_date === todayStr;
           const evArtists = (artistasMap[e.id] || []).filter((a:any) => a.nome.trim());
           const bs = e.billing_status || "Contacto";
-          const bsColor = e.cancelled ? Colors.red : (bsColors[bs] || "rgba(245,240,232,0.3)");
+          const bsColor = e.cancelled ? Colors.red : (bsColors[bs] || "var(--theme-text-subtle)");
           return (
             <div key={e.id} className={`mob-card${isToday ? " is-today" : ""}${e.cancelled ? " is-folga" : ""}`}>
               <div className="mob-date-bubble">
@@ -1579,7 +1579,7 @@ export default function AgendaPage() {
                 <ConflictAlert conflicts={conflictsForEvent(e)} />
                 <div className="mob-card-meta">
                   {e.time_range && <><span>{e.time_range}</span><span className="mob-card-meta-dot">·</span></>}
-                  {e.venue && <><span style={{color:"rgba(201,169,110,0.7)"}}>📍 {e.venue}</span><span className="mob-card-meta-dot">·</span></>}
+                  {e.venue && <><span style={{color:"var(--theme-accent)"}}>📍 {e.venue}</span><span className="mob-card-meta-dot">·</span></>}
                   {parseEquipa(e.tipo||"").map(n=><span key={n}>{EQUIPA_SYMBOL[n]}</span>)}
                   {evArtists.length > 0 && <><span className="mob-card-meta-dot">·</span><span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"140px"}}>{evArtists.slice(0,2).map((a:any)=>resolveColaboradorNome(a.nome)).join(" · ")}{evArtists.length>2?` +${evArtists.length-2}`:""}</span></>}
                 </div>
@@ -1599,7 +1599,7 @@ export default function AgendaPage() {
                   <button
                     onClick={(ev) => { ev.stopPropagation(); openMaterialModal(e); }}
                     title="Material"
-                    style={{ background: "transparent", border: "none", color: materiaisPendentesDoEvento(e.id).length > 0 ? "#5DCAA5" : "rgba(245,240,232,0.35)", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
+                    style={{ background: "transparent", border: "none", color: materiaisPendentesDoEvento(e.id).length > 0 ? "var(--theme-success)" : "var(--theme-text-subtle)", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
                   >
                     <svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="1.8"><rect x="2" y="5" width="12" height="9" rx="1.2" /><path d="M5.5 5V3.5a2 2 0 014 0V5" /></svg>
                   </button>
@@ -1609,7 +1609,7 @@ export default function AgendaPage() {
                     ? <button
                         onClick={(ev) => { ev.stopPropagation(); handleRestore(e); }}
                         title="Repor"
-                        style={{ background: "transparent", border: "none", color: "#5DCAA5", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
+                        style={{ background: "transparent", border: "none", color: "var(--theme-success)", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
                       >
                         <svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-9" /></svg>
                       </button>
@@ -1617,7 +1617,7 @@ export default function AgendaPage() {
                         onClick={(ev) => { ev.stopPropagation(); handleCancel(e); }}
                         disabled={cancellingId === e.id}
                         title="Cancelar"
-                        style={{ background: "transparent", border: "none", color: "#E24B4A", cursor: cancellingId === e.id ? "default" : "pointer", padding: "4px", display: "flex", alignItems: "center", opacity: cancellingId === e.id ? 0.4 : 1 }}
+                        style={{ background: "transparent", border: "none", color: "var(--theme-danger)", cursor: cancellingId === e.id ? "default" : "pointer", padding: "4px", display: "flex", alignItems: "center", opacity: cancellingId === e.id ? 0.4 : 1 }}
                       >
                         <svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><circle cx="8" cy="8" r="6" /><path d="M5 5l6 6M11 5l-6 6" /></svg>
                       </button>
@@ -1637,11 +1637,11 @@ export default function AgendaPage() {
       {/* WhatsApp — Modal de Período */}
       {waPeriodModal && (
         <div onClick={e => e.target === e.currentTarget && setWaPeriodModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.12)", padding: "2rem", width: "400px", maxWidth: "95vw", position: "relative" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+          <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "400px", maxWidth: "95vw", position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-              <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.6)", textTransform: "uppercase", fontWeight: 600 }}>Copiar Agenda para WhatsApp</p>
-              <button onClick={() => setWaPeriodModal(false)} style={{ background: "transparent", border: "none", color: "rgba(245,240,232,0.3)", cursor: "pointer", fontSize: "16px" }}>✕</button>
+              <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Copiar Agenda para WhatsApp</p>
+              <button onClick={() => setWaPeriodModal(false)} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: "pointer", fontSize: "16px" }}>✕</button>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.25rem" }}>
               {([
@@ -1649,11 +1649,11 @@ export default function AgendaPage() {
                 { id: "week7" as const, label: "Hoje + 7 dias", sub: (() => { const t = new Date(); const e2 = new Date(t); e2.setDate(t.getDate()+7); const fmt = (d: Date) => `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`; return `${fmt(t)} → ${fmt(e2)}`; })() },
                 { id: "custom" as const, label: "Intervalo personalizado", sub: "" },
               ] as { id: "month" | "week7" | "custom"; label: string; sub: string }[]).map(opt => (
-                <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer", padding: "0.65rem 0.75rem", background: waPeriodMode === opt.id ? "rgba(201,169,110,0.06)" : "transparent", border: `1px solid ${waPeriodMode === opt.id ? "rgba(201,169,110,0.22)" : "rgba(255,255,255,0.05)"}`, transition: "all 0.15s" }}>
-                  <input type="radio" name="waPeriod" checked={waPeriodMode === opt.id} onChange={() => { setWaPeriodMode(opt.id); setWaPeriodError(""); }} style={{ accentColor: "#C9A96E", flexShrink: 0 }} />
+                <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer", padding: "0.65rem 0.75rem", background: waPeriodMode === opt.id ? "rgba(var(--theme-accent-rgb),0.06)" : "transparent", border: `1px solid ${waPeriodMode === opt.id ? "rgba(var(--theme-accent-rgb),0.22)" : "rgba(var(--theme-contrast-rgb),0.05)"}`, transition: "all 0.15s" }}>
+                  <input type="radio" name="waPeriod" checked={waPeriodMode === opt.id} onChange={() => { setWaPeriodMode(opt.id); setWaPeriodError(""); }} style={{ accentColor: "var(--theme-accent)", flexShrink: 0 }} />
                   <div>
-                    <div style={{ fontSize: "11px", color: waPeriodMode === opt.id ? "#F5F0E8" : "rgba(245,240,232,0.6)", letterSpacing: "0.04em" }}>{opt.label}</div>
-                    {opt.sub && <div style={{ fontSize: "9px", color: "rgba(245,240,232,0.3)", letterSpacing: "0.1em", marginTop: "2px", textTransform: "capitalize" }}>{opt.sub}</div>}
+                    <div style={{ fontSize: "11px", color: waPeriodMode === opt.id ? "var(--theme-text)" : "var(--theme-text-secondary)", letterSpacing: "0.04em" }}>{opt.label}</div>
+                    {opt.sub && <div style={{ fontSize: "9px", color: "var(--theme-text-subtle)", letterSpacing: "0.1em", marginTop: "2px", textTransform: "capitalize" }}>{opt.sub}</div>}
                   </div>
                 </label>
               ))}
@@ -1661,19 +1661,19 @@ export default function AgendaPage() {
             {waPeriodMode === "custom" && (
               <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.35em", color: "rgba(245,240,232,0.3)", textTransform: "uppercase", marginBottom: "0.4rem" }}>De</label>
+                  <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.35em", color: "var(--theme-text-subtle)", textTransform: "uppercase", marginBottom: "0.4rem" }}>De</label>
                   <input type="date" value={waCustomStart} onChange={e => { setWaCustomStart(e.target.value); setWaPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "11px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.35em", color: "rgba(245,240,232,0.3)", textTransform: "uppercase", marginBottom: "0.4rem" }}>Até</label>
+                  <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.35em", color: "var(--theme-text-subtle)", textTransform: "uppercase", marginBottom: "0.4rem" }}>Até</label>
                   <input type="date" value={waCustomEnd} onChange={e => { setWaCustomEnd(e.target.value); setWaPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "11px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
                 </div>
               </div>
             )}
-            {waPeriodError && <p style={{ fontSize: "9px", color: "#E24B4A", letterSpacing: "0.2em", marginBottom: "0.85rem", textTransform: "uppercase" }}>{waPeriodError}</p>}
+            {waPeriodError && <p style={{ fontSize: "9px", color: "var(--theme-danger)", letterSpacing: "0.2em", marginBottom: "0.85rem", textTransform: "uppercase" }}>{waPeriodError}</p>}
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
               <button onClick={() => setWaPeriodModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Cancelar</button>
-              <button onClick={handleCopyAgenda} style={{ background: "#5DCAA5", border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Copiar Agenda</button>
+              <button onClick={handleCopyAgenda} style={{ background: "var(--theme-success)", border: "none", color: "var(--theme-bg)", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Copiar Agenda</button>
             </div>
           </div>
         </div>
@@ -1682,14 +1682,14 @@ export default function AgendaPage() {
       {/* WhatsApp Modal */}
       {waModal && (
         <div onClick={e => e.target === e.currentTarget && setWaModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.12)", padding: "2rem", width: "500px", maxWidth: "95vw", maxHeight: "85vh", display: "flex", flexDirection: "column", position: "relative" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+          <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "500px", maxWidth: "95vw", maxHeight: "85vh", display: "flex", flexDirection: "column", position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.6)", textTransform: "uppercase", fontWeight: 600 }}>Copiar para WhatsApp</p>
-              <button onClick={() => setWaModal(false)} style={{ background: "transparent", border: "none", color: "rgba(245,240,232,0.3)", cursor: "pointer", fontSize: "16px" }}>✕</button>
+              <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Copiar para WhatsApp</p>
+              <button onClick={() => setWaModal(false)} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: "pointer", fontSize: "16px" }}>✕</button>
             </div>
             {waCopied && (
-              <div style={{ marginBottom: "0.75rem", fontSize: "9px", letterSpacing: "0.25em", color: "#5DCAA5", textTransform: "uppercase" }}>✓ Copiado — pode colar no WhatsApp</div>
+              <div style={{ marginBottom: "0.75rem", fontSize: "9px", letterSpacing: "0.25em", color: "var(--theme-success)", textTransform: "uppercase" }}>✓ Copiado — pode colar no WhatsApp</div>
             )}
             <textarea
               readOnly
@@ -1708,7 +1708,7 @@ export default function AgendaPage() {
                     ta.value = waText; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); setWaCopied(true);
                   }
                 }}
-                style={{ background: "#5DCAA5", border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}
+                style={{ background: "var(--theme-success)", border: "none", color: "var(--theme-bg)", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}
               >Copiar novamente</button>
             </div>
           </div>
@@ -1729,8 +1729,8 @@ export default function AgendaPage() {
                   type="button"
                   onClick={() => setIsResidencia(r => !r)}
                   style={{
-                    background: isResidencia ? "rgba(201,169,110,0.12)" : "transparent",
-                    border: `1px solid ${isResidencia ? Colors.gold : "rgba(255,255,255,0.08)"}`,
+                    background: isResidencia ? "rgba(var(--theme-accent-rgb),0.12)" : "transparent",
+                    border: `1px solid ${isResidencia ? Colors.gold : "rgba(var(--theme-contrast-rgb),0.08)"}`,
                     color: isResidencia ? Colors.gold : Colors.textMuted,
                     fontSize: "8px", letterSpacing: "0.3em", padding: "0.4rem 0.9rem",
                     cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600,
@@ -1821,9 +1821,9 @@ export default function AgendaPage() {
                           setForm(f => ({ ...f, tipo: next.join(" / ") }));
                         }}
                         style={{
-                          background: active ? `${EQUIPA_COLOR[n]}18` : "rgba(255,255,255,0.03)",
-                          border: `1px solid ${active ? EQUIPA_COLOR[n] : "rgba(255,255,255,0.08)"}`,
-                          color: active ? EQUIPA_COLOR[n] : "rgba(245,240,232,0.35)",
+                          background: active ? `${EQUIPA_COLOR[n]}18` : "rgba(var(--theme-contrast-rgb),0.03)",
+                          border: `1px solid ${active ? EQUIPA_COLOR[n] : "rgba(var(--theme-contrast-rgb),0.08)"}`,
+                          color: active ? EQUIPA_COLOR[n] : "var(--theme-text-subtle)",
                           fontSize: "10px", letterSpacing: "0.15em", padding: "0.5rem 1rem",
                           cursor: "pointer", fontFamily: "inherit", fontWeight: active ? 700 : 400,
                           display: "flex", alignItems: "center", gap: "6px", transition: "all 0.15s",
@@ -1906,7 +1906,7 @@ export default function AgendaPage() {
                         }
                         <div
                           onMouseDown={() => { setClienteCreating(true); setClienteDropOpen(false); }}
-                          style={{ padding: "0.6rem 1rem", fontSize: "10px", color: Colors.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(201,169,110,0.12)", display: "flex", alignItems: "center", gap: "6px" }}
+                          style={{ padding: "0.6rem 1rem", fontSize: "10px", color: Colors.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(var(--theme-accent-rgb),0.12)", display: "flex", alignItems: "center", gap: "6px" }}
                           onMouseEnter={e => (e.currentTarget.style.background = "var(--theme-dropdown-hover)")}
                           onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                         >
@@ -1982,7 +1982,7 @@ export default function AgendaPage() {
                 />
               </FormField>
               {modal.editing && (
-                <div style={{ gridColumn: "1 / -1", border: `1px solid ${Colors.borderDim}`, padding: "0.85rem", background: "rgba(255,255,255,0.015)" }}>
+                <div style={{ gridColumn: "1 / -1", border: `1px solid ${Colors.borderDim}`, padding: "0.85rem", background: "rgba(var(--theme-contrast-rgb),0.015)" }}>
                   <div style={{ fontSize: "7px", letterSpacing: "0.35em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.55rem" }}>Materiais reservados</div>
                   {loadingMateriaisResumo ? (
                     <div style={{ color: Colors.textMuted, fontSize: "10px" }}>A carregar materiais reservados...</div>
@@ -2093,10 +2093,10 @@ export default function AgendaPage() {
             </div>
 
             {modal.editing && !modal.editing.cancelled && (
-              <div style={{ marginTop: "1.5rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <div style={{ marginTop: "1.5rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(var(--theme-contrast-rgb),0.06)" }}>
                 <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.4em", color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Troca de Dia</label>
                 {getTrocaNota(modal.editing.notas || "") ? (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", background: "rgba(201,169,110,0.06)", border: "1px solid rgba(201,169,110,0.18)", padding: "0.65rem 0.85rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", background: "rgba(var(--theme-accent-rgb),0.06)", border: "1px solid rgba(var(--theme-accent-rgb),0.18)", padding: "0.65rem 0.85rem" }}>
                     <span style={{ fontSize: "10px", color: Colors.gold, letterSpacing: "0.03em" }}>
                       🔁 {getTrocaNota(modal.editing.notas || "")}
                     </span>
@@ -2116,11 +2116,11 @@ export default function AgendaPage() {
                     <button
                       onClick={() => { if (trocaNovaData) { handleAplicarTroca(modal.editing as AgendaEvent, trocaNovaData); setTrocaNovaData(""); } }}
                       disabled={!trocaNovaData}
-                      style={{ ...btnSecStyle, padding: "0.7rem 1.1rem", flexShrink: 0, opacity: !trocaNovaData ? 0.4 : 1, color: Colors.gold, borderColor: "rgba(201,169,110,0.25)" }}
+                      style={{ ...btnSecStyle, padding: "0.7rem 1.1rem", flexShrink: 0, opacity: !trocaNovaData ? 0.4 : 1, color: Colors.gold, borderColor: "rgba(var(--theme-accent-rgb),0.25)" }}
                     >Registar troca</button>
                   </div>
                 )}
-                <p style={{ fontSize: "9px", color: "rgba(245,240,232,0.3)", letterSpacing: "0.02em", marginTop: "0.6rem", lineHeight: "1.5" }}>
+                <p style={{ fontSize: "9px", color: "var(--theme-text-subtle)", letterSpacing: "0.02em", marginTop: "0.6rem", lineHeight: "1.5" }}>
                   Usa isto quando o evento mudou de dia por troca com outra pessoa (ex: SUD). O evento passa para o novo dia e fica anotado o dia original.
                 </p>
               </div>
@@ -2141,10 +2141,10 @@ export default function AgendaPage() {
       {materialModal.open && materialModal.event && (
         <div onClick={e => e.target === e.currentTarget && closeMaterialModal()} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1150, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
           <div style={{ background: "var(--theme-surface)", border: `1px solid ${Colors.border}`, padding: "2rem", width: "480px", maxWidth: "95vw", maxHeight: "88vh", overflowY: "auto", position: "relative" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
-              <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.6)", textTransform: "uppercase", fontWeight: 600 }}>Material do Evento</p>
-              <button onClick={closeMaterialModal} style={{ background: "transparent", border: "none", color: "rgba(245,240,232,0.3)", cursor: "pointer", fontSize: "16px" }}>✕</button>
+              <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Material do Evento</p>
+              <button onClick={closeMaterialModal} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: "pointer", fontSize: "16px" }}>✕</button>
             </div>
             <p style={{ fontSize: "12px", color: Colors.textPrimary, marginBottom: "1.25rem" }}>{materialModal.event.title}</p>
 
@@ -2182,8 +2182,8 @@ export default function AgendaPage() {
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                 {MATERIAL_ORIGENS.map(o => (
                   <button key={o} onClick={() => setReservaForm(f => ({ ...f, origem: o }))} style={{
-                    background: reservaForm.origem === o ? "rgba(201,169,110,0.18)" : "rgba(255,255,255,0.04)",
-                    border: `1px solid ${reservaForm.origem === o ? "rgba(201,169,110,0.4)" : "rgba(255,255,255,0.1)"}`,
+                    background: reservaForm.origem === o ? "rgba(var(--theme-accent-rgb),0.18)" : "rgba(var(--theme-contrast-rgb),0.04)",
+                    border: `1px solid ${reservaForm.origem === o ? "rgba(var(--theme-accent-rgb),0.4)" : "rgba(var(--theme-contrast-rgb),0.1)"}`,
                     color: reservaForm.origem === o ? Colors.gold : Colors.textMuted,
                     fontSize: "10px", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit",
                   }}>{o}</button>
@@ -2205,7 +2205,7 @@ export default function AgendaPage() {
       <div style={{ position: "fixed", bottom: "2rem", right: "2rem", maxWidth: "420px", background: "var(--theme-toast-bg)", border: `1px solid ${Colors.border}`, color: Colors.gold, fontSize: "10px", letterSpacing: toast.length > 40 ? "0.02em" : "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: toast.length > 40 ? "none" : "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "1rem" }}>
         <span style={{ wordBreak: "break-word", userSelect: "text" }}>{toast}</span>
         {undoAction && (
-          <button onClick={undoAction.fn} style={{ background: "rgba(201,169,110,0.15)", border: "1px solid rgba(201,169,110,0.3)", color: Colors.gold, fontSize: "9px", letterSpacing: "0.3em", padding: "0.3rem 0.75rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, flexShrink: 0 }}>
+          <button onClick={undoAction.fn} style={{ background: "rgba(var(--theme-accent-rgb),0.15)", border: "1px solid rgba(var(--theme-accent-rgb),0.3)", color: Colors.gold, fontSize: "9px", letterSpacing: "0.3em", padding: "0.3rem 0.75rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, flexShrink: 0 }}>
             {undoAction.label}
           </button>
         )}
@@ -2241,12 +2241,12 @@ function Nav({ userName, active, onLogout, lightTheme }: { userName: string; act
     ...baseLinks,
     ...((role !== "limited_novalues" && role !== "finance") ? [{ href: "/materiais", label: "Materiais" }] : []),
   ];
-  const navBg = isDark ? "rgba(12,11,9,0.95)" : "#FFFFFF";
-  const navBorder = isDark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.12)";
-  const textMuted = isDark ? "rgba(245,240,232,0.45)" : "#000000";
-  const textVeryMuted = isDark ? "rgba(245,240,232,0.22)" : "rgba(0,0,0,0.55)";
-  const buttonBorder = isDark ? "1px solid rgba(201,169,110,0.12)" : "1px solid rgba(0,0,0,0.2)";
-  const goldColor = isDark ? "#C9A96E" : "#000000";
+  const navBg = isDark ? "var(--theme-nav-bg)" : "#FFFFFF";
+  const navBorder = isDark ? "1px solid rgba(var(--theme-contrast-rgb),0.05)" : "1px solid rgba(0,0,0,0.12)";
+  const textMuted = isDark ? "var(--theme-text-muted)" : "#000000";
+  const textVeryMuted = isDark ? "var(--theme-text-faint)" : "rgba(0,0,0,0.55)";
+  const buttonBorder = isDark ? "1px solid rgba(var(--theme-accent-rgb),0.12)" : "1px solid rgba(0,0,0,0.2)";
+  const goldColor = isDark ? "var(--theme-accent)" : "#000000";
   
   return (
     <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: navBorder, position: "sticky", top: 0, zIndex: 100, background: navBg, backdropFilter: "blur(12px)" }}>
@@ -2268,8 +2268,8 @@ function Nav({ userName, active, onLogout, lightTheme }: { userName: string; act
 
 function Loading() {
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0C0B09" }}>
-      <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--theme-bg)" }}>
+      <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
     </div>
   );
 }
@@ -2291,7 +2291,7 @@ function IconBtn({ title, onClick, icon, danger, success, disabled }: { title: s
     delete: <svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="3 6 4 14 12 14 13 6" /><path d="M2 6h12M10 6V4H6v2" /></svg>,
     material: <svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="1.8"><rect x="2" y="5" width="12" height="9" rx="1.2" /><path d="M5.5 5V3.5a2 2 0 014 0V5" /></svg>,
   };
-  const color = danger ? "#E24B4A" : success ? "#5DCAA5" : "rgba(245,240,232,0.35)";
+  const color = danger ? "var(--theme-danger)" : success ? "var(--theme-success)" : "var(--theme-text-subtle)";
   return (
     <button title={title} onClick={onClick} disabled={disabled} style={{ background: "transparent", border: "none", cursor: disabled ? "default" : "pointer", padding: "5px", color, opacity: disabled ? 0.4 : 1, transition: "color 0.15s" }}>
       {icons[icon]}
@@ -2312,8 +2312,8 @@ const createAddBtnStyle = (lightTheme: boolean): React.CSSProperties => {
   const isDark = !lightTheme;
   return {
     background: "transparent",
-    border: isDark ? "1px solid rgba(201,169,110,0.12)" : "1px solid rgba(0,0,0,0.2)",
-    color: isDark ? "#8a7350" : "#000000",
+    border: isDark ? "1px solid rgba(var(--theme-accent-rgb),0.12)" : "1px solid rgba(0,0,0,0.2)",
+    color: isDark ? "var(--theme-accent-muted)" : "#000000",
     fontSize: "8px",
     letterSpacing: "0.35em",
     padding: "0.5rem 1.25rem",
@@ -2334,11 +2334,11 @@ const createTdStyle = (lightTheme: boolean, { muted, nowrap, maxW }: { muted?: b
   return {
     fontSize: "12px",
     color: isDark
-      ? (muted ? "rgba(245,240,232,0.45)" : "#F5F0E8")
+      ? (muted ? "var(--theme-text-muted)" : "var(--theme-text)")
       : (muted ? "rgba(0,0,0,0.75)" : "#000000"),
     fontWeight: lightTheme ? 500 : undefined,
     padding: "0.85rem 1.25rem",
-    borderBottom: isDark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.12)",
+    borderBottom: isDark ? "1px solid rgba(var(--theme-contrast-rgb),0.05)" : "1px solid rgba(0,0,0,0.12)",
     whiteSpace: nowrap ? "nowrap" : undefined,
     maxWidth: maxW,
     overflow: maxW ? "hidden" : undefined,
@@ -2346,24 +2346,24 @@ const createTdStyle = (lightTheme: boolean, { muted, nowrap, maxW }: { muted?: b
   };
 };
 const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)" };
-const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.12)", padding: "clamp(1.25rem, 4vw, 2.5rem)", width: "640px", maxWidth: "96vw", maxHeight: "92dvh", overflowY: "auto", position: "relative" };
-const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" };
+const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "clamp(1.25rem, 4vw, 2.5rem)", width: "640px", maxWidth: "96vw", maxHeight: "92dvh", overflowY: "auto", position: "relative" };
+const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" };
 const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
 const btnPrimStyle: React.CSSProperties = { background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-const btnDangerStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(226,75,74,0.3)", color: "#E24B4A", fontSize: "8px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnDangerStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(226,75,74,0.3)", color: "var(--theme-danger)", fontSize: "8px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 
 // ── Mobile Tab Bar — 4 fixos + "Mais" drawer ───────────────────────────────
 function MobTabBar({ active, role, lightTheme }: { active: string; role: string; lightTheme: boolean }) {
   const [maisOpen, setMaisOpen] = useState(false);
-  const drawerBg = lightTheme ? "#FFFFFF" : "#131108";
-  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(201,169,110,0.15)";
+  const drawerBg = lightTheme ? "#FFFFFF" : "var(--theme-surface)";
+  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(var(--theme-accent-rgb),0.15)";
   const drawerShadow = lightTheme ? "0 -8px 32px rgba(0,0,0,0.15)" : "0 -8px 32px rgba(0,0,0,0.6)";
-  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "rgba(245,240,232,0.4)";
-  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(201,169,110,0.08)";
-  const drawerGold = lightTheme ? "#000000" : "#C9A96E";
-  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(201,169,110,0.25)";
-  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(201,169,110,0.4)";
+  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "var(--theme-text-muted)";
+  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(var(--theme-accent-rgb),0.08)";
+  const drawerGold = lightTheme ? "#000000" : "var(--theme-accent)";
+  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(var(--theme-accent-rgb),0.25)";
+  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(var(--theme-accent-rgb),0.4)";
 
   // Os 4 tabs fixos — sempre visíveis
   const mainTabs = [

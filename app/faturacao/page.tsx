@@ -21,10 +21,10 @@ interface FatItem {
 interface Cliente { id: number; nome: string; nif?: string; email?: string; telefone?: string; notas?: string; alias?: string; }
 
 const C = {
-  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009", pageBg: "#0C0B09",
-  border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
-  textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
-  green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
+  gold: "var(--theme-accent)", goldDim: "var(--theme-accent-muted)", surface: "var(--theme-surface)", pageBg: "var(--theme-bg)",
+  border: "rgba(var(--theme-accent-rgb),0.12)", borderDim: "rgba(var(--theme-contrast-rgb),0.05)",
+  textPrimary: "var(--theme-text)", textSec: "var(--theme-text-muted)", textMuted: "var(--theme-text-faint)",
+  green: "var(--theme-success)", amber: "var(--theme-warning)", blue: "var(--theme-info)", red: "var(--theme-danger)",
   purple: "#A78BFA",
 };
 
@@ -50,9 +50,9 @@ const ESTADO_CFG: Record<string, { color: string; dot: string }> = {
   "Em Negociação":    { color: C.amber,    dot: C.amber },
   "Confirmado":       { color: C.green,    dot: C.green },
   "Em Adjudicação":   { color: C.gold,     dot: C.gold },
-  "Adjudicado":       { color: "#C9A96E",  dot: "#C9A96E" },
+  "Adjudicado":       { color: "var(--theme-accent)",  dot: "var(--theme-accent)" },
   "Faturado":         { color: C.purple,   dot: C.purple },
-  "Pago":             { color: "#5DCAA5",  dot: "#5DCAA5" },
+  "Pago":             { color: "var(--theme-success)",  dot: "var(--theme-success)" },
   "Cancelado":        { color: C.red,      dot: C.red },
 };
 
@@ -293,7 +293,7 @@ export default function FaturacaoPage() {
           />
           {["Por Faturar", "Faturado", "Pagos", "Todos"].map(e => (
             <button key={e} onClick={() => setFiltroEstado(e)} style={{
-              background: filtroEstado === e ? (e === "Pagos" ? "rgba(93,202,165,0.08)" : e === "Faturado" ? "rgba(167,139,250,0.08)" : "rgba(201,169,110,0.08)") : "transparent",
+              background: filtroEstado === e ? (e === "Pagos" ? "rgba(93,202,165,0.08)" : e === "Faturado" ? "rgba(167,139,250,0.08)" : "rgba(var(--theme-accent-rgb),0.08)") : "transparent",
               border: filtroEstado === e ? `1px solid ${e === "Pagos" ? C.green : e === "Faturado" ? C.purple : C.border}` : `1px solid ${C.borderDim}`,
               color: filtroEstado === e ? (e === "Pagos" ? C.green : e === "Faturado" ? C.purple : C.gold) : C.textMuted,
               fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1rem", cursor: "pointer",
@@ -305,13 +305,13 @@ export default function FaturacaoPage() {
 
         {/* BULK ACTION BAR */}
         {selectedItems.size > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem", padding: "0.75rem 1.25rem", background: "rgba(201,169,110,0.06)", border: `1px solid ${C.border}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem", padding: "0.75rem 1.25rem", background: "rgba(var(--theme-accent-rgb),0.06)", border: `1px solid ${C.border}` }}>
             <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: C.gold, fontWeight: 600 }}>{selectedItems.size} {selectedItems.size === 1 ? "item seleccionado" : "itens seleccionados"}</span>
             <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)} style={{ background: "var(--theme-input-bg)", border: `1px solid ${C.borderDim}`, color: bulkStatus ? C.textPrimary : C.textMuted, fontFamily: "inherit", fontSize: "9px", padding: "0.4rem 0.75rem", letterSpacing: "0.1em", outline: "none", cursor: "pointer", appearance: "none" as any }}>
               <option value="">Alterar estado para...</option>
               {TODOS_ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <button onClick={handleBulkStatus} disabled={!bulkStatus} style={{ background: bulkStatus ? C.gold : "rgba(255,255,255,0.04)", border: "none", color: bulkStatus ? "#0C0B09" : C.textMuted, fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.5rem 1.25rem", cursor: bulkStatus ? "pointer" : "default", fontFamily: "inherit", textTransform: "uppercase" }}>Aplicar</button>
+            <button onClick={handleBulkStatus} disabled={!bulkStatus} style={{ background: bulkStatus ? C.gold : "rgba(var(--theme-contrast-rgb),0.04)", border: "none", color: bulkStatus ? "var(--theme-bg)" : C.textMuted, fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.5rem 1.25rem", cursor: bulkStatus ? "pointer" : "default", fontFamily: "inherit", textTransform: "uppercase" }}>Aplicar</button>
             <button onClick={() => setSelectedItems(new Set())} style={{ background: "transparent", border: "none", color: C.textMuted, fontSize: "9px", cursor: "pointer", marginLeft: "auto" }}>✕ Limpar seleção</button>
           </div>
         )}
@@ -342,7 +342,7 @@ export default function FaturacaoPage() {
 
               return (
                 <div key={clienteNome} style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative" }}>
-                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
 
                   {/* Card Header */}
                   <div
@@ -383,8 +383,8 @@ export default function FaturacaoPage() {
                       const cfg = ESTADO_CFG[item.billing_status] || { color: C.textSec, dot: C.textSec };
                       const isLast = idx === items.length - 1;
                       return (
-                        <div key={`${item.origem}-${item.id}`} style={{ display: "grid", gridTemplateColumns: "24px 1fr auto auto auto auto", gap: "1rem", alignItems: "center", padding: "1rem 2rem", borderBottom: isLast ? "none" : `1px solid ${C.borderDim}`, transition: "background 0.15s", background: selectedItems.has(`${item.origem}-${item.id}`) ? "rgba(201,169,110,0.04)" : "transparent" }}
-                          onMouseEnter={e => { if (!selectedItems.has(`${item.origem}-${item.id}`)) e.currentTarget.style.background = "rgba(255,255,255,0.015)"; }}
+                        <div key={`${item.origem}-${item.id}`} style={{ display: "grid", gridTemplateColumns: "24px 1fr auto auto auto auto", gap: "1rem", alignItems: "center", padding: "1rem 2rem", borderBottom: isLast ? "none" : `1px solid ${C.borderDim}`, transition: "background 0.15s", background: selectedItems.has(`${item.origem}-${item.id}`) ? "rgba(var(--theme-accent-rgb),0.04)" : "transparent" }}
+                          onMouseEnter={e => { if (!selectedItems.has(`${item.origem}-${item.id}`)) e.currentTarget.style.background = "rgba(var(--theme-contrast-rgb),0.015)"; }}
                           onMouseLeave={e => { if (!selectedItems.has(`${item.origem}-${item.id}`)) e.currentTarget.style.background = "transparent"; }}
                         >
                           {/* Checkbox */}
@@ -414,7 +414,7 @@ export default function FaturacaoPage() {
                                       value={editingRecebido.valor}
                                       onChange={e => setEditingRecebido(r => r ? { ...r, valor: e.target.value } : r)}
                                       onKeyDown={e => { if (e.key === "Enter") handleSaveValorRecebido(); if (e.key === "Escape") setEditingRecebido(null); }}
-                                      style={{ width: "80px", background: "rgba(255,255,255,0.06)", border: `1px solid ${C.green}44`, color: C.green, fontFamily: "inherit", fontSize: "10px", padding: "2px 6px", outline: "none", textAlign: "right" }}
+                                      style={{ width: "80px", background: "rgba(var(--theme-contrast-rgb),0.06)", border: `1px solid ${C.green}44`, color: C.green, fontFamily: "inherit", fontSize: "10px", padding: "2px 6px", outline: "none", textAlign: "right" }}
                                     />
                                     <button onClick={handleSaveValorRecebido} style={{ background: "transparent", border: "none", color: C.green, cursor: "pointer", fontSize: "11px", padding: "1px 4px" }}>✓</button>
                                     <button onClick={() => setEditingRecebido(null)} style={{ background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: "11px", padding: "1px 4px" }}>✕</button>
@@ -489,8 +489,8 @@ export default function FaturacaoPage() {
 
     {/* ═══ MOBILE ═══ */}
     <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "var(--theme-text)", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(255,255,255,0.05)", background:"rgba(12,11,9,0.97)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
-        <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"#C9A96E", fontWeight:300 }}>LLE</span>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(var(--theme-contrast-rgb),0.05)", background:"var(--theme-nav-bg)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
+        <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"var(--theme-accent)", fontWeight:300 }}>LLE</span>
         <div style={{ display:"flex", gap:"0.6rem", alignItems:"center" }}>
           <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.4rem 0.5rem" }} />
           <button onClick={() => setClienteModal(true)} className="mob-fab" style={{width:"auto", padding:"0 0.9rem", gap:6, borderRadius:8}}>
@@ -504,15 +504,15 @@ export default function FaturacaoPage() {
       <div className="mob-stats-row">
         <div className="mob-stat-cell">
           <span className="mob-stat-label">Total</span>
-          <span className="mob-stat-value" style={{color:"#C9A96E"}}>{fmtEuro(totalGeral)}</span>
+          <span className="mob-stat-value" style={{color:"var(--theme-accent)"}}>{fmtEuro(totalGeral)}</span>
         </div>
         <div className="mob-stat-cell">
           <span className="mob-stat-label">A Receber</span>
-          <span className="mob-stat-value" style={{color:"#EF9F27"}}>{fmtEuro(totalPendente)}</span>
+          <span className="mob-stat-value" style={{color:"var(--theme-warning)"}}>{fmtEuro(totalPendente)}</span>
         </div>
         <div className="mob-stat-cell">
           <span className="mob-stat-label">Recebido</span>
-          <span className="mob-stat-value" style={{color:"#5DCAA5"}}>{fmtEuro(totalRecebido)}</span>
+          <span className="mob-stat-value" style={{color:"var(--theme-success)"}}>{fmtEuro(totalRecebido)}</span>
         </div>
       </div>
 
@@ -548,7 +548,7 @@ export default function FaturacaoPage() {
           <button
             onClick={handleBulkStatus}
             disabled={!bulkStatus}
-            style={{ background: bulkStatus ? C.gold : "rgba(255,255,255,0.04)", border: "none", color: bulkStatus ? "#0C0B09" : C.textMuted, fontSize: "9px", letterSpacing: "0.25em", fontWeight: 700, padding: "0.5rem 0.9rem", cursor: bulkStatus ? "pointer" : "default", fontFamily: "inherit", textTransform: "uppercase", whiteSpace: "nowrap", borderRadius: "2px" }}
+            style={{ background: bulkStatus ? C.gold : "rgba(var(--theme-contrast-rgb),0.04)", border: "none", color: bulkStatus ? "var(--theme-bg)" : C.textMuted, fontSize: "9px", letterSpacing: "0.25em", fontWeight: 700, padding: "0.5rem 0.9rem", cursor: bulkStatus ? "pointer" : "default", fontFamily: "inherit", textTransform: "uppercase", whiteSpace: "nowrap", borderRadius: "2px" }}
           >Aplicar</button>
           <button onClick={() => setSelectedItems(new Set())} style={{ background: "transparent", border: "none", color: C.textMuted, fontSize: "16px", cursor: "pointer", padding: "0 4px", lineHeight: "1" }}>✕</button>
         </div>
@@ -570,35 +570,35 @@ export default function FaturacaoPage() {
               <div className="mob-section-header" onClick={() => toggleCliente(clienteNome)} style={{ cursor: "pointer", userSelect: "none" }}>
                 <span style={{maxWidth:"60%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{displayNome}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <span style={{color: totalRecebidoCliente >= totalCliente ? "#5DCAA5" : "#C9A96E", fontSize:"11px", fontWeight:700, letterSpacing:0}}>{fmtEuro(totalCliente)}</span>
-                  <span style={{ color: "rgba(201,169,110,0.5)", fontSize: "12px" }}>{collapsedClientes.has(clienteNome) ? "▸" : "▾"}</span>
+                  <span style={{color: totalRecebidoCliente >= totalCliente ? "var(--theme-success)" : "var(--theme-accent)", fontSize:"11px", fontWeight:700, letterSpacing:0}}>{fmtEuro(totalCliente)}</span>
+                  <span style={{ color: "var(--theme-accent)", fontSize: "12px" }}>{collapsedClientes.has(clienteNome) ? "▸" : "▾"}</span>
                 </div>
               </div>
               {!collapsedClientes.has(clienteNome) && items.map((item:any) => {
                 const itemKey = `${item.origem}-${item.id}`;
                 const isSelected = selectedItems.has(itemKey);
                 const bsColors: Record<string,string> = {
-                  "Confirmado":"#5DCAA5","Em Adjudicação":"#C9A96E","Adjudicado":"#C9A96E",
-                  "Faturado":"#A78BFA","Pago":"#5DCAA5","Cancelado":"#E24B4A",
+                  "Confirmado":"var(--theme-success)","Em Adjudicação":"var(--theme-accent)","Adjudicado":"var(--theme-accent)",
+                  "Faturado":"#A78BFA","Pago":"var(--theme-success)","Cancelado":"var(--theme-danger)",
                 };
-                const bc = bsColors[item.billing_status] || "rgba(245,240,232,0.3)";
+                const bc = bsColors[item.billing_status] || "var(--theme-text-subtle)";
                 const d = new Date(item.data+"T00:00:00");
                 return (
                   <div
                     key={item.id}
                     className="mob-card"
                     onClick={() => toggleItem(itemKey)}
-                    style={{ cursor: "pointer", background: isSelected ? "rgba(201,169,110,0.07)" : undefined, borderLeft: isSelected ? `2px solid ${C.gold}` : "2px solid transparent", transition: "background 0.15s, border-color 0.15s" }}
+                    style={{ cursor: "pointer", background: isSelected ? "rgba(var(--theme-accent-rgb),0.07)" : undefined, borderLeft: isSelected ? `2px solid ${C.gold}` : "2px solid transparent", transition: "background 0.15s, border-color 0.15s" }}
                   >
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "22px", flexShrink: 0 }}>
                       <div style={{
                         width: "16px", height: "16px", borderRadius: "3px",
-                        border: `1.5px solid ${isSelected ? C.gold : "rgba(201,169,110,0.3)"}`,
+                        border: `1.5px solid ${isSelected ? C.gold : "rgba(var(--theme-accent-rgb),0.3)"}`,
                         background: isSelected ? C.gold : "transparent",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         transition: "all 0.15s", flexShrink: 0,
                       }}>
-                        {isSelected && <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#0C0B09" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        {isSelected && <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="var(--theme-bg)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                       </div>
                     </div>
                     <div className="mob-date-bubble">
@@ -658,18 +658,18 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     ...((role !== "limited_novalues" && role !== "finance") ? [{ href: "/materiais", label: "Materiais" }] : []),
   ];
   return (
-    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
+    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
+        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "#C9A96E" : "rgba(245,240,232,0.45)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
+            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "var(--theme-accent)" : "var(--theme-text-muted)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
         <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
-        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
+        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
       </div>
     </nav>
   );
@@ -678,7 +678,7 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
 function Loading() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.pageBg }}>
-      <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
+      <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
     </div>
   );
 }
@@ -693,25 +693,25 @@ function FormField({ label, children }: { label: string; children: React.ReactNo
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-const addBtnStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "#8a7350", fontSize: "8px", letterSpacing: "0.35em", padding: "0.5rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s" };
+const addBtnStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-accent-muted)", fontSize: "8px", letterSpacing: "0.35em", padding: "0.5rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s" };
 const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
-const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.12)", padding: "2.5rem", width: "480px", maxWidth: "90vw", maxHeight: "90vh", overflowY: "auto", position: "relative" };
-const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" };
+const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2.5rem", width: "480px", maxWidth: "90vw", maxHeight: "90vh", overflowY: "auto", position: "relative" };
+const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" };
 const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
 const btnPrimStyle: React.CSSProperties = { background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 
 // ── Mobile Tab Bar — 4 fixos + "Mais" drawer ───────────────────────────────
 function MobTabBar({ active, role, lightTheme }: { active: string; role: string; lightTheme: boolean }) {
   const [maisOpen, setMaisOpen] = useState(false);
-  const drawerBg = lightTheme ? "#FFFFFF" : "#131108";
-  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(201,169,110,0.15)";
+  const drawerBg = lightTheme ? "#FFFFFF" : "var(--theme-surface)";
+  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(var(--theme-accent-rgb),0.15)";
   const drawerShadow = lightTheme ? "0 -8px 32px rgba(0,0,0,0.15)" : "0 -8px 32px rgba(0,0,0,0.6)";
-  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "rgba(245,240,232,0.4)";
-  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(201,169,110,0.08)";
-  const drawerGold = lightTheme ? "#000000" : "#C9A96E";
-  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(201,169,110,0.25)";
-  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(201,169,110,0.4)";
+  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "var(--theme-text-muted)";
+  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(var(--theme-accent-rgb),0.08)";
+  const drawerGold = lightTheme ? "#000000" : "var(--theme-accent)";
+  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(var(--theme-accent-rgb),0.25)";
+  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(var(--theme-accent-rgb),0.4)";
 
   // Os 4 tabs fixos — sempre visíveis
   const mainTabs = [

@@ -13,10 +13,10 @@ interface Cliente {
 }
 
 const C = {
-  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009", pageBg: "#0C0B09",
-  border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
-  textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
-  green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A",
+  gold: "var(--theme-accent)", goldDim: "var(--theme-accent-muted)", surface: "var(--theme-surface)", pageBg: "var(--theme-bg)",
+  border: "rgba(var(--theme-accent-rgb),0.12)", borderDim: "rgba(var(--theme-contrast-rgb),0.05)",
+  textPrimary: "var(--theme-text)", textSec: "var(--theme-text-muted)", textMuted: "var(--theme-text-faint)",
+  green: "var(--theme-success)", amber: "var(--theme-warning)", blue: "var(--theme-info)", red: "var(--theme-danger)",
 };
 
 const C_Light = {
@@ -181,7 +181,7 @@ export default function ClientesPage() {
         </div>
 
         <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
           <div style={{ borderBottom: `1px solid ${C.borderDim}` }}>
             <input
               value={search} onChange={e => setSearch(e.target.value)}
@@ -243,12 +243,12 @@ export default function ClientesPage() {
 
     {/* ═══ MOBILE ═══ */}
     <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "var(--theme-text)", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", background: "rgba(12,11,9,0.97)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
-        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
+        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
           <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.4rem 0.5rem" }} />
-          <span style={{ fontSize: "8px", letterSpacing: "0.35em", color: "rgba(245,240,232,0.2)", textTransform: "uppercase" }}>Clientes</span>
-          <span style={{ fontSize: "8px", letterSpacing: "0.2em", color: "rgba(245,240,232,0.2)", textTransform: "uppercase" }}>{userName}</span>
+          <span style={{ fontSize: "8px", letterSpacing: "0.35em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>Clientes</span>
+          <span style={{ fontSize: "8px", letterSpacing: "0.2em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
         </div>
       </div>
 
@@ -258,7 +258,7 @@ export default function ClientesPage() {
           placeholder="Pesquisar cliente..."
           style={{ flex: 1, background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "12px", padding: "0.6rem 0.9rem", outline: "none" }}
         />
-        <button onClick={openCreate} style={{ background: "rgba(201,169,110,0.12)", border: "1px solid rgba(201,169,110,0.2)", color: "#C9A96E", fontSize: "16px", padding: "0.6rem 0.9rem", cursor: "pointer" }}>+</button>
+        <button onClick={openCreate} style={{ background: "rgba(var(--theme-accent-rgb),0.12)", border: "1px solid rgba(var(--theme-accent-rgb),0.2)", color: "var(--theme-accent)", fontSize: "16px", padding: "0.6rem 0.9rem", cursor: "pointer" }}>+</button>
       </div>
 
       <div className="mob-list">
@@ -278,13 +278,13 @@ export default function ClientesPage() {
               </div>
               <div style={{ display: "flex", gap: "4px", marginLeft: "0.75rem" }}>
                 <button onClick={() => openEdit(c)} style={{ background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-muted)", fontSize: "10px", padding: "6px 10px", cursor: "pointer" }}>✏️</button>
-                <button onClick={() => handleDelete(c)} style={{ background: "rgba(226,75,74,0.08)", border: "1px solid rgba(226,75,74,0.2)", color: "#E24B4A", fontSize: "10px", padding: "6px 10px", cursor: "pointer" }}>🗑</button>
+                <button onClick={() => handleDelete(c)} style={{ background: "rgba(226,75,74,0.08)", border: "1px solid rgba(226,75,74,0.2)", color: "var(--theme-danger)", fontSize: "10px", padding: "6px 10px", cursor: "pointer" }}>🗑</button>
               </div>
             </div>
           </div>
         ))}
         {filtered.length === 0 && (
-          <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "rgba(245,240,232,0.2)", letterSpacing: "0.15em" }}>
+          <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "var(--theme-text-faint)", letterSpacing: "0.15em" }}>
             {search ? "Nenhum cliente encontrado" : "Nenhum cliente ainda"}
           </div>
         )}
@@ -299,7 +299,7 @@ export default function ClientesPage() {
         {/* Desktop modal */}
         <div className="mob-page-desktop" onClick={e => e.target === e.currentTarget && closeModal()} style={overlayStyle}>
           <div style={{ background: "var(--theme-surface)", border: `1px solid ${C.border}`, padding: "2.5rem", width: "560px", maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", position: "relative" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "1.75rem" }}>
               {modal.editing ? "Editar Cliente" : "Novo Cliente"}
             </p>
@@ -313,7 +313,7 @@ export default function ClientesPage() {
         {/* Mobile bottom sheet */}
         <div className="mob-shell" onClick={e => e.target === e.currentTarget && closeModal()} style={overlayBottomStyle}>
           <div style={{ background: "var(--theme-surface)", borderTop: `1px solid ${C.border}`, width: "100%", maxHeight: "92dvh", overflowY: "auto", padding: "1.5rem 1.25rem", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))", borderRadius: "12px 12px 0 0", position: "relative" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
               <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600 }}>
                 {modal.editing ? "Editar Cliente" : "Novo Cliente"}
@@ -335,23 +335,23 @@ export default function ClientesPage() {
       <>
         <div className="mob-page-desktop" onClick={() => setConfirmDelete(null)} style={overlayStyle}>
           <div style={{ background: "var(--theme-surface)", border: `1px solid ${C.border}`, padding: "2rem", width: "400px", maxWidth: "90vw", position: "relative" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #E24B4A, transparent)" }} />
-            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: "#E24B4A", textTransform: "uppercase", fontWeight: 600, marginBottom: "1rem" }}>Confirmar eliminação</p>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-danger), transparent)" }} />
+            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: "var(--theme-danger)", textTransform: "uppercase", fontWeight: 600, marginBottom: "1rem" }}>Confirmar eliminação</p>
             <p style={{ fontSize: "12px", color: C.textSec, marginBottom: "1.5rem" }}>Eliminar <strong style={{ color: C.textPrimary }}>{displayName(confirmDelete)}</strong>? Esta acção pode ser desfeita com Undo.</p>
             <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
               <button onClick={() => setConfirmDelete(null)} style={btnSecStyle}>Cancelar</button>
-              <button onClick={confirmDoDelete} style={{ ...btnPrimStyle, background: "#E24B4A" }}>Eliminar</button>
+              <button onClick={confirmDoDelete} style={{ ...btnPrimStyle, background: "var(--theme-danger)" }}>Eliminar</button>
             </div>
           </div>
         </div>
         <div className="mob-shell" onClick={() => setConfirmDelete(null)} style={overlayBottomStyle}>
           <div style={{ background: "var(--theme-surface)", borderTop: `1px solid ${C.border}`, width: "100%", padding: "1.5rem 1.25rem", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))", borderRadius: "12px 12px 0 0", position: "relative" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #E24B4A, transparent)" }} />
-            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: "#E24B4A", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Eliminar cliente?</p>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-danger), transparent)" }} />
+            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: "var(--theme-danger)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Eliminar cliente?</p>
             <p style={{ fontSize: "12px", color: C.textSec, marginBottom: "1.25rem" }}><strong style={{ color: C.textPrimary }}>{displayName(confirmDelete)}</strong></p>
             <div style={{ display: "flex", gap: "0.75rem" }}>
               <button onClick={() => setConfirmDelete(null)} style={{ ...btnSecStyle, flex: 1 }}>Cancelar</button>
-              <button onClick={confirmDoDelete} style={{ ...btnPrimStyle, flex: 1, background: "#E24B4A" }}>Eliminar</button>
+              <button onClick={confirmDoDelete} style={{ ...btnPrimStyle, flex: 1, background: "var(--theme-danger)" }}>Eliminar</button>
             </div>
           </div>
         </div>
@@ -362,7 +362,7 @@ export default function ClientesPage() {
     <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "var(--theme-toast-bg)", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "1rem" }}>
       <span>{toast}</span>
       {undoAction && (
-        <button onClick={undoAction.fn} style={{ background: "rgba(201,169,110,0.15)", border: "1px solid rgba(201,169,110,0.3)", color: C.gold, fontSize: "9px", letterSpacing: "0.3em", padding: "0.3rem 0.75rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
+        <button onClick={undoAction.fn} style={{ background: "rgba(var(--theme-accent-rgb),0.15)", border: "1px solid rgba(var(--theme-accent-rgb),0.3)", color: C.gold, fontSize: "9px", letterSpacing: "0.3em", padding: "0.3rem 0.75rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
           {undoAction.label}
         </button>
       )}
@@ -391,7 +391,7 @@ function ClienteModalForm({ form, setForm }: {
       <div style={{ marginBottom: "1rem" }}>
         <label style={labelStyle}>Alias / Nome visível na app</label>
         <input
-          style={{ ...inputStyleBase, border: "1px solid rgba(201,169,110,0.2)", background: "rgba(201,169,110,0.05)" }}
+          style={{ ...inputStyleBase, border: "1px solid rgba(var(--theme-accent-rgb),0.2)", background: "rgba(var(--theme-accent-rgb),0.05)" }}
           value={form.alias}
           onChange={e => setForm(f => ({ ...f, alias: e.target.value }))}
           placeholder="Ex: Hyatt, Epic Sana..."
@@ -436,14 +436,14 @@ function ClienteModalForm({ form, setForm }: {
 
 function tdS({ muted, nowrap }: { muted?: boolean; nowrap?: boolean } = {}): React.CSSProperties {
   return {
-    fontSize: "11px", color: muted ? "rgba(245,240,232,0.45)" : "#F5F0E8",
+    fontSize: "11px", color: muted ? "var(--theme-text-muted)" : "var(--theme-text)",
     padding: "0.75rem 1.25rem", borderBottom: "1px solid var(--theme-border)",
     whiteSpace: nowrap ? "nowrap" : undefined,
   };
 }
 
 const iconBtnStyle: React.CSSProperties = {
-  background: "transparent", border: "1px solid rgba(255,255,255,0.06)",
+  background: "transparent", border: "1px solid rgba(var(--theme-contrast-rgb),0.06)",
   color: "var(--theme-text-subtle)", padding: "5px 7px", cursor: "pointer",
   display: "flex", alignItems: "center", justifyContent: "center",
 };
@@ -473,18 +473,18 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     ...((role !== "limited_novalues" && role !== "finance") ? [{ href: "/materiais", label: "Materiais" }] : []),
   ];
   return (
-    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
+    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
+        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "#C9A96E" : "rgba(245,240,232,0.45)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
+            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "var(--theme-accent)" : "var(--theme-text-muted)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
         <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
-        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
+        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
       </div>
     </nav>
   );
@@ -493,14 +493,14 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
 // ── Mobile Tab Bar — 4 fixos + "Mais" drawer ───────────────────────────────
 function MobTabBar({ active, role, lightTheme }: { active: string; role: string; lightTheme: boolean }) {
   const [maisOpen, setMaisOpen] = useState(false);
-  const drawerBg = lightTheme ? "#FFFFFF" : "#131108";
-  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(201,169,110,0.15)";
+  const drawerBg = lightTheme ? "#FFFFFF" : "var(--theme-surface)";
+  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(var(--theme-accent-rgb),0.15)";
   const drawerShadow = lightTheme ? "0 -8px 32px rgba(0,0,0,0.15)" : "0 -8px 32px rgba(0,0,0,0.6)";
-  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "rgba(245,240,232,0.4)";
-  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(201,169,110,0.08)";
-  const drawerGold = lightTheme ? "#000000" : "#C9A96E";
-  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(201,169,110,0.25)";
-  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(201,169,110,0.4)";
+  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "var(--theme-text-muted)";
+  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(var(--theme-accent-rgb),0.08)";
+  const drawerGold = lightTheme ? "#000000" : "var(--theme-accent)";
+  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(var(--theme-accent-rgb),0.25)";
+  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(var(--theme-accent-rgb),0.4)";
 
   // Os 4 tabs fixos — sempre visíveis
   const mainTabs = [

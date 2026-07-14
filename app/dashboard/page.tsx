@@ -50,9 +50,9 @@ function parseArtists(raw?: string): string {
 }
 
 const C = {
-  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009", pageBg: "#0C0B09",
-  border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
-  textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
+  gold: "var(--theme-accent)", goldDim: "var(--theme-accent-muted)", surface: "var(--theme-surface)", pageBg: "var(--theme-bg)",
+  border: "rgba(var(--theme-accent-rgb),0.12)", borderDim: "rgba(var(--theme-contrast-rgb),0.05)",
+  textPrimary: "var(--theme-text)", textSec: "var(--theme-text-muted)", textMuted: "var(--theme-text-faint)",
 };
 
 const C_Light = {
@@ -80,8 +80,8 @@ export default function Dashboard() {
   const { lightTheme, setLightTheme, mounted } = useTheme();
   const C = getColors(lightTheme);
   const todayPanelBg = lightTheme ? C.surface : "linear-gradient(135deg, #1a1408 0%, #110f07 100%)";
-  const todayItemBg = lightTheme ? "rgba(0,0,0,0.025)" : "rgba(201,169,110,0.04)";
-  const softItemBg = lightTheme ? "rgba(0,0,0,0.025)" : "rgba(255,255,255,0.02)";
+  const todayItemBg = lightTheme ? "rgba(0,0,0,0.025)" : "rgba(var(--theme-accent-rgb),0.04)";
+  const softItemBg = lightTheme ? "rgba(0,0,0,0.025)" : "rgba(var(--theme-contrast-rgb),0.02)";
   const [currentTime, setCurrentTime] = useState("");
   const [currentDate, setCurrentDate] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -184,7 +184,7 @@ export default function Dashboard() {
           </div>
 
           <div style={{ background: todayPanelBg, border: `1px solid ${C.border}`, padding: "2rem", position: "relative" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim, marginBottom: "1.25rem" }}>EVENTOS DE HOJE</p>
             {todayEvs.length > 0 ? (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "0.75rem" }}>
@@ -217,7 +217,7 @@ export default function Dashboard() {
 
         {/* ROW 2: PRÓXIMOS 7 DIAS */}
         <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "2rem", marginBottom: "1.5rem", position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
             <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim }}>PRÓXIMOS 7 DIAS</p>
             <a href="/agenda" style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.goldDim, textDecoration: "none", textTransform: "uppercase" }}>Ver agenda →</a>
@@ -283,18 +283,18 @@ export default function Dashboard() {
 
     {/* ═══ MOBILE DASHBOARD ═══ */}
     <div className="mob-dash-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(255,255,255,0.05)", background:"rgba(12,11,9,0.97)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
-        <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"#C9A96E", fontWeight:300 }}>LLE</span>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(var(--theme-contrast-rgb),0.05)", background:"var(--theme-nav-bg)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
+        <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"var(--theme-accent)", fontWeight:300 }}>LLE</span>
         <div style={{ display:"flex", gap:"0.6rem", alignItems:"center" }}>
           <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize:"10px", padding:"0.4rem 0.5rem" }} />
-          <button onClick={() => { localStorage.removeItem("lle_user"); window.location.href = "/"; }} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.06)", color:"rgba(245,240,232,0.2)", fontSize:"8px", letterSpacing:"0.35em", padding:"0.4rem 0.75rem", cursor:"pointer", fontFamily:"inherit", textTransform:"uppercase", fontWeight:600 }}>SAIR</button>
+          <button onClick={() => { localStorage.removeItem("lle_user"); window.location.href = "/"; }} style={{ background:"transparent", border:"1px solid rgba(var(--theme-contrast-rgb),0.06)", color:"var(--theme-text-faint)", fontSize:"8px", letterSpacing:"0.35em", padding:"0.4rem 0.75rem", cursor:"pointer", fontFamily:"inherit", textTransform:"uppercase", fontWeight:600 }}>SAIR</button>
         </div>
       </div>
 
       <div className="mob-dash-hero">
         <div className="mob-dash-time">{currentTime}</div>
         <div className="mob-dash-date">{currentDate}</div>
-        <div style={{ marginTop:"0.5rem", fontSize:"9px", letterSpacing:"0.35em", color:"rgba(245,240,232,0.18)", textTransform:"uppercase" }}>{userName}</div>
+        <div style={{ marginTop:"0.5rem", fontSize:"9px", letterSpacing:"0.35em", color:"var(--theme-text-faint)", textTransform:"uppercase" }}>{userName}</div>
       </div>
 
       <div className="mob-dash-today">
@@ -309,44 +309,44 @@ export default function Dashboard() {
               {e.hours && <span className="mob-dash-today-hour">{e.hours}</span>}
             </div>
             <div style={{display:"flex", flexDirection:"column", gap:"2px"}}>
-              {e.location && <span style={{fontSize:"10px", color:"rgba(245,240,232,0.45)"}}>📍 {e.location}</span>}
+              {e.location && <span style={{fontSize:"10px", color:"var(--theme-text-muted)"}}>📍 {e.location}</span>}
               {(e.artistas && e.artistas.length > 0)
-                ? <span style={{fontSize:"10px", color:"rgba(245,240,232,0.45)"}}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</span>
+                ? <span style={{fontSize:"10px", color:"var(--theme-text-muted)"}}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</span>
                 : parseArtists(e.artists)
-                  ? <span style={{fontSize:"10px", color:"rgba(245,240,232,0.45)"}}>🎵 {parseArtists(e.artists)}</span>
-                  : e.staff ? <span style={{fontSize:"10px", color:"rgba(245,240,232,0.3)"}}>👥 {e.staff}</span> : null
+                  ? <span style={{fontSize:"10px", color:"var(--theme-text-muted)"}}>🎵 {parseArtists(e.artists)}</span>
+                  : e.staff ? <span style={{fontSize:"10px", color:"var(--theme-text-subtle)"}}>👥 {e.staff}</span> : null
               }
             </div>
           </div>
-        )) : <div style={{fontSize:"12px", color:"rgba(245,240,232,0.2)", fontStyle:"italic", padding:"0.75rem 1.2rem"}}>Sem eventos hoje</div>}
+        )) : <div style={{fontSize:"12px", color:"var(--theme-text-faint)", fontStyle:"italic", padding:"0.75rem 1.2rem"}}>Sem eventos hoje</div>}
       </div>
 
       {next7Days.length > 0 && (
-        <div style={{ borderBottom:"1px solid rgba(255,255,255,0.05)", flexShrink:0 }}>
+        <div style={{ borderBottom:"1px solid rgba(var(--theme-contrast-rgb),0.05)", flexShrink:0 }}>
           <div style={{ padding:"0.85rem 1.2rem 0.5rem", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div className="mob-dash-section-label" style={{marginBottom:0}}>Próximos dias</div>
-            <a href="/agenda" style={{ fontSize:"8px", letterSpacing:"0.25em", color:"rgba(201,169,110,0.45)", textDecoration:"none", textTransform:"uppercase" }}>agenda →</a>
+            <a href="/agenda" style={{ fontSize:"8px", letterSpacing:"0.25em", color:"var(--theme-accent)", textDecoration:"none", textTransform:"uppercase" }}>agenda →</a>
           </div>
           <div style={{ paddingBottom:"0.5rem" }}>
             {next7Days.map(day => day.events.map((e, idx) => (
-              <div key={e.id} style={{ padding:"0.65rem 1.2rem", borderTop: idx === 0 ? "1px solid rgba(255,255,255,0.03)" : "none" }}>
+              <div key={e.id} style={{ padding:"0.65rem 1.2rem", borderTop: idx === 0 ? "1px solid rgba(var(--theme-contrast-rgb),0.03)" : "none" }}>
                 <div style={{ display:"flex", alignItems:"baseline", gap:"0.75rem", marginBottom:"0.2rem" }}>
-                  <span style={{ fontSize:"9px", color:"#C9A96E", letterSpacing:"0.05em", whiteSpace:"nowrap", minWidth:"52px", flexShrink:0 }}>
+                  <span style={{ fontSize:"9px", color:"var(--theme-accent)", letterSpacing:"0.05em", whiteSpace:"nowrap", minWidth:"52px", flexShrink:0 }}>
                     {new Date(e.event_date+"T00:00:00").toLocaleDateString("pt-PT",{weekday:"short",day:"numeric",month:"short"})}
                   </span>
-                  <span style={{ fontSize:"12px", color:"#F5F0E8", fontWeight:500, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:"4px" }}>
+                  <span style={{ fontSize:"12px", color:"var(--theme-text)", fontWeight:500, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:"4px" }}>
                     {artistIcons(e.artistas||[]) && <span style={{fontSize:"12px",letterSpacing:"1px",flexShrink:0}}>{artistIcons(e.artistas||[])}</span>}
                     <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanTitle(e.title)}</span>
                   </span>
-                  {e.hours && <span style={{ fontSize:"10px", color:"rgba(245,240,232,0.35)", whiteSpace:"nowrap", flexShrink:0 }}>{e.hours}</span>}
+                  {e.hours && <span style={{ fontSize:"10px", color:"var(--theme-text-subtle)", whiteSpace:"nowrap", flexShrink:0 }}>{e.hours}</span>}
                 </div>
                 <div style={{ paddingLeft:"calc(52px + 0.75rem)", display:"flex", flexDirection:"column", gap:"2px" }}>
-                  {e.location && <span style={{fontSize:"10px", color:"rgba(245,240,232,0.4)"}}>📍 {e.location}</span>}
+                  {e.location && <span style={{fontSize:"10px", color:"var(--theme-text-muted)"}}>📍 {e.location}</span>}
                   {(e.artistas && e.artistas.length > 0)
-                    ? <span style={{fontSize:"10px", color:"rgba(245,240,232,0.4)"}}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</span>
+                    ? <span style={{fontSize:"10px", color:"var(--theme-text-muted)"}}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</span>
                     : parseArtists(e.artists)
-                      ? <span style={{fontSize:"10px", color:"rgba(245,240,232,0.4)"}}>🎵 {parseArtists(e.artists)}</span>
-                      : e.staff ? <span style={{fontSize:"10px", color:"rgba(245,240,232,0.25)"}}>👥 {e.staff}</span> : null
+                      ? <span style={{fontSize:"10px", color:"var(--theme-text-muted)"}}>🎵 {parseArtists(e.artists)}</span>
+                      : e.staff ? <span style={{fontSize:"10px", color:"var(--theme-text-faint)"}}>👥 {e.staff}</span> : null
                   }
                 </div>
               </div>
@@ -355,7 +355,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div style={{ padding:"0.6rem 1.2rem 0.3rem", borderBottom:"1px solid rgba(255,255,255,0.04)", flexShrink:0 }}>
+      <div style={{ padding:"0.6rem 1.2rem 0.3rem", borderBottom:"1px solid rgba(var(--theme-contrast-rgb),0.04)", flexShrink:0 }}>
         <div className="mob-dash-section-label" style={{marginBottom:0}}>Leads activas</div>
       </div>
       <div className="mob-dash-scroll">
@@ -393,18 +393,18 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     ...((role !== "limited_novalues" && role !== "finance") ? [{ href: "/materiais", label: "Materiais" }] : []),
   ];
   return (
-    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
+    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
+        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "#C9A96E" : "rgba(245,240,232,0.45)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
+            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "var(--theme-accent)" : "var(--theme-text-muted)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
         <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
-        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
+        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
       </div>
     </nav>
   );
@@ -413,7 +413,7 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
 function Loading() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.pageBg }}>
-      <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
+      <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
     </div>
   );
 }
@@ -421,14 +421,14 @@ function Loading() {
 // ── Mobile Tab Bar — 4 fixos + "Mais" drawer ───────────────────────────────
 function MobTabBar({ active, role, lightTheme }: { active: string; role: string; lightTheme: boolean }) {
   const [maisOpen, setMaisOpen] = useState(false);
-  const drawerBg = lightTheme ? "#FFFFFF" : "#131108";
-  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(201,169,110,0.15)";
+  const drawerBg = lightTheme ? "#FFFFFF" : "var(--theme-surface)";
+  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(var(--theme-accent-rgb),0.15)";
   const drawerShadow = lightTheme ? "0 -8px 32px rgba(0,0,0,0.15)" : "0 -8px 32px rgba(0,0,0,0.6)";
-  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "rgba(245,240,232,0.4)";
-  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(201,169,110,0.08)";
-  const drawerGold = lightTheme ? "#000000" : "#C9A96E";
-  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(201,169,110,0.25)";
-  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(201,169,110,0.4)";
+  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "var(--theme-text-muted)";
+  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(var(--theme-accent-rgb),0.08)";
+  const drawerGold = lightTheme ? "#000000" : "var(--theme-accent)";
+  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(var(--theme-accent-rgb),0.25)";
+  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(var(--theme-accent-rgb),0.4)";
 
   // Os 4 tabs fixos — sempre visíveis
   const mainTabs = [

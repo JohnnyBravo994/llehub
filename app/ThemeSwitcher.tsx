@@ -12,9 +12,9 @@ export const ThemeSwitcher = ({ lightTheme, setLightTheme, style }: ThemeSwitche
       onClick={() => setLightTheme(!lightTheme)}
       title={lightTheme ? "Mudar para tema escuro" : "Mudar para tema claro"}
       style={{
-        background: lightTheme ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.05)",
-        border: lightTheme ? "1px solid rgba(0,0,0,0.16)" : "1px solid rgba(255,255,255,0.1)",
-        color: lightTheme ? "#000000" : "rgba(245,240,232,0.4)",
+        background: lightTheme ? "rgba(0,0,0,0.04)" : "rgba(var(--theme-contrast-rgb),0.05)",
+        border: lightTheme ? "1px solid rgba(0,0,0,0.16)" : "1px solid rgba(var(--theme-contrast-rgb),0.1)",
+        color: lightTheme ? "#000000" : "var(--theme-text-muted)",
         fontSize: "12px",
         padding: "0.5rem 0.6rem",
         cursor: "pointer",

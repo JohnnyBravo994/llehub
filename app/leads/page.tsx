@@ -134,10 +134,10 @@ interface ArtistRow { id?: number; colaborador_id?: number | null; nome: string;
 const emptyArtist = (): ArtistRow => ({ colaborador_id: null, nome: "", tipo: "DJ", fee: "" });
 
 const C = {
-  gold: "#C9A96E", goldDim: "#8a7350", surface: "#111009", pageBg: "#0C0B09",
-  border: "rgba(201,169,110,0.12)", borderDim: "rgba(255,255,255,0.05)",
-  textPrimary: "#F5F0E8", textSec: "rgba(245,240,232,0.45)", textMuted: "rgba(245,240,232,0.22)",
-  green: "#5DCAA5", amber: "#EF9F27", blue: "#85B7EB", red: "#E24B4A", purple: "#A78BFA",
+  gold: "var(--theme-accent)", goldDim: "var(--theme-accent-muted)", surface: "var(--theme-surface)", pageBg: "var(--theme-bg)",
+  border: "rgba(var(--theme-accent-rgb),0.12)", borderDim: "rgba(var(--theme-contrast-rgb),0.05)",
+  textPrimary: "var(--theme-text)", textSec: "var(--theme-text-muted)", textMuted: "var(--theme-text-faint)",
+  green: "var(--theme-success)", amber: "var(--theme-warning)", blue: "var(--theme-info)", red: "var(--theme-danger)", purple: "#A78BFA",
 };
 
 const C_Light = {
@@ -813,7 +813,7 @@ export default function LeadsPage() {
   const clientesUnicos = clientes.filter((c, i, arr) => arr.findIndex(x => x.nome === c.nome) === i);
 
   const statusColors: Record<string,string> = {
-    "Contacto": "rgba(245,240,232,0.4)", "Proposta Enviada": C.blue,
+    "Contacto": "var(--theme-text-muted)", "Proposta Enviada": C.blue,
     "Em Negociação": C.amber, "Confirmado": C.green,
     "Em Adjudicação": C.gold, "Adjudicado": C.gold,
     "Faturado": "#A78BFA", "Pago": C.green, "Cancelado": C.red,
@@ -835,7 +835,7 @@ export default function LeadsPage() {
             <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
             <button
               onClick={openWaMonthModal}
-              style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "#5DCAA5", fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
+              style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
               WhatsApp
@@ -850,10 +850,10 @@ export default function LeadsPage() {
         </div>
 
         <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
           <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.borderDim}`, overflowX: "auto" }}>
             {monthTabs.map(ym => (
-              <button key={ym} onClick={() => setSelectedMonth(ym)} style={{ background: selectedMonth === ym ? "rgba(201,169,110,0.08)" : "transparent", border: "none", borderRight: `1px solid ${C.borderDim}`, borderBottom: selectedMonth === ym ? `1px solid ${C.gold}` : "none", color: selectedMonth === ym ? C.gold : C.textMuted, fontSize: "8px", letterSpacing: "0.3em", padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize", fontWeight: selectedMonth === ym ? 700 : 400, whiteSpace: "nowrap" }}>
+              <button key={ym} onClick={() => setSelectedMonth(ym)} style={{ background: selectedMonth === ym ? "rgba(var(--theme-accent-rgb),0.08)" : "transparent", border: "none", borderRight: `1px solid ${C.borderDim}`, borderBottom: selectedMonth === ym ? `1px solid ${C.gold}` : "none", color: selectedMonth === ym ? C.gold : C.textMuted, fontSize: "8px", letterSpacing: "0.3em", padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize", fontWeight: selectedMonth === ym ? 700 : 400, whiteSpace: "nowrap" }}>
                 {monthLabel(ym)}
               </button>
             ))}
@@ -876,7 +876,7 @@ export default function LeadsPage() {
                 {sortedMonths.map(ym => (
                   <React.Fragment key={ym}>
                     <tr onClick={() => toggleMonth(ym)} style={{ cursor: "pointer" }}>
-                      <td colSpan={7} style={{ padding: "0.75rem 1.25rem", background: "rgba(201,169,110,0.05)", borderBottom: `1px solid ${C.border}` }}>
+                      <td colSpan={7} style={{ padding: "0.75rem 1.25rem", background: "rgba(var(--theme-accent-rgb),0.05)", borderBottom: `1px solid ${C.border}` }}>
                         <span style={{ fontSize: "8px", letterSpacing: "0.4em", color: C.gold, fontWeight: 700, textTransform: "capitalize" }}>{monthLabel(ym)}</span>
                         <span style={{ fontSize: "8px", color: C.textMuted, marginLeft: "0.75rem" }}>({grouped[ym].length})</span>
                         <span style={{ fontSize: "9px", color: C.goldDim, marginLeft: "0.5rem", opacity: 0.7 }}>{collapsedMonths.has(ym) ? "▸" : "▾"}</span>
@@ -927,11 +927,11 @@ export default function LeadsPage() {
 
     {/* ═══ MOBILE ═══ */}
     <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "var(--theme-text)", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(255,255,255,0.05)", background:"rgba(12,11,9,0.97)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
-        <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"#C9A96E", fontWeight:300 }}>LLE</span>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(var(--theme-contrast-rgb),0.05)", background:"var(--theme-nav-bg)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
+        <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"var(--theme-accent)", fontWeight:300 }}>LLE</span>
         <div style={{ display:"flex", gap:"0.5rem", alignItems:"center" }}>
           <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize:"10px", padding:"0.4rem 0.5rem" }} />
-          <span style={{ fontSize:"8px", letterSpacing:"0.35em", color:"rgba(245,240,232,0.2)", textTransform:"uppercase" }}>{userName}</span>
+          <span style={{ fontSize:"8px", letterSpacing:"0.35em", color:"var(--theme-text-faint)", textTransform:"uppercase" }}>{userName}</span>
         </div>
       </div>
 
@@ -954,7 +954,7 @@ export default function LeadsPage() {
           
           <button
             onClick={openWaMonthModal}
-            style={{ background: "rgba(93,202,165,0.08)", border: "1px solid rgba(93,202,165,0.2)", color: "#5DCAA5", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer" }}
+            style={{ background: "rgba(93,202,165,0.08)", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer" }}
             title="Copiar Leads para WhatsApp"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
@@ -977,7 +977,7 @@ export default function LeadsPage() {
             </div>
             {grouped[ym].map(l => {
               const d = new Date(l.event_date + "T00:00:00");
-              const sc = statusColors[l.status||""] || "rgba(245,240,232,0.3)";
+              const sc = statusColors[l.status||""] || "var(--theme-text-subtle)";
               return (
                 <div key={l.id} className={`mob-card${l.cancelled?" is-folga":""}`} onClick={() => userRole !== "limited_novalues" && openEdit(l)} style={{cursor: userRole !== "limited_novalues" ? "pointer" : "default"}}>
                   <div className="mob-date-bubble">
@@ -987,7 +987,7 @@ export default function LeadsPage() {
                   <div className="mob-card-body">
                     <div className={`mob-card-title${l.cancelled?" cancelled":""}`}>{l.title}</div>
                     <ConflictAlert conflicts={conflictsForLead(l)} />
-                    {l.local && <div className="mob-card-meta" style={{color:"rgba(201,169,110,0.7)"}}>📍 {l.local}</div>}
+                    {l.local && <div className="mob-card-meta" style={{color:"var(--theme-accent)"}}>📍 {l.local}</div>}
                     {l.cliente_nome && <div className="mob-card-meta">{displayClienteNome(l, clientes)}</div>}
                     {l.notas && <div className="mob-card-meta" style={{fontStyle:"italic", marginTop:2}}>"{l.notas}"</div>}
                     <div className="mob-card-badges">
@@ -1018,16 +1018,16 @@ export default function LeadsPage() {
       {/* WhatsApp — Modal de Seleção de Meses */}
       {waMonthModal && (
         <div onClick={e => e.target === e.currentTarget && setWaMonthModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.12)", padding: "2rem", width: "380px", maxWidth: "95vw", position: "relative" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+          <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "380px", maxWidth: "95vw", position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-              <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.6)", textTransform: "uppercase", fontWeight: 600 }}>Copiar Leads para WhatsApp</p>
-              <button onClick={() => setWaMonthModal(false)} style={{ background: "transparent", border: "none", color: "rgba(245,240,232,0.3)", cursor: "pointer", fontSize: "16px" }}>✕</button>
+              <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Copiar Leads para WhatsApp</p>
+              <button onClick={() => setWaMonthModal(false)} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: "pointer", fontSize: "16px" }}>✕</button>
             </div>
             <p style={{ fontSize: "9px", color: "var(--theme-text-subtle)", letterSpacing: "0.15em", marginBottom: "1rem" }}>Seleciona os meses a incluir:</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "1.25rem", maxHeight: "280px", overflowY: "auto" }}>
               {availableWaMonths().length === 0 && (
-                <p style={{ fontSize: "11px", color: "rgba(245,240,232,0.3)", textAlign: "center", padding: "1rem" }}>Sem leads disponíveis.</p>
+                <p style={{ fontSize: "11px", color: "var(--theme-text-subtle)", textAlign: "center", padding: "1rem" }}>Sem leads disponíveis.</p>
               )}
               {availableWaMonths().map(ym => {
                 const [year, month] = ym.split("-");
@@ -1036,7 +1036,7 @@ export default function LeadsPage() {
                 const checked = selectedWaMonths.has(ym);
                 const count = leads.filter(l => !l.cancelled && l.status !== "Cancelado" && l.event_date?.startsWith(ym)).length;
                 return (
-                  <label key={ym} style={{ display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer", padding: "0.6rem 0.75rem", background: checked ? "rgba(201,169,110,0.06)" : "transparent", border: `1px solid ${checked ? "rgba(201,169,110,0.22)" : "rgba(255,255,255,0.05)"}`, transition: "all 0.15s" }}>
+                  <label key={ym} style={{ display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer", padding: "0.6rem 0.75rem", background: checked ? "rgba(var(--theme-accent-rgb),0.06)" : "transparent", border: `1px solid ${checked ? "rgba(var(--theme-accent-rgb),0.22)" : "rgba(var(--theme-contrast-rgb),0.05)"}`, transition: "all 0.15s" }}>
                     <input type="checkbox" checked={checked} onChange={() => {
                       setWaMonthError(false);
                       setSelectedWaMonths(prev => {
@@ -1044,19 +1044,19 @@ export default function LeadsPage() {
                         if (next.has(ym)) next.delete(ym); else next.add(ym);
                         return next;
                       });
-                    }} style={{ accentColor: "#C9A96E", width: "14px", height: "14px", flexShrink: 0 }} />
-                    <span style={{ fontSize: "11px", color: checked ? "#F5F0E8" : "rgba(245,240,232,0.6)", letterSpacing: "0.04em", textTransform: "capitalize", flex: 1 }}>{mCap}</span>
-                    <span style={{ fontSize: "9px", color: "rgba(245,240,232,0.25)", letterSpacing: "0.1em" }}>{count} leads</span>
+                    }} style={{ accentColor: "var(--theme-accent)", width: "14px", height: "14px", flexShrink: 0 }} />
+                    <span style={{ fontSize: "11px", color: checked ? "var(--theme-text)" : "var(--theme-text-secondary)", letterSpacing: "0.04em", textTransform: "capitalize", flex: 1 }}>{mCap}</span>
+                    <span style={{ fontSize: "9px", color: "var(--theme-text-faint)", letterSpacing: "0.1em" }}>{count} leads</span>
                   </label>
                 );
               })}
             </div>
             {waMonthError && (
-              <p style={{ fontSize: "9px", color: "#E24B4A", letterSpacing: "0.2em", marginBottom: "0.85rem", textTransform: "uppercase" }}>Selecione pelo menos um mês.</p>
+              <p style={{ fontSize: "9px", color: "var(--theme-danger)", letterSpacing: "0.2em", marginBottom: "0.85rem", textTransform: "uppercase" }}>Selecione pelo menos um mês.</p>
             )}
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
               <button onClick={() => setWaMonthModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Cancelar</button>
-              <button onClick={handleCopySelectedMonths} style={{ background: "#5DCAA5", border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Copiar Leads Selecionadas</button>
+              <button onClick={handleCopySelectedMonths} style={{ background: "var(--theme-success)", border: "none", color: "var(--theme-bg)", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Copiar Leads Selecionadas</button>
             </div>
           </div>
         </div>
@@ -1065,14 +1065,14 @@ export default function LeadsPage() {
     {/* WhatsApp Modal — Pré-visualização */}
       {waModal && (
         <div onClick={e => e.target === e.currentTarget && setWaModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.12)", padding: "2rem", width: "500px", maxWidth: "95vw", maxHeight: "85vh", display: "flex", flexDirection: "column", position: "relative" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" }} />
+          <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "500px", maxWidth: "95vw", maxHeight: "85vh", display: "flex", flexDirection: "column", position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "rgba(201,169,110,0.6)", textTransform: "uppercase", fontWeight: 600 }}>Copiar Leads para WhatsApp</p>
-              <button onClick={() => setWaModal(false)} style={{ background: "transparent", border: "none", color: "rgba(245,240,232,0.3)", cursor: "pointer", fontSize: "16px" }}>✕</button>
+              <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Copiar Leads para WhatsApp</p>
+              <button onClick={() => setWaModal(false)} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: "pointer", fontSize: "16px" }}>✕</button>
             </div>
             {waCopied && (
-              <div style={{ marginBottom: "0.75rem", fontSize: "9px", letterSpacing: "0.25em", color: "#5DCAA5", textTransform: "uppercase" }}>✓ Leads copiadas. Pode colar no WhatsApp.</div>
+              <div style={{ marginBottom: "0.75rem", fontSize: "9px", letterSpacing: "0.25em", color: "var(--theme-success)", textTransform: "uppercase" }}>✓ Leads copiadas. Pode colar no WhatsApp.</div>
             )}
             <textarea
               readOnly
@@ -1091,7 +1091,7 @@ export default function LeadsPage() {
                     ta.value = waText; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); setWaCopied(true);
                   }
                 }}
-                style={{ background: "#5DCAA5", border: "none", color: "#0C0B09", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}
+                style={{ background: "var(--theme-success)", border: "none", color: "var(--theme-bg)", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}
               >Copiar novamente</button>
             </div>
           </div>
@@ -1178,7 +1178,7 @@ export default function LeadsPage() {
                       }
                       <div
                         onMouseDown={() => { setClienteCreating(true); setClienteDropOpen(false); }}
-                        style={{ padding: "0.6rem 1rem", fontSize: "10px", color: C.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(201,169,110,0.12)", display: "flex", alignItems: "center", gap: "6px" }}
+                        style={{ padding: "0.6rem 1rem", fontSize: "10px", color: C.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(var(--theme-accent-rgb),0.12)", display: "flex", alignItems: "center", gap: "6px" }}
                         onMouseEnter={e => (e.currentTarget.style.background = "var(--theme-dropdown-hover)")}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                       >
@@ -1374,18 +1374,18 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     ...((role !== "limited_novalues" && role !== "finance") ? [{ href: "/materiais", label: "Materiais" }] : []),
   ];
   return (
-    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "rgba(12,11,9,0.95)", backdropFilter: "blur(12px)" }}>
+    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
+        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "#C9A96E" : "rgba(245,240,232,0.45)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
+            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "var(--theme-accent)" : "var(--theme-text-muted)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
         <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
-        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
+        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
       </div>
     </nav>
   );
@@ -1394,7 +1394,7 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
 function Loading() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.pageBg }}>
-      <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: "#C9A96E", fontWeight: 300 }}>LLE</span>
+      <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
     </div>
   );
 }
@@ -1415,7 +1415,7 @@ function IconBtn({ title, onClick, icon, danger, success }: { title: string; onC
     restore: <svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-9" /></svg>,
     delete: <svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="3 6 4 14 12 14 13 6" /><path d="M2 6h12M10 6V4H6v2" /></svg>,
   };
-  const color = danger ? "#E24B4A" : success ? "#5DCAA5" : "rgba(245,240,232,0.35)";
+  const color = danger ? "var(--theme-danger)" : success ? "var(--theme-success)" : "var(--theme-text-subtle)";
   return (
     <button title={title} onClick={onClick} style={{ background: "transparent", border: "none", cursor: "pointer", padding: "5px", color, transition: "color 0.15s" }}>
       {icons[icon]}
@@ -1433,28 +1433,28 @@ function FormField({ label, children, style }: { label: string; children: React.
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-const addBtnStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "#8a7350", fontSize: "8px", letterSpacing: "0.35em", padding: "0.5rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s" };
-const tdStyle = ({ muted, nowrap, maxW }: { muted?: boolean; nowrap?: boolean; maxW?: string }): React.CSSProperties => ({ fontSize: "12px", color: muted ? "rgba(245,240,232,0.45)" : "#F5F0E8", padding: "0.85rem 1.25rem", borderBottom: "1px solid var(--theme-border)", whiteSpace: nowrap ? "nowrap" : undefined, maxWidth: maxW, overflow: maxW ? "hidden" : undefined, textOverflow: maxW ? "ellipsis" : undefined });
+const addBtnStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-accent-muted)", fontSize: "8px", letterSpacing: "0.35em", padding: "0.5rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s" };
+const tdStyle = ({ muted, nowrap, maxW }: { muted?: boolean; nowrap?: boolean; maxW?: string }): React.CSSProperties => ({ fontSize: "12px", color: muted ? "var(--theme-text-muted)" : "var(--theme-text)", padding: "0.85rem 1.25rem", borderBottom: "1px solid var(--theme-border)", whiteSpace: nowrap ? "nowrap" : undefined, maxWidth: maxW, overflow: maxW ? "hidden" : undefined, textOverflow: maxW ? "ellipsis" : undefined });
 const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
-const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(201,169,110,0.12)", padding: "2.5rem", width: "520px", maxWidth: "90vw", maxHeight: "90vh", overflowY: "auto", position: "relative" };
-const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #C9A96E, transparent)" };
+const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2.5rem", width: "520px", maxWidth: "90vw", maxHeight: "90vh", overflowY: "auto", position: "relative" };
+const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" };
 const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
 const btnPrimStyle: React.CSSProperties = { background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(201,169,110,0.12)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-const btnDangerStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(226,75,74,0.3)", color: "#E24B4A", fontSize: "8px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-const btnAgendaStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(93,202,165,0.3)", color: "#5DCAA5", fontSize: "8px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnDangerStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(226,75,74,0.3)", color: "var(--theme-danger)", fontSize: "8px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnAgendaStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(93,202,165,0.3)", color: "var(--theme-success)", fontSize: "8px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 
 // ── Mobile Tab Bar — 4 fixos + "Mais" drawer ───────────────────────────────
 function MobTabBar({ active, role, lightTheme }: { active: string; role: string; lightTheme: boolean }) {
   const [maisOpen, setMaisOpen] = useState(false);
-  const drawerBg = lightTheme ? "#FFFFFF" : "#131108";
-  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(201,169,110,0.15)";
+  const drawerBg = lightTheme ? "#FFFFFF" : "var(--theme-surface)";
+  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(var(--theme-accent-rgb),0.15)";
   const drawerShadow = lightTheme ? "0 -8px 32px rgba(0,0,0,0.15)" : "0 -8px 32px rgba(0,0,0,0.6)";
-  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "rgba(245,240,232,0.4)";
-  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(201,169,110,0.08)";
-  const drawerGold = lightTheme ? "#000000" : "#C9A96E";
-  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(201,169,110,0.25)";
-  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(201,169,110,0.4)";
+  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "var(--theme-text-muted)";
+  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(var(--theme-accent-rgb),0.08)";
+  const drawerGold = lightTheme ? "#000000" : "var(--theme-accent)";
+  const drawerHandle = lightTheme ? "rgba(0,0,0,0.25)" : "rgba(var(--theme-accent-rgb),0.25)";
+  const drawerTitle = lightTheme ? "rgba(0,0,0,0.5)" : "rgba(var(--theme-accent-rgb),0.4)";
 
   // Os 4 tabs fixos — sempre visíveis
   const mainTabs = [
