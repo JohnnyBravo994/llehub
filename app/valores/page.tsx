@@ -67,9 +67,12 @@ export default function ValoresPage() {
   const [userName, setUserName] = useState("");
   const [rows, setRows] = useState<ValorMaster[]>([]);
   const [servicosPorCriar, setServicosPorCriar] = useState<ServicoPorCriarNaMaster[]>([]);
+  const [pendingLoaded, setPendingLoaded] = useState(false);
+  const [pendingLoading, setPendingLoading] = useState(false);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
   const [newRow, setNewRow] = useState<Draft>(emptyNew);
   const [loading, setLoading] = useState(true);
+  const [mobileView, setMobileView] = useState<boolean | null>(null);
   const [savingId, setSavingId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
   const [mobileEditingId, setMobileEditingId] = useState<number | null>(null);
@@ -79,8 +82,7 @@ export default function ValoresPage() {
   const [search, setSearch] = useState("");
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2400); };
-  const load = useCallback(async (includePending = true) => {
-    // A tabela principal abre primeiro; a análise de serviços usados carrega em segundo plano.
+  const load = useCallback(async () => {
     const r = await getValoresMasterTable();
     if (r.success) {
       const data = r.data as ValorMaster[];
@@ -88,11 +90,26 @@ export default function ValoresPage() {
       setDrafts(Object.fromEntries(data.map(v => [v.id, toDraft(v)])));
     }
     setLoading(false);
-    if (includePending) {
-      getServicosPorCriarNaMaster().then(pending => {
-        if (pending.success) setServicosPorCriar(pending.data as ServicoPorCriarNaMaster[]);
-      });
+  }, []);
+
+  const loadPendingServices = async () => {
+    if (pendingLoaded) {
+      setPendingLoaded(false);
+      return;
     }
+    setPendingLoading(true);
+    const pending = await getServicosPorCriarNaMaster();
+    if (pending.success) setServicosPorCriar(pending.data as ServicoPorCriarNaMaster[]);
+    setPendingLoaded(true);
+    setPendingLoading(false);
+  };
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const update = () => setMobileView(media.matches);
+    update();
+    media.addEventListener?.("change", update);
+    return () => media.removeEventListener?.("change", update);
   }, []);
 
   useEffect(() => {
@@ -126,7 +143,7 @@ export default function ValoresPage() {
     setSavingId(id);
     const res = await updateValorMaster(id, payload(d));
     showToast(res.success ? "Valor atualizado" : "Erro ao atualizar");
-    await load(false);
+    await load();
     setSavingId(null);
     return res.success;
   };
@@ -137,7 +154,7 @@ export default function ValoresPage() {
     if (res.success) {
       setNewRow(emptyNew);
       showToast("Valor criado");
-      await load(false);
+      await load();
     } else {
       showToast("Erro ao criar valor");
     }
@@ -147,7 +164,7 @@ export default function ValoresPage() {
   const toggleAtivo = async (row: ValorMaster) => {
     const res = await toggleValorMasterAtivo(row.id, row.ativo === 1 ? 0 : 1);
     showToast(res.success ? (row.ativo === 1 ? "Valor apagado" : "Valor restaurado") : "Erro ao alterar valor");
-    await load(false);
+    await load();
   };
   const apagarMobile = async (row: ValorMaster) => {
     if (row.ativo === 0) { await toggleAtivo(row); return; }
@@ -160,7 +177,7 @@ export default function ValoresPage() {
   const criarServicoPendente = async (row: ServicoPorCriarNaMaster) => {
     const res = await criarValorMasterAPartirServico(row.servico, row.fee_medio || 0);
     showToast(res.success ? "Serviço criado na Master" : "Erro ao criar serviço");
-    await load(false);
+    await load();
   };
 
   const normalizedSearch = search.trim().toLocaleLowerCase("pt-PT");
@@ -168,9 +185,10 @@ export default function ValoresPage() {
     ? rows.filter(row => `${row.servico} ${row.duracao_formato} ${row.notas}`.toLocaleLowerCase("pt-PT").includes(normalizedSearch))
     : rows;
 
-  if (loading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.pageBg, color: C.gold, fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em" }}>LLE</div>;
+  if (loading || mobileView === null) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.pageBg, color: C.gold, fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em" }}>LLE</div>;
 
   return <>
+    {mobileView === false && (
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: C.pageBg, color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <Nav userName={userName} active="valores" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1500px", margin: "0 auto" }}>
@@ -181,11 +199,12 @@ export default function ValoresPage() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.7rem" }}>
             <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Pesquisar serviço..." style={{ ...inputStyle, width: 230, fontSize: "11px" }} />
+            <button onClick={loadPendingServices} disabled={pendingLoading} style={btnStyle}>{pendingLoading ? "A analisar..." : pendingLoaded ? "Ocultar análise" : "Analisar serviços"}</button>
             <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
           </div>
         </div>
 
-        {servicosPorCriar.length > 0 && (
+        {pendingLoaded && servicosPorCriar.length > 0 && (
           <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative", marginBottom: "1rem", padding: "1rem" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: lightTheme ? "rgba(0,0,0,0.2)" : "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "flex-start", marginBottom: "0.9rem" }}>
@@ -256,7 +275,9 @@ export default function ValoresPage() {
         </div>
       </main>
     </div>
+    )}
 
+    {mobileView === true && (
     <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: C.textPrimary, opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: `1px solid ${C.borderDim}`, background: C.pageBg, position: "sticky", top: 0, zIndex: 10 }}>
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: C.gold, fontWeight: 300 }}>LLE</span>
@@ -279,6 +300,9 @@ export default function ValoresPage() {
         </div>
 
         <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Pesquisar serviço..." style={{ ...inputStyle, marginTop: "0.8rem", fontSize: "12px" }} />
+        <button type="button" onClick={loadPendingServices} disabled={pendingLoading} style={{ ...btnStyle, width: "100%", marginTop: "0.55rem" }}>
+          {pendingLoading ? "A analisar serviços usados..." : pendingLoaded ? "Ocultar serviços por criar" : "Ver serviços por criar"}
+        </button>
 
         {mobileNewOpen && (
           <div style={{ marginTop: "0.9rem", padding: "0.9rem", background: C.surface, border: `1px solid ${C.border}` }}>
@@ -299,7 +323,7 @@ export default function ValoresPage() {
         )}
       </div>
 
-      {servicosPorCriar.length > 0 && (
+      {pendingLoaded && servicosPorCriar.length > 0 && (
         <div style={{ padding: "0.9rem 1rem", borderBottom: `1px solid ${C.borderDim}` }}>
           <div style={{ fontSize: "9px", letterSpacing: "0.25em", color: C.gold, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.5rem" }}>Serviços por criar</div>
           {servicosPorCriar.slice(0, 4).map(row => (
@@ -372,6 +396,7 @@ export default function ValoresPage() {
       </div>
       <MobTabBar active="valores" role="admin" lightTheme={lightTheme} />
     </div>
+    )}
     <div className="values-toast" style={{ position: "fixed", bottom: "2rem", right: "2rem", background: C.surface, border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>{toast}</div>
   </>;
 }

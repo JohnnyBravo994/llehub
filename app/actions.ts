@@ -2160,34 +2160,47 @@ export async function getAllValoresMaster() {
   }
 }
 
+async function queryValoresMasterTableFast() {
+  const res = await turso.execute(`
+    SELECT id, servico, duracao_formato, contexto, cliente_nome,
+           custo_interno, valor_parceiro, valor_sud, valor_cliente_final,
+           notas, ativo, merged_into_id
+    FROM valores_master
+    WHERE LOWER(TRIM(COALESCE(contexto, 'Normal'))) NOT IN ('sud', 'residência', 'residencia')
+      AND merged_into_id IS NULL
+    ORDER BY ativo DESC, servico ASC, duracao_formato ASC, id ASC
+  `);
+  return {
+    success: true,
+    data: (res.rows as any[]).filter(isGeneralValorMasterRow).map((r: any) => ({
+      id: Number(r.id),
+      servico: (r.servico as string) || '',
+      duracao_formato: (r.duracao_formato as string) || '',
+      contexto: (r.contexto as string) || 'Normal',
+      cliente_nome: '',
+      custo_interno: Number(r.custo_interno || 0),
+      valor_parceiro: Number(r.valor_parceiro || 0),
+      valor_sud: Number(r.valor_sud || 0),
+      valor_cliente_final: Number(r.valor_cliente_final || 0),
+      notas: (r.notas as string) || '',
+      ativo: r.ativo === 1 || r.ativo === true ? 1 : 0,
+    })),
+  };
+}
+
 export async function getValoresMasterTable() {
   try {
-    await ensureValoresMasterTable();
-    const res = await turso.execute(`
-      SELECT * FROM valores_master
-      WHERE LOWER(TRIM(COALESCE(contexto, 'Normal'))) NOT IN ('sud', 'residência', 'residencia')
-        AND merged_into_id IS NULL
-      ORDER BY ativo DESC, servico ASC, duracao_formato ASC, id ASC
-    `);
-    return {
-      success: true,
-      data: (res.rows as any[]).filter(isGeneralValorMasterRow).map((r: any) => ({
-        id: Number(r.id),
-        servico: (r.servico as string) || '',
-        duracao_formato: (r.duracao_formato as string) || '',
-        contexto: (r.contexto as string) || 'Normal',
-        cliente_nome: '',
-        custo_interno: Number(r.custo_interno || 0),
-        valor_parceiro: Number(r.valor_parceiro || 0),
-        valor_sud: Number(r.valor_sud || 0),
-        valor_cliente_final: Number(r.valor_cliente_final || 0),
-        notas: (r.notas as string) || '',
-        ativo: r.ativo === 1 || r.ativo === true ? 1 : 0,
-      })),
-    };
-  } catch (error) {
-    console.error("Erro getValoresMasterTable:", error);
-    return { success: false, data: [] };
+    // Leitura normal sem DDL, PRAGMA ou migrações: importante em instâncias serverless frias.
+    return await queryValoresMasterTableFast();
+  } catch (firstError) {
+    try {
+      // Só prepara/migra a base quando a leitura direta revela esquema antigo ou inexistente.
+      await ensureValoresMasterTable();
+      return await queryValoresMasterTableFast();
+    } catch (error) {
+      console.error("Erro getValoresMasterTable:", error, firstError);
+      return { success: false, data: [] };
+    }
   }
 }
 
@@ -2997,22 +3010,63 @@ export async function getMaterialPackReservasEvento(eventoId: number) {
 export async function getMateriaisReservadosResumoEvento(eventoId: number) {
   try {
     await setupMateriais();
-    const res = await turso.execute({
-      sql: `SELECT material_nome, quantidade, quantidade_devolvida, quantidade_consumida, estado_regresso, data_volta, notas
-            FROM material_movimentos
-            WHERE evento_id=?
-            ORDER BY material_nome ASC, id ASC`,
-      args: [eventoId],
+    const [reservasRes, movimentosRes] = await Promise.all([
+      turso.execute({
+        sql: `
+          SELECT i.material_nome, SUM(COALESCE(i.quantidade, 1)) AS quantidade
+          FROM material_pack_reservas r
+          JOIN material_pack_items i ON i.pack_id = r.pack_id AND i.ativo = 1
+          WHERE r.evento_id = ?
+          GROUP BY i.material_nome
+          ORDER BY i.material_nome ASC
+        `,
+        args: [eventoId],
+      }),
+      turso.execute({
+        sql: `
+          SELECT material_nome, quantidade, quantidade_devolvida, quantidade_consumida,
+                 estado_regresso, data_volta, notas
+          FROM material_movimentos
+          WHERE evento_id = ?
+          ORDER BY material_nome ASC, id ASC
+        `,
+        args: [eventoId],
+      }),
+    ]);
+
+    const movementQtyByName = new Map<string, number>();
+    const movementRows = (movimentosRes.rows as any[]).map((r: any) => {
+      const name = (r.material_nome as string) || '';
+      const key = normalizeValorMasterKey(name);
+      const quantity = Number(r.quantidade) || 0;
+      movementQtyByName.set(key, (movementQtyByName.get(key) || 0) + quantity);
+      return {
+        material_nome: name,
+        quantidade: quantity,
+        quantidade_devolvida: Number(r.quantidade_devolvida) || 0,
+        quantidade_consumida: Number(r.quantidade_consumida) || 0,
+        estado_regresso: (r.estado_regresso as string) || '',
+        data_volta: (r.data_volta as string) || '',
+        notas: (r.notas as string) || '',
+      };
     });
-    return { success: true, data: res.rows.map((r: any) => ({
-      material_nome: (r.material_nome as string) || '',
-      quantidade: Number(r.quantidade) || 0,
-      quantidade_devolvida: Number(r.quantidade_devolvida) || 0,
-      quantidade_consumida: Number(r.quantidade_consumida) || 0,
-      estado_regresso: (r.estado_regresso as string) || '',
-      data_volta: (r.data_volta as string) || '',
-      notas: (r.notas as string) || '',
-    })) };
+
+    const reservationRows = (reservasRes.rows as any[]).map((r: any) => {
+      const name = (r.material_nome as string) || '';
+      const reserved = Number(r.quantidade) || 0;
+      const alreadyRegistered = movementQtyByName.get(normalizeValorMasterKey(name)) || 0;
+      return {
+        material_nome: name,
+        quantidade: Math.max(0, reserved - alreadyRegistered),
+        quantidade_devolvida: 0,
+        quantidade_consumida: 0,
+        estado_regresso: 'Reservado',
+        data_volta: '',
+        notas: 'Reservado para este evento; ainda não saiu do local.',
+      };
+    }).filter((r: any) => r.quantidade > 0);
+
+    return { success: true, data: [...reservationRows, ...movementRows] };
   } catch (error) {
     console.error('Erro getMateriaisReservadosResumoEvento:', error);
     return { success: false, data: [] };
@@ -3025,47 +3079,37 @@ export async function reservarMaterialPacksParaEvento(data: {
   try {
     await setupMateriais();
     await seedMaterialPacks();
-    let createdMovements = 0;
+    let createdReservations = 0;
     let skippedPacks = 0;
+
     for (const rawPackId of Array.from(new Set((data.pack_ids || []).map(Number).filter(Boolean)))) {
       const packId = Number(rawPackId);
       const packRes = await turso.execute({ sql: "SELECT * FROM material_packs WHERE id=? AND ativo=1", args: [packId] });
       if (packRes.rows.length === 0) continue;
       const pack = packRes.rows[0] as any;
-      const exists = await turso.execute({ sql: "SELECT id FROM material_pack_reservas WHERE evento_id=? AND pack_id=? LIMIT 1", args: [data.evento_id, packId] });
-      if (exists.rows.length > 0) { skippedPacks++; continue; }
+      const exists = await turso.execute({
+        sql: "SELECT id FROM material_pack_reservas WHERE evento_id=? AND pack_id=? LIMIT 1",
+        args: [data.evento_id, packId],
+      });
+      if (exists.rows.length > 0) {
+        skippedPacks++;
+        continue;
+      }
 
-      const valorReferencia = Number(pack.valor_referencia) || 0;
+      const valorReferencia = Number(pack.valor_referencia) || Number(pack.valor_cliente_final) || 0;
       await turso.execute({
         sql: "INSERT INTO material_pack_reservas (evento_id, pack_id, pack_nome, servico, valor_referencia, valor_cobrado, desconto_oferta, reservado_por) VALUES (?, ?, ?, ?, ?, 0, ?, ?)",
         args: [data.evento_id, packId, pack.nome || '', data.servico || '', valorReferencia, valorReferencia, data.reservado_por || ''],
       });
-
-      const items = await turso.execute({ sql: "SELECT * FROM material_pack_items WHERE pack_id=? AND ativo=1", args: [packId] });
-      for (const item of items.rows as any[]) {
-        const mat = await getOrCreateMaterialByName(String(item.material_nome || ''), String(item.categoria || 'Outro'));
-        const notaLinha = [`Pack incluído/oferta: ${pack.nome}`, valorReferencia ? `Valor referência pack: ${valorReferencia}€` : '', item.notas || ''].filter(Boolean).join(' · ');
-        await registarSaidaMaterial({
-          material_id: Number(mat.id),
-          material_nome: String(mat.nome || item.material_nome || ''),
-          material_imagem: String(mat.imagem || ''),
-          quantidade: Number(item.quantidade) || 1,
-          origem: String(mat.local_habitual || 'Loja'),
-          origem_detalhe: '',
-          dono_material: String(mat.dono || 'LLE'),
-          quem_levou: data.reservado_por || '',
-          evento: data.evento_nome,
-          evento_id: data.evento_id,
-          responsavel: data.reservado_por || '',
-          notas: notaLinha,
-        });
-        createdMovements++;
-      }
+      createdReservations++;
     }
-    return { success: true, createdMovements, skippedPacks };
+
+    // Reservar é apenas bloquear o material para a data do evento.
+    // A saída física só é criada quando alguém carrega em “Registar saída”.
+    return { success: true, createdReservations, createdMovements: 0, skippedPacks };
   } catch (error) {
     console.error("Erro reservarMaterialPacksParaEvento:", error);
-    return { success: false, message: "Erro ao reservar packs de material.", createdMovements: 0, skippedPacks: 0 };
+    return { success: false, message: "Erro ao reservar packs de material.", createdReservations: 0, createdMovements: 0, skippedPacks: 0 };
   }
 }
 
@@ -3262,6 +3306,40 @@ export async function getAllMateriais(limit: number = 500) {
   } catch (error) {
     console.error("Erro getAllMateriais:", error);
     return { success: false, data: [] };
+  }
+}
+
+export async function getMaterialById(id: number) {
+  const query = async () => {
+    const res = await turso.execute({ sql: "SELECT * FROM materiais WHERE id=? LIMIT 1", args: [id] });
+    if (res.rows.length === 0) return { success: false, data: null };
+    const r = res.rows[0] as any;
+    return {
+      success: true,
+      data: {
+        id: Number(r.id), nome: (r.nome as string) || '', categoria: (r.categoria as string) || '',
+        imagem: (r.imagem as string) || '', quantidade_total: Number(r.quantidade_total) || 0,
+        dono: (r.dono as string) || 'LLE', local_habitual: (r.local_habitual as string) || 'Loja',
+        consumivel: r.consumivel === 1 || r.consumivel === true ? 1 : 0, stock_minimo: Number(r.stock_minimo) || 0,
+        precisa_comprar: r.precisa_comprar === 1 || r.precisa_comprar === true ? 1 : 0,
+        motivo_compra: (r.motivo_compra as string) || '', quantidade_comprar: Number(r.quantidade_comprar) || 0,
+        notas_compra: (r.notas_compra as string) || '', duracao_formato: (r.duracao_formato as string) || '',
+        custo_interno: Number(r.custo_interno) || 0, valor_parceiro: Number(r.valor_parceiro) || 0,
+        valor_sud: Number(r.valor_sud) || 0, valor_cliente_final: Number(r.valor_cliente_final) || 0,
+        notas: (r.notas as string) || '', ativo: r.ativo === 1 || r.ativo === true ? 1 : 0,
+      },
+    };
+  };
+  try {
+    return await query();
+  } catch {
+    try {
+      await setupMateriais();
+      return await query();
+    } catch (error) {
+      console.error('Erro getMaterialById:', error);
+      return { success: false, data: null };
+    }
   }
 }
 
@@ -3722,6 +3800,325 @@ export async function getMaterialPackIdsForServico(servico: string, contexto: st
   } catch (error) {
     console.error('Erro getMaterialPackIdsForServico:', error);
     return { success: false, data: [] as number[] };
+  }
+}
+
+
+function mapMovimentoMaterialRow(r: any, includeImage = true) {
+  return {
+    id: Number(r.id),
+    material_id: Number(r.material_id),
+    material_nome: (r.material_nome as string) || '',
+    material_imagem: includeImage ? ((r.material_imagem as string) || '') : '',
+    quantidade: Number(r.quantidade) || 0,
+    quantidade_devolvida: Number(r.quantidade_devolvida) || 0,
+    quantidade_consumida: Number(r.quantidade_consumida) || 0,
+    origem: (r.origem as string) || 'Loja',
+    origem_detalhe: (r.origem_detalhe as string) || '',
+    dono_material: (r.dono_material as string) || '',
+    quem_levou: (r.quem_levou as string) || (r.responsavel as string) || '',
+    evento: (r.evento as string) || '',
+    evento_id: r.evento_id !== null && r.evento_id !== undefined ? Number(r.evento_id) : null,
+    responsavel: (r.responsavel as string) || '',
+    notas: (r.notas as string) || '',
+    estado_regresso: (r.estado_regresso as string) || '',
+    precisa_comprar: r.precisa_comprar === 1 || r.precisa_comprar === true ? 1 : 0,
+    motivo_compra: (r.motivo_compra as string) || '',
+    quantidade_comprar: Number(r.quantidade_comprar) || 0,
+    quem_confirmou_regresso: (r.quem_confirmou_regresso as string) || '',
+    notas_regresso: (r.notas_regresso as string) || '',
+    data_saida: (r.data_saida as string) || '',
+    data_volta: (r.data_volta as string) || null,
+  };
+}
+
+async function cleanupFutureAutoReservationMovements() {
+  // Migração única: versões anteriores criavam uma “saída” assim que o pack era reservado.
+  // Depois de concluída, os carregamentos normais fazem apenas a leitura necessária da página.
+  const g = globalThis as typeof globalThis & { __lle_reservas_sem_saida_done?: boolean };
+  if (g.__lle_reservas_sem_saida_done) return;
+  const migrationKey = 'materiais_reservas_sem_saida_v1_20260715';
+  try {
+    try {
+      if (await hasMigration(migrationKey)) {
+        g.__lle_reservas_sem_saida_done = true;
+        return;
+      }
+    } catch {
+      await ensureLleMetaTable();
+    }
+    await turso.execute(`
+      DELETE FROM material_movimentos
+      WHERE data_volta IS NULL
+        AND COALESCE(quantidade_devolvida, 0) = 0
+        AND COALESCE(quantidade_consumida, 0) = 0
+        AND COALESCE(notas, '') LIKE 'Pack incluído/oferta:%'
+        AND evento_id IS NOT NULL
+        AND EXISTS (
+          SELECT 1
+          FROM material_pack_reservas r
+          LEFT JOIN agenda a ON a.id = r.evento_id
+          WHERE r.evento_id = material_movimentos.evento_id
+            AND (a.event_date IS NULL OR date(a.event_date) >= date('now'))
+        )
+    `);
+    await markMigration(migrationKey);
+    g.__lle_reservas_sem_saida_done = true;
+  } catch {
+    // Em bases antigas as tabelas podem ainda não existir; o fallback de setup trata disso.
+  }
+}
+
+async function queryMateriaisInitialBundleFast() {
+  await cleanupFutureAutoReservationMovements();
+
+  // Entrada rápida: só operação atual, reservas futuras e duas contagens essenciais.
+  // Imagens, histórico, packs, catálogo e valores são carregados apenas quando o utilizador abre essas áreas.
+  const [statsRes, openRes, reservationsRes] = await Promise.all([
+    turso.execute(`
+      SELECT COUNT(*) AS ativos, COALESCE(SUM(quantidade_total), 0) AS unidades
+      FROM materiais
+      WHERE ativo = 1
+    `),
+    turso.execute(`
+      SELECT id, material_id, material_nome, quantidade, quantidade_devolvida, quantidade_consumida,
+             origem, origem_detalhe, dono_material, quem_levou, evento, evento_id, responsavel, notas,
+             estado_regresso, precisa_comprar, motivo_compra, quantidade_comprar,
+             quem_confirmou_regresso, notas_regresso, data_saida, data_volta
+      FROM material_movimentos
+      WHERE quantidade > COALESCE(quantidade_devolvida, 0) + COALESCE(quantidade_consumida, 0)
+      ORDER BY data_saida DESC
+      LIMIT 100
+    `),
+    turso.execute(`
+      SELECT
+        r.evento_id,
+        COALESCE(a.event_name, r.servico, r.pack_nome, 'Evento') AS evento_nome,
+        COALESCE(a.event_date, '') AS evento_data,
+        GROUP_CONCAT(DISTINCT r.pack_nome) AS pack_nome,
+        GROUP_CONCAT(DISTINCT r.reservado_por) AS reservado_por,
+        i.material_nome,
+        SUM(COALESCE(i.quantidade, 1)) AS quantidade,
+        COALESCE(MAX(m.id), 0) AS material_id,
+        COALESCE(MAX(m.local_habitual), 'Loja') AS local_habitual,
+        COALESCE(MAX(m.dono), 'LLE') AS dono_material
+      FROM material_pack_reservas r
+      JOIN material_pack_items i ON i.pack_id = r.pack_id AND i.ativo = 1
+      LEFT JOIN agenda a ON a.id = r.evento_id
+      LEFT JOIN materiais m ON LOWER(TRIM(m.nome)) = LOWER(TRIM(i.material_nome)) AND m.ativo = 1
+      WHERE (a.status IS NULL OR a.status != 'Cancelado')
+        AND (a.event_date IS NULL OR date(a.event_date) >= date('now', '-1 day'))
+      GROUP BY r.evento_id, evento_nome, evento_data, i.material_nome
+      ORDER BY CASE WHEN evento_data = '' THEN 1 ELSE 0 END, evento_data ASC, evento_nome ASC, i.material_nome ASC
+    `),
+  ]);
+
+  const movimentos = (openRes.rows as any[]).map(row => mapMovimentoMaterialRow(row, false));
+  const actualByEventMaterial = new Map<string, number>();
+  for (const mov of movimentos) {
+    if (!mov.evento_id) continue;
+    const key = `${mov.evento_id}||${normalizeValorMasterKey(mov.material_nome)}`;
+    const pending = Math.max(0, mov.quantidade - mov.quantidade_devolvida - mov.quantidade_consumida);
+    actualByEventMaterial.set(key, (actualByEventMaterial.get(key) || 0) + pending);
+  }
+
+  const reservas = (reservationsRes.rows as any[]).map((row: any) => {
+    const eventId = Number(row.evento_id) || 0;
+    const quantity = Number(row.quantidade) || 0;
+    const key = `${eventId}||${normalizeValorMasterKey(row.material_nome)}`;
+    const alreadyOut = actualByEventMaterial.get(key) || 0;
+    return {
+      evento_id: eventId,
+      evento_nome: (row.evento_nome as string) || 'Evento',
+      evento_data: (row.evento_data as string) || '',
+      pack_nome: (row.pack_nome as string) || '',
+      reservado_por: (row.reservado_por as string) || '',
+      material_id: Number(row.material_id) || 0,
+      material_nome: (row.material_nome as string) || '',
+      quantidade: Math.max(0, quantity - alreadyOut),
+      local_habitual: (row.local_habitual as string) || 'Loja',
+      dono_material: (row.dono_material as string) || 'LLE',
+    };
+  }).filter((row: any) => row.quantidade > 0);
+
+  const statsRow = (statsRes.rows[0] as any) || {};
+  const openUnits = movimentos.reduce((sum: number, mov: any) =>
+    sum + Math.max(0, mov.quantidade - mov.quantidade_devolvida - mov.quantidade_consumida), 0);
+  const reservedUnits = reservas.reduce((sum: number, row: any) => sum + row.quantidade, 0);
+  const activeMaterials = Number(statsRow.ativos) || 0;
+
+  return {
+    success: true,
+    movimentos,
+    reservas,
+    stats: {
+      activeMaterials,
+      totalUnits: Number(statsRow.unidades) || 0,
+      openRecords: movimentos.length,
+      openUnits,
+      reservedUnits,
+      historyCount: 0,
+      catalogCount: activeMaterials,
+      valuesCount: 0,
+    },
+  };
+}
+
+export async function getMateriaisInitialBundle() {
+  try {
+    // Só traz a operação atual e contagens: sem catálogo completo, histórico, agenda inteira ou packs detalhados.
+    return await queryMateriaisInitialBundleFast();
+  } catch (firstError) {
+    try {
+      await setupMateriais();
+      await seedMaterialPacks();
+      return await queryMateriaisInitialBundleFast();
+    } catch (error) {
+      console.error('Erro getMateriaisInitialBundle:', error, firstError);
+      return {
+        success: false,
+        movimentos: [],
+        reservas: [],
+        stats: { activeMaterials: 0, totalUnits: 0, openRecords: 0, openUnits: 0, reservedUnits: 0, historyCount: 0, catalogCount: 0, valuesCount: 0 },
+      };
+    }
+  }
+}
+
+export async function getMateriaisTabData(tab: 'historico' | 'catalogo' | 'valores') {
+  try {
+    if (tab === 'historico') {
+      const [res, countRes] = await Promise.all([
+        turso.execute(`
+          SELECT id, material_id, material_nome, quantidade, quantidade_devolvida, quantidade_consumida,
+                 origem, origem_detalhe, dono_material, quem_levou, evento, evento_id, responsavel, notas,
+                 estado_regresso, precisa_comprar, motivo_compra, quantidade_comprar,
+                 quem_confirmou_regresso, notas_regresso, data_saida, data_volta
+          FROM material_movimentos
+          WHERE quantidade <= COALESCE(quantidade_devolvida, 0) + COALESCE(quantidade_consumida, 0)
+          ORDER BY COALESCE(data_volta, data_saida) DESC
+          LIMIT 150
+        `),
+        turso.execute(`
+          SELECT COUNT(*) AS total
+          FROM material_movimentos
+          WHERE quantidade <= COALESCE(quantidade_devolvida, 0) + COALESCE(quantidade_consumida, 0)
+        `),
+      ]);
+      return {
+        success: true,
+        tab,
+        movimentos: (res.rows as any[]).map(row => mapMovimentoMaterialRow(row, false)),
+        historyCount: Number((countRes.rows[0] as any)?.total) || 0,
+      };
+    }
+
+    if (tab === 'catalogo') {
+      const materiais = await getAllMateriais();
+      return { success: materiais.success, tab, materiais: materiais.data || [] };
+    }
+
+    const [materialsRes, packsRes] = await Promise.all([
+      turso.execute(`
+        SELECT id, nome, categoria, quantidade_total, dono, local_habitual, consumivel, stock_minimo,
+               precisa_comprar, motivo_compra, quantidade_comprar, notas_compra, duracao_formato,
+               custo_interno, valor_parceiro, valor_sud, valor_cliente_final, notas, ativo
+        FROM materiais
+        WHERE ativo = 1
+        ORDER BY nome ASC
+      `),
+      turso.execute(`
+        SELECT id, nome, descricao, duracao_formato, custo_interno, valor_parceiro, valor_sud,
+               valor_cliente_final, valor_referencia, ativo
+        FROM material_packs
+        WHERE ativo = 1
+        ORDER BY nome ASC
+      `),
+    ]);
+    const materiais = (materialsRes.rows as any[]).map((r: any) => ({
+      id: Number(r.id), nome: (r.nome as string) || '', categoria: (r.categoria as string) || '', imagem: '',
+      quantidade_total: Number(r.quantidade_total) || 0, dono: (r.dono as string) || 'LLE',
+      local_habitual: (r.local_habitual as string) || 'Loja', consumivel: r.consumivel === 1 || r.consumivel === true ? 1 : 0,
+      stock_minimo: Number(r.stock_minimo) || 0, precisa_comprar: r.precisa_comprar === 1 || r.precisa_comprar === true ? 1 : 0,
+      motivo_compra: (r.motivo_compra as string) || '', quantidade_comprar: Number(r.quantidade_comprar) || 0,
+      notas_compra: (r.notas_compra as string) || '', duracao_formato: (r.duracao_formato as string) || '',
+      custo_interno: Number(r.custo_interno) || 0, valor_parceiro: Number(r.valor_parceiro) || 0,
+      valor_sud: Number(r.valor_sud) || 0, valor_cliente_final: Number(r.valor_cliente_final) || 0,
+      notas: (r.notas as string) || '', ativo: 1,
+    }));
+    const packs = (packsRes.rows as any[]).map((p: any) => ({
+      id: Number(p.id), nome: (p.nome as string) || '', descricao: (p.descricao as string) || '',
+      duracao_formato: (p.duracao_formato as string) || '', custo_interno: Number(p.custo_interno) || 0,
+      valor_parceiro: Number(p.valor_parceiro) || 0, valor_sud: Number(p.valor_sud) || 0,
+      valor_cliente_final: Number(p.valor_cliente_final || p.valor_referencia) || 0,
+      valor_referencia: Number(p.valor_referencia) || 0, ativo: 1, items: [],
+    }));
+    return { success: true, tab, materiais, packs };
+  } catch (firstError) {
+    try {
+      await setupMateriais();
+      await seedMaterialPacks();
+      if (tab === 'catalogo') {
+        const materiais = await getAllMateriais();
+        return { success: materiais.success, tab, materiais: materiais.data || [] };
+      }
+      if (tab === 'historico') {
+        const movimentos = await getMovimentosMateriais();
+        return {
+          success: movimentos.success,
+          tab,
+          movimentos: (movimentos.data || []).filter((m: any) => m.quantidade <= m.quantidade_devolvida + m.quantidade_consumida).slice(0, 150),
+        };
+      }
+      const [materiais, packs] = await Promise.all([getAllMateriais(), getAllMaterialPacks()]);
+      return { success: materiais.success && packs.success, tab, materiais: materiais.data || [], packs: packs.data || [] };
+    } catch (error) {
+      console.error('Erro getMateriaisTabData:', error, firstError);
+      return { success: false, tab, materiais: [], packs: [], movimentos: [] };
+    }
+  }
+}
+
+export async function getMateriaisSaidaLookups() {
+  try {
+    const [materialsRes, eventsRes] = await Promise.all([
+      turso.execute(`
+        SELECT id, nome, categoria, quantidade_total, dono, local_habitual, consumivel, ativo
+        FROM materiais
+        WHERE ativo = 1
+        ORDER BY nome ASC
+      `),
+      turso.execute(`
+        SELECT id, event_name, event_date
+        FROM agenda
+        WHERE status != 'Cancelado'
+          AND (event_date IS NULL OR date(event_date) >= date('now', '-30 day'))
+        ORDER BY CASE WHEN event_date IS NULL OR event_date='' THEN 1 ELSE 0 END, event_date ASC
+        LIMIT 250
+      `),
+    ]);
+    return {
+      success: true,
+      materiais: (materialsRes.rows as any[]).map((r: any) => ({
+        id: Number(r.id), nome: (r.nome as string) || '', categoria: (r.categoria as string) || '', imagem: '',
+        quantidade_total: Number(r.quantidade_total) || 0, dono: (r.dono as string) || 'LLE',
+        local_habitual: (r.local_habitual as string) || 'Loja', consumivel: r.consumivel === 1 || r.consumivel === true ? 1 : 0,
+        stock_minimo: 0, precisa_comprar: 0, motivo_compra: '', quantidade_comprar: 0, notas_compra: '',
+        duracao_formato: '', custo_interno: 0, valor_parceiro: 0, valor_sud: 0, valor_cliente_final: 0, notas: '', ativo: 1,
+      })),
+      eventos: (eventsRes.rows as any[]).map((r: any) => ({
+        id: Number(r.id), title: (r.event_name as string) || '', date: (r.event_date as string) || '',
+      })),
+    };
+  } catch (firstError) {
+    try {
+      await setupMateriais();
+      const [materiais, eventos] = await Promise.all([getAllMateriais(), getEventosParaMateriais()]);
+      return { success: materiais.success && eventos.success, materiais: materiais.data || [], eventos: eventos.data || [] };
+    } catch (error) {
+      console.error('Erro getMateriaisSaidaLookups:', error, firstError);
+      return { success: false, materiais: [], eventos: [] };
+    }
   }
 }
 

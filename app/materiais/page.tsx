@@ -8,9 +8,9 @@ import { ThemeSwitcher } from "../ThemeSwitcher";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  getAllMateriais, createMaterial, updateMaterial, updateMaterialCompraStatus, toggleMaterialAtivo,
-  getMovimentosMateriais, registarSaidaMaterial, registarVoltaMaterial, deleteMovimentoMaterial,
-  setupMateriais, getEventosParaMateriais, getMateriaisPageBundle, updateMaterialPackValues,
+  createMaterial, updateMaterial, updateMaterialCompraStatus, toggleMaterialAtivo,
+  registarSaidaMaterial, registarVoltaMaterial, deleteMovimentoMaterial,
+  updateMaterialPackValues, getMateriaisInitialBundle, getMateriaisTabData, getMateriaisSaidaLookups, getMaterialById,
 } from "../actions";
 
 interface Material {
@@ -38,6 +38,30 @@ interface Movimento {
 }
 
 interface EventoOpcao { id: number; title: string; date: string; }
+
+interface ReservaMaterial {
+  evento_id: number;
+  evento_nome: string;
+  evento_data: string;
+  pack_nome: string;
+  reservado_por: string;
+  material_id: number;
+  material_nome: string;
+  quantidade: number;
+  local_habitual: string;
+  dono_material: string;
+}
+
+interface MateriaisStats {
+  activeMaterials: number;
+  totalUnits: number;
+  openRecords: number;
+  openUnits: number;
+  reservedUnits: number;
+  historyCount: number;
+  catalogCount: number;
+  valuesCount: number;
+}
 
 const PESSOAL = "Pessoal";
 const SEL_PESSOAL = "pessoal";
@@ -151,6 +175,25 @@ function agruparPorEvento(movs: Movimento[], eventos: EventoOpcao[]) {
   });
 }
 
+function agruparReservasPorEvento(reservas: ReservaMaterial[]) {
+  const groups = new Map<number, { key: string; label: string; date: string; items: ReservaMaterial[] }>();
+  for (const reserva of reservas) {
+    const current = groups.get(reserva.evento_id) || {
+      key: `reserva-${reserva.evento_id}`,
+      label: reserva.evento_nome || `Evento #${reserva.evento_id}`,
+      date: reserva.evento_data || "",
+      items: [],
+    };
+    current.items.push(reserva);
+    groups.set(reserva.evento_id, current);
+  }
+  return [...groups.values()].sort((a, b) => {
+    if (a.date && b.date) return a.date.localeCompare(b.date);
+    if (a.date !== b.date) return a.date ? -1 : 1;
+    return a.label.localeCompare(b.label);
+  });
+}
+
 export default function MateriaisPage() {
   const { lightTheme, setLightTheme, mounted } = useTheme();
   const C = getColors(lightTheme);
@@ -159,11 +202,21 @@ export default function MateriaisPage() {
   const [userRole, setUserRole] = useState("admin");
   const [materiais, setMateriais] = useState<Material[]>([]);
   const [movimentos, setMovimentos] = useState<Movimento[]>([]);
+  const [movimentosFechados, setMovimentosFechados] = useState<Movimento[]>([]);
+  const [reservas, setReservas] = useState<ReservaMaterial[]>([]);
   const [eventos, setEventos] = useState<EventoOpcao[]>([]);
   const [packs, setPacks] = useState<MaterialPack[]>([]);
+  const [stats, setStats] = useState<MateriaisStats>({
+    activeMaterials: 0, totalUnits: 0, openRecords: 0, openUnits: 0,
+    reservedUnits: 0, historyCount: 0, catalogCount: 0, valuesCount: 0,
+  });
+  const [loadedTabs, setLoadedTabs] = useState({ fora: true, historico: false, catalogo: false, valores: false });
+  const [tabLoading, setTabLoading] = useState(false);
+  const [saidaLookupsLoaded, setSaidaLookupsLoaded] = useState(false);
   const [packDrafts, setPackDrafts] = useState<Record<number, { duracao_formato: string; custo_interno: string; valor_parceiro: string; valor_sud: string; valor_cliente_final: string }>>({});
   const [packSavingId, setPackSavingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mobileView, setMobileView] = useState<boolean | null>(null);
   const [tab, setTab] = useState<"fora" | "historico" | "catalogo" | "valores">("fora");
   const [toast, setToast] = useState("");
   const [saving, setSaving] = useState(false);
@@ -182,27 +235,79 @@ export default function MateriaisPage() {
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
-  const load = useCallback(async () => {
-    const bundle = await getMateriaisPageBundle();
+  const applyPacks = useCallback((data: MaterialPack[]) => {
+    setPacks(data);
+    setPackDrafts(Object.fromEntries(data.map(pack => [pack.id, {
+      duracao_formato: pack.duracao_formato || "",
+      custo_interno: String(pack.custo_interno || ""),
+      valor_parceiro: String(pack.valor_parceiro || ""),
+      valor_sud: String(pack.valor_sud || ""),
+      valor_cliente_final: String(pack.valor_cliente_final || pack.valor_referencia || ""),
+    }])));
+  }, []);
+
+  const loadInitial = useCallback(async (showFullLoader = true) => {
+    if (showFullLoader) setLoading(true);
+    const bundle = await getMateriaisInitialBundle();
     if (bundle.success) {
-      const mr = bundle.materiais;
-      const movr = bundle.movimentos;
-      const evr = bundle.eventos;
-      const pr = bundle.packs;
-      if (mr?.success) setMateriais(mr.data as Material[]);
-      if (movr?.success) setMovimentos(movr.data as Movimento[]);
-      if (evr?.success) setEventos(evr.data as EventoOpcao[]);
-      if (pr?.success) {
-        const data = pr.data as MaterialPack[];
-        setPacks(data);
-        setPackDrafts(Object.fromEntries(data.map(pack => [pack.id, {
-          duracao_formato: pack.duracao_formato || "", custo_interno: String(pack.custo_interno || ""),
-          valor_parceiro: String(pack.valor_parceiro || ""), valor_sud: String(pack.valor_sud || ""),
-          valor_cliente_final: String(pack.valor_cliente_final || pack.valor_referencia || ""),
-        }])));
-      }
+      setMovimentos((bundle.movimentos || []) as Movimento[]);
+      setReservas((bundle.reservas || []) as ReservaMaterial[]);
+      setStats(bundle.stats as MateriaisStats);
     }
     setLoading(false);
+  }, []);
+
+  const loadTabData = useCallback(async (target: "historico" | "catalogo" | "valores", force = false) => {
+    if (!force && loadedTabs[target]) return;
+    setTabLoading(true);
+    const result = await getMateriaisTabData(target);
+    if (result.success) {
+      if (target === "historico") {
+        const history = (result.movimentos || []) as Movimento[];
+        setMovimentosFechados(history);
+        setStats(prev => ({ ...prev, historyCount: Number(result.historyCount) || history.length }));
+      }
+      if (target === "catalogo") {
+        const catalog = (result.materiais || []) as Material[];
+        setMateriais(catalog);
+        setStats(prev => ({ ...prev, catalogCount: catalog.filter(item => item.ativo === 1).length }));
+      }
+      if (target === "valores") {
+        const valueMaterials = (result.materiais || []) as Material[];
+        const valuePacks = (result.packs || []) as MaterialPack[];
+        setMateriais(valueMaterials);
+        applyPacks(valuePacks);
+        setStats(prev => ({ ...prev, valuesCount: valueMaterials.length + valuePacks.length }));
+      }
+      setLoadedTabs(prev => ({ ...prev, [target]: true }));
+    } else {
+      showToast("Não foi possível carregar esta área");
+    }
+    setTabLoading(false);
+  }, [applyPacks, loadedTabs]);
+
+  const handleTabChange = async (target: "fora" | "historico" | "catalogo" | "valores") => {
+    setTab(target);
+    if (target !== "fora") await loadTabData(target);
+  };
+
+  const refreshAfterMovement = async () => {
+    await loadInitial(false);
+    if (tab === "historico" && loadedTabs.historico) await loadTabData("historico", true);
+  };
+
+  const refreshAfterMaterial = async () => {
+    await loadInitial(false);
+    if (loadedTabs.catalogo) await loadTabData("catalogo", true);
+    if (loadedTabs.valores) await loadTabData("valores", true);
+  };
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const update = () => setMobileView(media.matches);
+    update();
+    media.addEventListener?.("change", update);
+    return () => media.removeEventListener?.("change", update);
   }, []);
 
   useEffect(() => {
@@ -212,15 +317,15 @@ export default function MateriaisPage() {
     if (["limited_novalues", "finance"].includes(parsed.role || "")) { router.push("/agenda"); return; }
     setUserName(parsed.name);
     setUserRole(parsed.role || "admin");
-    load();
-  }, [load]);
+    loadInitial();
+  }, [loadInitial, router]);
 
   const materiaisAtivos = materiais.filter(m => m.ativo === 1);
-  const movimentosAbertos = movimentos.filter(m => pendenteMovimento(m) > 0);
-  const movimentosFechados = movimentos.filter(m => pendenteMovimento(m) <= 0);
+  const movimentosAbertos = movimentos;
   const foraAgrupados = agruparPorEvento(movimentosAbertos, eventos);
-  const totalUnidades = materiaisAtivos.reduce((s, m) => s + m.quantidade_total, 0);
-  const totalFora = movimentosAbertos.reduce((s, m) => s + pendenteMovimento(m), 0);
+  const reservasAgrupadas = agruparReservasPorEvento(reservas);
+  const totalUnidades = stats.totalUnits;
+  const totalFora = stats.openUnits;
 
   function pendenteAtualDoMaterial(materialId: number) {
     return movimentosAbertos
@@ -229,8 +334,41 @@ export default function MateriaisPage() {
   }
 
   // ── Saída ──────────────────────────────────────────────────────────────
-  const openSaida = (materialId?: number) => {
-    setSaidaForm({ ...emptySaidaForm, material_id: materialId || (materiaisAtivos[0]?.id ?? 0) });
+  const ensureSaidaLookups = async () => {
+    if (saidaLookupsLoaded) return { materiais: materiaisAtivos, eventos };
+    const result = await getMateriaisSaidaLookups();
+    const alreadyHaveMaterials = loadedTabs.catalogo || loadedTabs.valores;
+    const lookupMateriais = alreadyHaveMaterials ? materiaisAtivos : (result.success ? ((result.materiais || []) as Material[]) : materiaisAtivos);
+    const lookupEventos = result.success ? ((result.eventos || []) as EventoOpcao[]) : eventos;
+    if (result.success) {
+      if (!alreadyHaveMaterials) setMateriais(lookupMateriais);
+      setEventos(lookupEventos);
+      setSaidaLookupsLoaded(true);
+    }
+    return { materiais: lookupMateriais, eventos: lookupEventos };
+  };
+
+  const openSaida = async (materialId?: number, reserva?: ReservaMaterial) => {
+    const lookups = await ensureSaidaLookups();
+    const selected = lookups.materiais.find(m => m.id === (reserva?.material_id || materialId))
+      || lookups.materiais.find(m => reserva && m.nome.trim().toLowerCase() === reserva.material_nome.trim().toLowerCase())
+      || lookups.materiais[0];
+    if (!selected) { showToast("Sem materiais disponíveis"); return; }
+
+    const local = reserva?.local_habitual || selected.local_habitual || "Loja";
+    const origemConhecida = ORIGENS.includes(local);
+    setSaidaForm({
+      ...emptySaidaForm,
+      material_id: selected.id,
+      quantidade: reserva?.quantidade || 1,
+      origem: origemConhecida ? local : "Outro",
+      origem_detalhe: origemConhecida ? "" : local,
+      quem_levou: userName,
+      evento_sel: reserva ? String(reserva.evento_id) : SEL_PESSOAL,
+      evento: reserva?.evento_nome || "",
+      evento_id: reserva?.evento_id ?? null,
+      notas: reserva ? `Saída de material reservado${reserva.pack_nome ? ` · ${reserva.pack_nome}` : ""}` : "",
+    });
     setSaidaModal(true);
   };
   const closeSaida = () => setSaidaModal(false);
@@ -239,7 +377,7 @@ export default function MateriaisPage() {
     const mat = materiais.find(m => m.id === saidaForm.material_id);
     if (!mat) { showToast("Escolhe um material"); return; }
     if (saidaForm.quantidade < 1) { showToast("Quantidade inválida"); return; }
-    if (saidaForm.origem === "Outro" && !saidaForm.origem_detalhe.trim()) { showToast("Especifica para onde vai"); return; }
+    if (saidaForm.origem === "Outro" && !saidaForm.origem_detalhe.trim()) { showToast("Especifica de onde saiu"); return; }
     const isPessoal = saidaForm.evento_sel === SEL_PESSOAL;
     const eventoSelecionado = isPessoal ? null : eventos.find(e => String(e.id) === saidaForm.evento_sel) || null;
     setSaving(true);
@@ -247,13 +385,13 @@ export default function MateriaisPage() {
       material_id: mat.id, material_nome: mat.nome, material_imagem: mat.imagem,
       quantidade: saidaForm.quantidade, origem: saidaForm.origem, origem_detalhe: saidaForm.origem_detalhe,
       dono_material: mat.dono || "LLE", quem_levou: saidaForm.quem_levou || userName,
-      evento: isPessoal ? PESSOAL : (eventoSelecionado?.title || ""),
-      evento_id: isPessoal ? null : (eventoSelecionado?.id ?? null),
+      evento: isPessoal ? PESSOAL : (eventoSelecionado?.title || saidaForm.evento || ""),
+      evento_id: isPessoal ? null : (eventoSelecionado?.id ?? saidaForm.evento_id ?? null),
       responsavel: userName, notas: saidaForm.notas,
     });
     showToast(`Saída registada: ${mat.nome}`);
     closeSaida();
-    await load();
+    await refreshAfterMovement();
     setSaving(false);
   };
 
@@ -294,21 +432,26 @@ export default function MateriaisPage() {
     });
     showToast(pendenteMovimento({ ...mov, quantidade_devolvida: novaDevolvida, quantidade_consumida: novaConsumida }) <= 0 ? `${mov.material_nome} fechado` : `Regresso parcial registado`);
     closeVolta();
-    await load();
+    await refreshAfterMovement();
   };
 
   const handleDeleteMovimento = async (id: number) => {
     if (!confirm("Apagar este registo de movimento?")) return;
     await deleteMovimentoMaterial(id);
     showToast("Movimento apagado");
-    await load();
+    await refreshAfterMovement();
   };
 
   // ── Catálogo ───────────────────────────────────────────────────────────
   const openCreateMaterial = () => { setMaterialForm(emptyMaterialForm); setMaterialModal({ open: true, editing: null }); };
-  const openEditMaterial = (m: Material) => {
-    setMaterialForm({ nome: m.nome, categoria: m.categoria, imagem: m.imagem, quantidade_total: m.quantidade_total, dono: m.dono || "LLE", local_habitual: m.local_habitual || "Loja", consumivel: m.consumivel || 0, stock_minimo: m.stock_minimo || 0, precisa_comprar: m.precisa_comprar || 0, motivo_compra: m.motivo_compra || "", quantidade_comprar: m.quantidade_comprar || 0, notas_compra: m.notas_compra || "", duracao_formato: m.duracao_formato || "", custo_interno: m.custo_interno || 0, valor_parceiro: m.valor_parceiro || 0, valor_sud: m.valor_sud || 0, valor_cliente_final: m.valor_cliente_final || 0, notas: m.notas });
-    setMaterialModal({ open: true, editing: m });
+  const openEditMaterial = async (m: Material) => {
+    let full = m;
+    if (!loadedTabs.catalogo) {
+      const result = await getMaterialById(m.id);
+      if (result.success && result.data) full = result.data as Material;
+    }
+    setMaterialForm({ nome: full.nome, categoria: full.categoria, imagem: full.imagem, quantidade_total: full.quantidade_total, dono: full.dono || "LLE", local_habitual: full.local_habitual || "Loja", consumivel: full.consumivel || 0, stock_minimo: full.stock_minimo || 0, precisa_comprar: full.precisa_comprar || 0, motivo_compra: full.motivo_compra || "", quantidade_comprar: full.quantidade_comprar || 0, notas_compra: full.notas_compra || "", duracao_formato: full.duracao_formato || "", custo_interno: full.custo_interno || 0, valor_parceiro: full.valor_parceiro || 0, valor_sud: full.valor_sud || 0, valor_cliente_final: full.valor_cliente_final || 0, notas: full.notas });
+    setMaterialModal({ open: true, editing: full });
   };
   const closeMaterialModal = () => setMaterialModal({ open: false, editing: null });
 
@@ -334,7 +477,7 @@ export default function MateriaisPage() {
       showToast("Material criado");
     }
     closeMaterialModal();
-    await load();
+    await refreshAfterMaterial();
     setSaving(false);
   };
 
@@ -342,7 +485,7 @@ export default function MateriaisPage() {
     const novo = m.ativo === 1 ? 0 : 1;
     await toggleMaterialAtivo(m.id, novo);
     showToast(novo === 1 ? "Material reativado" : "Material arquivado");
-    await load();
+    await refreshAfterMaterial();
   };
 
   const handleToggleCompraMaterial = async (m: Material) => {
@@ -354,7 +497,7 @@ export default function MateriaisPage() {
       notas_compra: novo ? m.notas_compra : "",
     });
     showToast(novo ? "Marcado para comprar" : "Compra resolvida");
-    await load();
+    await refreshAfterMaterial();
   };
 
   const updatePackDraft = (id: number, field: string, value: string) => setPackDrafts(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
@@ -368,7 +511,7 @@ export default function MateriaisPage() {
       valor_sud: toPrice(draft.valor_sud), valor_cliente_final: toPrice(draft.valor_cliente_final),
     });
     showToast(result.success ? "Valores do pack atualizados" : "Erro ao atualizar valores");
-    await load();
+    await loadTabData("valores", true);
     setPackSavingId(null);
   };
 
@@ -383,7 +526,7 @@ export default function MateriaisPage() {
   const btnPrimStyle: React.CSSProperties = { background: C.gold, border: "none", color: "var(--theme-accent-contrast)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
   const btnSecStyle: React.CSSProperties = { background: "transparent", border: `1px solid ${C.border}`, color: C.textSec, fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 
-  if (loading) {
+  if (loading || mobileView === null) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.pageBg }}>
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: C.gold, fontWeight: 300 }}>LLE</span>
@@ -392,7 +535,7 @@ export default function MateriaisPage() {
   }
 
   const TabBtn = ({ id, label, count }: { id: "fora" | "historico" | "catalogo" | "valores"; label: string; count?: number }) => (
-    <button onClick={() => setTab(id)} style={{
+    <button onClick={() => void handleTabChange(id)} style={{
       background: tab === id ? "rgba(var(--theme-accent-rgb),0.1)" : "transparent",
       border: "none", borderBottom: tab === id ? `2px solid ${C.gold}` : "2px solid transparent",
       color: tab === id ? C.gold : C.textSec, fontSize: "9px", letterSpacing: "0.25em", fontWeight: 600,
@@ -414,6 +557,7 @@ export default function MateriaisPage() {
   return (
     <>
     {/* ═══ DESKTOP ═══ */}
+    {mobileView === false && (
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: C.pageBg, color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <Nav userName={userName} active="materiais" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");   }} />
       <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
@@ -429,9 +573,10 @@ export default function MateriaisPage() {
 
         <div style={{ display: "flex", gap: "1.5rem", marginBottom: "1.25rem", flexWrap: "wrap" }}>
           {[
-            { label: "Materiais ativos", value: materiaisAtivos.length },
+            { label: "Materiais ativos", value: stats.activeMaterials },
             { label: "Unidades totais", value: totalUnidades },
             { label: "Unidades fora", value: totalFora, color: totalFora > 0 ? C.amber : undefined },
+            { label: "Reservadas", value: stats.reservedUnits, color: stats.reservedUnits > 0 ? C.blue : undefined },
           ].map(s => (
             <div key={s.label} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
               <span style={{ fontSize: "16px", fontWeight: 700, color: s.color || C.textPrimary }}>{s.value}</span>
@@ -442,10 +587,14 @@ export default function MateriaisPage() {
 
         <div style={{ display: "flex", borderBottom: `1px solid ${C.borderDim}`, marginBottom: "1.5rem" }}>
           <TabBtn id="fora" label="Fora" count={movimentosAbertos.length} />
-          <TabBtn id="historico" label="Histórico" count={movimentosFechados.length} />
-          <TabBtn id="catalogo" label="Catálogo" count={materiaisAtivos.length} />
-          <TabBtn id="valores" label="Valores" count={packs.length + materiaisAtivos.length} />
+          <TabBtn id="historico" label="Histórico" count={loadedTabs.historico ? stats.historyCount : undefined} />
+          <TabBtn id="catalogo" label="Catálogo" count={stats.catalogCount} />
+          <TabBtn id="valores" label="Valores" count={loadedTabs.valores ? stats.valuesCount : undefined} />
         </div>
+
+        {tabLoading && tab !== "fora" && (
+          <div style={{ padding: "3rem", textAlign: "center", color: C.textMuted, fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase" }}>A carregar apenas esta área...</div>
+        )}
 
         {tab === "fora" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
@@ -496,11 +645,47 @@ export default function MateriaisPage() {
                 </div>
               </div>
             ))}
-            {movimentosAbertos.length === 0 && <div style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Nada fora de momento — tudo na loja</div>}
+            {movimentosAbertos.length === 0 && <div style={{ textAlign: "center", padding: "1.6rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.16em", border: `1px solid ${C.borderDim}`, background: C.surface }}>Nada fora de momento — tudo continua no local</div>}
+
+            {reservasAgrupadas.length > 0 && (
+              <section style={{ display: "flex", flexDirection: "column", gap: "0.8rem" }}>
+                <div>
+                  <div style={{ fontSize: "9px", letterSpacing: "0.28em", color: C.blue, textTransform: "uppercase", fontWeight: 700 }}>Reservado</div>
+                  <div style={{ fontSize: "10px", color: C.textMuted, marginTop: "0.25rem" }}>Bloqueado para a data do evento, mas ainda não saiu do local habitual.</div>
+                </div>
+                {reservasAgrupadas.map(group => (
+                  <div key={group.key} style={{ background: C.surface, border: `1px solid rgba(80,140,220,0.24)` }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1.1rem", borderBottom: `1px solid ${C.borderDim}`, background: "rgba(80,140,220,0.06)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span style={{ fontSize: "9px", letterSpacing: "0.2em", fontWeight: 700, color: C.blue, textTransform: "uppercase" }}>📌 {group.label}</span>
+                        {group.date && <span style={{ fontSize: "9px", color: C.textMuted }}>{fmtDateShort(group.date)}</span>}
+                      </div>
+                      <span style={{ fontSize: "9px", color: C.blue, background: "rgba(80,140,220,0.09)", padding: "2px 8px", borderRadius: "8px" }}>{group.items.reduce((sum, item) => sum + item.quantidade, 0)} un.</span>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: "0.6rem", padding: "0.85rem" }}>
+                      {group.items.map((reserva, index) => (
+                        <div key={`${group.key}-${reserva.material_nome}-${index}`} style={{ background: "rgba(var(--theme-contrast-rgb),0.02)", border: `1px solid ${C.borderDim}`, padding: "0.85rem", display: "flex", gap: "0.75rem" }}>
+                          <MaterialThumb src="" size={44} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+                              <span style={{ fontSize: "12px", fontWeight: 700 }}>{reserva.material_nome}</span>
+                              <span style={{ fontSize: "11px", fontWeight: 700, color: C.blue }}>×{reserva.quantidade}</span>
+                            </div>
+                            <div style={{ fontSize: "10px", color: C.textSec, marginTop: "3px" }}>Permanece em <span style={{ color: C.gold }}>{reserva.local_habitual || "local habitual"}</span></div>
+                            <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px" }}>{reserva.pack_nome || "Reserva de material"}{reserva.reservado_por ? ` · por ${reserva.reservado_por}` : ""}</div>
+                            <button onClick={() => void openSaida(undefined, reserva)} style={{ ...btnSecStyle, marginTop: "0.6rem", padding: "6px 10px", fontSize: "8px", color: C.blue, borderColor: "rgba(80,140,220,0.3)" }}>Registar saída</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </section>
+            )}
           </div>
         )}
 
-        {tab === "historico" && (
+        {!tabLoading && tab === "historico" && (
           <div style={{ background: C.surface, border: `1px solid ${C.borderDim}` }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
@@ -543,7 +728,7 @@ export default function MateriaisPage() {
           </div>
         )}
 
-        {tab === "catalogo" && (
+        {!tabLoading && tab === "catalogo" && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: "0.85rem" }}>
             {materiaisAtivos.map(m => {
               const fora = pendenteAtualDoMaterial(m.id);
@@ -586,7 +771,7 @@ export default function MateriaisPage() {
           </div>
         )}
 
-        {tab === "valores" && (
+        {!tabLoading && tab === "valores" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
             <section>
               <div style={{ marginBottom: "0.75rem" }}>
@@ -628,8 +813,10 @@ export default function MateriaisPage() {
         )}
       </main>
     </div>
+    )}
 
     {/* ═══ MOBILE ═══ */}
+    {mobileView === true && (
     <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "var(--theme-text)", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
@@ -641,17 +828,18 @@ export default function MateriaisPage() {
 
       <div style={{ display: "flex", borderBottom: "1px solid var(--theme-border)", flexShrink: 0, overflowX: "auto" }}>
         <TabBtn id="fora" label="Fora" count={movimentosAbertos.length} />
-        <TabBtn id="historico" label="Histórico" count={movimentosFechados.length} />
-        <TabBtn id="catalogo" label="Catálogo" count={materiaisAtivos.length} />
-        <TabBtn id="valores" label="Valores" count={packs.length + materiaisAtivos.length} />
+        <TabBtn id="historico" label="Histórico" count={loadedTabs.historico ? stats.historyCount : undefined} />
+        <TabBtn id="catalogo" label="Catálogo" count={stats.catalogCount} />
+        <TabBtn id="valores" label="Valores" count={loadedTabs.valores ? stats.valuesCount : undefined} />
       </div>
 
       {tab === "fora" && (
         <div style={{ display: "flex", gap: "1.25rem", padding: "0.85rem 1.1rem", borderBottom: "1px solid var(--theme-border)" }}>
           {[
-            { label: "Ativos", value: materiaisAtivos.length },
+            { label: "Ativos", value: stats.activeMaterials },
             { label: "Total", value: totalUnidades },
             { label: "Fora", value: totalFora, color: totalFora > 0 ? "var(--theme-warning)" : undefined },
+            { label: "Reservado", value: stats.reservedUnits, color: stats.reservedUnits > 0 ? "var(--theme-info)" : undefined },
           ].map(s => (
             <div key={s.label} style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
               <span style={{ fontSize: "14px", fontWeight: 700, color: s.color || "var(--theme-text)" }}>{s.value}</span>
@@ -662,6 +850,7 @@ export default function MateriaisPage() {
       )}
 
       <div className="mob-list">
+        {tabLoading && tab !== "fora" && <div style={{ padding: "3rem 1.2rem", textAlign: "center", fontSize: "10px", color: "var(--theme-text-faint)", letterSpacing: "0.18em", textTransform: "uppercase" }}>A carregar esta área...</div>}
         {tab === "fora" && foraAgrupados.map(group => (
           <div key={group.key} style={{ borderBottom: "1px solid var(--theme-border)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.7rem 1.1rem", background: "rgba(var(--theme-accent-rgb),0.05)" }}>
@@ -695,9 +884,43 @@ export default function MateriaisPage() {
             })}
           </div>
         ))}
-        {tab === "fora" && movimentosAbertos.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "var(--theme-text-faint)", letterSpacing: "0.2em" }}>Nada fora — tudo na loja</div>}
+        {tab === "fora" && movimentosAbertos.length === 0 && <div style={{ padding: "1.4rem 1.1rem", textAlign: "center", fontSize: "10px", color: "var(--theme-text-faint)", letterSpacing: "0.14em", borderBottom: "1px solid var(--theme-border)" }}>Nada fora — tudo continua no local</div>}
 
-        {tab === "historico" && movimentosFechados.map(mov => (
+        {tab === "fora" && reservasAgrupadas.length > 0 && (
+          <div>
+            <div style={{ padding: "0.8rem 1.1rem", background: "rgba(80,140,220,0.07)", borderBottom: "1px solid rgba(80,140,220,0.2)" }}>
+              <div style={{ fontSize: "9px", letterSpacing: "0.2em", color: "var(--theme-info)", textTransform: "uppercase", fontWeight: 700 }}>Reservado · ainda no local</div>
+              <div style={{ fontSize: "9px", color: "var(--theme-text-faint)", marginTop: "3px" }}>Só passa para “Fora” quando a saída for registada.</div>
+            </div>
+            {reservasAgrupadas.map(group => (
+              <div key={group.key} style={{ borderBottom: "1px solid var(--theme-border)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.7rem 1.1rem", background: "rgba(80,140,220,0.035)" }}>
+                  <div>
+                    <div style={{ fontSize: "9px", letterSpacing: "0.14em", color: "var(--theme-info)", textTransform: "uppercase", fontWeight: 700 }}>📌 {group.label}</div>
+                    {group.date && <div style={{ fontSize: "9px", color: "var(--theme-text-faint)", marginTop: "2px" }}>{fmtDateShort(group.date)}</div>}
+                  </div>
+                  <span style={{ fontSize: "9px", color: "var(--theme-info)" }}>{group.items.reduce((sum, item) => sum + item.quantidade, 0)} un.</span>
+                </div>
+                {group.items.map((reserva, index) => (
+                  <div key={`${group.key}-${reserva.material_nome}-${index}`} style={{ padding: "0.9rem 1.1rem", borderTop: "1px solid rgba(var(--theme-contrast-rgb),0.03)", display: "flex", gap: "0.75rem" }}>
+                    <MaterialThumb src="" size={44} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.6rem" }}>
+                        <span style={{ fontSize: "12px", fontWeight: 700 }}>{reserva.material_nome}</span>
+                        <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--theme-info)" }}>×{reserva.quantidade}</span>
+                      </div>
+                      <div style={{ fontSize: "10px", color: "var(--theme-text-muted)", marginTop: "3px" }}>Permanece em {reserva.local_habitual || "local habitual"}</div>
+                      <div style={{ fontSize: "9px", color: "var(--theme-text-faint)", marginTop: "2px" }}>{reserva.pack_nome || "Reserva de material"}</div>
+                      <button onClick={() => void openSaida(undefined, reserva)} style={{ marginTop: "0.55rem", background: "rgba(80,140,220,0.1)", border: "1px solid rgba(80,140,220,0.28)", color: "var(--theme-info)", fontSize: "9px", letterSpacing: "0.08em", padding: "6px 10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>Registar saída</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!tabLoading && tab === "historico" && movimentosFechados.map(mov => (
           <div key={mov.id} style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", display: "flex", gap: "0.75rem" }}>
             <MaterialThumb src={mov.material_imagem} size={40} />
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -708,9 +931,9 @@ export default function MateriaisPage() {
             </div>
           </div>
         ))}
-        {tab === "historico" && movimentosFechados.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "var(--theme-text-faint)", letterSpacing: "0.2em" }}>Sem histórico</div>}
+        {!tabLoading && tab === "historico" && movimentosFechados.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "var(--theme-text-faint)", letterSpacing: "0.2em" }}>Sem histórico</div>}
 
-        {tab === "catalogo" && materiaisAtivos.map(m => {
+        {!tabLoading && tab === "catalogo" && materiaisAtivos.map(m => {
           const fora = pendenteAtualDoMaterial(m.id);
           return (
             <div key={m.id} style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", display: "flex", gap: "0.75rem", alignItems: "center" }}>
@@ -726,9 +949,9 @@ export default function MateriaisPage() {
             </div>
           );
         })}
-        {tab === "catalogo" && materiaisAtivos.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "var(--theme-text-faint)", letterSpacing: "0.2em" }}>Sem material — cria o primeiro</div>}
+        {!tabLoading && tab === "catalogo" && materiaisAtivos.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "var(--theme-text-faint)", letterSpacing: "0.2em" }}>Sem material — cria o primeiro</div>}
 
-        {tab === "valores" && (
+        {!tabLoading && tab === "valores" && (
           <div>
             <div style={{ padding: "0.85rem 1.1rem", background: "rgba(var(--theme-accent-rgb),0.05)", borderBottom: "1px solid var(--theme-border)", fontSize: "9px", letterSpacing: "0.2em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 700 }}>Packs e sistemas</div>
             {packs.map(pack => { const draft = packDrafts[pack.id]; return (
@@ -763,6 +986,7 @@ export default function MateriaisPage() {
 
       <MobTabBar active="materiais" role={userRole} lightTheme={lightTheme} />
     </div>
+    )}
 
     {/* ── Modal: Nova Saída ── */}
     {saidaModal && (

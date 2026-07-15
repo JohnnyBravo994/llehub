@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 type MobTabBarProps = {
@@ -167,9 +168,10 @@ export default function MobTabBar({ active, role, lightTheme }: MobTabBarProps) 
         <p className="mob-pages-title" style={{ color: drawerTitle }}>Mais páginas</p>
         <div className="mob-pages-grid">
           {maisTabs.map((tab) => (
-            <a
+            <Link
               key={tab.href}
               href={tab.href}
+              prefetch
               onClick={() => setMaisOpen(false)}
               className="mob-pages-item"
               style={{
@@ -179,17 +181,17 @@ export default function MobTabBar({ active, role, lightTheme }: MobTabBarProps) 
             >
               <span className="mob-pages-icon">{tab.icon}</span>
               <span className="mob-pages-label">{tab.label}</span>
-            </a>
+            </Link>
           ))}
         </div>
       </section>
 
       <nav className="mob-tabbar" aria-label="Navegação principal">
         {mainTabs.map((tab) => (
-          <a key={tab.href} href={tab.href} className={`mob-tab${active === tab.id ? " active" : ""}`}>
+          <Link key={tab.href} href={tab.href} prefetch className={`mob-tab${active === tab.id ? " active" : ""}`}>
             <span className="mob-tab-icon">{tab.icon}</span>
             <span className="mob-tab-label">{tab.label}</span>
-          </a>
+          </Link>
         ))}
 
         {maisTabs.length > 0 && (
