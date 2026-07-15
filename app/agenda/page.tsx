@@ -127,7 +127,7 @@ interface ValorFuncao {
 
 interface ValorMaster {
   id: number; servico: string; duracao_formato: string; contexto: string; cliente_nome?: string;
-  custo_interno: number; valor_parceiro: number; valor_cliente_final: number; notas?: string; ativo: number;
+  custo_interno: number; valor_parceiro: number; valor_sud: number; valor_cliente_final: number; notas?: string; ativo: number;
 }
 
 interface ResidenciaAtiva {
@@ -508,7 +508,11 @@ export default function AgendaPage() {
     if (!row && (ctx === "Residência" || ctx === "Evento Residência")) row = byContext("Residência");
     if (!row && ctx === "Parceiro") row = byContext("Parceiro") || byContext("Normal") || byContext("Priceless Band") || rows[0];
     if (!row) row = byContext("Normal") || byContext("Cliente Final") || byContext("Priceless Band") || rows[0];
-    const valor = (ctx === "Parceiro" || ctx === "Residência") ? Number(row.valor_parceiro || 0) : Number(row.valor_cliente_final || 0);
+    const valor = ctx === "SUD"
+      ? Number(row.valor_sud || row.valor_cliente_final || 0)
+      : (ctx === "Parceiro" || ctx === "Residência")
+        ? Number(row.valor_parceiro || 0)
+        : Number(row.valor_cliente_final || 0);
     return { row, valor, custo: Number(row.custo_interno || 0) };
   };
 
@@ -1951,7 +1955,7 @@ export default function AgendaPage() {
               </FormField>
               {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto) && (
                 <div style={{ gridColumn: "1 / -1", fontSize: "10px", color: Colors.textMuted, letterSpacing: "0.05em", marginTop: "-0.6rem", marginBottom: "0.6rem" }}>
-                  Sugestão: {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)?.valor || 0}€ · Custo interno: {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)?.custo || 0}€ · {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)?.row.contexto}
+                  Sugestão: {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)?.valor || 0}€ · Custo interno: {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)?.custo || 0}€ · {form.valor_contexto || "Cliente Final"}
                 </div>
               )}
               {userRole !== "limited_novalues" && (

@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "../useTheme";
 import { ThemeSwitcher } from "../ThemeSwitcher";
 import {
-  setupValoresMaster, getAllValoresMaster, createValorMaster,
+  getValoresMasterTable, createValorMaster,
   updateValorMaster, toggleValorMasterAtivo, getServicosPorCriarNaMaster,
   criarValorMasterAPartirServico,
 } from "../actions";
@@ -21,6 +21,7 @@ interface ValorMaster {
   cliente_nome: string;
   custo_interno: number;
   valor_parceiro: number;
+  valor_sud: number;
   valor_cliente_final: number;
   notas: string;
   ativo: number;
@@ -32,7 +33,7 @@ interface ServicoPorCriarNaMaster {
 
 type Draft = {
   servico: string; duracao_formato: string; contexto: string; cliente_nome: string;
-  custo_interno: string; valor_parceiro: string; valor_cliente_final: string; notas: string; ativo: number;
+  custo_interno: string; valor_parceiro: string; valor_sud: string; valor_cliente_final: string; notas: string; ativo: number;
 };
 
 const C_Dark = {
@@ -47,8 +48,7 @@ const C_Light = {
   textPrimary: "#111827", textSec: "rgba(17,24,39,0.82)", textMuted: "rgba(17,24,39,0.62)",
   green: "#2E7D32",
 };
-const CONTEXTOS = ["Normal", "Parceiro", "Cliente Final", "Residência", "Priceless Band", "Equipamento avulso", "Pack AV", "Operacional", "SUD", "SANA", "Hyatt", "Conta Especial"];
-const emptyNew: Draft = { servico: "", duracao_formato: "", contexto: "Normal", cliente_nome: "", custo_interno: "", valor_parceiro: "", valor_cliente_final: "", notas: "", ativo: 1 };
+const emptyNew: Draft = { servico: "", duracao_formato: "", contexto: "Normal", cliente_nome: "", custo_interno: "", valor_parceiro: "", valor_sud: "", valor_cliente_final: "", notas: "", ativo: 1 };
 const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C_Dark;
 const toNum = (v: string) => parseFloat((v || "").replace(",", ".")) || 0;
 function euro(v: number) { return v ? `${v.toLocaleString("pt-PT")}€` : "—"; }
@@ -56,7 +56,7 @@ function toDraft(v: ValorMaster): Draft {
   return {
     servico: v.servico || "", duracao_formato: v.duracao_formato || "", contexto: v.contexto || "Normal", cliente_nome: v.cliente_nome || "",
     custo_interno: v.custo_interno ? String(v.custo_interno) : "", valor_parceiro: v.valor_parceiro ? String(v.valor_parceiro) : "",
-    valor_cliente_final: v.valor_cliente_final ? String(v.valor_cliente_final) : "", notas: v.notas || "", ativo: v.ativo,
+    valor_sud: v.valor_sud ? String(v.valor_sud) : "", valor_cliente_final: v.valor_cliente_final ? String(v.valor_cliente_final) : "", notas: v.notas || "", ativo: v.ativo,
   };
 }
 
@@ -76,19 +76,23 @@ export default function ValoresPage() {
   const [mobileNewOpen, setMobileNewOpen] = useState(false);
   const [mobileShowInactive, setMobileShowInactive] = useState(false);
   const [toast, setToast] = useState("");
+  const [search, setSearch] = useState("");
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2400); };
-  const load = useCallback(async () => {
-    await setupValoresMaster();
-    const r = await getAllValoresMaster();
+  const load = useCallback(async (includePending = true) => {
+    // A tabela principal abre primeiro; a análise de serviços usados carrega em segundo plano.
+    const r = await getValoresMasterTable();
     if (r.success) {
       const data = r.data as ValorMaster[];
       setRows(data);
       setDrafts(Object.fromEntries(data.map(v => [v.id, toDraft(v)])));
     }
-    const pending = await getServicosPorCriarNaMaster();
-    if (pending.success) setServicosPorCriar(pending.data as ServicoPorCriarNaMaster[]);
     setLoading(false);
+    if (includePending) {
+      getServicosPorCriarNaMaster().then(pending => {
+        if (pending.success) setServicosPorCriar(pending.data as ServicoPorCriarNaMaster[]);
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -110,11 +114,11 @@ export default function ValoresPage() {
     fontSize: "8px", letterSpacing: "0.18em", padding: "0.52rem 0.65rem", cursor: "pointer",
     textTransform: "uppercase", fontFamily: "inherit", fontWeight: 700,
   };
-  const grid = "1fr 0.85fr 0.8fr 0.85fr 100px 100px 110px 1fr 78px 86px";
+  const grid = "1.25fr 0.9fr 100px 100px 100px 110px 1.2fr 78px 86px";
   const updateDraft = (id: number, field: keyof Draft, value: string | number) => setDrafts(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
   const payload = (d: Draft) => ({
     servico: d.servico.trim(), duracao_formato: d.duracao_formato.trim(), contexto: d.contexto.trim() || "Normal", cliente_nome: d.cliente_nome.trim(),
-    custo_interno: toNum(d.custo_interno), valor_parceiro: toNum(d.valor_parceiro), valor_cliente_final: toNum(d.valor_cliente_final), notas: d.notas, ativo: d.ativo,
+    custo_interno: toNum(d.custo_interno), valor_parceiro: toNum(d.valor_parceiro), valor_sud: toNum(d.valor_sud), valor_cliente_final: toNum(d.valor_cliente_final), notas: d.notas, ativo: d.ativo,
   });
   const saveRow = async (id: number) => {
     const d = drafts[id];
@@ -122,7 +126,7 @@ export default function ValoresPage() {
     setSavingId(id);
     const res = await updateValorMaster(id, payload(d));
     showToast(res.success ? "Valor atualizado" : "Erro ao atualizar");
-    await load();
+    await load(false);
     setSavingId(null);
     return res.success;
   };
@@ -133,7 +137,7 @@ export default function ValoresPage() {
     if (res.success) {
       setNewRow(emptyNew);
       showToast("Valor criado");
-      await load();
+      await load(false);
     } else {
       showToast("Erro ao criar valor");
     }
@@ -143,7 +147,7 @@ export default function ValoresPage() {
   const toggleAtivo = async (row: ValorMaster) => {
     const res = await toggleValorMasterAtivo(row.id, row.ativo === 1 ? 0 : 1);
     showToast(res.success ? (row.ativo === 1 ? "Valor apagado" : "Valor restaurado") : "Erro ao alterar valor");
-    await load();
+    await load(false);
   };
   const apagarMobile = async (row: ValorMaster) => {
     if (row.ativo === 0) { await toggleAtivo(row); return; }
@@ -156,8 +160,13 @@ export default function ValoresPage() {
   const criarServicoPendente = async (row: ServicoPorCriarNaMaster) => {
     const res = await criarValorMasterAPartirServico(row.servico, row.fee_medio || 0);
     showToast(res.success ? "Serviço criado na Master" : "Erro ao criar serviço");
-    await load();
+    await load(false);
   };
+
+  const normalizedSearch = search.trim().toLocaleLowerCase("pt-PT");
+  const filteredRows = normalizedSearch
+    ? rows.filter(row => `${row.servico} ${row.duracao_formato} ${row.notas}`.toLocaleLowerCase("pt-PT").includes(normalizedSearch))
+    : rows;
 
   if (loading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.pageBg, color: C.gold, fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em" }}>LLE</div>;
 
@@ -168,9 +177,12 @@ export default function ValoresPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", gap: "1rem" }}>
           <div>
             <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.4rem" }}>Master de Valores</p>
-            <p style={{ fontSize: "11px", color: C.textMuted, letterSpacing: "0.06em" }}>Tabela geral para eventos/propostas. Residências recorrentes ficam na página Residências.</p>
+            <p style={{ fontSize: "11px", color: C.textMuted, letterSpacing: "0.06em" }}>Cada serviço aparece uma vez por formato. O contexto é escolhido apenas na Agenda ou nas Leads.</p>
           </div>
-          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
+          <div style={{ display: "flex", alignItems: "center", gap: "0.7rem" }}>
+            <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Pesquisar serviço..." style={{ ...inputStyle, width: 230, fontSize: "11px" }} />
+            <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
+          </div>
         </div>
 
         {servicosPorCriar.length > 0 && (
@@ -204,19 +216,18 @@ export default function ValoresPage() {
 
         <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative", overflowX: "auto" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: lightTheme ? "rgba(0,0,0,0.2)" : "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
-          <div style={{ minWidth: 1220 }}>
+          <div style={{ minWidth: 1120 }}>
             <div style={{ display: "grid", gridTemplateColumns: grid, gap: "8px", padding: "0.8rem 1rem", borderBottom: `1px solid ${C.border}` }}>
-              {["Serviço", "Formato", "Contexto", "Cliente/Local", "Custo Interno", "Parceiro", "Cliente Final", "Notas", "Estado", "Ações"].map(h => <span key={h} style={{ fontSize: "7px", letterSpacing: "0.22em", color: C.goldDim, textTransform: "uppercase", fontWeight: 700 }}>{h}</span>)}
+              {["Serviço", "Formato", "Custo Interno", "Parceiro", "SUD", "Cliente Final", "Notas", "Estado", "Ações"].map(h => <span key={h} style={{ fontSize: "7px", letterSpacing: "0.22em", color: C.goldDim, textTransform: "uppercase", fontWeight: 700 }}>{h}</span>)}
             </div>
-            {rows.map(row => {
+            {filteredRows.map(row => {
               const d = drafts[row.id];
               return <div key={row.id} style={{ display: "grid", gridTemplateColumns: grid, gap: "8px", alignItems: "center", padding: "0.6rem 1rem", borderBottom: `1px solid ${C.borderDim}`, opacity: row.ativo === 0 ? 0.45 : 1 }}>
                 <input list="servicos-vendidos-list" value={d?.servico || ""} onChange={e => updateDraft(row.id, "servico", e.target.value)} placeholder="DJ s/ AV" style={inputStyle} />
                 <input value={d?.duracao_formato || ""} onChange={e => updateDraft(row.id, "duracao_formato", e.target.value)} placeholder="até 4h" style={inputStyle} />
-                <select value={d?.contexto || "Normal"} onChange={e => updateDraft(row.id, "contexto", e.target.value)} style={inputStyle}>{CONTEXTOS.map(c => <option key={c} value={c}>{c}</option>)}</select>
-                <input value={d?.cliente_nome || ""} onChange={e => updateDraft(row.id, "cliente_nome", e.target.value)} placeholder="Opcional" style={inputStyle} />
                 <input value={d?.custo_interno || ""} onChange={e => updateDraft(row.id, "custo_interno", e.target.value)} inputMode="decimal" placeholder="0" style={{ ...inputStyle, textAlign: "right" }} />
                 <input value={d?.valor_parceiro || ""} onChange={e => updateDraft(row.id, "valor_parceiro", e.target.value)} inputMode="decimal" placeholder="0" style={{ ...inputStyle, textAlign: "right" }} />
+                <input value={d?.valor_sud || ""} onChange={e => updateDraft(row.id, "valor_sud", e.target.value)} inputMode="decimal" placeholder="0" style={{ ...inputStyle, textAlign: "right" }} />
                 <input value={d?.valor_cliente_final || ""} onChange={e => updateDraft(row.id, "valor_cliente_final", e.target.value)} inputMode="decimal" placeholder="0" style={{ ...inputStyle, textAlign: "right" }} />
                 <input value={d?.notas || ""} onChange={e => updateDraft(row.id, "notas", e.target.value)} placeholder="Exceções..." style={inputStyle} />
                 <button onClick={() => toggleAtivo(row)} style={{ ...btnStyle, color: row.ativo === 1 ? C.green : C.textMuted }}>{row.ativo === 1 ? "Ativo" : "Inativo"}</button>
@@ -226,10 +237,9 @@ export default function ValoresPage() {
             <div style={{ display: "grid", gridTemplateColumns: grid, gap: "8px", alignItems: "center", padding: "1rem", background: lightTheme ? "rgba(0,0,0,0.02)" : "rgba(var(--theme-accent-rgb),0.03)" }}>
               <input list="servicos-vendidos-list" value={newRow.servico} onChange={e => setNewRow(r => ({ ...r, servico: e.target.value }))} placeholder="Novo serviço..." style={inputStyle} />
               <input value={newRow.duracao_formato} onChange={e => setNewRow(r => ({ ...r, duracao_formato: e.target.value }))} placeholder="até 4h" style={inputStyle} />
-              <select value={newRow.contexto} onChange={e => setNewRow(r => ({ ...r, contexto: e.target.value }))} style={inputStyle}>{CONTEXTOS.map(c => <option key={c} value={c}>{c}</option>)}</select>
-              <input value={newRow.cliente_nome} onChange={e => setNewRow(r => ({ ...r, cliente_nome: e.target.value }))} placeholder="Cliente/local" style={inputStyle} />
               <input value={newRow.custo_interno} onChange={e => setNewRow(r => ({ ...r, custo_interno: e.target.value }))} inputMode="decimal" placeholder="Custo" style={{ ...inputStyle, textAlign: "right" }} />
               <input value={newRow.valor_parceiro} onChange={e => setNewRow(r => ({ ...r, valor_parceiro: e.target.value }))} inputMode="decimal" placeholder="Parceiro" style={{ ...inputStyle, textAlign: "right" }} />
+              <input value={newRow.valor_sud} onChange={e => setNewRow(r => ({ ...r, valor_sud: e.target.value }))} inputMode="decimal" placeholder="SUD" style={{ ...inputStyle, textAlign: "right" }} />
               <input value={newRow.valor_cliente_final} onChange={e => setNewRow(r => ({ ...r, valor_cliente_final: e.target.value }))} inputMode="decimal" placeholder="Cliente" style={{ ...inputStyle, textAlign: "right" }} />
               <input value={newRow.notas} onChange={e => setNewRow(r => ({ ...r, notas: e.target.value }))} placeholder="Notas..." style={inputStyle} />
               <span style={{ fontSize: "8px", color: C.textMuted, letterSpacing: "0.2em", textTransform: "uppercase" }}>Novo</span>
@@ -257,7 +267,7 @@ export default function ValoresPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.8rem" }}>
           <div>
             <p style={{ fontSize: "9px", letterSpacing: "0.35em", color: C.textSec, textTransform: "uppercase", fontWeight: 700 }}>Master de Valores</p>
-            <p style={{ fontSize: "11px", color: C.textMuted, marginTop: "0.4rem", lineHeight: 1.45 }}>Eventos normais, parceiros e cliente final. Residências ficam à parte.</p>
+            <p style={{ fontSize: "11px", color: C.textMuted, marginTop: "0.4rem", lineHeight: 1.45 }}>Uma linha por serviço: custo interno, parceiro, SUD e cliente final.</p>
           </div>
           <button
             type="button"
@@ -267,6 +277,8 @@ export default function ValoresPage() {
             {mobileNewOpen ? "Fechar" : "+ Adicionar"}
           </button>
         </div>
+
+        <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Pesquisar serviço..." style={{ ...inputStyle, marginTop: "0.8rem", fontSize: "12px" }} />
 
         {mobileNewOpen && (
           <div style={{ marginTop: "0.9rem", padding: "0.9rem", background: C.surface, border: `1px solid ${C.border}` }}>
@@ -308,7 +320,7 @@ export default function ValoresPage() {
       </div>
 
       <div className="mob-list mob-values-list">
-        {rows.filter(row => mobileShowInactive || row.ativo === 1).map(row => {
+        {filteredRows.filter(row => mobileShowInactive || row.ativo === 1).map(row => {
           const editing = mobileEditingId === row.id;
           const d = drafts[row.id] || toDraft(row);
           return (
@@ -316,13 +328,13 @@ export default function ValoresPage() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.7rem" }}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: "14px", fontWeight: 700, color: C.textPrimary, overflowWrap: "anywhere" }}>{row.servico}</div>
-                  <div style={{ fontSize: "11px", color: C.textSec, marginTop: "0.35rem", lineHeight: 1.45 }}>{row.duracao_formato || "Sem formato"} · {row.contexto}{row.cliente_nome ? ` · ${row.cliente_nome}` : ""}</div>
+                  <div style={{ fontSize: "11px", color: C.textSec, marginTop: "0.35rem", lineHeight: 1.45 }}>{row.duracao_formato || "Sem formato"}</div>
                 </div>
                 <span style={{ flexShrink: 0, fontSize: "8px", letterSpacing: "0.12em", textTransform: "uppercase", padding: "0.3rem 0.45rem", border: `1px solid ${row.ativo === 1 ? C.border : C.borderDim}`, color: row.ativo === 1 ? C.green : C.textMuted }}>
                   {row.ativo === 1 ? "Ativo" : "Inativo"}
                 </span>
               </div>
-              <div style={{ fontSize: "11px", color: C.textSec, marginTop: "0.45rem", lineHeight: 1.55 }}>Custo: {euro(row.custo_interno)} · Parceiro: {euro(row.valor_parceiro)} · Cliente: {euro(row.valor_cliente_final)}</div>
+              <div style={{ fontSize: "11px", color: C.textSec, marginTop: "0.45rem", lineHeight: 1.55 }}>Custo: {euro(row.custo_interno)} · Parceiro: {euro(row.valor_parceiro)} · SUD: {euro(row.valor_sud)} · Cliente final: {euro(row.valor_cliente_final)}</div>
               {row.notas && <div style={{ fontSize: "10px", color: C.textMuted, marginTop: "0.35rem", lineHeight: 1.5 }}>{row.notas}</div>}
 
               {!editing && (
@@ -381,12 +393,11 @@ function MobileValorFields({
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.65rem" }}>
       <label style={{ ...fieldStyle, gridColumn: "1 / -1" }}><span style={labelStyle}>Serviço</span><input list="servicos-vendidos-list" value={draft.servico} onChange={event => onChange("servico", event.target.value)} placeholder="Nome do serviço" style={{ ...inputStyle, fontSize: "12px" }} /></label>
-      <label style={fieldStyle}><span style={labelStyle}>Formato</span><input value={draft.duracao_formato} onChange={event => onChange("duracao_formato", event.target.value)} placeholder="até 4h" style={{ ...inputStyle, fontSize: "12px" }} /></label>
-      <label style={fieldStyle}><span style={labelStyle}>Contexto</span><select value={draft.contexto} onChange={event => onChange("contexto", event.target.value)} style={{ ...inputStyle, fontSize: "12px" }}>{CONTEXTOS.map(contexto => <option key={contexto} value={contexto}>{contexto}</option>)}</select></label>
-      <label style={{ ...fieldStyle, gridColumn: "1 / -1" }}><span style={labelStyle}>Cliente / local</span><input value={draft.cliente_nome} onChange={event => onChange("cliente_nome", event.target.value)} placeholder="Opcional" style={{ ...inputStyle, fontSize: "12px" }} /></label>
+      <label style={{ ...fieldStyle, gridColumn: "1 / -1" }}><span style={labelStyle}>Formato</span><input value={draft.duracao_formato} onChange={event => onChange("duracao_formato", event.target.value)} placeholder="até 4h" style={{ ...inputStyle, fontSize: "12px" }} /></label>
       <label style={fieldStyle}><span style={labelStyle}>Custo interno</span><input value={draft.custo_interno} onChange={event => onChange("custo_interno", event.target.value)} inputMode="decimal" placeholder="0" style={{ ...inputStyle, fontSize: "12px" }} /></label>
       <label style={fieldStyle}><span style={labelStyle}>Parceiro</span><input value={draft.valor_parceiro} onChange={event => onChange("valor_parceiro", event.target.value)} inputMode="decimal" placeholder="0" style={{ ...inputStyle, fontSize: "12px" }} /></label>
-      <label style={{ ...fieldStyle, gridColumn: "1 / -1" }}><span style={labelStyle}>Cliente final</span><input value={draft.valor_cliente_final} onChange={event => onChange("valor_cliente_final", event.target.value)} inputMode="decimal" placeholder="0" style={{ ...inputStyle, fontSize: "12px" }} /></label>
+      <label style={fieldStyle}><span style={labelStyle}>SUD</span><input value={draft.valor_sud} onChange={event => onChange("valor_sud", event.target.value)} inputMode="decimal" placeholder="0" style={{ ...inputStyle, fontSize: "12px" }} /></label>
+      <label style={fieldStyle}><span style={labelStyle}>Cliente final</span><input value={draft.valor_cliente_final} onChange={event => onChange("valor_cliente_final", event.target.value)} inputMode="decimal" placeholder="0" style={{ ...inputStyle, fontSize: "12px" }} /></label>
       <label style={{ ...fieldStyle, gridColumn: "1 / -1" }}><span style={labelStyle}>Notas</span><textarea value={draft.notas} onChange={event => onChange("notas", event.target.value)} placeholder="Exceções ou observações" rows={3} style={{ ...inputStyle, fontSize: "12px", resize: "vertical" }} /></label>
     </div>
   );

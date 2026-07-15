@@ -18,6 +18,7 @@ type ValorMasterSeed = {
   cliente_nome?: string;
   custo_interno: number;
   valor_parceiro: number;
+  valor_sud?: number;
   valor_cliente_final: number;
   notas?: string;
 };
@@ -188,6 +189,140 @@ async function ensureValoresFuncoesTable() {
 }
 
 
+type ConsolidatedValorMasterSeed = ValorMasterSeed & { valor_sud: number };
+
+function consolidatedValoresMasterSeeds(): ConsolidatedValorMasterSeed[] {
+  const grouped = new Map<string, ConsolidatedValorMasterSeed>();
+  for (const seed of DEFAULT_VALORES_MASTER) {
+    if (seed.contexto === "Residência") continue;
+    const key = `${seed.servico.trim().toLowerCase()}||${seed.duracao_formato.trim().toLowerCase()}`;
+    if (seed.contexto === "SUD") {
+      const current = grouped.get(key);
+      if (current) current.valor_sud = Number(seed.valor_cliente_final || 0);
+      else grouped.set(key, {
+        ...seed,
+        contexto: "Normal",
+        cliente_nome: "",
+        custo_interno: 0,
+        valor_parceiro: 0,
+        valor_sud: Number(seed.valor_cliente_final || 0),
+        valor_cliente_final: 0,
+      });
+      continue;
+    }
+    const current = grouped.get(key);
+    grouped.set(key, {
+      ...seed,
+      valor_sud: current?.valor_sud || Number(seed.valor_sud || 0),
+    });
+  }
+  return [...grouped.values()];
+}
+
+async function ensureLleMetaTable() {
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS lle_meta (
+      chave TEXT PRIMARY KEY,
+      valor TEXT DEFAULT '',
+      updated_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+}
+
+async function hasMigration(chave: string) {
+  const result = await turso.execute({ sql: "SELECT 1 FROM lle_meta WHERE chave=? LIMIT 1", args: [chave] });
+  return result.rows.length > 0;
+}
+
+async function markMigration(chave: string) {
+  await turso.execute({
+    sql: "INSERT OR REPLACE INTO lle_meta (chave, valor, updated_at) VALUES (?, '1', datetime('now'))",
+    args: [chave],
+  });
+}
+
+function normalizeValorMasterKey(value: unknown) {
+  return String(value || '').trim().toLocaleLowerCase('pt-PT');
+}
+
+function valorMasterContextKind(row: any) {
+  const context = normalizeValorMasterKey(row?.contexto);
+  const client = normalizeValorMasterKey(row?.cliente_nome);
+  if (context === 'sud' || client === 'sud') return 'sud';
+  if (context === 'parceiro' || client === 'parceiro') return 'partner';
+  if (context === 'cliente final' || client === 'cliente final') return 'final';
+  return 'base';
+}
+
+function firstPositive(rows: any[], getter: (row: any) => unknown) {
+  for (const row of rows) {
+    const value = Number(getter(row) || 0);
+    if (value !== 0) return value;
+  }
+  return 0;
+}
+
+async function consolidateExistingValoresMasterRows() {
+  const result = await turso.execute(`
+    SELECT * FROM valores_master
+    WHERE LOWER(TRIM(COALESCE(contexto, 'Normal'))) NOT IN ('residência', 'residencia')
+      AND merged_into_id IS NULL
+    ORDER BY ativo DESC, id ASC
+  `);
+  const groups = new Map<string, any[]>();
+  for (const row of result.rows as any[]) {
+    const key = `${normalizeValorMasterKey(row.servico)}||${normalizeValorMasterKey(row.duracao_formato)}`;
+    const current = groups.get(key) || [];
+    current.push(row);
+    groups.set(key, current);
+  }
+
+  for (const group of groups.values()) {
+    const sorted = [...group].sort((a, b) => {
+      const activeDiff = Number(b.ativo || 0) - Number(a.ativo || 0);
+      if (activeDiff) return activeDiff;
+      const rank = (row: any) => ({ base: 0, final: 1, partner: 2, sud: 3 }[valorMasterContextKind(row)] ?? 4);
+      const rankDiff = rank(a) - rank(b);
+      return rankDiff || Number(a.id) - Number(b.id);
+    });
+    const base = sorted[0];
+    const partnerRows = sorted.filter(row => valorMasterContextKind(row) === 'partner');
+    const sudRows = sorted.filter(row => valorMasterContextKind(row) === 'sud');
+    const finalRows = sorted.filter(row => valorMasterContextKind(row) === 'final');
+    const normalRows = sorted.filter(row => valorMasterContextKind(row) === 'base');
+    const baseKind = valorMasterContextKind(base);
+
+    const custoInterno = Number(base.custo_interno || 0) || firstPositive(sorted, row => row.custo_interno);
+    const valorParceiro = firstPositive(partnerRows, row => Number(row.valor_parceiro || 0) || Number(row.valor_cliente_final || 0))
+      || (baseKind === 'partner' ? Number(base.valor_parceiro || base.valor_cliente_final || 0) : Number(base.valor_parceiro || 0))
+      || firstPositive(normalRows, row => row.valor_parceiro);
+    const valorSud = firstPositive(sudRows, row => Number(row.valor_sud || 0) || Number(row.valor_cliente_final || 0) || Number(row.valor_parceiro || 0))
+      || Number(base.valor_sud || 0);
+    const valorClienteFinal = firstPositive(finalRows, row => Number(row.valor_cliente_final || 0) || Number(row.valor_parceiro || 0))
+      || (baseKind === 'sud' ? 0 : Number(base.valor_cliente_final || 0))
+      || firstPositive(normalRows, row => row.valor_cliente_final);
+    const contexto = baseKind === 'base' ? String(base.contexto || 'Normal') : 'Normal';
+    const notas = String(base.notas || '').replace(/\s*·\s*Migrado para coluna SUD/g, '').trim();
+
+    await turso.execute({
+      sql: `UPDATE valores_master
+            SET contexto=?, cliente_nome='', custo_interno=?, valor_parceiro=?, valor_sud=?, valor_cliente_final=?, notas=?, merged_into_id=NULL
+            WHERE id=?`,
+      args: [contexto, custoInterno, valorParceiro, valorSud, valorClienteFinal, notas, Number(base.id)],
+    });
+
+    for (const duplicate of sorted.slice(1)) {
+      await turso.execute({
+        sql: `UPDATE valores_master
+              SET ativo=0, merged_into_id=?,
+                  notas=CASE WHEN INSTR(COALESCE(notas,''), 'Consolidado na linha') > 0 THEN notas ELSE TRIM(COALESCE(notas,'') || ' · Consolidado na linha ' || ?) END
+              WHERE id=?`,
+        args: [Number(base.id), Number(base.id), Number(duplicate.id)],
+      });
+    }
+  }
+}
+
 async function ensureValoresMasterTable() {
   const g = globalThis as typeof globalThis & {
     __lle_ensure_valores_master_done?: boolean;
@@ -196,52 +331,66 @@ async function ensureValoresMasterTable() {
   if (g.__lle_ensure_valores_master_done) return;
   if (g.__lle_ensure_valores_master_promise) return g.__lle_ensure_valores_master_promise;
   g.__lle_ensure_valores_master_promise = (async () => {
-  await turso.execute(`
-    CREATE TABLE IF NOT EXISTS valores_master (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      servico TEXT NOT NULL,
-      duracao_formato TEXT DEFAULT '',
-      contexto TEXT DEFAULT 'Normal',
-      cliente_nome TEXT DEFAULT '',
-      custo_interno REAL NOT NULL DEFAULT 0,
-      valor_parceiro REAL NOT NULL DEFAULT 0,
-      valor_cliente_final REAL NOT NULL DEFAULT 0,
-      notas TEXT DEFAULT '',
-      ativo INTEGER DEFAULT 1,
-      created_at TEXT DEFAULT (datetime('now'))
-    )
-  `);
-  const cols = [
-    "servico TEXT NOT NULL DEFAULT ''",
-    "duracao_formato TEXT DEFAULT ''",
-    "contexto TEXT DEFAULT 'Normal'",
-    "cliente_nome TEXT DEFAULT ''",
-    "custo_interno REAL NOT NULL DEFAULT 0",
-    "valor_parceiro REAL NOT NULL DEFAULT 0",
-    "valor_cliente_final REAL NOT NULL DEFAULT 0",
-    "notas TEXT DEFAULT ''",
-    "ativo INTEGER DEFAULT 1",
-  ];
-  for (const col of cols) {
-    try { await turso.execute(`ALTER TABLE valores_master ADD COLUMN ${col}`); } catch { }
-  }
+    await turso.execute(`
+      CREATE TABLE IF NOT EXISTS valores_master (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        servico TEXT NOT NULL,
+        duracao_formato TEXT DEFAULT '',
+        contexto TEXT DEFAULT 'Normal',
+        cliente_nome TEXT DEFAULT '',
+        custo_interno REAL NOT NULL DEFAULT 0,
+        valor_parceiro REAL NOT NULL DEFAULT 0,
+        valor_sud REAL NOT NULL DEFAULT 0,
+        valor_cliente_final REAL NOT NULL DEFAULT 0,
+        notas TEXT DEFAULT '',
+        ativo INTEGER DEFAULT 1,
+        merged_into_id INTEGER DEFAULT NULL,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
 
-  // Pré-carrega os serviços comerciais que a LLE vende. Não sobrescreve valores existentes.
-  for (const servico of SERVICOS_VENDIDOS) {
-    const exists = await turso.execute({
-      sql: "SELECT id FROM valores_master WHERE LOWER(TRIM(servico)) = LOWER(TRIM(?)) LIMIT 1",
-      args: [servico],
-    });
-    if (exists.rows.length === 0) {
-      await turso.execute({
-        sql: "INSERT INTO valores_master (servico, duracao_formato, contexto, cliente_nome, custo_interno, valor_parceiro, valor_cliente_final, notas, ativo) VALUES (?, '', 'Normal', '', 0, 0, 0, 'Serviço base LLE — preencher valores', 1)",
-        args: [servico],
-      });
+    const tableInfo = await turso.execute("PRAGMA table_info(valores_master)");
+    const existingColumns = new Set(tableInfo.rows.map((row: any) => String(row.name)));
+    const columns: Array<[string, string]> = [
+      ["servico", "TEXT NOT NULL DEFAULT ''"],
+      ["duracao_formato", "TEXT DEFAULT ''"],
+      ["contexto", "TEXT DEFAULT 'Normal'"],
+      ["cliente_nome", "TEXT DEFAULT ''"],
+      ["custo_interno", "REAL NOT NULL DEFAULT 0"],
+      ["valor_parceiro", "REAL NOT NULL DEFAULT 0"],
+      ["valor_sud", "REAL NOT NULL DEFAULT 0"],
+      ["valor_cliente_final", "REAL NOT NULL DEFAULT 0"],
+      ["notas", "TEXT DEFAULT ''"],
+      ["ativo", "INTEGER DEFAULT 1"],
+      ["merged_into_id", "INTEGER DEFAULT NULL"],
+    ];
+    for (const [name, definition] of columns) {
+      if (!existingColumns.has(name)) await turso.execute(`ALTER TABLE valores_master ADD COLUMN ${name} ${definition}`);
     }
-  }
 
-  await seedValoresMasterLLE2026();
+    await ensureLleMetaTable();
+    const migrationKey = "valores_master_v3_consolidado_20260715";
+    if (!(await hasMigration(migrationKey))) {
+      await seedValoresMasterLLE2026();
 
+      // Só corre uma vez na base de dados, em vez de dezenas de queries em cada cold start.
+      for (const servico of SERVICOS_VENDIDOS) {
+        const exists = await turso.execute({
+          sql: "SELECT id FROM valores_master WHERE LOWER(TRIM(servico)) = LOWER(TRIM(?)) AND merged_into_id IS NULL LIMIT 1",
+          args: [servico],
+        });
+        if (exists.rows.length === 0) {
+          await turso.execute({
+            sql: "INSERT INTO valores_master (servico, duracao_formato, contexto, cliente_nome, custo_interno, valor_parceiro, valor_sud, valor_cliente_final, notas, ativo, merged_into_id) VALUES (?, '', 'Normal', '', 0, 0, 0, 0, 'Serviço base LLE — preencher valores', 1, NULL)",
+            args: [servico],
+          });
+        }
+      }
+
+      // Consolida linhas antigas de Parceiro, Cliente Final e SUD numa só linha por serviço/formato.
+      await consolidateExistingValoresMasterRows();
+      await markMigration(migrationKey);
+    }
   })();
   try {
     await g.__lle_ensure_valores_master_promise;
@@ -254,42 +403,47 @@ async function ensureValoresMasterTable() {
 
 function isBlankOrDefaultValorMasterRow(row: any) {
   const notas = String(row?.notas || '');
-  const numericBlank = Number(row?.custo_interno || 0) === 0 && Number(row?.valor_parceiro || 0) === 0 && Number(row?.valor_cliente_final || 0) === 0;
+  const numericBlank = Number(row?.custo_interno || 0) === 0
+    && Number(row?.valor_parceiro || 0) === 0
+    && Number(row?.valor_sud || 0) === 0
+    && Number(row?.valor_cliente_final || 0) === 0;
   return numericBlank || notas.includes('Serviço base LLE') || notas.includes('Criado a partir dos serviços');
 }
 
-async function updateValorMasterSeedRow(id: number, row: any, seed: ValorMasterSeed) {
+async function updateValorMasterSeedRow(id: number, row: any, seed: ConsolidatedValorMasterSeed) {
   const keepManual = !isBlankOrDefaultValorMasterRow(row);
   const custoInterno = keepManual && Number(row?.custo_interno || 0) !== 0 ? Number(row.custo_interno) : seed.custo_interno;
   const valorParceiro = keepManual && Number(row?.valor_parceiro || 0) !== 0 ? Number(row.valor_parceiro) : seed.valor_parceiro;
+  const valorSud = keepManual && Number(row?.valor_sud || 0) !== 0 ? Number(row.valor_sud) : seed.valor_sud;
   const valorClienteFinal = keepManual && Number(row?.valor_cliente_final || 0) !== 0 ? Number(row.valor_cliente_final) : seed.valor_cliente_final;
   const notas = keepManual && String(row?.notas || '').trim() ? String(row.notas) : (seed.notas || 'Tabela LLE 2026');
 
   await turso.execute({
-    sql: "UPDATE valores_master SET servico=?, duracao_formato=?, contexto=?, cliente_nome=?, custo_interno=?, valor_parceiro=?, valor_cliente_final=?, notas=?, ativo=1 WHERE id=?",
-    args: [seed.servico, seed.duracao_formato, seed.contexto, seed.cliente_nome || '', custoInterno, valorParceiro, valorClienteFinal, notas, id],
+    sql: "UPDATE valores_master SET servico=?, duracao_formato=?, contexto=?, cliente_nome='', custo_interno=?, valor_parceiro=?, valor_sud=?, valor_cliente_final=?, notas=? WHERE id=?",
+    args: [seed.servico, seed.duracao_formato, seed.contexto, custoInterno, valorParceiro, valorSud, valorClienteFinal, notas, id],
   });
 }
 
-async function insertValorMasterSeed(seed: ValorMasterSeed) {
+async function insertValorMasterSeed(seed: ConsolidatedValorMasterSeed) {
   await turso.execute({
-    sql: "INSERT INTO valores_master (servico, duracao_formato, contexto, cliente_nome, custo_interno, valor_parceiro, valor_cliente_final, notas, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
-    args: [seed.servico, seed.duracao_formato, seed.contexto, seed.cliente_nome || '', seed.custo_interno, seed.valor_parceiro, seed.valor_cliente_final, seed.notas || 'Tabela LLE 2026'],
+    sql: "INSERT INTO valores_master (servico, duracao_formato, contexto, cliente_nome, custo_interno, valor_parceiro, valor_sud, valor_cliente_final, notas, ativo) VALUES (?, ?, ?, '', ?, ?, ?, ?, ?, 1)",
+    args: [seed.servico, seed.duracao_formato, seed.contexto, seed.custo_interno, seed.valor_parceiro, seed.valor_sud, seed.valor_cliente_final, seed.notas || 'Tabela LLE 2026'],
   });
 }
 
 async function seedValoresMasterLLE2026() {
-  for (const seed of DEFAULT_VALORES_MASTER) {
+  for (const seed of consolidatedValoresMasterSeeds()) {
     const exact = await turso.execute({
       sql: `
         SELECT * FROM valores_master
         WHERE LOWER(TRIM(servico)) = LOWER(TRIM(?))
           AND LOWER(TRIM(COALESCE(duracao_formato, ''))) = LOWER(TRIM(?))
-          AND LOWER(TRIM(COALESCE(contexto, ''))) = LOWER(TRIM(?))
-          AND LOWER(TRIM(COALESCE(cliente_nome, ''))) = LOWER(TRIM(?))
+          AND LOWER(TRIM(COALESCE(contexto, 'Normal'))) NOT IN ('sud', 'residência', 'residencia')
+          AND merged_into_id IS NULL
+        ORDER BY ativo DESC, id ASC
         LIMIT 1
       `,
-      args: [seed.servico, seed.duracao_formato, seed.contexto, seed.cliente_nome || ''],
+      args: [seed.servico, seed.duracao_formato],
     });
     if (exact.rows.length > 0) {
       await updateValorMasterSeedRow(Number((exact.rows[0] as any).id), exact.rows[0], seed);
@@ -301,8 +455,9 @@ async function seedValoresMasterLLE2026() {
         SELECT * FROM valores_master
         WHERE LOWER(TRIM(servico)) = LOWER(TRIM(?))
           AND TRIM(COALESCE(duracao_formato, '')) = ''
-          AND LOWER(TRIM(COALESCE(contexto, 'Normal'))) = 'normal'
-          AND TRIM(COALESCE(cliente_nome, '')) = ''
+          AND LOWER(TRIM(COALESCE(contexto, 'Normal'))) NOT IN ('sud', 'residência', 'residencia')
+          AND merged_into_id IS NULL
+        ORDER BY ativo DESC, id ASC
         LIMIT 1
       `,
       args: [seed.servico],
@@ -1961,6 +2116,7 @@ export async function getAllValoresMaster() {
         cliente_nome: (r.cliente_nome as string) || '',
         custo_interno: Number(r.custo_interno || 0),
         valor_parceiro: Number(r.valor_parceiro || 0),
+        valor_sud: Number(r.valor_sud || 0),
         valor_cliente_final: Number(r.valor_cliente_final || 0),
         notas: (r.notas as string) || '',
         ativo: r.ativo === 1 || r.ativo === true ? 1 : 0,
@@ -1972,15 +2128,46 @@ export async function getAllValoresMaster() {
   }
 }
 
+export async function getValoresMasterTable() {
+  try {
+    await ensureValoresMasterTable();
+    const res = await turso.execute(`
+      SELECT * FROM valores_master
+      WHERE LOWER(TRIM(COALESCE(contexto, 'Normal'))) NOT IN ('sud', 'residência', 'residencia')
+        AND merged_into_id IS NULL
+      ORDER BY ativo DESC, servico ASC, duracao_formato ASC, id ASC
+    `);
+    return {
+      success: true,
+      data: res.rows.map((r: any) => ({
+        id: Number(r.id),
+        servico: (r.servico as string) || '',
+        duracao_formato: (r.duracao_formato as string) || '',
+        contexto: (r.contexto as string) || 'Normal',
+        cliente_nome: '',
+        custo_interno: Number(r.custo_interno || 0),
+        valor_parceiro: Number(r.valor_parceiro || 0),
+        valor_sud: Number(r.valor_sud || 0),
+        valor_cliente_final: Number(r.valor_cliente_final || 0),
+        notas: (r.notas as string) || '',
+        ativo: r.ativo === 1 || r.ativo === true ? 1 : 0,
+      })),
+    };
+  } catch (error) {
+    console.error("Erro getValoresMasterTable:", error);
+    return { success: false, data: [] };
+  }
+}
+
 export async function createValorMaster(data: {
   servico: string; duracao_formato?: string; contexto?: string; cliente_nome?: string;
-  custo_interno?: number; valor_parceiro?: number; valor_cliente_final?: number; notas?: string; ativo?: number;
+  custo_interno?: number; valor_parceiro?: number; valor_sud?: number; valor_cliente_final?: number; notas?: string; ativo?: number;
 }) {
   try {
     await ensureValoresMasterTable();
     await turso.execute({
-      sql: "INSERT INTO valores_master (servico, duracao_formato, contexto, cliente_nome, custo_interno, valor_parceiro, valor_cliente_final, notas, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      args: [data.servico.trim(), data.duracao_formato || '', data.contexto || 'Normal', data.cliente_nome || '', data.custo_interno || 0, data.valor_parceiro || 0, data.valor_cliente_final || 0, data.notas || '', data.ativo ?? 1],
+      sql: "INSERT INTO valores_master (servico, duracao_formato, contexto, cliente_nome, custo_interno, valor_parceiro, valor_sud, valor_cliente_final, notas, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [data.servico.trim(), data.duracao_formato || '', data.contexto || 'Normal', data.cliente_nome || '', data.custo_interno || 0, data.valor_parceiro || 0, data.valor_sud || 0, data.valor_cliente_final || 0, data.notas || '', data.ativo ?? 1],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
     return { success: true, id: Number(last.rows[0].id) };
@@ -1992,13 +2179,13 @@ export async function createValorMaster(data: {
 
 export async function updateValorMaster(id: number, data: {
   servico: string; duracao_formato?: string; contexto?: string; cliente_nome?: string;
-  custo_interno?: number; valor_parceiro?: number; valor_cliente_final?: number; notas?: string; ativo?: number;
+  custo_interno?: number; valor_parceiro?: number; valor_sud?: number; valor_cliente_final?: number; notas?: string; ativo?: number;
 }) {
   try {
     await ensureValoresMasterTable();
     await turso.execute({
-      sql: "UPDATE valores_master SET servico=?, duracao_formato=?, contexto=?, cliente_nome=?, custo_interno=?, valor_parceiro=?, valor_cliente_final=?, notas=?, ativo=? WHERE id=?",
-      args: [data.servico.trim(), data.duracao_formato || '', data.contexto || 'Normal', data.cliente_nome || '', data.custo_interno || 0, data.valor_parceiro || 0, data.valor_cliente_final || 0, data.notas || '', data.ativo ?? 1, id],
+      sql: "UPDATE valores_master SET servico=?, duracao_formato=?, contexto=?, cliente_nome=?, custo_interno=?, valor_parceiro=?, valor_sud=?, valor_cliente_final=?, notas=?, ativo=? WHERE id=?",
+      args: [data.servico.trim(), data.duracao_formato || '', data.contexto || 'Normal', data.cliente_nome || '', data.custo_interno || 0, data.valor_parceiro || 0, data.valor_sud || 0, data.valor_cliente_final || 0, data.notas || '', data.ativo ?? 1, id],
     });
     return { success: true };
   } catch (error) {
