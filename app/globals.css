@@ -1020,3 +1020,112 @@ html.light-theme svg {
   stroke: currentColor;
 }
 
+
+/* ── Mobile pages drawer — shared across every page ── */
+.mob-tab-icon svg,
+.mob-pages-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.mob-pages-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 199;
+  border: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.mob-pages-drawer {
+  position: fixed;
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  z-index: 200;
+  transform: translateY(calc(100% + 16px));
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform 0.25s cubic-bezier(0.32,0.72,0,1), visibility 0s linear 0.25s;
+  border-radius: 16px 16px 0 0;
+  padding: 0.7rem 0.75rem calc(0.8rem + env(safe-area-inset-bottom));
+  max-height: min(62dvh, 430px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mob-pages-drawer.open {
+  transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition: transform 0.25s cubic-bezier(0.32,0.72,0,1), visibility 0s;
+}
+
+.mob-pages-handle {
+  width: 36px;
+  height: 3px;
+  border-radius: 2px;
+  margin: 0 auto 0.65rem;
+}
+
+.mob-pages-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 7px;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  text-align: center;
+  margin-bottom: 0.6rem;
+}
+
+.mob-pages-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.mob-pages-item {
+  min-width: 0;
+  min-height: 68px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0.55rem 0.25rem;
+  border-radius: 10px;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mob-pages-icon {
+  width: 23px;
+  height: 23px;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.mob-pages-label {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 8.5px;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+
+@media (max-width: 360px) {
+  .mob-pages-grid { gap: 0.2rem; }
+  .mob-pages-item { padding-inline: 0.1rem; }
+  .mob-pages-label { font-size: 8px; letter-spacing: 0; }
+}
+
+@media (min-width: 769px) {
+  .mob-pages-overlay,
+  .mob-pages-drawer { display: none !important; }
+}

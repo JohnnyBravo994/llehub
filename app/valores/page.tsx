@@ -1,5 +1,7 @@
 "use client";
 
+import MobTabBar from "../MobTabBar";
+
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "../useTheme";
@@ -286,18 +288,3 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
   </nav>;
 }
 
-function MobTabBar({ active, role, lightTheme }: { active: string; role: string; lightTheme: boolean }) {
-  const [maisOpen, setMaisOpen] = useState(false);
-  const drawerBg = lightTheme ? "#FFFFFF" : "var(--theme-surface)";
-  const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(var(--theme-accent-rgb),0.15)";
-  const drawerMuted = lightTheme ? "rgba(0,0,0,0.65)" : "var(--theme-text-muted)";
-  const drawerGold = lightTheme ? "#000000" : "var(--theme-accent)";
-  const drawerActiveBg = lightTheme ? "rgba(0,0,0,0.06)" : "rgba(var(--theme-accent-rgb),0.08)";
-  const mainTabs = [{ href: "/agenda", label: "Agenda", id: "agenda" }, { href: "/leads", label: "Leads", id: "leads" }, { href: "/faturacao", label: "Faturação", id: "faturacao" }, { href: "/colaboradores", label: "Equipa", id: "colaboradores" }];
-  const maisTabs = role === "admin" ? [
-    { href: "/clientes", label: "Clientes", id: "clientes" }, { href: "/pagamentos", label: "Pagamentos", id: "pagamentos" }, { href: "/dashboard", label: "Dashboard", id: "dashboard" },
-    { href: "/valores", label: "Valores", id: "valores" }, { href: "/residencias", label: "Residências", id: "residencias" }, { href: "/materiais", label: "Materiais", id: "materiais" },
-  ] : role === "finance" ? [{ href: "/clientes", label: "Clientes", id: "clientes" }, { href: "/pagamentos", label: "Pagamentos", id: "pagamentos" }] : role !== "limited_novalues" ? [{ href: "/materiais", label: "Materiais", id: "materiais" }] : [];
-  const activeInMais = maisTabs.some(t => t.id === active);
-  return <>{maisOpen && <div onClick={() => setMaisOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 199, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(2px)" }} />}<div style={{ position: "fixed", bottom: "calc(60px + env(safe-area-inset-bottom))", left: 0, right: 0, zIndex: 200, transform: maisOpen ? "translateY(0)" : "translateY(110%)", transition: "transform 0.25s cubic-bezier(0.32,0.72,0,1)", background: drawerBg, borderTop: drawerBorder, borderRadius: "16px 16px 0 0", padding: "0.75rem 0.5rem", boxShadow: lightTheme ? "0 -8px 32px rgba(0,0,0,0.15)" : "0 -8px 32px rgba(0,0,0,0.6)" }}><div style={{ display: "flex", justifyContent: "space-around", padding: "0 0.5rem", flexWrap: "wrap" }}>{maisTabs.map(t => <a key={t.href} href={t.href} onClick={() => setMaisOpen(false)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", textDecoration: "none", padding: "0.6rem 0.7rem", minWidth: "64px", color: active === t.id ? drawerGold : drawerMuted, background: active === t.id ? drawerActiveBg : "transparent", borderRadius: "10px", fontSize: "9px" }}>{t.label}</a>)}</div></div><nav className="mob-tabbar">{mainTabs.map(l => <a key={l.href} href={l.href} className={`mob-tab${active === l.id ? " active" : ""}`}><span className="mob-tab-icon">●</span><span className="mob-tab-label">{l.label}</span></a>)}{maisTabs.length > 0 && <button onClick={() => setMaisOpen(v => !v)} className={`mob-tab${activeInMais ? " active" : ""}`} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}><span className="mob-tab-icon">•••</span><span className="mob-tab-label">{maisOpen ? "Fechar" : "Mais"}</span></button>}</nav></>;
-}
