@@ -85,6 +85,7 @@ import {
   setupMateriais, getAllMateriais, getMovimentosMateriais, registarSaidaMaterial,
   registarVoltaMaterial, deleteMovimentoMaterial,
   getAllMaterialPacks, reservarMaterialPacksParaEvento, getMaterialPackReservasEvento, getMateriaisReservadosResumoEvento,
+  reservarMaterialEvento, updateReservaMaterialEvento, deleteReservaMaterialEvento, confirmarSaidaReservaEvento,
   getArtistConflictOverrides, dismissArtistConflict, getAgendaPageBundle, getAgendaFormLookups, getMaterialPackIdsForServico,
 } from "../actions";
 
@@ -154,7 +155,12 @@ interface MaterialPack {
   links?: { id: number; servico: string; duracao_formato: string; contexto: string; notas?: string }[];
 }
 interface MaterialPackReserva { id: number; evento_id: number; pack_id: number; pack_nome: string; valor_referencia: number; valor_cobrado: number; desconto_oferta: number; }
-interface MaterialReservadoResumo { material_nome: string; quantidade: number; quantidade_devolvida: number; quantidade_consumida: number; estado_regresso: string; data_volta: string; notas: string; }
+interface MaterialReservadoResumo {
+  id: number; source: "manual" | "legacy" | "pack" | "movement"; status: "reservado" | "fora" | "devolvido";
+  material_id: number; material_nome: string; material_imagem?: string; quantidade: number;
+  quantidade_devolvida: number; quantidade_consumida: number; estado_regresso: string; data_volta: string; notas: string;
+  origem?: string; origem_detalhe?: string; reservado_por?: string; quem_levou?: string; pack_nome?: string;
+}
 
 const MATERIAL_ORIGENS = ["Loja", "João", "Annia", "Outro"];
 
@@ -324,6 +330,7 @@ export default function AgendaPage() {
   const [materiaisLoaded, setMateriaisLoaded] = useState(false);
   const [selectedPackIds, setSelectedPackIds] = useState<number[]>([]);
   const [materiaisReservadosResumo, setMateriaisReservadosResumo] = useState<MaterialReservadoResumo[]>([]);
+  const [reservaQtyDrafts, setReservaQtyDrafts] = useState<Record<string, number>>({});
   const [loadingMateriaisResumo, setLoadingMateriaisResumo] = useState(false);
   const [materialModal, setMaterialModal] = useState<{ open: boolean; event: AgendaEvent | null }>({ open: false, event: null });
   const emptyReservaForm = { material_id: 0, quantidade: 1, origem: "Loja", origem_detalhe: "", notas: "" };
@@ -428,10 +435,24 @@ export default function AgendaPage() {
 
   const materiaisAtivos = materiais.filter(m => m.ativo === 1);
 
+  const refreshMateriaisResumo = useCallback(async (eventoId: number) => {
+    setLoadingMateriaisResumo(true);
+    const r = await getMateriaisReservadosResumoEvento(eventoId);
+    if (r.success) {
+      const rows = r.data as MaterialReservadoResumo[];
+      setMateriaisReservadosResumo(rows);
+      setReservaQtyDrafts(Object.fromEntries(rows
+        .filter(item => item.status === "reservado" && item.source !== "pack")
+        .map(item => [`${item.source}-${item.id}`, item.quantidade])));
+    }
+    setLoadingMateriaisResumo(false);
+  }, []);
+
   const openMaterialModal = (e: AgendaEvent) => {
     setReservaForm(emptyReservaForm);
     setMaterialModal({ open: true, event: e });
     loadMateriais();
+    refreshMateriaisResumo(e.id);
   };
   const closeMaterialModal = () => setMaterialModal({ open: false, event: null });
 
@@ -447,16 +468,15 @@ export default function AgendaPage() {
     if (reservaForm.quantidade < 1) { showToast("Quantidade inválida"); return; }
     if (reservaForm.origem === "Outro" && !reservaForm.origem_detalhe.trim()) { showToast("Especifica para onde vai"); return; }
     setReservaSaving(true);
-    const res = await registarSaidaMaterial({
-      material_id: mat.id, material_nome: mat.nome, material_imagem: mat.imagem,
+    const res = await reservarMaterialEvento({
+      evento_id: materialModal.event.id, material_id: mat.id, material_nome: mat.nome, material_imagem: mat.imagem,
       quantidade: reservaForm.quantidade, origem: reservaForm.origem, origem_detalhe: reservaForm.origem_detalhe,
-      evento: materialModal.event.title, evento_id: materialModal.event.id,
-      responsavel: userName, notas: reservaForm.notas,
+      reservado_por: userName, notas: reservaForm.notas,
     });
     setReservaForm(emptyReservaForm);
-    await loadMateriais(true);
+    await Promise.all([loadMateriais(true), refreshMateriaisResumo(materialModal.event.id)]);
     setReservaSaving(false);
-    showToast(`Material reservado: ${mat.nome}`);
+    showToast(res.success ? `Material reservado: ${mat.nome}` : "Não foi possível reservar o material");
   };
 
   const handleRemoverReservaMaterial = async (id: number) => {
@@ -467,6 +487,46 @@ export default function AgendaPage() {
   const handleMaterialVoltou = async (mov: MaterialMovimento) => {
     await registarVoltaMaterial(mov.id, mov.quantidade, mov.quantidade);
     await loadMateriais(true);
+    if (materialModal.event) await refreshMateriaisResumo(materialModal.event.id);
+  };
+
+  const handleGuardarQuantidadeReserva = async (item: MaterialReservadoResumo) => {
+    if (!materialModal.event || item.source === "pack" || item.source === "movement") return;
+    const key = `${item.source}-${item.id}`;
+    const qty = Math.max(1, Number(reservaQtyDrafts[key]) || 1);
+    await updateReservaMaterialEvento(item.id, qty, item.source);
+    await refreshMateriaisResumo(materialModal.event.id);
+    showToast("Quantidade da reserva atualizada");
+  };
+
+  const handleRemoverItemMaterial = async (item: MaterialReservadoResumo) => {
+    if (!materialModal.event) return;
+    if (item.source === "movement") await deleteMovimentoMaterial(item.id);
+    else if (item.source === "manual" || item.source === "legacy") await deleteReservaMaterialEvento(item.id, item.source);
+    else { showToast("Este material vem de um pack; altera o pack associado ao serviço"); return; }
+    await Promise.all([loadMateriais(true), refreshMateriaisResumo(materialModal.event.id)]);
+    showToast(item.source === "movement" ? "Saída removida" : "Reserva removida");
+  };
+
+  const handleConfirmarSaidaReserva = async (item: MaterialReservadoResumo) => {
+    if (!materialModal.event || item.status !== "reservado") return;
+    if (item.source === "manual" || item.source === "legacy") {
+      await confirmarSaidaReservaEvento({
+        id: item.id, source: item.source, quantidade: item.quantidade, origem: item.origem || "Loja", origem_detalhe: item.origem_detalhe || "",
+        quem_levou: userName, responsavel: userName, notas: item.notas || "",
+      });
+    } else {
+      const mat = materiais.find(m => m.id === item.material_id) || materiais.find(m => normalizeText(m.nome) === normalizeText(item.material_nome));
+      if (!mat) { showToast("Não foi possível encontrar este material no catálogo"); return; }
+      await registarSaidaMaterial({
+        material_id: mat.id, material_nome: mat.nome, material_imagem: mat.imagem,
+        quantidade: item.quantidade, origem: item.origem || "Loja", origem_detalhe: item.origem_detalhe || "",
+        quem_levou: userName, evento: materialModal.event.title, evento_id: materialModal.event.id,
+        responsavel: userName, notas: item.pack_nome ? `Saída de material reservado · ${item.pack_nome}` : "Saída de material reservado",
+      });
+    }
+    await Promise.all([loadMateriais(true), refreshMateriaisResumo(materialModal.event.id)]);
+    showToast(`Saída registada: ${item.material_nome}`);
   };
 
   const colaboradoresAtivos = colaboradores.filter(c => c.ativo === 1);
@@ -638,11 +698,7 @@ export default function AgendaPage() {
     setResidenciaDates([]);
     setModal({ open: true, editing: e });
     setMateriaisReservadosResumo([]);
-    setLoadingMateriaisResumo(true);
-    getMateriaisReservadosResumoEvento(e.id).then(r => {
-      if (r.success) setMateriaisReservadosResumo(r.data as MaterialReservadoResumo[]);
-      setLoadingMateriaisResumo(false);
-    });
+    refreshMateriaisResumo(e.id);
     const cachedArtists = (artistasMap[e.id] || []).map(normalizeArtistRow);
     if (cachedArtists.length > 0) {
       setArtists(cachedArtists);
@@ -1989,25 +2045,28 @@ export default function AgendaPage() {
               </FormField>
               {modal.editing && (
                 <div style={{ gridColumn: "1 / -1", border: `1px solid ${Colors.borderDim}`, padding: "0.85rem", background: "rgba(var(--theme-contrast-rgb),0.015)" }}>
-                  <div style={{ fontSize: "7px", letterSpacing: "0.35em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.55rem" }}>Materiais reservados</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", marginBottom: "0.65rem" }}>
+                    <div style={{ fontSize: "7px", letterSpacing: "0.35em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 700 }}>Materiais do evento</div>
+                    <button type="button" onClick={() => openMaterialModal(modal.editing as AgendaEvent)} style={{ ...btnSecStyle, padding: "0.45rem 0.7rem", fontSize: "8px" }}>Gerir materiais</button>
+                  </div>
                   {loadingMateriaisResumo ? (
-                    <div style={{ color: Colors.textMuted, fontSize: "10px" }}>A carregar materiais reservados...</div>
+                    <div style={{ color: Colors.textMuted, fontSize: "10px" }}>A carregar materiais...</div>
                   ) : materiaisReservadosResumo.length ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
                       {materiaisReservadosResumo.map((m, idx) => {
-                        const voltou = m.quantidade_devolvida || m.quantidade_consumida;
-                        const estado = m.estado_regresso || (m.data_volta ? "Voltou" : "Reservado/Saiu");
+                        const voltou = m.quantidade_devolvida + m.quantidade_consumida;
+                        const estado = m.status === "reservado" ? "Reservado · ainda no local" : m.status === "fora" ? "Fora do local" : "Devolvido";
+                        const stateColor = m.status === "reservado" ? Colors.blue : m.status === "fora" ? Colors.amber : Colors.green;
                         return (
-                          <div key={`${m.material_nome}-${idx}`} style={{ color: Colors.textSec, fontSize: "11px", lineHeight: 1.4 }}>
-                            <strong style={{ color: Colors.textPrimary }}>{m.quantidade}x {m.material_nome}</strong>
-                            {voltou ? <span> · voltou/consumido: {voltou}</span> : null}
-                            <span> · {estado}</span>
+                          <div key={`${m.source}-${m.id}-${m.material_nome}-${idx}`} style={{ display: "flex", justifyContent: "space-between", gap: "0.7rem", color: Colors.textSec, fontSize: "11px", lineHeight: 1.4 }}>
+                            <span><strong style={{ color: Colors.textPrimary }}>{m.quantidade}x {m.material_nome}</strong>{voltou ? <span> · voltou/consumido: {voltou}</span> : null}</span>
+                            <span style={{ color: stateColor, fontSize: "9px", whiteSpace: "nowrap" }}>{estado}</span>
                           </div>
                         );
                       })}
                     </div>
                   ) : (
-                    <div style={{ color: Colors.textMuted, fontSize: "10px" }}>Sem materiais reservados no sistema.</div>
+                    <div style={{ color: Colors.textMuted, fontSize: "10px" }}>Sem materiais associados.</div>
                   )}
                 </div>
               )}
@@ -2154,25 +2213,43 @@ export default function AgendaPage() {
             </div>
             <p style={{ fontSize: "12px", color: Colors.textPrimary, marginBottom: "1.25rem" }}>{materialModal.event.title}</p>
 
-            {materiaisDoEvento(materialModal.event.id).length > 0 && (
-              <div style={{ marginBottom: "1.25rem", display: "flex", flexDirection: "column", gap: "6px" }}>
-                {materiaisDoEvento(materialModal.event.id).map(mov => {
-                  const devolvido = mov.quantidade_devolvida >= mov.quantidade;
-                  return (
-                    <div key={mov.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "0.55rem 0.75rem", background: "var(--theme-subtle-bg)", border: `1px solid ${Colors.borderDim}` }}>
-                      <span style={{ flex: 1, fontSize: "11px", color: Colors.textPrimary }}>{mov.material_nome} <span style={{ color: Colors.textMuted }}>×{mov.quantidade}</span></span>
-                      <span style={{ fontSize: "9px", color: devolvido ? Colors.green : Colors.amber, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                        {devolvido ? "Devolvido" : `Com ${mov.origem === "Outro" && mov.origem_detalhe ? mov.origem_detalhe : mov.origem}`}
-                      </span>
-                      {!devolvido && (
-                        <button onClick={() => handleMaterialVoltou(mov)} title="Marcar como devolvido" style={{ background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: Colors.green, fontSize: "8px", padding: "4px 8px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Voltou</button>
+            <div style={{ marginBottom: "1.25rem", display: "flex", flexDirection: "column", gap: "7px" }}>
+              {loadingMateriaisResumo && <div style={{ fontSize: "10px", color: Colors.textMuted }}>A carregar materiais...</div>}
+              {!loadingMateriaisResumo && materiaisReservadosResumo.length === 0 && (
+                <div style={{ fontSize: "10px", color: Colors.textMuted, padding: "0.7rem", border: `1px solid ${Colors.borderDim}` }}>Sem materiais associados a este evento.</div>
+              )}
+              {!loadingMateriaisResumo && materiaisReservadosResumo.map((item, idx) => {
+                const isReserva = item.status === "reservado";
+                const isFora = item.status === "fora";
+                const key = `${item.source}-${item.id}`;
+                const mov = item.source === "movement" ? movimentosMateriais.find(m => m.id === item.id) : undefined;
+                return (
+                  <div key={`${key}-${item.material_nome}-${idx}`} style={{ padding: "0.7rem", background: "var(--theme-subtle-bg)", border: `1px solid ${isReserva ? "rgba(80,140,220,0.28)" : isFora ? "rgba(223,155,52,0.28)" : Colors.borderDim}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem" }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: "11px", color: Colors.textPrimary, fontWeight: 650 }}>{item.material_nome} <span style={{ color: Colors.textMuted }}>×{item.quantidade}</span></div>
+                        <div style={{ fontSize: "9px", marginTop: "2px", color: isReserva ? Colors.blue : isFora ? Colors.amber : Colors.green }}>
+                          {isReserva ? "Reservado · ainda no local" : isFora ? `Fora${item.quem_levou ? ` · levou ${item.quem_levou}` : ""}` : "Devolvido"}
+                          {item.source === "pack" && item.pack_nome ? ` · ${item.pack_nome}` : ""}
+                        </div>
+                      </div>
+                      {(item.source === "manual" || item.source === "legacy") && isReserva && (
+                        <div style={{ display: "flex", gap: "4px", alignItems: "center", flexShrink: 0 }}>
+                          <input type="number" min={1} value={reservaQtyDrafts[key] ?? item.quantidade} onChange={e => setReservaQtyDrafts(prev => ({ ...prev, [key]: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...inputStyle, width: "58px", padding: "0.4rem" }} />
+                          <button onClick={() => handleGuardarQuantidadeReserva(item)} style={{ ...btnSecStyle, padding: "0.42rem 0.55rem", fontSize: "8px" }}>Guardar</button>
+                        </div>
                       )}
-                      <button onClick={() => handleRemoverReservaMaterial(mov.id)} title="Remover" style={{ background: "transparent", border: "none", color: Colors.textMuted, cursor: "pointer", fontSize: "13px" }}>×</button>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "0.55rem" }}>
+                      {isReserva && <button onClick={() => handleConfirmarSaidaReserva(item)} style={{ background: "rgba(223,155,52,0.1)", border: "1px solid rgba(223,155,52,0.28)", color: Colors.amber, fontSize: "8px", padding: "5px 8px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Registar saída</button>}
+                      {isFora && mov && <button onClick={() => handleMaterialVoltou(mov)} style={{ background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: Colors.green, fontSize: "8px", padding: "5px 8px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Voltou</button>}
+                      {item.source !== "pack" && <button onClick={() => handleRemoverItemMaterial(item)} style={{ background: "transparent", border: "1px solid rgba(210,80,80,0.22)", color: Colors.red, fontSize: "8px", padding: "5px 8px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Remover</button>}
+                      {item.source === "pack" && <span style={{ fontSize: "8px", color: Colors.textMuted, alignSelf: "center" }}>Gerido pelo pack do serviço</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
             <p style={{ fontSize: "8px", letterSpacing: "0.3em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Reservar novo material</p>
 

@@ -3007,15 +3007,122 @@ export async function getMaterialPackReservasEvento(eventoId: number) {
   }
 }
 
+
+export async function reservarMaterialEvento(data: {
+  evento_id: number; material_id: number; material_nome: string; material_imagem?: string;
+  quantidade: number; origem?: string; origem_detalhe?: string; notas?: string; reservado_por?: string;
+}) {
+  try {
+    await setupMateriais();
+    await turso.execute({
+      sql: `INSERT INTO material_reservas
+        (evento_id, material_id, material_nome, material_imagem, quantidade, origem, origem_detalhe, notas, reservado_por, ativo)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      args: [
+        data.evento_id, data.material_id, data.material_nome, data.material_imagem || '',
+        Math.max(1, Number(data.quantidade) || 1), data.origem || 'Loja', data.origem_detalhe || '',
+        data.notas || '', data.reservado_por || '',
+      ],
+    });
+    const last = await turso.execute("SELECT last_insert_rowid() as id");
+    return { success: true, id: Number(last.rows[0].id) };
+  } catch (error) {
+    console.error('Erro reservarMaterialEvento:', error);
+    return { success: false, message: 'Erro ao reservar material.' };
+  }
+}
+
+export async function updateReservaMaterialEvento(id: number, quantidade: number, source: 'manual' | 'legacy' = 'manual') {
+  try {
+    await setupMateriais();
+    const qty = Math.max(1, Number(quantidade) || 1);
+    if (source === 'legacy') {
+      await turso.execute({ sql: "UPDATE material_movimentos SET quantidade=? WHERE id=? AND COALESCE(saida_confirmada, 1)=0", args: [qty, id] });
+    } else {
+      await turso.execute({ sql: "UPDATE material_reservas SET quantidade=? WHERE id=? AND ativo=1", args: [qty, id] });
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Erro updateReservaMaterialEvento:', error);
+    return { success: false };
+  }
+}
+
+export async function deleteReservaMaterialEvento(id: number, source: 'manual' | 'legacy' = 'manual') {
+  try {
+    await setupMateriais();
+    if (source === 'legacy') {
+      await turso.execute({ sql: "DELETE FROM material_movimentos WHERE id=? AND COALESCE(saida_confirmada, 1)=0", args: [id] });
+    } else {
+      await turso.execute({ sql: "UPDATE material_reservas SET ativo=0 WHERE id=?", args: [id] });
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Erro deleteReservaMaterialEvento:', error);
+    return { success: false };
+  }
+}
+
+export async function confirmarSaidaReservaEvento(data: {
+  id: number; source: 'manual' | 'legacy'; quantidade?: number;
+  origem?: string; origem_detalhe?: string; quem_levou?: string; responsavel?: string; notas?: string;
+}) {
+  try {
+    await setupMateriais();
+    if (data.source === 'legacy') {
+      await turso.execute({
+        sql: `UPDATE material_movimentos SET saida_confirmada=1, quantidade=COALESCE(?, quantidade),
+              origem=COALESCE(NULLIF(?, ''), origem), origem_detalhe=?,
+              quem_levou=COALESCE(NULLIF(?, ''), quem_levou), responsavel=COALESCE(NULLIF(?, ''), responsavel),
+              notas=CASE WHEN ?='' THEN notas ELSE ? END, data_saida=datetime('now')
+              WHERE id=? AND COALESCE(saida_confirmada, 1)=0`,
+        args: [data.quantidade ? Math.max(1, Number(data.quantidade) || 1) : null, data.origem || '', data.origem_detalhe || '', data.quem_levou || '', data.responsavel || '', data.notas || '', data.notas || '', data.id],
+      });
+      return { success: true };
+    }
+
+    const res = await turso.execute({
+      sql: `SELECT mr.*, COALESCE(m.dono, 'LLE') AS dono_material, COALESCE(a.event_name, '') AS evento_nome
+            FROM material_reservas mr
+            LEFT JOIN materiais m ON m.id=mr.material_id
+            LEFT JOIN agenda a ON a.id=mr.evento_id
+            WHERE mr.id=? AND mr.ativo=1 LIMIT 1`,
+      args: [data.id],
+    });
+    if (res.rows.length === 0) return { success: false, message: 'Reserva não encontrada.' };
+    const r = res.rows[0] as any;
+    await turso.execute({
+      sql: `INSERT INTO material_movimentos
+        (material_id, material_nome, material_imagem, quantidade, quantidade_devolvida, quantidade_consumida,
+         origem, origem_detalhe, dono_material, quem_levou, evento, evento_id, responsavel, notas, data_saida, saida_confirmada)
+        VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 1)`,
+      args: [
+        Number(r.material_id), (r.material_nome as string) || '', (r.material_imagem as string) || '', data.quantidade ? Math.max(1, Number(data.quantidade) || 1) : (Number(r.quantidade) || 1),
+        data.origem || (r.origem as string) || 'Loja', data.origem_detalhe || (r.origem_detalhe as string) || '',
+        (r.dono_material as string) || 'LLE', data.quem_levou || data.responsavel || '',
+        (r.evento_nome as string) || '', Number(r.evento_id), data.responsavel || '', data.notas || (r.notas as string) || '',
+      ],
+    });
+    await turso.execute({ sql: "UPDATE material_reservas SET ativo=0 WHERE id=?", args: [data.id] });
+    return { success: true };
+  } catch (error) {
+    console.error('Erro confirmarSaidaReservaEvento:', error);
+    return { success: false, message: 'Erro ao registar a saída.' };
+  }
+}
+
 export async function getMateriaisReservadosResumoEvento(eventoId: number) {
   try {
     await setupMateriais();
-    const [reservasRes, movimentosRes] = await Promise.all([
+    const [packsRes, manualRes, legacyRes, movimentosRes] = await Promise.all([
       turso.execute({
         sql: `
-          SELECT i.material_nome, SUM(COALESCE(i.quantidade, 1)) AS quantidade
+          SELECT i.material_nome, SUM(COALESCE(i.quantidade, 1)) AS quantidade,
+                 COALESCE(MAX(m.id), 0) AS material_id, COALESCE(MAX(m.imagem), '') AS material_imagem,
+                 GROUP_CONCAT(DISTINCT r.pack_nome) AS pack_nome
           FROM material_pack_reservas r
           JOIN material_pack_items i ON i.pack_id = r.pack_id AND i.ativo = 1
+          LEFT JOIN materiais m ON LOWER(TRIM(m.nome)) = LOWER(TRIM(i.material_nome)) AND m.ativo=1
           WHERE r.evento_id = ?
           GROUP BY i.material_nome
           ORDER BY i.material_nome ASC
@@ -3023,58 +3130,111 @@ export async function getMateriaisReservadosResumoEvento(eventoId: number) {
         args: [eventoId],
       }),
       turso.execute({
-        sql: `
-          SELECT material_nome, quantidade, quantidade_devolvida, quantidade_consumida,
-                 estado_regresso, data_volta, notas
-          FROM material_movimentos mm
-          WHERE mm.evento_id = ?
-            AND NOT (
-              COALESCE(mm.notas, '') LIKE 'Pack incluído/oferta:%'
-              AND EXISTS (
-                SELECT 1
-                FROM material_pack_reservas r
-                JOIN material_pack_items i ON i.pack_id = r.pack_id AND i.ativo = 1
-                WHERE r.evento_id = mm.evento_id
-                  AND LOWER(TRIM(i.material_nome)) = LOWER(TRIM(mm.material_nome))
-              )
-            )
-          ORDER BY mm.material_nome ASC, mm.id ASC
-        `,
+        sql: `SELECT mr.id, mr.material_id, mr.material_nome,
+                     COALESCE(NULLIF(mr.material_imagem,''), m.imagem, '') AS material_imagem,
+                     mr.quantidade, mr.origem, mr.origem_detalhe, mr.notas, mr.reservado_por
+              FROM material_reservas mr
+              LEFT JOIN materiais m ON m.id=mr.material_id
+              WHERE mr.evento_id=? AND mr.ativo=1
+              ORDER BY mr.created_at ASC, mr.id ASC`,
+        args: [eventoId],
+      }),
+      turso.execute({
+        sql: `SELECT mm.id, mm.material_id, mm.material_nome,
+                     COALESCE(NULLIF(mm.material_imagem,''), m.imagem, '') AS material_imagem,
+                     mm.quantidade, mm.origem, mm.origem_detalhe, mm.notas, mm.responsavel AS reservado_por
+              FROM material_movimentos mm
+              LEFT JOIN materiais m ON m.id=mm.material_id
+              WHERE mm.evento_id=? AND COALESCE(mm.saida_confirmada,1)=0
+                AND mm.quantidade > COALESCE(mm.quantidade_devolvida,0)+COALESCE(mm.quantidade_consumida,0)
+              ORDER BY mm.id ASC`,
+        args: [eventoId],
+      }),
+      turso.execute({
+        sql: `SELECT mm.id, mm.material_id, mm.material_nome,
+                     COALESCE(NULLIF(mm.material_imagem,''), m.imagem, '') AS material_imagem,
+                     mm.quantidade, mm.quantidade_devolvida, mm.quantidade_consumida,
+                     mm.estado_regresso, mm.data_volta, mm.notas, mm.origem, mm.origem_detalhe,
+                     mm.quem_levou, mm.responsavel
+              FROM material_movimentos mm
+              LEFT JOIN materiais m ON m.id=mm.material_id
+              WHERE mm.evento_id=? AND COALESCE(mm.saida_confirmada,1)=1
+                AND NOT (
+                  COALESCE(mm.notas, '') LIKE 'Pack incluído/oferta:%'
+                  AND EXISTS (
+                    SELECT 1 FROM material_pack_reservas r
+                    JOIN material_pack_items i ON i.pack_id=r.pack_id AND i.ativo=1
+                    WHERE r.evento_id=mm.evento_id
+                      AND LOWER(TRIM(i.material_nome))=LOWER(TRIM(mm.material_nome))
+                  )
+                )
+              ORDER BY mm.material_nome ASC, mm.id ASC`,
         args: [eventoId],
       }),
     ]);
 
-    const movementQtyByName = new Map<string, number>();
-    const movementRows = (movimentosRes.rows as any[]).map((r: any) => {
+    const movementRows = (movimentosRes.rows as any[]).map((r: any) => ({
+      id: Number(r.id), source: 'movement', material_id: Number(r.material_id) || 0,
+      material_nome: (r.material_nome as string) || '', material_imagem: (r.material_imagem as string) || '',
+      quantidade: Number(r.quantidade) || 0, quantidade_devolvida: Number(r.quantidade_devolvida) || 0,
+      quantidade_consumida: Number(r.quantidade_consumida) || 0, estado_regresso: (r.estado_regresso as string) || '',
+      data_volta: (r.data_volta as string) || '', notas: (r.notas as string) || '',
+      origem: (r.origem as string) || 'Loja', origem_detalhe: (r.origem_detalhe as string) || '',
+      quem_levou: (r.quem_levou as string) || (r.responsavel as string) || '',
+      status: Number(r.quantidade_devolvida || 0) + Number(r.quantidade_consumida || 0) >= Number(r.quantidade || 0) ? 'devolvido' : 'fora',
+    }));
+
+    const outByName = new Map<string, number>();
+    for (const row of movementRows) {
+      const pending = Math.max(0, row.quantidade - row.quantidade_devolvida - row.quantidade_consumida);
+      const key = normalizeValorMasterKey(row.material_nome);
+      outByName.set(key, (outByName.get(key) || 0) + pending);
+    }
+
+    const manualRows = (manualRes.rows as any[]).map((r: any) => ({
+      id: Number(r.id), source: 'manual', material_id: Number(r.material_id) || 0,
+      material_nome: (r.material_nome as string) || '', material_imagem: (r.material_imagem as string) || '',
+      quantidade: Number(r.quantidade) || 0, quantidade_devolvida: 0, quantidade_consumida: 0,
+      estado_regresso: 'Reservado', data_volta: '', notas: (r.notas as string) || 'Reservado para este evento; ainda não saiu do local.',
+      origem: (r.origem as string) || 'Loja', origem_detalhe: (r.origem_detalhe as string) || '',
+      reservado_por: (r.reservado_por as string) || '', status: 'reservado',
+    }));
+    const legacyRows = (legacyRes.rows as any[]).map((r: any) => ({
+      id: Number(r.id), source: 'legacy', material_id: Number(r.material_id) || 0,
+      material_nome: (r.material_nome as string) || '', material_imagem: (r.material_imagem as string) || '',
+      quantidade: Number(r.quantidade) || 0, quantidade_devolvida: 0, quantidade_consumida: 0,
+      estado_regresso: 'Reservado', data_volta: '', notas: (r.notas as string) || 'Reserva antiga corrigida; ainda não saiu do local.',
+      origem: (r.origem as string) || 'Loja', origem_detalhe: (r.origem_detalhe as string) || '',
+      reservado_por: (r.reservado_por as string) || '', status: 'reservado',
+    }));
+    const legacyByName = new Map<string, number>();
+    for (const row of legacyRows) {
+      const key = normalizeValorMasterKey(row.material_nome);
+      legacyByName.set(key, (legacyByName.get(key) || 0) + row.quantidade);
+    }
+    const packRows = (packsRes.rows as any[]).map((r: any) => {
       const name = (r.material_nome as string) || '';
       const key = normalizeValorMasterKey(name);
-      const quantity = Number(r.quantidade) || 0;
-      movementQtyByName.set(key, (movementQtyByName.get(key) || 0) + quantity);
+      const legacyQty = legacyByName.get(key) || 0;
+      const quantity = Math.max(0, (Number(r.quantidade) || 0) - legacyQty);
+      if (legacyQty > 0) legacyByName.set(key, Math.max(0, legacyQty - (Number(r.quantidade) || 0)));
       return {
-        material_nome: name,
-        quantidade: quantity,
-        quantidade_devolvida: Number(r.quantidade_devolvida) || 0,
-        quantidade_consumida: Number(r.quantidade_consumida) || 0,
-        estado_regresso: (r.estado_regresso as string) || '',
-        data_volta: (r.data_volta as string) || '',
-        notas: (r.notas as string) || '',
+        id: 0, source: 'pack', material_id: Number(r.material_id) || 0,
+        material_nome: name, material_imagem: (r.material_imagem as string) || '',
+        quantidade: quantity, quantidade_devolvida: 0, quantidade_consumida: 0,
+        estado_regresso: 'Reservado', data_volta: '', notas: `Incluído em ${((r.pack_nome as string) || 'pack de material')}. Ainda não saiu do local.`,
+        origem: 'Loja', origem_detalhe: '', reservado_por: '', status: 'reservado', pack_nome: (r.pack_nome as string) || '',
       };
-    });
+    }).filter((row: any) => row.quantidade > 0);
+    const reservations: any[] = [...manualRows, ...legacyRows, ...packRows];
 
-    const reservationRows = (reservasRes.rows as any[]).map((r: any) => {
-      const name = (r.material_nome as string) || '';
-      const reserved = Number(r.quantidade) || 0;
-      const alreadyRegistered = movementQtyByName.get(normalizeValorMasterKey(name)) || 0;
-      return {
-        material_nome: name,
-        quantidade: Math.max(0, reserved - alreadyRegistered),
-        quantidade_devolvida: 0,
-        quantidade_consumida: 0,
-        estado_regresso: 'Reservado',
-        data_volta: '',
-        notas: 'Reservado para este evento; ainda não saiu do local.',
-      };
-    }).filter((r: any) => r.quantidade > 0);
+    const reservationRows = reservations.map(row => {
+      const key = normalizeValorMasterKey(row.material_nome);
+      const alreadyOut = outByName.get(key) || 0;
+      const deduct = Math.min(alreadyOut, row.quantidade);
+      if (deduct > 0) outByName.set(key, alreadyOut - deduct);
+      return { ...row, quantidade: Math.max(0, row.quantidade - deduct) };
+    }).filter(row => row.quantidade > 0);
 
     return { success: true, data: [...reservationRows, ...movementRows] };
   } catch (error) {
@@ -3234,12 +3394,48 @@ export async function setupMateriais() {
       "quantidade_comprar INTEGER DEFAULT 0",
       "quem_confirmou_regresso TEXT DEFAULT ''",
       "notas_regresso TEXT DEFAULT ''",
+      "saida_confirmada INTEGER DEFAULT 1",
     ];
     for (const col of movimentoCols) {
       try { await turso.execute(`ALTER TABLE material_movimentos ADD COLUMN ${col}`); } catch { }
     }
 
     await ensureMaterialPacksTables();
+    await turso.execute(`
+      CREATE TABLE IF NOT EXISTS material_reservas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        evento_id INTEGER NOT NULL,
+        material_id INTEGER NOT NULL,
+        material_nome TEXT NOT NULL DEFAULT '',
+        material_imagem TEXT DEFAULT '',
+        quantidade INTEGER NOT NULL DEFAULT 1,
+        origem TEXT DEFAULT 'Loja',
+        origem_detalhe TEXT DEFAULT '',
+        notas TEXT DEFAULT '',
+        reservado_por TEXT DEFAULT '',
+        ativo INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+    try { await turso.execute("CREATE INDEX IF NOT EXISTS idx_material_reservas_evento_ativo ON material_reservas(evento_id, ativo)"); } catch { }
+    // Registos criados pela antiga ação “Reservar” na Agenda não tinham quem_levou.
+    // Quando foram criados mais de 2 dias antes do evento, são reservas e não saídas físicas.
+    try {
+      await turso.execute(`
+        UPDATE material_movimentos
+        SET saida_confirmada = 0
+        WHERE evento_id IS NOT NULL
+          AND COALESCE(quem_levou, '') = ''
+          AND data_volta IS NULL
+          AND COALESCE(quantidade_devolvida, 0) = 0
+          AND COALESCE(quantidade_consumida, 0) = 0
+          AND EXISTS (
+            SELECT 1 FROM agenda a
+            WHERE a.id = material_movimentos.evento_id
+              AND date(COALESCE(material_movimentos.data_saida, material_movimentos.created_at, 'now')) < date(a.event_date, '-2 day')
+          )
+      `);
+    } catch { }
     await turso.execute(`
       CREATE TABLE IF NOT EXISTS lead_material_packs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -3436,8 +3632,9 @@ export async function getMovimentosMateriais() {
     const res = await turso.execute(`
       SELECT mm.*
       FROM material_movimentos mm
-      WHERE NOT (
-        COALESCE(mm.notas, '') LIKE 'Pack incluído/oferta:%'
+      WHERE COALESCE(mm.saida_confirmada, 1)=1
+        AND NOT (
+          COALESCE(mm.notas, '') LIKE 'Pack incluído/oferta:%'
         AND mm.evento_id IS NOT NULL
         AND EXISTS (
           SELECT 1
@@ -3493,8 +3690,8 @@ export async function registarSaidaMaterial(data: {
     await setupMateriais();
     await turso.execute({
       sql: `INSERT INTO material_movimentos
-        (material_id, material_nome, material_imagem, quantidade, quantidade_devolvida, quantidade_consumida, origem, origem_detalhe, dono_material, quem_levou, evento, evento_id, responsavel, notas, data_saida)
-        VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+        (material_id, material_nome, material_imagem, quantidade, quantidade_devolvida, quantidade_consumida, origem, origem_detalhe, dono_material, quem_levou, evento, evento_id, responsavel, notas, data_saida, saida_confirmada)
+        VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 1)`,
       args: [
         data.material_id, data.material_nome, data.material_imagem || '',
         data.quantidade, data.origem, data.origem_detalhe || '',
@@ -3899,13 +4096,11 @@ async function cleanupFutureAutoReservationMovements() {
 async function queryMateriaisInitialBundleFast() {
   await cleanupFutureAutoReservationMovements();
 
-  // Entrada rápida: só operação atual, reservas futuras e duas contagens essenciais.
-  // Só as imagens dos itens atualmente fora/reservados são trazidas; histórico, packs, catálogo e valores continuam lazy.
-  const [statsRes, openRes, reservationsRes] = await Promise.all([
+  // Entrada rápida: operação atual + reservas. Catálogo, histórico, packs detalhados e valores continuam lazy.
+  const [statsRes, openRes, packReservationsRes, manualReservationsRes, legacyReservationsRes] = await Promise.all([
     turso.execute(`
       SELECT COUNT(*) AS ativos, COALESCE(SUM(quantidade_total), 0) AS unidades
-      FROM materiais
-      WHERE ativo = 1
+      FROM materiais WHERE ativo = 1
     `),
     turso.execute(`
       SELECT mm.id, mm.material_id, mm.material_nome,
@@ -3916,34 +4111,27 @@ async function queryMateriaisInitialBundleFast() {
              mm.quantidade_comprar, mm.quem_confirmou_regresso, mm.notas_regresso, mm.data_saida, mm.data_volta
       FROM material_movimentos mm
       LEFT JOIN materiais m ON m.id = mm.material_id
-      WHERE mm.quantidade > COALESCE(mm.quantidade_devolvida, 0) + COALESCE(mm.quantidade_consumida, 0)
+      WHERE COALESCE(mm.saida_confirmada, 1)=1
+        AND mm.quantidade > COALESCE(mm.quantidade_devolvida, 0) + COALESCE(mm.quantidade_consumida, 0)
         AND NOT (
           COALESCE(mm.notas, '') LIKE 'Pack incluído/oferta:%'
           AND mm.evento_id IS NOT NULL
           AND EXISTS (
-            SELECT 1
-            FROM material_pack_reservas r
+            SELECT 1 FROM material_pack_reservas r
             JOIN material_pack_items i ON i.pack_id = r.pack_id AND i.ativo = 1
             WHERE r.evento_id = mm.evento_id
               AND LOWER(TRIM(i.material_nome)) = LOWER(TRIM(mm.material_nome))
           )
         )
-      ORDER BY mm.data_saida DESC
-      LIMIT 100
+      ORDER BY mm.data_saida DESC LIMIT 100
     `),
     turso.execute(`
-      SELECT
-        r.evento_id,
-        COALESCE(a.event_name, r.servico, r.pack_nome, 'Evento') AS evento_nome,
-        COALESCE(a.event_date, '') AS evento_data,
-        GROUP_CONCAT(DISTINCT r.pack_nome) AS pack_nome,
-        GROUP_CONCAT(DISTINCT r.reservado_por) AS reservado_por,
-        i.material_nome,
-        SUM(COALESCE(i.quantidade, 1)) AS quantidade,
-        COALESCE(MAX(m.id), 0) AS material_id,
-        COALESCE(MAX(m.imagem), '') AS material_imagem,
-        COALESCE(MAX(m.local_habitual), 'Loja') AS local_habitual,
-        COALESCE(MAX(m.dono), 'LLE') AS dono_material
+      SELECT r.evento_id, COALESCE(a.event_name, r.servico, r.pack_nome, 'Evento') AS evento_nome,
+             COALESCE(a.event_date, '') AS evento_data, GROUP_CONCAT(DISTINCT r.pack_nome) AS pack_nome,
+             GROUP_CONCAT(DISTINCT r.reservado_por) AS reservado_por, i.material_nome,
+             SUM(COALESCE(i.quantidade, 1)) AS quantidade, COALESCE(MAX(m.id), 0) AS material_id,
+             COALESCE(MAX(m.imagem), '') AS material_imagem, COALESCE(MAX(m.local_habitual), 'Loja') AS local_habitual,
+             COALESCE(MAX(m.dono), 'LLE') AS dono_material
       FROM material_pack_reservas r
       JOIN material_pack_items i ON i.pack_id = r.pack_id AND i.ativo = 1
       LEFT JOIN agenda a ON a.id = r.evento_id
@@ -3952,6 +4140,33 @@ async function queryMateriaisInitialBundleFast() {
         AND (a.event_date IS NULL OR date(a.event_date) >= date('now', '-1 day'))
       GROUP BY r.evento_id, evento_nome, evento_data, i.material_nome
       ORDER BY CASE WHEN evento_data = '' THEN 1 ELSE 0 END, evento_data ASC, evento_nome ASC, i.material_nome ASC
+    `),
+    turso.execute(`
+      SELECT mr.id AS reserva_id, mr.evento_id, COALESCE(a.event_name, 'Evento') AS evento_nome,
+             COALESCE(a.event_date, '') AS evento_data, '' AS pack_nome, mr.reservado_por,
+             mr.material_id, mr.material_nome, COALESCE(NULLIF(mr.material_imagem,''), m.imagem, '') AS material_imagem,
+             mr.quantidade, COALESCE(m.local_habitual, mr.origem, 'Loja') AS local_habitual,
+             COALESCE(m.dono, 'LLE') AS dono_material
+      FROM material_reservas mr
+      LEFT JOIN agenda a ON a.id=mr.evento_id
+      LEFT JOIN materiais m ON m.id=mr.material_id
+      WHERE mr.ativo=1 AND (a.status IS NULL OR a.status!='Cancelado')
+        AND (a.event_date IS NULL OR date(a.event_date) >= date('now','-1 day'))
+      ORDER BY a.event_date ASC, mr.id ASC
+    `),
+    turso.execute(`
+      SELECT mm.id AS reserva_id, mm.evento_id, COALESCE(a.event_name, mm.evento, 'Evento') AS evento_nome,
+             COALESCE(a.event_date, '') AS evento_data, '' AS pack_nome, mm.responsavel AS reservado_por,
+             mm.material_id, mm.material_nome, COALESCE(NULLIF(mm.material_imagem,''), m.imagem, '') AS material_imagem,
+             mm.quantidade - COALESCE(mm.quantidade_devolvida,0) - COALESCE(mm.quantidade_consumida,0) AS quantidade,
+             COALESCE(m.local_habitual, mm.origem, 'Loja') AS local_habitual, COALESCE(m.dono, mm.dono_material, 'LLE') AS dono_material
+      FROM material_movimentos mm
+      LEFT JOIN agenda a ON a.id=mm.evento_id
+      LEFT JOIN materiais m ON m.id=mm.material_id
+      WHERE COALESCE(mm.saida_confirmada,1)=0
+        AND mm.quantidade > COALESCE(mm.quantidade_devolvida,0)+COALESCE(mm.quantidade_consumida,0)
+        AND (a.status IS NULL OR a.status!='Cancelado')
+      ORDER BY a.event_date ASC, mm.id ASC
     `),
   ]);
 
@@ -3964,46 +4179,49 @@ async function queryMateriaisInitialBundleFast() {
     actualByEventMaterial.set(key, (actualByEventMaterial.get(key) || 0) + pending);
   }
 
-  const reservas = (reservationsRes.rows as any[]).map((row: any) => {
+  const manualReservationRows = (manualReservationsRes.rows as any[]).map(row => ({ ...row, reserva_source: 'manual' }));
+  const legacyReservationRows = (legacyReservationsRes.rows as any[]).map(row => ({ ...row, reserva_source: 'legacy' }));
+  const legacyByEventMaterial = new Map<string, number>();
+  for (const row of legacyReservationRows) {
+    const key = `${Number(row.evento_id) || 0}||${normalizeValorMasterKey((row.material_nome as string) || '')}`;
+    legacyByEventMaterial.set(key, (legacyByEventMaterial.get(key) || 0) + (Number(row.quantidade) || 0));
+  }
+  const packReservationRows = (packReservationsRes.rows as any[]).map(row => {
+    const key = `${Number(row.evento_id) || 0}||${normalizeValorMasterKey((row.material_nome as string) || '')}`;
+    const legacyQty = legacyByEventMaterial.get(key) || 0;
+    const packQty = Number(row.quantidade) || 0;
+    const quantity = Math.max(0, packQty - legacyQty);
+    if (legacyQty > 0) legacyByEventMaterial.set(key, Math.max(0, legacyQty - packQty));
+    return { ...row, quantidade: quantity, reserva_id: 0, reserva_source: 'pack' };
+  }).filter(row => Number(row.quantidade) > 0);
+  const rawReservations = [...manualReservationRows, ...legacyReservationRows, ...packReservationRows];
+
+  const reservas = rawReservations.map((row: any) => {
     const eventId = Number(row.evento_id) || 0;
     const quantity = Number(row.quantidade) || 0;
     const key = `${eventId}||${normalizeValorMasterKey(row.material_nome)}`;
     const alreadyOut = actualByEventMaterial.get(key) || 0;
+    const deduct = Math.min(alreadyOut, quantity);
+    if (deduct > 0) actualByEventMaterial.set(key, alreadyOut - deduct);
     return {
-      evento_id: eventId,
-      evento_nome: (row.evento_nome as string) || 'Evento',
-      evento_data: (row.evento_data as string) || '',
-      pack_nome: (row.pack_nome as string) || '',
-      reservado_por: (row.reservado_por as string) || '',
-      material_id: Number(row.material_id) || 0,
-      material_nome: (row.material_nome as string) || '',
-      material_imagem: (row.material_imagem as string) || '',
-      quantidade: Math.max(0, quantity - alreadyOut),
-      local_habitual: (row.local_habitual as string) || 'Loja',
-      dono_material: (row.dono_material as string) || 'LLE',
+      reserva_id: Number(row.reserva_id) || 0,
+      reserva_source: row.reserva_source as 'manual' | 'legacy' | 'pack',
+      evento_id: eventId, evento_nome: (row.evento_nome as string) || 'Evento', evento_data: (row.evento_data as string) || '',
+      pack_nome: (row.pack_nome as string) || '', reservado_por: (row.reservado_por as string) || '',
+      material_id: Number(row.material_id) || 0, material_nome: (row.material_nome as string) || '',
+      material_imagem: (row.material_imagem as string) || '', quantidade: Math.max(0, quantity - deduct),
+      local_habitual: (row.local_habitual as string) || 'Loja', dono_material: (row.dono_material as string) || 'LLE',
     };
   }).filter((row: any) => row.quantidade > 0);
 
   const statsRow = (statsRes.rows[0] as any) || {};
-  const openUnits = movimentos.reduce((sum: number, mov: any) =>
-    sum + Math.max(0, mov.quantidade - mov.quantidade_devolvida - mov.quantidade_consumida), 0);
+  const openUnits = movimentos.reduce((sum: number, mov: any) => sum + Math.max(0, mov.quantidade - mov.quantidade_devolvida - mov.quantidade_consumida), 0);
   const reservedUnits = reservas.reduce((sum: number, row: any) => sum + row.quantidade, 0);
   const activeMaterials = Number(statsRow.ativos) || 0;
 
   return {
-    success: true,
-    movimentos,
-    reservas,
-    stats: {
-      activeMaterials,
-      totalUnits: Number(statsRow.unidades) || 0,
-      openRecords: movimentos.length,
-      openUnits,
-      reservedUnits,
-      historyCount: 0,
-      catalogCount: activeMaterials,
-      valuesCount: 0,
-    },
+    success: true, movimentos, reservas,
+    stats: { activeMaterials, totalUnits: Number(statsRow.unidades) || 0, openRecords: movimentos.length, openUnits, reservedUnits, historyCount: 0, catalogCount: activeMaterials, valuesCount: 0 },
   };
 }
 

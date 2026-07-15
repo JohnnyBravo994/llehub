@@ -11,6 +11,7 @@ import {
   createMaterial, updateMaterial, updateMaterialCompraStatus, toggleMaterialAtivo,
   registarSaidaMaterial, registarVoltaMaterial, deleteMovimentoMaterial,
   updateMaterialPackValues, getMateriaisInitialBundle, getMateriaisTabData, getMateriaisSaidaLookups, getMaterialById,
+  confirmarSaidaReservaEvento,
 } from "../actions";
 
 interface Material {
@@ -40,6 +41,8 @@ interface Movimento {
 interface EventoOpcao { id: number; title: string; date: string; }
 
 interface ReservaMaterial {
+  reserva_id: number;
+  reserva_source: "manual" | "legacy" | "pack";
   evento_id: number;
   evento_nome: string;
   evento_data: string;
@@ -224,6 +227,7 @@ export default function MateriaisPage() {
 
   const [saidaModal, setSaidaModal] = useState(false);
   const [saidaForm, setSaidaForm] = useState(emptySaidaForm);
+  const [saidaReserva, setSaidaReserva] = useState<ReservaMaterial | null>(null);
 
   const [materialModal, setMaterialModal] = useState<{ open: boolean; editing: Material | null }>({ open: false, editing: null });
   const [materialForm, setMaterialForm] = useState(emptyMaterialForm);
@@ -358,6 +362,7 @@ export default function MateriaisPage() {
 
     const local = reserva?.local_habitual || selected.local_habitual || "Loja";
     const origemConhecida = ORIGENS.includes(local);
+    setSaidaReserva(reserva || null);
     setSaidaForm({
       ...emptySaidaForm,
       material_id: selected.id,
@@ -372,7 +377,7 @@ export default function MateriaisPage() {
     });
     setSaidaModal(true);
   };
-  const closeSaida = () => setSaidaModal(false);
+  const closeSaida = () => { setSaidaModal(false); setSaidaReserva(null); };
 
   const handleRegistarSaida = async () => {
     const mat = materiais.find(m => m.id === saidaForm.material_id);
@@ -382,14 +387,27 @@ export default function MateriaisPage() {
     const isPessoal = saidaForm.evento_sel === SEL_PESSOAL;
     const eventoSelecionado = isPessoal ? null : eventos.find(e => String(e.id) === saidaForm.evento_sel) || null;
     setSaving(true);
-    await registarSaidaMaterial({
-      material_id: mat.id, material_nome: mat.nome, material_imagem: mat.imagem,
-      quantidade: saidaForm.quantidade, origem: saidaForm.origem, origem_detalhe: saidaForm.origem_detalhe,
-      dono_material: mat.dono || "LLE", quem_levou: saidaForm.quem_levou || userName,
-      evento: isPessoal ? PESSOAL : (eventoSelecionado?.title || saidaForm.evento || ""),
-      evento_id: isPessoal ? null : (eventoSelecionado?.id ?? saidaForm.evento_id ?? null),
-      responsavel: userName, notas: saidaForm.notas,
-    });
+    if (saidaReserva && (saidaReserva.reserva_source === "manual" || saidaReserva.reserva_source === "legacy")) {
+      await confirmarSaidaReservaEvento({
+        id: saidaReserva.reserva_id,
+        source: saidaReserva.reserva_source,
+        quantidade: saidaForm.quantidade,
+        origem: saidaForm.origem,
+        origem_detalhe: saidaForm.origem_detalhe,
+        quem_levou: saidaForm.quem_levou || userName,
+        responsavel: userName,
+        notas: saidaForm.notas,
+      });
+    } else {
+      await registarSaidaMaterial({
+        material_id: mat.id, material_nome: mat.nome, material_imagem: mat.imagem,
+        quantidade: saidaForm.quantidade, origem: saidaForm.origem, origem_detalhe: saidaForm.origem_detalhe,
+        dono_material: mat.dono || "LLE", quem_levou: saidaForm.quem_levou || userName,
+        evento: isPessoal ? PESSOAL : (eventoSelecionado?.title || saidaForm.evento || ""),
+        evento_id: isPessoal ? null : (eventoSelecionado?.id ?? saidaForm.evento_id ?? null),
+        responsavel: userName, notas: saidaForm.notas,
+      });
+    }
     showToast(`Saída registada: ${mat.nome}`);
     closeSaida();
     await refreshAfterMovement();
