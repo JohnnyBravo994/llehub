@@ -10,14 +10,21 @@ import { useRouter } from "next/navigation";
 import {
   getAllMateriais, createMaterial, updateMaterial, updateMaterialCompraStatus, toggleMaterialAtivo,
   getMovimentosMateriais, registarSaidaMaterial, registarVoltaMaterial, deleteMovimentoMaterial,
-  setupMateriais, getEventosParaMateriais, getMateriaisPageBundle,
+  setupMateriais, getEventosParaMateriais, getMateriaisPageBundle, updateMaterialPackValues,
 } from "../actions";
 
 interface Material {
   id: number; nome: string; categoria: string; imagem: string;
   quantidade_total: number; dono: string; local_habitual: string; consumivel: number;
   stock_minimo: number; precisa_comprar: number; motivo_compra: string; quantidade_comprar: number; notas_compra: string;
+  duracao_formato: string; custo_interno: number; valor_parceiro: number; valor_sud: number; valor_cliente_final: number;
   notas: string; ativo: number;
+}
+
+interface MaterialPack {
+  id: number; nome: string; descricao: string; duracao_formato: string;
+  custo_interno: number; valor_parceiro: number; valor_sud: number; valor_cliente_final: number; valor_referencia: number; ativo: number;
+  items: { id: number; material_nome: string; quantidade: number; categoria: string; notas: string }[];
 }
 
 interface Movimento {
@@ -55,7 +62,7 @@ const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
 const CATEGORIAS = ["Som", "Luz", "DJ / Cabine", "Microfones", "Estrutura", "Decoração", "Roupa", "Outro"];
 const ORIGENS = ["Loja", "João", "Annia", "Tânia", "Fornecedor", "Outro"];
 
-const emptyMaterialForm = { nome: "", categoria: "", imagem: "", quantidade_total: 1, dono: "LLE", local_habitual: "Loja", consumivel: 0, stock_minimo: 0, precisa_comprar: 0, motivo_compra: "", quantidade_comprar: 0, notas_compra: "", notas: "" };
+const emptyMaterialForm = { nome: "", categoria: "", imagem: "", quantidade_total: 1, dono: "LLE", local_habitual: "Loja", consumivel: 0, stock_minimo: 0, precisa_comprar: 0, motivo_compra: "", quantidade_comprar: 0, notas_compra: "", duracao_formato: "", custo_interno: 0, valor_parceiro: 0, valor_sud: 0, valor_cliente_final: 0, notas: "" };
 const emptySaidaForm = { material_id: 0, quantidade: 1, origem: "Loja", origem_detalhe: "", quem_levou: "", evento_sel: SEL_PESSOAL, evento: "", evento_id: null as number | null, notas: "" };
 
 function fmtDateTime(s: string) {
@@ -153,8 +160,11 @@ export default function MateriaisPage() {
   const [materiais, setMateriais] = useState<Material[]>([]);
   const [movimentos, setMovimentos] = useState<Movimento[]>([]);
   const [eventos, setEventos] = useState<EventoOpcao[]>([]);
+  const [packs, setPacks] = useState<MaterialPack[]>([]);
+  const [packDrafts, setPackDrafts] = useState<Record<number, { duracao_formato: string; custo_interno: string; valor_parceiro: string; valor_sud: string; valor_cliente_final: string }>>({});
+  const [packSavingId, setPackSavingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"fora" | "historico" | "catalogo">("fora");
+  const [tab, setTab] = useState<"fora" | "historico" | "catalogo" | "valores">("fora");
   const [toast, setToast] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -178,9 +188,19 @@ export default function MateriaisPage() {
       const mr = bundle.materiais;
       const movr = bundle.movimentos;
       const evr = bundle.eventos;
+      const pr = bundle.packs;
       if (mr?.success) setMateriais(mr.data as Material[]);
       if (movr?.success) setMovimentos(movr.data as Movimento[]);
       if (evr?.success) setEventos(evr.data as EventoOpcao[]);
+      if (pr?.success) {
+        const data = pr.data as MaterialPack[];
+        setPacks(data);
+        setPackDrafts(Object.fromEntries(data.map(pack => [pack.id, {
+          duracao_formato: pack.duracao_formato || "", custo_interno: String(pack.custo_interno || ""),
+          valor_parceiro: String(pack.valor_parceiro || ""), valor_sud: String(pack.valor_sud || ""),
+          valor_cliente_final: String(pack.valor_cliente_final || pack.valor_referencia || ""),
+        }])));
+      }
     }
     setLoading(false);
   }, []);
@@ -287,7 +307,7 @@ export default function MateriaisPage() {
   // ── Catálogo ───────────────────────────────────────────────────────────
   const openCreateMaterial = () => { setMaterialForm(emptyMaterialForm); setMaterialModal({ open: true, editing: null }); };
   const openEditMaterial = (m: Material) => {
-    setMaterialForm({ nome: m.nome, categoria: m.categoria, imagem: m.imagem, quantidade_total: m.quantidade_total, dono: m.dono || "LLE", local_habitual: m.local_habitual || "Loja", consumivel: m.consumivel || 0, stock_minimo: m.stock_minimo || 0, precisa_comprar: m.precisa_comprar || 0, motivo_compra: m.motivo_compra || "", quantidade_comprar: m.quantidade_comprar || 0, notas_compra: m.notas_compra || "", notas: m.notas });
+    setMaterialForm({ nome: m.nome, categoria: m.categoria, imagem: m.imagem, quantidade_total: m.quantidade_total, dono: m.dono || "LLE", local_habitual: m.local_habitual || "Loja", consumivel: m.consumivel || 0, stock_minimo: m.stock_minimo || 0, precisa_comprar: m.precisa_comprar || 0, motivo_compra: m.motivo_compra || "", quantidade_comprar: m.quantidade_comprar || 0, notas_compra: m.notas_compra || "", duracao_formato: m.duracao_formato || "", custo_interno: m.custo_interno || 0, valor_parceiro: m.valor_parceiro || 0, valor_sud: m.valor_sud || 0, valor_cliente_final: m.valor_cliente_final || 0, notas: m.notas });
     setMaterialModal({ open: true, editing: m });
   };
   const closeMaterialModal = () => setMaterialModal({ open: false, editing: null });
@@ -337,6 +357,21 @@ export default function MateriaisPage() {
     await load();
   };
 
+  const updatePackDraft = (id: number, field: string, value: string) => setPackDrafts(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+  const toPrice = (value: string) => Number(String(value || "").replace(",", ".")) || 0;
+  const savePackValues = async (pack: MaterialPack) => {
+    const draft = packDrafts[pack.id];
+    if (!draft) return;
+    setPackSavingId(pack.id);
+    const result = await updateMaterialPackValues(pack.id, {
+      duracao_formato: draft.duracao_formato, custo_interno: toPrice(draft.custo_interno), valor_parceiro: toPrice(draft.valor_parceiro),
+      valor_sud: toPrice(draft.valor_sud), valor_cliente_final: toPrice(draft.valor_cliente_final),
+    });
+    showToast(result.success ? "Valores do pack atualizados" : "Erro ao atualizar valores");
+    await load();
+    setPackSavingId(null);
+  };
+
   // ── Styles ─────────────────────────────────────────────────────────────
   const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
   const overlayBottomStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)" };
@@ -356,13 +391,13 @@ export default function MateriaisPage() {
     );
   }
 
-  const TabBtn = ({ id, label, count }: { id: "fora" | "historico" | "catalogo"; label: string; count?: number }) => (
+  const TabBtn = ({ id, label, count }: { id: "fora" | "historico" | "catalogo" | "valores"; label: string; count?: number }) => (
     <button onClick={() => setTab(id)} style={{
       background: tab === id ? "rgba(var(--theme-accent-rgb),0.1)" : "transparent",
       border: "none", borderBottom: tab === id ? `2px solid ${C.gold}` : "2px solid transparent",
       color: tab === id ? C.gold : C.textSec, fontSize: "9px", letterSpacing: "0.25em", fontWeight: 600,
       padding: "0.85rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase",
-      display: "flex", alignItems: "center", gap: "6px",
+      display: "flex", alignItems: "center", gap: "6px", flexShrink: 0,
     }}>
       {label}{typeof count === "number" && <span style={{ background: tab === id ? "rgba(var(--theme-accent-rgb),0.2)" : "rgba(var(--theme-contrast-rgb),0.06)", color: tab === id ? C.gold : C.textMuted, fontSize: "9px", padding: "1px 6px", borderRadius: "8px" }}>{count}</span>}
     </button>
@@ -409,6 +444,7 @@ export default function MateriaisPage() {
           <TabBtn id="fora" label="Fora" count={movimentosAbertos.length} />
           <TabBtn id="historico" label="Histórico" count={movimentosFechados.length} />
           <TabBtn id="catalogo" label="Catálogo" count={materiaisAtivos.length} />
+          <TabBtn id="valores" label="Valores" count={packs.length + materiaisAtivos.length} />
         </div>
 
         {tab === "fora" && (
@@ -549,6 +585,47 @@ export default function MateriaisPage() {
             {materiaisAtivos.length === 0 && <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "3rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem material no catálogo — cria o primeiro</div>}
           </div>
         )}
+
+        {tab === "valores" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+            <section>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <div style={{ fontSize: "9px", letterSpacing: "0.3em", color: C.gold, textTransform: "uppercase", fontWeight: 700 }}>Packs e sistemas</div>
+                <div style={{ fontSize: "10px", color: C.textMuted, marginTop: "0.3rem" }}>Som, AV e packs comerciais são geridos aqui e deixam de aparecer na Master de Valores.</div>
+              </div>
+              <div style={{ background: C.surface, border: `1px solid ${C.borderDim}` }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1.2fr repeat(4, 110px) 90px", gap: "8px", padding: "0.7rem 0.9rem", borderBottom: `1px solid ${C.border}`, fontSize: "7px", letterSpacing: "0.18em", color: C.textMuted, textTransform: "uppercase" }}>
+                  <span>Pack</span><span>Formato</span><span style={{ textAlign: "right" }}>Custo</span><span style={{ textAlign: "right" }}>Parceiro</span><span style={{ textAlign: "right" }}>SUD</span><span style={{ textAlign: "right" }}>Cliente</span><span />
+                </div>
+                {packs.map(pack => { const draft = packDrafts[pack.id]; return (
+                  <div key={pack.id} style={{ display: "grid", gridTemplateColumns: "1.3fr 1.2fr repeat(4, 110px) 90px", gap: "8px", alignItems: "center", padding: "0.75rem 0.9rem", borderBottom: `1px solid ${C.borderDim}` }}>
+                    <div><div style={{ fontSize: "11px", fontWeight: 700 }}>{pack.nome}</div><div style={{ fontSize: "8px", color: C.textMuted, marginTop: "2px" }}>{pack.items?.length || 0} itens</div></div>
+                    <input value={draft?.duracao_formato || ""} onChange={e => updatePackDraft(pack.id, "duracao_formato", e.target.value)} style={{ ...inputStyle, fontSize: "10px", padding: "0.55rem" }} placeholder="Formato" />
+                    {(["custo_interno", "valor_parceiro", "valor_sud", "valor_cliente_final"] as const).map(field => <input key={field} value={draft?.[field] || ""} onChange={e => updatePackDraft(pack.id, field, e.target.value)} inputMode="decimal" style={{ ...inputStyle, fontSize: "10px", padding: "0.55rem", textAlign: "right" }} placeholder="0" />)}
+                    <button onClick={() => savePackValues(pack)} disabled={packSavingId === pack.id} style={{ ...btnSecStyle, padding: "0.55rem 0.6rem", fontSize: "8px" }}>{packSavingId === pack.id ? "..." : "Guardar"}</button>
+                  </div>
+                ); })}
+              </div>
+            </section>
+
+            <section>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <div style={{ fontSize: "9px", letterSpacing: "0.3em", color: C.gold, textTransform: "uppercase", fontWeight: 700 }}>Equipamento avulso</div>
+                <div style={{ fontSize: "10px", color: C.textMuted, marginTop: "0.3rem" }}>Os preços ficam na própria ficha do material.</div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: "0.75rem" }}>
+                {materiaisAtivos.map(material => (
+                  <div key={material.id} style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "0.9rem" }}>
+                    <div style={{ display: "flex", gap: "0.7rem", alignItems: "center" }}><MaterialThumb src={material.imagem} size={38} /><div style={{ flex: 1 }}><div style={{ fontSize: "11px", fontWeight: 700 }}>{material.nome}</div><div style={{ fontSize: "9px", color: C.textMuted }}>{material.duracao_formato || material.categoria || "Equipamento"}</div></div><button onClick={() => openEditMaterial(material)} style={{ ...btnSecStyle, padding: "0.45rem 0.6rem", fontSize: "8px" }}>Editar</button></div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "0.45rem", marginTop: "0.75rem" }}>
+                      {[ ["Custo", material.custo_interno], ["Parceiro", material.valor_parceiro], ["SUD", material.valor_sud], ["Cliente", material.valor_cliente_final] ].map(([label,value]) => <div key={String(label)}><div style={{ fontSize: "7px", color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>{label}</div><div style={{ fontSize: "11px", fontWeight: 700, marginTop: "2px" }}>{Number(value) ? `${Number(value).toLocaleString("pt-PT")}€` : "—"}</div></div>)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        )}
       </main>
     </div>
 
@@ -562,10 +639,11 @@ export default function MateriaisPage() {
         </div>
       </div>
 
-      <div style={{ display: "flex", borderBottom: "1px solid var(--theme-border)", flexShrink: 0 }}>
+      <div style={{ display: "flex", borderBottom: "1px solid var(--theme-border)", flexShrink: 0, overflowX: "auto" }}>
         <TabBtn id="fora" label="Fora" count={movimentosAbertos.length} />
         <TabBtn id="historico" label="Histórico" count={movimentosFechados.length} />
         <TabBtn id="catalogo" label="Catálogo" count={materiaisAtivos.length} />
+        <TabBtn id="valores" label="Valores" count={packs.length + materiaisAtivos.length} />
       </div>
 
       {tab === "fora" && (
@@ -649,6 +727,30 @@ export default function MateriaisPage() {
           );
         })}
         {tab === "catalogo" && materiaisAtivos.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "var(--theme-text-faint)", letterSpacing: "0.2em" }}>Sem material — cria o primeiro</div>}
+
+        {tab === "valores" && (
+          <div>
+            <div style={{ padding: "0.85rem 1.1rem", background: "rgba(var(--theme-accent-rgb),0.05)", borderBottom: "1px solid var(--theme-border)", fontSize: "9px", letterSpacing: "0.2em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 700 }}>Packs e sistemas</div>
+            {packs.map(pack => { const draft = packDrafts[pack.id]; return (
+              <div key={pack.id} style={{ padding: "1rem 1.1rem", borderBottom: "1px solid var(--theme-border)" }}>
+                <div style={{ fontSize: "13px", fontWeight: 700 }}>{pack.nome}</div>
+                <input value={draft?.duracao_formato || ""} onChange={e => updatePackDraft(pack.id, "duracao_formato", e.target.value)} style={{ ...inputStyle, marginTop: "0.6rem" }} placeholder="Formato" />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.55rem", marginTop: "0.55rem" }}>
+                  {([ ["custo_interno", "Custo"], ["valor_parceiro", "Parceiro"], ["valor_sud", "SUD"], ["valor_cliente_final", "Cliente"] ] as const).map(([field,label]) => <label key={field}><span style={{ display: "block", fontSize: "7px", color: "var(--theme-text-faint)", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "3px" }}>{label}</span><input value={draft?.[field] || ""} onChange={e => updatePackDraft(pack.id, field, e.target.value)} inputMode="decimal" style={{ ...inputStyle, textAlign: "right" }} placeholder="0" /></label>)}
+                </div>
+                <button onClick={() => savePackValues(pack)} disabled={packSavingId === pack.id} style={{ ...btnPrimStyle, width: "100%", marginTop: "0.65rem", padding: "0.65rem" }}>{packSavingId === pack.id ? "A guardar..." : "Guardar valores"}</button>
+              </div>
+            ); })}
+            <div style={{ padding: "0.85rem 1.1rem", background: "rgba(var(--theme-accent-rgb),0.05)", borderBottom: "1px solid var(--theme-border)", fontSize: "9px", letterSpacing: "0.2em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 700 }}>Equipamento avulso</div>
+            {materiaisAtivos.map(material => (
+              <div key={material.id} style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", display: "flex", gap: "0.7rem", alignItems: "center" }}>
+                <MaterialThumb src={material.imagem} size={40} />
+                <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: "12px", fontWeight: 700 }}>{material.nome}</div><div style={{ fontSize: "9px", color: "var(--theme-text-muted)", marginTop: "3px" }}>C {material.custo_interno || "—"}€ · P {material.valor_parceiro || "—"}€ · SUD {material.valor_sud || "—"}€ · Final {material.valor_cliente_final || "—"}€</div></div>
+                <button onClick={() => openEditMaterial(material)} style={{ background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-muted)", fontSize: "10px", padding: "7px 9px", cursor: "pointer" }}>✏️</button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* FABs mobile */}
@@ -656,7 +758,7 @@ export default function MateriaisPage() {
         {tab === "catalogo" && (
           <button onClick={openCreateMaterial} style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.3)", color: "var(--theme-accent)", width: "44px", height: "44px", borderRadius: "50%", fontSize: "20px", cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.5)" }}>+</button>
         )}
-        <button onClick={() => openSaida()} style={{ background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", width: "50px", height: "50px", borderRadius: "50%", fontSize: "22px", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.5)" }}>↗</button>
+        {tab !== "valores" && <button onClick={() => openSaida()} style={{ background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", width: "50px", height: "50px", borderRadius: "50%", fontSize: "22px", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.5)" }}>↗</button>}
       </div>
 
       <MobTabBar active="materiais" role={userRole} lightTheme={lightTheme} />
@@ -935,41 +1037,25 @@ function MaterialModalContent({ materialForm, setMaterialForm, materialModal, sa
         )}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
-        <div>
-          <label style={labelStyle}>Dono do material</label>
-          <input style={inputStyle} value={materialForm.dono} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, dono: e.target.value }))} placeholder="LLE / João / Tânia / Alugado..." />
+      <div style={{ marginBottom: "1.25rem", padding: "0.9rem", border: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-contrast-rgb),0.02)" }}>
+        <p style={{ fontSize: "8px", letterSpacing: "0.3em", color: C.goldDim, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.85rem" }}>Valores do material</p>
+        <div style={{ marginBottom: "0.8rem" }}>
+          <label style={labelStyle}>Duração / formato</label>
+          <input style={inputStyle} value={materialForm.duracao_formato} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, duracao_formato: e.target.value }))} placeholder="Ex: por evento, até 4h, unidade..." />
         </div>
-        <div>
-          <label style={labelStyle}>Local habitual</label>
-          <input style={inputStyle} value={materialForm.local_habitual} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, local_habitual: e.target.value }))} placeholder="Loja / casa João / SUD..." />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.75rem" }}>
+          {[
+            ["Custo interno", "custo_interno"],
+            ["Parceiro", "valor_parceiro"],
+            ["SUD", "valor_sud"],
+            ["Cliente final", "valor_cliente_final"],
+          ].map(([label, field]) => (
+            <div key={field}>
+              <label style={labelStyle}>{label}</label>
+              <input type="number" min={0} step="0.01" inputMode="decimal" style={inputStyle} value={materialForm[field] ?? 0} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, [field]: Number(String(e.target.value).replace(",", ".")) || 0 }))} />
+            </div>
+          ))}
         </div>
-      </div>
-
-      <div style={{ marginBottom: "1rem", padding: "0.75rem", border: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-contrast-rgb),0.02)" }}>
-        <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", marginBottom: "0.75rem" }}>
-          <input type="checkbox" checked={materialForm.consumivel === 1} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, consumivel: e.target.checked ? 1 : 0 }))} />
-          Material consumível
-        </label>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-          <div>
-            <label style={labelStyle}>Stock mínimo</label>
-            <input type="number" min={0} style={inputStyle} value={materialForm.stock_minimo} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, stock_minimo: Math.max(0, Number(e.target.value) || 0) }))} />
-          </div>
-          <div>
-            <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", marginTop: "1.4rem" }}>
-              <input type="checkbox" checked={materialForm.precisa_comprar === 1} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, precisa_comprar: e.target.checked ? 1 : 0 }))} />
-              Precisa comprar
-            </label>
-          </div>
-        </div>
-        {materialForm.precisa_comprar === 1 && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.75rem" }}>
-            <input style={inputStyle} placeholder="Motivo" value={materialForm.motivo_compra} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, motivo_compra: e.target.value }))} />
-            <input type="number" min={0} style={inputStyle} placeholder="Qtd comprar" value={materialForm.quantidade_comprar} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, quantidade_comprar: Math.max(0, Number(e.target.value) || 0) }))} />
-            <textarea style={{ ...inputStyle, gridColumn: "1 / -1", height: "54px", resize: "vertical" as any }} placeholder="Notas de compra" value={materialForm.notas_compra} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, notas_compra: e.target.value }))} />
-          </div>
-        )}
       </div>
 
       <div style={{ marginBottom: "1.5rem" }}>

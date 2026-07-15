@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@libsql/client";
-import { ARTIST_TIPOS, SERVICOS_VENDIDOS } from "./constants";
+import { ARTIST_TIPOS, SERVICOS_VENDIDOS, isMaterialValueService, isMaterialEquipmentService } from "./constants";
 
 const turso = createClient({
   url: process.env.TURSO_DATABASE_URL!,
@@ -194,7 +194,7 @@ type ConsolidatedValorMasterSeed = ValorMasterSeed & { valor_sud: number };
 function consolidatedValoresMasterSeeds(): ConsolidatedValorMasterSeed[] {
   const grouped = new Map<string, ConsolidatedValorMasterSeed>();
   for (const seed of DEFAULT_VALORES_MASTER) {
-    if (seed.contexto === "Residência") continue;
+    if (seed.contexto === "Residência" || isMaterialValueService(seed.servico)) continue;
     const key = `${seed.servico.trim().toLowerCase()}||${seed.duracao_formato.trim().toLowerCase()}`;
     if (seed.contexto === "SUD") {
       const current = grouped.get(key);
@@ -243,6 +243,15 @@ async function markMigration(chave: string) {
 
 function normalizeValorMasterKey(value: unknown) {
   return String(value || '').trim().toLocaleLowerCase('pt-PT');
+}
+
+function isResidenceValorRow(row: any) {
+  const context = normalizeValorMasterKey(row?.contexto);
+  return context === 'residência' || context === 'residencia' || context === 'evento residência' || context === 'evento residencia';
+}
+
+function isGeneralValorMasterRow(row: any) {
+  return !isResidenceValorRow(row) && !isMaterialValueService(String(row?.servico || ''));
 }
 
 function valorMasterContextKind(row: any) {
@@ -375,6 +384,7 @@ async function ensureValoresMasterTable() {
 
       // Só corre uma vez na base de dados, em vez de dezenas de queries em cada cold start.
       for (const servico of SERVICOS_VENDIDOS) {
+        if (isMaterialValueService(servico)) continue;
         const exists = await turso.execute({
           sql: "SELECT id FROM valores_master WHERE LOWER(TRIM(servico)) = LOWER(TRIM(?)) AND merged_into_id IS NULL LIMIT 1",
           args: [servico],
@@ -391,6 +401,9 @@ async function ensureValoresMasterTable() {
       await consolidateExistingValoresMasterRows();
       await markMigration(migrationKey);
     }
+
+    // Valores de material e residência pertencem aos respetivos módulos, não à Master geral.
+    await migrateSeparatedModuleValues();
   })();
   try {
     await g.__lle_ensure_valores_master_promise;
@@ -2011,6 +2024,7 @@ export async function getAllValoresFuncoes() {
       const seen = new Set<string>();
       const data: { id: number; funcao: string; custo_padrao: number; valor_cliente_padrao: number; notas: string; ativo: number }[] = [];
       for (const r of master.rows as any[]) {
+        if (!isGeneralValorMasterRow(r)) continue;
         const servico = ((r.servico as string) || '').trim();
         const key = servico.toLowerCase();
         if (!servico || seen.has(key)) continue;
@@ -2104,24 +2118,42 @@ export async function getAllValoresMaster() {
     await ensureValoresMasterTable();
     const res = await turso.execute(`
       SELECT * FROM valores_master
+      WHERE merged_into_id IS NULL
       ORDER BY ativo DESC, COALESCE(NULLIF(cliente_nome, ''), 'zzzz') ASC, servico ASC, contexto ASC, duracao_formato ASC, id ASC
     `);
-    return {
-      success: true,
-      data: res.rows.map((r: any) => ({
-        id: Number(r.id),
-        servico: (r.servico as string) || '',
-        duracao_formato: (r.duracao_formato as string) || '',
-        contexto: (r.contexto as string) || 'Normal',
-        cliente_nome: (r.cliente_nome as string) || '',
-        custo_interno: Number(r.custo_interno || 0),
-        valor_parceiro: Number(r.valor_parceiro || 0),
-        valor_sud: Number(r.valor_sud || 0),
-        valor_cliente_final: Number(r.valor_cliente_final || 0),
-        notas: (r.notas as string) || '',
-        ativo: r.ativo === 1 || r.ativo === true ? 1 : 0,
-      })),
-    };
+    const general = (res.rows as any[]).filter(isGeneralValorMasterRow).map((r: any) => ({
+      id: Number(r.id),
+      servico: (r.servico as string) || '',
+      duracao_formato: (r.duracao_formato as string) || '',
+      contexto: (r.contexto as string) || 'Normal',
+      cliente_nome: (r.cliente_nome as string) || '',
+      custo_interno: Number(r.custo_interno || 0),
+      valor_parceiro: Number(r.valor_parceiro || 0),
+      valor_sud: Number(r.valor_sud || 0),
+      valor_cliente_final: Number(r.valor_cliente_final || 0),
+      notas: (r.notas as string) || '',
+      ativo: r.ativo === 1 || r.ativo === true ? 1 : 0,
+      source: 'valores',
+    }));
+
+    // Agenda/Leads recebem uma vista unificada, mas os preços continuam guardados no módulo Materiais.
+    const [materialsResult, packsResult] = await Promise.all([getAllMateriais(), getAllMaterialPacks()]);
+    const equipment = materialsResult.success ? (materialsResult.data as any[])
+      .filter(row => row.ativo === 1 && isMaterialValueService(String(row.nome || '')))
+      .map(row => ({
+        id: -1000000 - Number(row.id), servico: row.nome || '', duracao_formato: row.duracao_formato || '', contexto: 'Normal', cliente_nome: '',
+        custo_interno: Number(row.custo_interno || 0), valor_parceiro: Number(row.valor_parceiro || 0), valor_sud: Number(row.valor_sud || 0),
+        valor_cliente_final: Number(row.valor_cliente_final || 0), notas: row.notas || 'Materiais · equipamento avulso', ativo: 1, source: 'materiais',
+      })) : [];
+    const packs = packsResult.success ? (packsResult.data as any[])
+      .filter(row => row.ativo === 1 && isMaterialValueService(String(row.nome || '')))
+      .map(row => ({
+        id: -2000000 - Number(row.id), servico: row.nome || '', duracao_formato: row.duracao_formato || '', contexto: 'Normal', cliente_nome: '',
+        custo_interno: Number(row.custo_interno || 0), valor_parceiro: Number(row.valor_parceiro || 0), valor_sud: Number(row.valor_sud || 0),
+        valor_cliente_final: Number(row.valor_cliente_final || row.valor_referencia || 0), notas: row.descricao || 'Materiais · pack', ativo: 1, source: 'materiais',
+      })) : [];
+
+    return { success: true, data: [...general, ...packs, ...equipment] };
   } catch (error) {
     console.error("Erro getAllValoresMaster:", error);
     return { success: false, data: [] };
@@ -2139,7 +2171,7 @@ export async function getValoresMasterTable() {
     `);
     return {
       success: true,
-      data: res.rows.map((r: any) => ({
+      data: (res.rows as any[]).filter(isGeneralValorMasterRow).map((r: any) => ({
         id: Number(r.id),
         servico: (r.servico as string) || '',
         duracao_formato: (r.duracao_formato as string) || '',
@@ -2164,6 +2196,7 @@ export async function createValorMaster(data: {
   custo_interno?: number; valor_parceiro?: number; valor_sud?: number; valor_cliente_final?: number; notas?: string; ativo?: number;
 }) {
   try {
+    if (isMaterialValueService(data.servico)) return { success: false, message: "Os valores de material são geridos em Materiais." };
     await ensureValoresMasterTable();
     await turso.execute({
       sql: "INSERT INTO valores_master (servico, duracao_formato, contexto, cliente_nome, custo_interno, valor_parceiro, valor_sud, valor_cliente_final, notas, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -2182,6 +2215,7 @@ export async function updateValorMaster(id: number, data: {
   custo_interno?: number; valor_parceiro?: number; valor_sud?: number; valor_cliente_final?: number; notas?: string; ativo?: number;
 }) {
   try {
+    if (isMaterialValueService(data.servico)) return { success: false, message: "Os valores de material são geridos em Materiais." };
     await ensureValoresMasterTable();
     await turso.execute({
       sql: "UPDATE valores_master SET servico=?, duracao_formato=?, contexto=?, cliente_nome=?, custo_interno=?, valor_parceiro=?, valor_sud=?, valor_cliente_final=?, notas=?, ativo=? WHERE id=?",
@@ -2232,7 +2266,7 @@ export async function getServicosPorCriarNaMaster(): Promise<{ success: boolean;
     `);
     return {
       success: true,
-      data: res.rows.map((r: any) => ({
+      data: (res.rows as any[]).filter((r: any) => !isMaterialValueService(String(r.servico || ''))).map((r: any) => ({
         servico: (r.servico as string) || '',
         total: Number(r.total || 0),
         primeira_data: (r.primeira_data as string) || '',
@@ -2251,6 +2285,7 @@ export async function criarValorMasterAPartirServico(servico: string, custoInter
     await ensureValoresMasterTable();
     const nome = (servico || '').trim();
     if (!nome) return { success: false, message: "Serviço obrigatório." };
+    if (isMaterialValueService(nome)) return { success: false, message: "Este valor deve ser criado em Materiais." };
     const exists = await turso.execute({
       sql: "SELECT id FROM valores_master WHERE LOWER(TRIM(servico)) = LOWER(TRIM(?)) LIMIT 1",
       args: [nome],
@@ -2546,6 +2581,11 @@ type MaterialPackSeed = {
   nome: string;
   descricao: string;
   valor_referencia: number;
+  duracao_formato?: string;
+  custo_interno?: number;
+  valor_parceiro?: number;
+  valor_sud?: number;
+  valor_cliente_final?: number;
   items: { material_nome: string; categoria: string; quantidade: number; notas?: string }[];
   servicos: { servico: string; duracao_formato?: string; contexto?: string; notas?: string }[];
 };
@@ -2555,6 +2595,8 @@ const DEFAULT_MATERIAL_PACKS: MaterialPackSeed[] = [
     nome: "DJ Basic",
     descricao: "Pack incluído quando vendemos DJ todo o dia ou formato DJ com AV básico.",
     valor_referencia: 680,
+    duracao_formato: "1 PA + mesa + booth + DDJ-400 + 2 micros",
+    custo_interno: 0, valor_parceiro: 370, valor_sud: 0, valor_cliente_final: 680,
     items: [
       { material_nome: '1 PA Mackie Thump 212 12"', categoria: "Som", quantidade: 1, notas: "1 PA = 2 colunas" },
       { material_nome: "Mixer Behringer Xenyx 1202SFX", categoria: "Som", quantidade: 1 },
@@ -2569,9 +2611,11 @@ const DEFAULT_MATERIAL_PACKS: MaterialPackSeed[] = [
     ],
   },
   {
-    nome: "AVs Basic",
+    nome: "AV Base",
     descricao: "Pack de AV básico para banda/voz com AVs incluídos.",
     valor_referencia: 500,
+    duracao_formato: "PA + luz base",
+    custo_interno: 175, valor_parceiro: 300, valor_sud: 0, valor_cliente_final: 500,
     items: [
       { material_nome: '1 PA Mackie Thump 212 12"', categoria: "Som", quantidade: 1, notas: "1 PA = 2 colunas" },
       { material_nome: "Mixer Behringer Xenyx 1202SFX", categoria: "Som", quantidade: 1 },
@@ -2598,6 +2642,11 @@ async function ensureMaterialPacksTables() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nome TEXT NOT NULL UNIQUE,
       descricao TEXT DEFAULT '',
+      duracao_formato TEXT DEFAULT '',
+      custo_interno REAL NOT NULL DEFAULT 0,
+      valor_parceiro REAL NOT NULL DEFAULT 0,
+      valor_sud REAL NOT NULL DEFAULT 0,
+      valor_cliente_final REAL NOT NULL DEFAULT 0,
       valor_referencia REAL NOT NULL DEFAULT 0,
       ativo INTEGER DEFAULT 1,
       created_at TEXT DEFAULT (datetime('now'))
@@ -2644,6 +2693,16 @@ async function ensureMaterialPacksTables() {
     )
   `);
   try { await turso.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_material_pack_reserva_evento_pack ON material_pack_reservas(evento_id, pack_id)"); } catch { }
+  const packValueCols = [
+    "duracao_formato TEXT DEFAULT ''",
+    "custo_interno REAL NOT NULL DEFAULT 0",
+    "valor_parceiro REAL NOT NULL DEFAULT 0",
+    "valor_sud REAL NOT NULL DEFAULT 0",
+    "valor_cliente_final REAL NOT NULL DEFAULT 0",
+  ];
+  for (const col of packValueCols) {
+    try { await turso.execute(`ALTER TABLE material_packs ADD COLUMN ${col}`); } catch { }
+  }
 }
 
 async function getOrCreateMaterialByName(nome: string, categoria = "Outro") {
@@ -2673,14 +2732,29 @@ async function seedMaterialPacks() {
   if (g.__lle_seed_material_packs_promise) return g.__lle_seed_material_packs_promise;
   g.__lle_seed_material_packs_promise = (async () => {
   await ensureMaterialPacksTables();
+  const avBaseExists = await turso.execute("SELECT id FROM material_packs WHERE LOWER(TRIM(nome))='av base' LIMIT 1");
+  if (avBaseExists.rows.length === 0) {
+    try { await turso.execute("UPDATE material_packs SET nome='AV Base' WHERE LOWER(TRIM(nome)) IN ('avs basic','av basic')"); } catch { }
+  }
   for (const seed of DEFAULT_MATERIAL_PACKS) {
     const existing = await turso.execute({ sql: "SELECT id FROM material_packs WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) LIMIT 1", args: [seed.nome] });
     let packId: number;
     if (existing.rows.length > 0) {
       packId = Number((existing.rows[0] as any).id);
-      await turso.execute({ sql: "UPDATE material_packs SET descricao=?, valor_referencia=?, ativo=1 WHERE id=?", args: [seed.descricao, seed.valor_referencia, packId] });
+      await turso.execute({
+        sql: `UPDATE material_packs SET descricao=?, duracao_formato=CASE WHEN TRIM(COALESCE(duracao_formato,''))='' THEN ? ELSE duracao_formato END,
+              custo_interno=CASE WHEN COALESCE(custo_interno,0)=0 THEN ? ELSE custo_interno END,
+              valor_parceiro=CASE WHEN COALESCE(valor_parceiro,0)=0 THEN ? ELSE valor_parceiro END,
+              valor_sud=CASE WHEN COALESCE(valor_sud,0)=0 THEN ? ELSE valor_sud END,
+              valor_cliente_final=CASE WHEN COALESCE(valor_cliente_final,0)=0 THEN COALESCE(NULLIF(?,0), valor_referencia, 0) ELSE valor_cliente_final END,
+              valor_referencia=CASE WHEN COALESCE(valor_referencia,0)=0 THEN COALESCE(NULLIF(?,0),0) ELSE valor_referencia END, ativo=1 WHERE id=?`,
+        args: [seed.descricao, seed.duracao_formato || '', seed.custo_interno || 0, seed.valor_parceiro || 0, seed.valor_sud || 0, seed.valor_cliente_final || seed.valor_referencia || 0, seed.valor_cliente_final || seed.valor_referencia || 0, packId],
+      });
     } else {
-      await turso.execute({ sql: "INSERT INTO material_packs (nome, descricao, valor_referencia, ativo) VALUES (?, ?, ?, 1)", args: [seed.nome, seed.descricao, seed.valor_referencia] });
+      await turso.execute({
+        sql: "INSERT INTO material_packs (nome, descricao, duracao_formato, custo_interno, valor_parceiro, valor_sud, valor_cliente_final, valor_referencia, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
+        args: [seed.nome, seed.descricao, seed.duracao_formato || '', seed.custo_interno || 0, seed.valor_parceiro || 0, seed.valor_sud || 0, seed.valor_cliente_final || seed.valor_referencia || 0, seed.valor_referencia],
+      });
       const last = await turso.execute("SELECT last_insert_rowid() as id");
       packId = Number((last.rows[0] as any).id);
     }
@@ -2736,6 +2810,115 @@ async function seedMaterialPacks() {
   }
 }
 
+
+type MaterialValueSeed = {
+  servico: string;
+  duracao_formato: string;
+  custo_interno: number;
+  valor_parceiro: number;
+  valor_sud: number;
+  valor_cliente_final: number;
+  notas: string;
+};
+
+function consolidatedMaterialValueSeeds(rows: any[] = DEFAULT_VALORES_MASTER): MaterialValueSeed[] {
+  const grouped = new Map<string, MaterialValueSeed>();
+  for (const row of rows) {
+    const servico = String(row?.servico || '').trim();
+    if (!isMaterialValueService(servico)) continue;
+    const duracao = String(row?.duracao_formato || '').trim();
+    const key = `${normalizeValorMasterKey(servico)}||${normalizeValorMasterKey(duracao)}`;
+    const current = grouped.get(key) || {
+      servico, duracao_formato: duracao, custo_interno: 0, valor_parceiro: 0,
+      valor_sud: 0, valor_cliente_final: 0, notas: String(row?.notas || ''),
+    };
+    const kind = valorMasterContextKind(row);
+    current.custo_interno ||= Number(row?.custo_interno || 0);
+    if (kind === 'sud') current.valor_sud ||= Number(row?.valor_sud || row?.valor_cliente_final || row?.valor_parceiro || 0);
+    else if (kind === 'partner') current.valor_parceiro ||= Number(row?.valor_parceiro || row?.valor_cliente_final || 0);
+    else if (kind === 'final') current.valor_cliente_final ||= Number(row?.valor_cliente_final || row?.valor_parceiro || 0);
+    else {
+      current.valor_parceiro ||= Number(row?.valor_parceiro || 0);
+      current.valor_sud ||= Number(row?.valor_sud || 0);
+      current.valor_cliente_final ||= Number(row?.valor_cliente_final || 0);
+    }
+    if (!current.notas && row?.notas) current.notas = String(row.notas);
+    grouped.set(key, current);
+  }
+  return [...grouped.values()];
+}
+
+async function upsertMaterialValueSeed(seed: MaterialValueSeed) {
+  if (isMaterialEquipmentService(seed.servico)) {
+    const material = await getOrCreateMaterialByName(seed.servico, 'Outro');
+    await turso.execute({
+      sql: `UPDATE materiais SET
+        duracao_formato=CASE WHEN TRIM(COALESCE(duracao_formato,''))='' THEN ? ELSE duracao_formato END,
+        custo_interno=CASE WHEN COALESCE(custo_interno,0)=0 THEN ? ELSE custo_interno END,
+        valor_parceiro=CASE WHEN COALESCE(valor_parceiro,0)=0 THEN ? ELSE valor_parceiro END,
+        valor_sud=CASE WHEN COALESCE(valor_sud,0)=0 THEN ? ELSE valor_sud END,
+        valor_cliente_final=CASE WHEN COALESCE(valor_cliente_final,0)=0 THEN ? ELSE valor_cliente_final END,
+        notas=CASE WHEN TRIM(COALESCE(notas,''))='' OR notas='Criado automaticamente por Pack de Material' THEN ? ELSE notas END,
+        ativo=1 WHERE id=?`,
+      args: [seed.duracao_formato, seed.custo_interno, seed.valor_parceiro, seed.valor_sud, seed.valor_cliente_final, seed.notas, Number(material.id)],
+    });
+    return;
+  }
+
+  await ensureMaterialPacksTables();
+  const found = await turso.execute({ sql: "SELECT * FROM material_packs WHERE LOWER(TRIM(nome))=LOWER(TRIM(?)) LIMIT 1", args: [seed.servico] });
+  if (found.rows.length > 0) {
+    const id = Number((found.rows[0] as any).id);
+    await turso.execute({
+      sql: `UPDATE material_packs SET
+        duracao_formato=CASE WHEN TRIM(COALESCE(duracao_formato,''))='' THEN ? ELSE duracao_formato END,
+        custo_interno=CASE WHEN COALESCE(custo_interno,0)=0 THEN ? ELSE custo_interno END,
+        valor_parceiro=CASE WHEN COALESCE(valor_parceiro,0)=0 THEN ? ELSE valor_parceiro END,
+        valor_sud=CASE WHEN COALESCE(valor_sud,0)=0 THEN ? ELSE valor_sud END,
+        valor_cliente_final=CASE WHEN COALESCE(valor_cliente_final,0)=0 THEN COALESCE(NULLIF(?,0),valor_referencia,0) ELSE valor_cliente_final END,
+        valor_referencia=CASE WHEN COALESCE(valor_referencia,0)=0 THEN ? ELSE valor_referencia END,
+        descricao=CASE WHEN TRIM(COALESCE(descricao,''))='' THEN ? ELSE descricao END,
+        ativo=1 WHERE id=?`,
+      args: [seed.duracao_formato, seed.custo_interno, seed.valor_parceiro, seed.valor_sud, seed.valor_cliente_final, seed.valor_cliente_final, seed.notas, id],
+    });
+  } else {
+    await turso.execute({
+      sql: `INSERT INTO material_packs
+        (nome, descricao, duracao_formato, custo_interno, valor_parceiro, valor_sud, valor_cliente_final, valor_referencia, ativo)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      args: [seed.servico, seed.notas, seed.duracao_formato, seed.custo_interno, seed.valor_parceiro, seed.valor_sud, seed.valor_cliente_final, seed.valor_cliente_final],
+    });
+  }
+}
+
+async function migrateSeparatedModuleValues() {
+  await ensureLleMetaTable();
+  const migrationKey = 'valores_master_v4_modulos_20260715';
+  if (await hasMigration(migrationKey)) return;
+
+  await setupMateriais();
+  await seedMaterialPacks();
+
+  // Primeiro aproveita quaisquer valores antigos/manuais; depois completa apenas campos vazios com a tabela base.
+  const oldRows = await turso.execute("SELECT * FROM valores_master ORDER BY ativo DESC, id ASC");
+  for (const seed of consolidatedMaterialValueSeeds(oldRows.rows as any[])) await upsertMaterialValueSeed(seed);
+  for (const seed of consolidatedMaterialValueSeeds()) await upsertMaterialValueSeed(seed);
+
+  for (const row of oldRows.rows as any[]) {
+    const contexto = normalizeValorMasterKey(row.contexto);
+    const isResidence = contexto === 'residência' || contexto === 'residencia';
+    if (!isMaterialValueService(String(row.servico || '')) && !isResidence) continue;
+    const destination = isResidence ? 'Residências' : 'Materiais';
+    await turso.execute({
+      sql: `UPDATE valores_master SET ativo=0,
+        notas=CASE WHEN INSTR(COALESCE(notas,''), ?) > 0 THEN notas ELSE TRIM(COALESCE(notas,'') || ?) END
+        WHERE id=?`,
+      args: [`Movido para ${destination}`, ` · Movido para ${destination}`, Number(row.id)],
+    });
+  }
+  await markMigration(migrationKey);
+}
+
 export async function getAllMaterialPacks() {
   try {
     await setupMateriais();
@@ -2749,6 +2932,11 @@ export async function getAllMaterialPacks() {
         id: Number(p.id),
         nome: p.nome as string,
         descricao: (p.descricao as string) || '',
+        duracao_formato: (p.duracao_formato as string) || '',
+        custo_interno: Number(p.custo_interno) || 0,
+        valor_parceiro: Number(p.valor_parceiro) || 0,
+        valor_sud: Number(p.valor_sud) || 0,
+        valor_cliente_final: Number(p.valor_cliente_final || p.valor_referencia) || 0,
         valor_referencia: Number(p.valor_referencia) || 0,
         ativo: p.ativo === 1 || p.ativo === true ? 1 : 0,
         items: items.rows.filter((i: any) => Number(i.pack_id) === Number(p.id)).map((i: any) => ({
@@ -2764,6 +2952,25 @@ export async function getAllMaterialPacks() {
   } catch (error) {
     console.error("Erro getAllMaterialPacks:", error);
     return { success: false, data: [] };
+  }
+}
+
+export async function updateMaterialPackValues(id: number, data: {
+  duracao_formato?: string; custo_interno?: number; valor_parceiro?: number; valor_sud?: number; valor_cliente_final?: number; descricao?: string;
+}) {
+  try {
+    await setupMateriais();
+    await ensureMaterialPacksTables();
+    await turso.execute({
+      sql: `UPDATE material_packs SET duracao_formato=?, custo_interno=?, valor_parceiro=?, valor_sud=?, valor_cliente_final=?,
+            valor_referencia=?, descricao=CASE WHEN ?='' THEN descricao ELSE ? END WHERE id=?`,
+      args: [data.duracao_formato || '', data.custo_interno || 0, data.valor_parceiro || 0, data.valor_sud || 0, data.valor_cliente_final || 0,
+        data.valor_cliente_final || 0, data.descricao || '', data.descricao || '', id],
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Erro updateMaterialPackValues:", error);
+    return { success: false };
   }
 }
 
@@ -2952,6 +3159,11 @@ export async function setupMateriais() {
       "motivo_compra TEXT DEFAULT ''",
       "quantidade_comprar INTEGER DEFAULT 0",
       "notas_compra TEXT DEFAULT ''",
+      "duracao_formato TEXT DEFAULT ''",
+      "custo_interno REAL NOT NULL DEFAULT 0",
+      "valor_parceiro REAL NOT NULL DEFAULT 0",
+      "valor_sud REAL NOT NULL DEFAULT 0",
+      "valor_cliente_final REAL NOT NULL DEFAULT 0",
     ];
     for (const col of materialCols) {
       try { await turso.execute(`ALTER TABLE materiais ADD COLUMN ${col}`); } catch { }
@@ -3038,6 +3250,11 @@ export async function getAllMateriais(limit: number = 500) {
         motivo_compra: (r.motivo_compra as string) || '',
         quantidade_comprar: Number(r.quantidade_comprar) || 0,
         notas_compra: (r.notas_compra as string) || '',
+        duracao_formato: (r.duracao_formato as string) || '',
+        custo_interno: Number(r.custo_interno) || 0,
+        valor_parceiro: Number(r.valor_parceiro) || 0,
+        valor_sud: Number(r.valor_sud) || 0,
+        valor_cliente_final: Number(r.valor_cliente_final) || 0,
         notas: (r.notas as string) || '',
         ativo: r.ativo === 1 || r.ativo === true ? 1 : 0,
       })),
@@ -3052,17 +3269,19 @@ export async function createMaterial(data: {
   nome: string; categoria?: string; imagem?: string; quantidade_total?: number; notas?: string;
   dono?: string; local_habitual?: string; consumivel?: number; stock_minimo?: number;
   precisa_comprar?: number; motivo_compra?: string; quantidade_comprar?: number; notas_compra?: string;
+  duracao_formato?: string; custo_interno?: number; valor_parceiro?: number; valor_sud?: number; valor_cliente_final?: number;
 }) {
   try {
     await setupMateriais();
     await turso.execute({
       sql: `INSERT INTO materiais
-        (nome, categoria, imagem, quantidade_total, dono, local_habitual, consumivel, stock_minimo, precisa_comprar, motivo_compra, quantidade_comprar, notas_compra, notas)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (nome, categoria, imagem, quantidade_total, dono, local_habitual, consumivel, stock_minimo, precisa_comprar, motivo_compra, quantidade_comprar, notas_compra, duracao_formato, custo_interno, valor_parceiro, valor_sud, valor_cliente_final, notas)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         data.nome, data.categoria || '', data.imagem || '', data.quantidade_total ?? 1,
         data.dono || 'LLE', data.local_habitual || 'Loja', data.consumivel ?? 0, data.stock_minimo ?? 0,
-        data.precisa_comprar ?? 0, data.motivo_compra || '', data.quantidade_comprar ?? 0, data.notas_compra || '', data.notas || '',
+        data.precisa_comprar ?? 0, data.motivo_compra || '', data.quantidade_comprar ?? 0, data.notas_compra || '',
+        data.duracao_formato || '', data.custo_interno || 0, data.valor_parceiro || 0, data.valor_sud || 0, data.valor_cliente_final || 0, data.notas || '',
       ],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
@@ -3077,18 +3296,20 @@ export async function updateMaterial(id: number, data: {
   nome: string; categoria?: string; imagem?: string; quantidade_total?: number; notas?: string;
   dono?: string; local_habitual?: string; consumivel?: number; stock_minimo?: number;
   precisa_comprar?: number; motivo_compra?: string; quantidade_comprar?: number; notas_compra?: string;
+  duracao_formato?: string; custo_interno?: number; valor_parceiro?: number; valor_sud?: number; valor_cliente_final?: number;
 }) {
   try {
     await setupMateriais();
     await turso.execute({
       sql: `UPDATE materiais SET
         nome=?, categoria=?, imagem=?, quantidade_total=?, dono=?, local_habitual=?, consumivel=?, stock_minimo=?,
-        precisa_comprar=?, motivo_compra=?, quantidade_comprar=?, notas_compra=?, notas=?
+        precisa_comprar=?, motivo_compra=?, quantidade_comprar=?, notas_compra=?, duracao_formato=?, custo_interno=?, valor_parceiro=?, valor_sud=?, valor_cliente_final=?, notas=?
         WHERE id=?`,
       args: [
         data.nome, data.categoria || '', data.imagem || '', data.quantidade_total ?? 1,
         data.dono || 'LLE', data.local_habitual || 'Loja', data.consumivel ?? 0, data.stock_minimo ?? 0,
-        data.precisa_comprar ?? 0, data.motivo_compra || '', data.quantidade_comprar ?? 0, data.notas_compra || '', data.notas || '', id,
+        data.precisa_comprar ?? 0, data.motivo_compra || '', data.quantidade_comprar ?? 0, data.notas_compra || '',
+        data.duracao_formato || '', data.custo_interno || 0, data.valor_parceiro || 0, data.valor_sud || 0, data.valor_cliente_final || 0, data.notas || '', id,
       ],
     });
     return { success: true };
@@ -3526,8 +3747,11 @@ export async function getFaturacaoPageBundle() {
 
 export async function getMateriaisPageBundle() {
   try {
-    const [materiais, movimentos, eventos] = await Promise.all([getAllMateriais(), getMovimentosMateriais(), getEventosParaMateriais()]);
-    return { success: true, materiais, movimentos, eventos };
+    // Garante que valores antigos de materiais são migrados para este módulo
+    // mesmo quando Materiais é a primeira página aberta após o deploy.
+    await ensureValoresMasterTable();
+    const [materiais, movimentos, eventos, packs] = await Promise.all([getAllMateriais(), getMovimentosMateriais(), getEventosParaMateriais(), getAllMaterialPacks()]);
+    return { success: true, materiais, movimentos, eventos, packs };
   } catch (error) {
     console.error('Erro getMateriaisPageBundle:', error);
     return { success: false };

@@ -177,7 +177,7 @@ export default function ValoresPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", gap: "1rem" }}>
           <div>
             <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.4rem" }}>Master de Valores</p>
-            <p style={{ fontSize: "11px", color: C.textMuted, letterSpacing: "0.06em" }}>Cada serviço aparece uma vez por formato. O contexto é escolhido apenas na Agenda ou nas Leads.</p>
+            <p style={{ fontSize: "11px", color: C.textMuted, letterSpacing: "0.06em" }}>Apenas serviços e artistas. Materiais e residências são geridos nos respetivos módulos; o contexto é escolhido na Agenda ou nas Leads.</p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.7rem" }}>
             <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Pesquisar serviço..." style={{ ...inputStyle, width: 230, fontSize: "11px" }} />
@@ -267,7 +267,7 @@ export default function ValoresPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.8rem" }}>
           <div>
             <p style={{ fontSize: "9px", letterSpacing: "0.35em", color: C.textSec, textTransform: "uppercase", fontWeight: 700 }}>Master de Valores</p>
-            <p style={{ fontSize: "11px", color: C.textMuted, marginTop: "0.4rem", lineHeight: 1.45 }}>Uma linha por serviço: custo interno, parceiro, SUD e cliente final.</p>
+            <p style={{ fontSize: "11px", color: C.textMuted, marginTop: "0.4rem", lineHeight: 1.45 }}>Apenas serviços e artistas: custo interno, parceiro, SUD e cliente final. Materiais e residências ficam nos respetivos módulos.</p>
           </div>
           <button
             type="button"

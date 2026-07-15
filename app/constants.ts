@@ -78,6 +78,62 @@ export const SERVICOS_VENDIDOS = [
   "Aluguer de Carrinha",
 ] as const;
 
+
+export const MATERIAL_EQUIPMENT_SERVICES = [
+  "DJ Booth LED - branco",
+  "DJ Booth LED - preto",
+  "1 PA Mackie Thump 212 12\"",
+  "Mixer Behringer Xenyx 1202SFX",
+  "Controller Pioneer Rekordbox DJ DDJ-400",
+  "Stairville LED Bar 240/8 RGB DMX 30º",
+  "4 Baterias LEDs Uking RGBWA + UV Par Light",
+  "8 LEDs Wash 7x12 RGBW",
+  "4 LEDs Uking 105W 7x15W RGBW",
+  "LED efeito flor Eurolite FE-700",
+  "Máquina de fumo Ibiza LSM900W",
+  "Microfone c/ fio Sennheiser e835",
+  "2 Microfones dual UHF s/ fios GLXD2",
+  "1 Shure SM58 s/ fios",
+  "Cablagem completa XLR",
+] as const;
+
+export const MATERIAL_PACK_SERVICES = [
+  "Som 1 PA",
+  "Som 2 PAs",
+  "AV base evento",
+  "AV Base",
+  "AV Premium",
+  "Discurso",
+  "DJ Basic",
+  "Let's Party",
+  "Premium",
+] as const;
+
+export const MATERIAL_VALUE_SERVICES = [
+  ...MATERIAL_EQUIPMENT_SERVICES,
+  ...MATERIAL_PACK_SERVICES,
+] as const;
+
+function normalizeServiceKey(value: string): string {
+  return (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+const MATERIAL_VALUE_SERVICE_KEYS = new Set(MATERIAL_VALUE_SERVICES.map(normalizeServiceKey));
+const MATERIAL_EQUIPMENT_SERVICE_KEYS = new Set(MATERIAL_EQUIPMENT_SERVICES.map(normalizeServiceKey));
+
+export function isMaterialValueService(value: string): boolean {
+  return MATERIAL_VALUE_SERVICE_KEYS.has(normalizeServiceKey(value));
+}
+
+export function isMaterialEquipmentService(value: string): boolean {
+  return MATERIAL_EQUIPMENT_SERVICE_KEYS.has(normalizeServiceKey(value));
+}
+
 // Função/serviço executado numa Agenda/Lead por um colaborador.
 // Deve ser mais operacional do que a lista comercial de serviços vendidos.
 export const ARTIST_TIPOS = [
