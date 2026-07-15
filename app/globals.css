@@ -1129,3 +1129,16 @@ html.light-theme svg {
   .mob-pages-overlay,
   .mob-pages-drawer { display: none !important; }
 }
+
+/* Valores: edição completa e feedback acima da navegação mobile */
+@media (max-width: 768px) {
+  .mob-values-list {
+    padding-bottom: calc(82px + env(safe-area-inset-bottom));
+  }
+  .values-toast {
+    left: 1rem !important;
+    right: 1rem !important;
+    bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+    text-align: center;
+  }
+}

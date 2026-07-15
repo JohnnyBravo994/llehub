@@ -71,6 +71,10 @@ export default function ValoresPage() {
   const [newRow, setNewRow] = useState<Draft>(emptyNew);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<number | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [mobileEditingId, setMobileEditingId] = useState<number | null>(null);
+  const [mobileNewOpen, setMobileNewOpen] = useState(false);
+  const [mobileShowInactive, setMobileShowInactive] = useState(false);
   const [toast, setToast] = useState("");
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2400); };
@@ -114,19 +118,40 @@ export default function ValoresPage() {
   });
   const saveRow = async (id: number) => {
     const d = drafts[id];
-    if (!d?.servico.trim()) { showToast("Serviço obrigatório"); return; }
+    if (!d?.servico.trim()) { showToast("Serviço obrigatório"); return false; }
     setSavingId(id);
     const res = await updateValorMaster(id, payload(d));
     showToast(res.success ? "Valor atualizado" : "Erro ao atualizar");
-    await load(); setSavingId(null);
+    await load();
+    setSavingId(null);
+    return res.success;
   };
   const createRow = async () => {
-    if (!newRow.servico.trim()) { showToast("Serviço obrigatório"); return; }
+    if (!newRow.servico.trim()) { showToast("Serviço obrigatório"); return false; }
+    setCreating(true);
     const res = await createValorMaster(payload(newRow));
-    if (res.success) { setNewRow(emptyNew); showToast("Valor criado"); await load(); }
-    else showToast("Erro ao criar valor");
+    if (res.success) {
+      setNewRow(emptyNew);
+      showToast("Valor criado");
+      await load();
+    } else {
+      showToast("Erro ao criar valor");
+    }
+    setCreating(false);
+    return res.success;
   };
-  const toggleAtivo = async (row: ValorMaster) => { await toggleValorMasterAtivo(row.id, row.ativo === 1 ? 0 : 1); await load(); };
+  const toggleAtivo = async (row: ValorMaster) => {
+    const res = await toggleValorMasterAtivo(row.id, row.ativo === 1 ? 0 : 1);
+    showToast(res.success ? (row.ativo === 1 ? "Valor apagado" : "Valor restaurado") : "Erro ao alterar valor");
+    await load();
+  };
+  const apagarMobile = async (row: ValorMaster) => {
+    if (row.ativo === 0) { await toggleAtivo(row); return; }
+    const confirmed = window.confirm("Apagar este valor? Ficará inativo e poderá ser restaurado em ‘Mostrar inativos’.");
+    if (!confirmed) return;
+    await toggleAtivo(row);
+    if (mobileEditingId === row.id) setMobileEditingId(null);
+  };
 
   const criarServicoPendente = async (row: ServicoPorCriarNaMaster) => {
     const res = await criarValorMasterAPartirServico(row.servico, row.fee_medio || 0);
@@ -227,10 +252,41 @@ export default function ValoresPage() {
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: C.gold, fontWeight: 300 }}>LLE</span>
         <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.4rem 0.5rem" }} />
       </div>
+
       <div style={{ padding: "1rem", borderBottom: `1px solid ${C.borderDim}` }}>
-        <p style={{ fontSize: "9px", letterSpacing: "0.35em", color: C.textSec, textTransform: "uppercase", fontWeight: 700 }}>Master de Valores</p>
-        <p style={{ fontSize: "11px", color: C.textMuted, marginTop: "0.4rem" }}>Eventos normais, parceiros e cliente final. Residências ficam à parte.</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.8rem" }}>
+          <div>
+            <p style={{ fontSize: "9px", letterSpacing: "0.35em", color: C.textSec, textTransform: "uppercase", fontWeight: 700 }}>Master de Valores</p>
+            <p style={{ fontSize: "11px", color: C.textMuted, marginTop: "0.4rem", lineHeight: 1.45 }}>Eventos normais, parceiros e cliente final. Residências ficam à parte.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setMobileNewOpen(value => !value); setMobileEditingId(null); }}
+            style={{ ...btnStyle, flexShrink: 0, background: C.gold, color: lightTheme ? "#FFFFFF" : "var(--theme-bg)", padding: "0.65rem 0.75rem" }}
+          >
+            {mobileNewOpen ? "Fechar" : "+ Adicionar"}
+          </button>
+        </div>
+
+        {mobileNewOpen && (
+          <div style={{ marginTop: "0.9rem", padding: "0.9rem", background: C.surface, border: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: "9px", letterSpacing: "0.22em", color: C.gold, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.75rem" }}>Novo valor</div>
+            <MobileValorFields draft={newRow} onChange={(field, value) => setNewRow(row => ({ ...row, [field]: value }))} inputStyle={inputStyle} C={C} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.55rem", marginTop: "0.75rem" }}>
+              <button type="button" onClick={() => { setNewRow(emptyNew); setMobileNewOpen(false); }} style={btnStyle}>Cancelar</button>
+              <button
+                type="button"
+                disabled={creating}
+                onClick={async () => { if (await createRow()) setMobileNewOpen(false); }}
+                style={{ ...btnStyle, background: C.gold, color: lightTheme ? "#FFFFFF" : "var(--theme-bg)", opacity: creating ? 0.6 : 1 }}
+              >
+                {creating ? "A criar..." : "Criar valor"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
       {servicosPorCriar.length > 0 && (
         <div style={{ padding: "0.9rem 1rem", borderBottom: `1px solid ${C.borderDim}` }}>
           <div style={{ fontSize: "9px", letterSpacing: "0.25em", color: C.gold, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.5rem" }}>Serviços por criar</div>
@@ -244,18 +300,96 @@ export default function ValoresPage() {
         </div>
       )}
 
-      <div className="mob-list">
-        {rows.map(row => <div key={row.id} style={{ padding: "1rem", borderBottom: `1px solid ${C.borderDim}`, opacity: row.ativo === 0 ? 0.45 : 1 }}>
-          <div style={{ fontSize: "14px", fontWeight: 700, color: C.textPrimary }}>{row.servico}</div>
-          <div style={{ fontSize: "11px", color: C.textSec, marginTop: "0.35rem" }}>{row.duracao_formato || "Sem formato"} · {row.contexto}{row.cliente_nome ? ` · ${row.cliente_nome}` : ""}</div>
-          <div style={{ fontSize: "11px", color: C.textSec, marginTop: "0.35rem" }}>Custo: {euro(row.custo_interno)} · Parceiro: {euro(row.valor_parceiro)} · Cliente: {euro(row.valor_cliente_final)}</div>
-          {row.notas && <div style={{ fontSize: "10px", color: C.textMuted, marginTop: "0.35rem" }}>{row.notas}</div>}
-        </div>)}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem", borderBottom: `1px solid ${C.borderDim}`, background: lightTheme ? "rgba(0,0,0,0.02)" : "rgba(var(--theme-accent-rgb),0.025)" }}>
+        <span style={{ fontSize: "10px", color: C.textMuted }}>{rows.filter(row => row.ativo === 1).length} valores ativos</span>
+        <button type="button" onClick={() => setMobileShowInactive(value => !value)} style={{ ...btnStyle, padding: "0.45rem 0.55rem" }}>
+          {mobileShowInactive ? "Ocultar inativos" : `Mostrar inativos (${rows.filter(row => row.ativo === 0).length})`}
+        </button>
+      </div>
+
+      <div className="mob-list mob-values-list">
+        {rows.filter(row => mobileShowInactive || row.ativo === 1).map(row => {
+          const editing = mobileEditingId === row.id;
+          const d = drafts[row.id] || toDraft(row);
+          return (
+            <div key={row.id} style={{ padding: "1rem", borderBottom: `1px solid ${C.borderDim}`, background: editing ? (lightTheme ? "rgba(139,69,19,0.035)" : "rgba(var(--theme-accent-rgb),0.035)") : "transparent" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.7rem" }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: C.textPrimary, overflowWrap: "anywhere" }}>{row.servico}</div>
+                  <div style={{ fontSize: "11px", color: C.textSec, marginTop: "0.35rem", lineHeight: 1.45 }}>{row.duracao_formato || "Sem formato"} · {row.contexto}{row.cliente_nome ? ` · ${row.cliente_nome}` : ""}</div>
+                </div>
+                <span style={{ flexShrink: 0, fontSize: "8px", letterSpacing: "0.12em", textTransform: "uppercase", padding: "0.3rem 0.45rem", border: `1px solid ${row.ativo === 1 ? C.border : C.borderDim}`, color: row.ativo === 1 ? C.green : C.textMuted }}>
+                  {row.ativo === 1 ? "Ativo" : "Inativo"}
+                </span>
+              </div>
+              <div style={{ fontSize: "11px", color: C.textSec, marginTop: "0.45rem", lineHeight: 1.55 }}>Custo: {euro(row.custo_interno)} · Parceiro: {euro(row.valor_parceiro)} · Cliente: {euro(row.valor_cliente_final)}</div>
+              {row.notas && <div style={{ fontSize: "10px", color: C.textMuted, marginTop: "0.35rem", lineHeight: 1.5 }}>{row.notas}</div>}
+
+              {!editing && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.55rem", marginTop: "0.8rem" }}>
+                  <button type="button" onClick={() => { setMobileEditingId(row.id); setMobileNewOpen(false); }} style={{ ...btnStyle, background: lightTheme ? "rgba(0,0,0,0.04)" : "rgba(var(--theme-accent-rgb),0.08)" }}>Editar</button>
+                  <button
+                    type="button"
+                    onClick={() => apagarMobile(row)}
+                    style={{ ...btnStyle, color: row.ativo === 1 ? (lightTheme ? "#B42318" : "#FF8A80") : C.green, borderColor: row.ativo === 1 ? "rgba(220,80,80,0.35)" : C.border }}
+                  >
+                    {row.ativo === 1 ? "Apagar" : "Restaurar"}
+                  </button>
+                </div>
+              )}
+
+              {editing && (
+                <div style={{ marginTop: "0.9rem", paddingTop: "0.9rem", borderTop: `1px solid ${C.border}` }}>
+                  <MobileValorFields draft={d} onChange={(field, value) => updateDraft(row.id, field, value)} inputStyle={inputStyle} C={C} />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.55rem", marginTop: "0.75rem" }}>
+                    <button type="button" onClick={() => { setDrafts(prev => ({ ...prev, [row.id]: toDraft(row) })); setMobileEditingId(null); }} style={btnStyle}>Cancelar</button>
+                    <button
+                      type="button"
+                      disabled={savingId === row.id}
+                      onClick={async () => { if (await saveRow(row.id)) setMobileEditingId(null); }}
+                      style={{ ...btnStyle, background: C.gold, color: lightTheme ? "#FFFFFF" : "var(--theme-bg)", opacity: savingId === row.id ? 0.6 : 1 }}
+                    >
+                      {savingId === row.id ? "A guardar..." : "Guardar"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
       <MobTabBar active="valores" role="admin" lightTheme={lightTheme} />
     </div>
-    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: C.surface, border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>{toast}</div>
+    <div className="values-toast" style={{ position: "fixed", bottom: "2rem", right: "2rem", background: C.surface, border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>{toast}</div>
   </>;
+}
+
+
+function MobileValorFields({
+  draft,
+  onChange,
+  inputStyle,
+  C,
+}: {
+  draft: Draft;
+  onChange: (field: keyof Draft, value: string) => void;
+  inputStyle: React.CSSProperties;
+  C: typeof C_Dark;
+}) {
+  const labelStyle: React.CSSProperties = { display: "block", fontSize: "8px", letterSpacing: "0.16em", color: C.textMuted, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.28rem" };
+  const fieldStyle: React.CSSProperties = { minWidth: 0 };
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.65rem" }}>
+      <label style={{ ...fieldStyle, gridColumn: "1 / -1" }}><span style={labelStyle}>Serviço</span><input list="servicos-vendidos-list" value={draft.servico} onChange={event => onChange("servico", event.target.value)} placeholder="Nome do serviço" style={{ ...inputStyle, fontSize: "12px" }} /></label>
+      <label style={fieldStyle}><span style={labelStyle}>Formato</span><input value={draft.duracao_formato} onChange={event => onChange("duracao_formato", event.target.value)} placeholder="até 4h" style={{ ...inputStyle, fontSize: "12px" }} /></label>
+      <label style={fieldStyle}><span style={labelStyle}>Contexto</span><select value={draft.contexto} onChange={event => onChange("contexto", event.target.value)} style={{ ...inputStyle, fontSize: "12px" }}>{CONTEXTOS.map(contexto => <option key={contexto} value={contexto}>{contexto}</option>)}</select></label>
+      <label style={{ ...fieldStyle, gridColumn: "1 / -1" }}><span style={labelStyle}>Cliente / local</span><input value={draft.cliente_nome} onChange={event => onChange("cliente_nome", event.target.value)} placeholder="Opcional" style={{ ...inputStyle, fontSize: "12px" }} /></label>
+      <label style={fieldStyle}><span style={labelStyle}>Custo interno</span><input value={draft.custo_interno} onChange={event => onChange("custo_interno", event.target.value)} inputMode="decimal" placeholder="0" style={{ ...inputStyle, fontSize: "12px" }} /></label>
+      <label style={fieldStyle}><span style={labelStyle}>Parceiro</span><input value={draft.valor_parceiro} onChange={event => onChange("valor_parceiro", event.target.value)} inputMode="decimal" placeholder="0" style={{ ...inputStyle, fontSize: "12px" }} /></label>
+      <label style={{ ...fieldStyle, gridColumn: "1 / -1" }}><span style={labelStyle}>Cliente final</span><input value={draft.valor_cliente_final} onChange={event => onChange("valor_cliente_final", event.target.value)} inputMode="decimal" placeholder="0" style={{ ...inputStyle, fontSize: "12px" }} /></label>
+      <label style={{ ...fieldStyle, gridColumn: "1 / -1" }}><span style={labelStyle}>Notas</span><textarea value={draft.notas} onChange={event => onChange("notas", event.target.value)} placeholder="Exceções ou observações" rows={3} style={{ ...inputStyle, fontSize: "12px", resize: "vertical" }} /></label>
+    </div>
+  );
 }
 
 function avg(values: number[]) { return values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0; }

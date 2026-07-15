@@ -201,10 +201,10 @@ export default function MobTabBar({ active, role, lightTheme }: MobTabBarProps) 
             aria-label={maisOpen ? "Fechar páginas" : "Abrir mais páginas"}
           >
             <span className="mob-tab-icon">
-              {maisOpen ? icons.fechar : activeMoreTab?.icon ?? icons.mais}
+              {maisOpen ? icons.fechar : icons.mais}
             </span>
             <span className="mob-tab-label">
-              {maisOpen ? "Fechar" : activeMoreTab?.label ?? "Mais"}
+              {maisOpen ? "Fechar" : "Mais"}
             </span>
           </button>
         )}
