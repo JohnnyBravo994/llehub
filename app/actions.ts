@@ -3026,9 +3026,19 @@ export async function getMateriaisReservadosResumoEvento(eventoId: number) {
         sql: `
           SELECT material_nome, quantidade, quantidade_devolvida, quantidade_consumida,
                  estado_regresso, data_volta, notas
-          FROM material_movimentos
-          WHERE evento_id = ?
-          ORDER BY material_nome ASC, id ASC
+          FROM material_movimentos mm
+          WHERE mm.evento_id = ?
+            AND NOT (
+              COALESCE(mm.notas, '') LIKE 'Pack incluído/oferta:%'
+              AND EXISTS (
+                SELECT 1
+                FROM material_pack_reservas r
+                JOIN material_pack_items i ON i.pack_id = r.pack_id AND i.ativo = 1
+                WHERE r.evento_id = mm.evento_id
+                  AND LOWER(TRIM(i.material_nome)) = LOWER(TRIM(mm.material_nome))
+              )
+            )
+          ORDER BY mm.material_nome ASC, mm.id ASC
         `,
         args: [eventoId],
       }),
@@ -3423,7 +3433,22 @@ export async function toggleMaterialAtivo(id: number, ativo: number) {
 export async function getMovimentosMateriais() {
   try {
     await setupMateriais();
-    const res = await turso.execute("SELECT * FROM material_movimentos ORDER BY data_saida DESC");
+    const res = await turso.execute(`
+      SELECT mm.*
+      FROM material_movimentos mm
+      WHERE NOT (
+        COALESCE(mm.notas, '') LIKE 'Pack incluído/oferta:%'
+        AND mm.evento_id IS NOT NULL
+        AND EXISTS (
+          SELECT 1
+          FROM material_pack_reservas r
+          JOIN material_pack_items i ON i.pack_id = r.pack_id AND i.ativo = 1
+          WHERE r.evento_id = mm.evento_id
+            AND LOWER(TRIM(i.material_nome)) = LOWER(TRIM(mm.material_nome))
+        )
+      )
+      ORDER BY mm.data_saida DESC
+    `);
     return {
       success: true,
       data: res.rows.map((r: any) => ({
@@ -3833,15 +3858,16 @@ function mapMovimentoMaterialRow(r: any, includeImage = true) {
 }
 
 async function cleanupFutureAutoReservationMovements() {
-  // Migração única: versões anteriores criavam uma “saída” assim que o pack era reservado.
-  // Depois de concluída, os carregamentos normais fazem apenas a leitura necessária da página.
-  const g = globalThis as typeof globalThis & { __lle_reservas_sem_saida_done?: boolean };
-  if (g.__lle_reservas_sem_saida_done) return;
-  const migrationKey = 'materiais_reservas_sem_saida_v1_20260715';
+  // Migração v2: versões anteriores criavam movimentos de “saída” automaticamente
+  // quando um pack era apenas reservado. Estes movimentos nunca representaram uma
+  // saída física e devem ser removidos, independentemente da data do evento.
+  const g = globalThis as typeof globalThis & { __lle_reservas_sem_saida_v2_done?: boolean };
+  if (g.__lle_reservas_sem_saida_v2_done) return;
+  const migrationKey = 'materiais_reservas_sem_saida_v2_20260715';
   try {
     try {
       if (await hasMigration(migrationKey)) {
-        g.__lle_reservas_sem_saida_done = true;
+        g.__lle_reservas_sem_saida_v2_done = true;
         return;
       }
     } catch {
@@ -3857,15 +3883,16 @@ async function cleanupFutureAutoReservationMovements() {
         AND EXISTS (
           SELECT 1
           FROM material_pack_reservas r
-          LEFT JOIN agenda a ON a.id = r.evento_id
+          JOIN material_pack_items i ON i.pack_id = r.pack_id AND i.ativo = 1
           WHERE r.evento_id = material_movimentos.evento_id
-            AND (a.event_date IS NULL OR date(a.event_date) >= date('now'))
+            AND LOWER(TRIM(i.material_nome)) = LOWER(TRIM(material_movimentos.material_nome))
         )
     `);
     await markMigration(migrationKey);
-    g.__lle_reservas_sem_saida_done = true;
+    g.__lle_reservas_sem_saida_v2_done = true;
   } catch {
-    // Em bases antigas as tabelas podem ainda não existir; o fallback de setup trata disso.
+    // Em bases antigas as tabelas podem ainda não existir; o filtro de leitura abaixo
+    // continua a impedir que estas reservas sejam apresentadas como material fora.
   }
 }
 
@@ -3873,7 +3900,7 @@ async function queryMateriaisInitialBundleFast() {
   await cleanupFutureAutoReservationMovements();
 
   // Entrada rápida: só operação atual, reservas futuras e duas contagens essenciais.
-  // Imagens, histórico, packs, catálogo e valores são carregados apenas quando o utilizador abre essas áreas.
+  // Só as imagens dos itens atualmente fora/reservados são trazidas; histórico, packs, catálogo e valores continuam lazy.
   const [statsRes, openRes, reservationsRes] = await Promise.all([
     turso.execute(`
       SELECT COUNT(*) AS ativos, COALESCE(SUM(quantidade_total), 0) AS unidades
@@ -3881,13 +3908,27 @@ async function queryMateriaisInitialBundleFast() {
       WHERE ativo = 1
     `),
     turso.execute(`
-      SELECT id, material_id, material_nome, quantidade, quantidade_devolvida, quantidade_consumida,
-             origem, origem_detalhe, dono_material, quem_levou, evento, evento_id, responsavel, notas,
-             estado_regresso, precisa_comprar, motivo_compra, quantidade_comprar,
-             quem_confirmou_regresso, notas_regresso, data_saida, data_volta
-      FROM material_movimentos
-      WHERE quantidade > COALESCE(quantidade_devolvida, 0) + COALESCE(quantidade_consumida, 0)
-      ORDER BY data_saida DESC
+      SELECT mm.id, mm.material_id, mm.material_nome,
+             COALESCE(NULLIF(mm.material_imagem, ''), m.imagem, '') AS material_imagem,
+             mm.quantidade, mm.quantidade_devolvida, mm.quantidade_consumida,
+             mm.origem, mm.origem_detalhe, mm.dono_material, mm.quem_levou, mm.evento, mm.evento_id,
+             mm.responsavel, mm.notas, mm.estado_regresso, mm.precisa_comprar, mm.motivo_compra,
+             mm.quantidade_comprar, mm.quem_confirmou_regresso, mm.notas_regresso, mm.data_saida, mm.data_volta
+      FROM material_movimentos mm
+      LEFT JOIN materiais m ON m.id = mm.material_id
+      WHERE mm.quantidade > COALESCE(mm.quantidade_devolvida, 0) + COALESCE(mm.quantidade_consumida, 0)
+        AND NOT (
+          COALESCE(mm.notas, '') LIKE 'Pack incluído/oferta:%'
+          AND mm.evento_id IS NOT NULL
+          AND EXISTS (
+            SELECT 1
+            FROM material_pack_reservas r
+            JOIN material_pack_items i ON i.pack_id = r.pack_id AND i.ativo = 1
+            WHERE r.evento_id = mm.evento_id
+              AND LOWER(TRIM(i.material_nome)) = LOWER(TRIM(mm.material_nome))
+          )
+        )
+      ORDER BY mm.data_saida DESC
       LIMIT 100
     `),
     turso.execute(`
@@ -3900,6 +3941,7 @@ async function queryMateriaisInitialBundleFast() {
         i.material_nome,
         SUM(COALESCE(i.quantidade, 1)) AS quantidade,
         COALESCE(MAX(m.id), 0) AS material_id,
+        COALESCE(MAX(m.imagem), '') AS material_imagem,
         COALESCE(MAX(m.local_habitual), 'Loja') AS local_habitual,
         COALESCE(MAX(m.dono), 'LLE') AS dono_material
       FROM material_pack_reservas r
@@ -3913,7 +3955,7 @@ async function queryMateriaisInitialBundleFast() {
     `),
   ]);
 
-  const movimentos = (openRes.rows as any[]).map(row => mapMovimentoMaterialRow(row, false));
+  const movimentos = (openRes.rows as any[]).map(row => mapMovimentoMaterialRow(row, true));
   const actualByEventMaterial = new Map<string, number>();
   for (const mov of movimentos) {
     if (!mov.evento_id) continue;
@@ -3935,6 +3977,7 @@ async function queryMateriaisInitialBundleFast() {
       reservado_por: (row.reservado_por as string) || '',
       material_id: Number(row.material_id) || 0,
       material_nome: (row.material_nome as string) || '',
+      material_imagem: (row.material_imagem as string) || '',
       quantidade: Math.max(0, quantity - alreadyOut),
       local_habitual: (row.local_habitual as string) || 'Loja',
       dono_material: (row.dono_material as string) || 'LLE',
@@ -3990,13 +4033,16 @@ export async function getMateriaisTabData(tab: 'historico' | 'catalogo' | 'valor
     if (tab === 'historico') {
       const [res, countRes] = await Promise.all([
         turso.execute(`
-          SELECT id, material_id, material_nome, quantidade, quantidade_devolvida, quantidade_consumida,
-                 origem, origem_detalhe, dono_material, quem_levou, evento, evento_id, responsavel, notas,
-                 estado_regresso, precisa_comprar, motivo_compra, quantidade_comprar,
-                 quem_confirmou_regresso, notas_regresso, data_saida, data_volta
-          FROM material_movimentos
-          WHERE quantidade <= COALESCE(quantidade_devolvida, 0) + COALESCE(quantidade_consumida, 0)
-          ORDER BY COALESCE(data_volta, data_saida) DESC
+          SELECT mm.id, mm.material_id, mm.material_nome,
+                 COALESCE(NULLIF(mm.material_imagem, ''), m.imagem, '') AS material_imagem,
+                 mm.quantidade, mm.quantidade_devolvida, mm.quantidade_consumida,
+                 mm.origem, mm.origem_detalhe, mm.dono_material, mm.quem_levou, mm.evento, mm.evento_id,
+                 mm.responsavel, mm.notas, mm.estado_regresso, mm.precisa_comprar, mm.motivo_compra,
+                 mm.quantidade_comprar, mm.quem_confirmou_regresso, mm.notas_regresso, mm.data_saida, mm.data_volta
+          FROM material_movimentos mm
+          LEFT JOIN materiais m ON m.id = mm.material_id
+          WHERE mm.quantidade <= COALESCE(mm.quantidade_devolvida, 0) + COALESCE(mm.quantidade_consumida, 0)
+          ORDER BY COALESCE(mm.data_volta, mm.data_saida) DESC
           LIMIT 150
         `),
         turso.execute(`
@@ -4008,7 +4054,7 @@ export async function getMateriaisTabData(tab: 'historico' | 'catalogo' | 'valor
       return {
         success: true,
         tab,
-        movimentos: (res.rows as any[]).map(row => mapMovimentoMaterialRow(row, false)),
+        movimentos: (res.rows as any[]).map(row => mapMovimentoMaterialRow(row, true)),
         historyCount: Number((countRes.rows[0] as any)?.total) || 0,
       };
     }

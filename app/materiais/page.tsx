@@ -47,6 +47,7 @@ interface ReservaMaterial {
   reservado_por: string;
   material_id: number;
   material_nome: string;
+  material_imagem: string;
   quantidade: number;
   local_habitual: string;
   dono_material: string;
@@ -665,7 +666,7 @@ export default function MateriaisPage() {
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: "0.6rem", padding: "0.85rem" }}>
                       {group.items.map((reserva, index) => (
                         <div key={`${group.key}-${reserva.material_nome}-${index}`} style={{ background: "rgba(var(--theme-contrast-rgb),0.02)", border: `1px solid ${C.borderDim}`, padding: "0.85rem", display: "flex", gap: "0.75rem" }}>
-                          <MaterialThumb src="" size={44} />
+                          <MaterialThumb src={reserva.material_imagem} size={44} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
                               <span style={{ fontSize: "12px", fontWeight: 700 }}>{reserva.material_nome}</span>
@@ -903,7 +904,7 @@ export default function MateriaisPage() {
                 </div>
                 {group.items.map((reserva, index) => (
                   <div key={`${group.key}-${reserva.material_nome}-${index}`} style={{ padding: "0.9rem 1.1rem", borderTop: "1px solid rgba(var(--theme-contrast-rgb),0.03)", display: "flex", gap: "0.75rem" }}>
-                    <MaterialThumb src="" size={44} />
+                    <MaterialThumb src={reserva.material_imagem} size={44} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: "0.6rem" }}>
                         <span style={{ fontSize: "12px", fontWeight: 700 }}>{reserva.material_nome}</span>
