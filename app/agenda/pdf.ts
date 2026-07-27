@@ -89,10 +89,10 @@ export function buildAgendaPdfHtml({
   showValues: boolean;
 }) {
   const generatedAt = new Date().toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" });
-  const field = (name: string, value: unknown, wide = false) => `
-    <div class="field${wide ? " wide" : ""}">
-      <div class="field-label">${escapeHtml(name)}</div>
-      <div class="field-value">${escapeHtml(value || "—")}</div>
+  const line = (name: string, value: unknown) => `
+    <div class="detail-line">
+      <span class="detail-label">${escapeHtml(name)}:</span>
+      <span class="detail-value">${escapeHtml(value || "—")}</span>
     </div>`;
 
   const eventsHtml = events.map((event, index) => {
@@ -101,17 +101,20 @@ export function buildAgendaPdfHtml({
     const artistsTotal = artists.reduce((sum, artist) => sum + Number(artist.fee || 0), 0);
     const troca = getTrocaNota(event.notas || "");
     const cleanNotes = stripTrocaTag(event.notas || "");
+    const eventStatus = event.cancelled ? "Cancelado" : (event.billing_status || event.status || "Confirmado");
 
-    const artistRows = artists.length
-      ? artists.map(artist => `
-        <tr>
-          <td>${escapeHtml(artist.nome || "—")}</td>
-          <td>${escapeHtml(artist.tipo || "—")}</td>
-          ${showValues ? `<td class="money">${escapeHtml(formatMoney(artist.fee))}</td>` : ""}
-        </tr>`).join("")
-      : `<tr><td colspan="${showValues ? 3 : 2}" class="empty">Sem artistas associados.</td></tr>`;
+    const artistItems = artists.length
+      ? artists.map(artist => {
+        const parts = [
+          artist.nome || "—",
+          artist.tipo || "—",
+          showValues ? formatMoney(artist.fee) : "",
+        ].filter(Boolean);
+        return `<li>${parts.map(part => escapeHtml(part)).join(" — ")}</li>`;
+      }).join("")
+      : '<li class="empty-item">Sem artistas associados.</li>';
 
-    const materialRows = materials.length
+    const materialItems = materials.length
       ? materials.map(material => {
         const returned = Number(material.quantidade_devolvida || 0);
         const consumed = Number(material.quantidade_consumida || 0);
@@ -131,62 +134,53 @@ export function buildAgendaPdfHtml({
           material.pack_nome ? `Pack: ${material.pack_nome}` : "",
           material.origem,
           material.origem_detalhe,
-        ].filter(Boolean).join(" · ") || "—";
+        ].filter(Boolean).join(" · ");
+        const materialName = `${Number(material.quantidade || 0)}× ${material.material_nome || "—"}`;
+        const details = [
+          status && status !== "—" ? `Estado: ${status}` : "",
+          origin ? `Origem: ${origin}` : "",
+          material.notas ? `Notas: ${material.notas}` : "",
+        ].filter(Boolean);
 
-        return `
-          <tr>
-            <td class="qty">${escapeHtml(material.quantidade || 0)}</td>
-            <td>${escapeHtml(material.material_nome || "—")}</td>
-            <td>${escapeHtml(status)}</td>
-            <td>${escapeHtml(origin)}</td>
-            <td>${escapeHtml(material.notas || "—")}</td>
-          </tr>`;
+        return `<li><strong>${escapeHtml(materialName)}</strong>${details.length ? ` — ${details.map(detail => escapeHtml(detail)).join(" · ")}` : ""}</li>`;
       }).join("")
-      : '<tr><td colspan="5" class="empty">Sem materiais associados.</td></tr>';
+      : '<li class="empty-item">Sem materiais associados.</li>';
 
     return `
-      <section class="event-card">
-        <div class="event-heading">
-          <div>
-            <div class="event-index">EVENTO ${String(index + 1).padStart(2, "0")}</div>
-            <h2>${escapeHtml(event.title || "Evento sem título")}</h2>
-          </div>
-          <div class="status${event.cancelled ? " cancelled" : ""}">${escapeHtml(event.cancelled ? "Cancelado" : (event.billing_status || event.status || "Confirmado"))}</div>
+      <section class="event-block">
+        <div class="event-number">EVENTO ${String(index + 1).padStart(2, "0")}</div>
+        <h2>${escapeHtml(event.title || "Evento sem título")}</h2>
+
+        <div class="details">
+          ${line("Data", formatAgendaPdfDate(event.event_date || ""))}
+          ${line("Hora", event.time_range)}
+          ${line("Local", event.venue)}
+          ${line("Contacto", event.contacto)}
+          ${line("Equipa / Tipo", event.tipo)}
+          ${line("Cliente", event.cliente_nome)}
+          ${line("Tipo comercial", event.tipo_comercial)}
+          ${line("Serviço vendido", event.servico_comercial)}
+          ${line("Perfil de valor", event.valor_contexto)}
+          ${showValues ? line("Faturação", formatMoney(event.bill)) : ""}
+          ${line("Modalidade", event.modalidade)}
+          ${line("Estado", eventStatus)}
+          ${troca ? line("Troca de dia", troca) : ""}
         </div>
 
-        <div class="fields">
-          ${field("Data", formatAgendaPdfDate(event.event_date || ""))}
-          ${field("Hora", event.time_range)}
-          ${field("Local", event.venue)}
-          ${field("Contacto", event.contacto)}
-          ${field("Equipa / Tipo", event.tipo)}
-          ${field("Cliente", event.cliente_nome)}
-          ${field("Tipo comercial", event.tipo_comercial)}
-          ${field("Serviço vendido", event.servico_comercial)}
-          ${field("Perfil de valor", event.valor_contexto)}
-          ${showValues ? field("Faturação", formatMoney(event.bill)) : ""}
-          ${field("Modalidade", event.modalidade)}
-          ${field("Estado", event.billing_status || event.status)}
-          ${troca ? field("Troca de dia", troca, true) : ""}
+        <div class="list-section">
+          <h3>Artistas${showValues ? ` <span class="section-total">(Total: ${escapeHtml(formatMoney(artistsTotal))})</span>` : ""}</h3>
+          <ul class="item-list">${artistItems}</ul>
         </div>
 
-        <div class="section-title">Notas de materiais / observações</div>
-        <div class="notes">${cleanNotes ? escapeHtml(cleanNotes).replace(/\n/g, "<br>") : "Sem notas."}</div>
-
-        <div class="section-title row-title">
-          <span>Artistas &amp; pagamentos</span>
-          ${showValues ? `<span>Total artistas: ${escapeHtml(formatMoney(artistsTotal))}</span>` : ""}
+        <div class="list-section">
+          <h3>Lista de materiais</h3>
+          <ul class="item-list">${materialItems}</ul>
         </div>
-        <table>
-          <thead><tr><th>Nome</th><th>Tipo</th>${showValues ? '<th class="money">Fee</th>' : ""}</tr></thead>
-          <tbody>${artistRows}</tbody>
-        </table>
 
-        <div class="section-title">Materiais do evento</div>
-        <table>
-          <thead><tr><th class="qty">Qtd.</th><th>Material</th><th>Estado</th><th>Origem</th><th>Notas</th></tr></thead>
-          <tbody>${materialRows}</tbody>
-        </table>
+        <div class="list-section notes-section">
+          <h3>Notas / observações</h3>
+          <div class="notes">${cleanNotes ? escapeHtml(cleanNotes).replace(/\n/g, "<br>") : "Sem notas."}</div>
+        </div>
       </section>`;
   }).join("");
 
@@ -196,37 +190,31 @@ export function buildAgendaPdfHtml({
 <meta charset="utf-8">
 <title>${escapeHtml(label)} — LLE Hub</title>
 <style>
-  @page { size: A4; margin: 12mm; }
+  @page { size: A4; margin: 13mm; }
   * { box-sizing: border-box; }
-  body { margin: 0; color: #1c1915; background: #fff; font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 1.45; }
-  .report-header { border-bottom: 2px solid #b79a57; padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; gap: 20px; align-items: flex-end; }
+  body { margin: 0; color: #1c1915; background: #fff; font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 1.5; }
+  .report-header { border-bottom: 2px solid #b79a57; padding-bottom: 12px; margin-bottom: 14px; display: flex; justify-content: space-between; gap: 20px; align-items: flex-end; }
   .brand { font-size: 8px; letter-spacing: .36em; color: #8c7240; font-weight: 700; text-transform: uppercase; }
-  h1 { margin: 5px 0 0; font-family: Georgia, serif; font-size: 24px; font-weight: 400; }
+  h1 { margin: 5px 0 0; font-family: Georgia, serif; font-size: 23px; font-weight: 400; }
   .meta { text-align: right; color: #6f675d; font-size: 9px; }
-  .summary { padding: 9px 11px; border: 1px solid #ded7cb; background: #faf8f3; margin-bottom: 15px; display: flex; justify-content: space-between; gap: 20px; }
-  .event-card { border: 1px solid #d9d1c3; margin: 0 0 14px; padding: 14px; break-inside: auto; page-break-inside: auto; }
-  .event-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; padding-bottom: 10px; border-bottom: 1px solid #e9e3da; break-inside: avoid; }
-  .event-index { color: #9b814b; letter-spacing: .25em; font-size: 7px; font-weight: 700; }
-  h2 { margin: 3px 0 0; font-family: Georgia, serif; font-size: 18px; font-weight: 400; }
-  .status { border: 1px solid #9b814b; color: #725d31; padding: 4px 7px; text-transform: uppercase; letter-spacing: .12em; font-size: 7px; white-space: nowrap; }
-  .status.cancelled { border-color: #a64949; color: #8c3030; }
-  .fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 12px; padding: 11px 0 4px; break-inside: avoid; }
-  .field.wide { grid-column: 1 / -1; }
-  .field-label, .section-title { color: #8b7650; text-transform: uppercase; letter-spacing: .16em; font-size: 7px; font-weight: 700; }
-  .field-value { margin-top: 2px; font-size: 10px; word-break: break-word; }
-  .section-title { margin: 12px 0 5px; border-top: 1px solid #eee8df; padding-top: 9px; break-after: avoid; }
-  .row-title { display: flex; justify-content: space-between; gap: 15px; }
-  .notes { min-height: 28px; border: 1px solid #e5dfd5; background: #fcfbf8; padding: 8px; white-space: normal; break-inside: avoid; }
-  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  thead { display: table-header-group; }
-  tr { break-inside: avoid; page-break-inside: avoid; }
-  th { text-align: left; color: #766543; background: #f6f2ea; text-transform: uppercase; letter-spacing: .12em; font-size: 7px; padding: 6px; border: 1px solid #ddd5c8; }
-  td { padding: 6px; border: 1px solid #e3ddd3; vertical-align: top; word-break: break-word; }
-  .money { text-align: right; width: 85px; white-space: nowrap; }
-  .qty { width: 42px; text-align: center; }
-  .empty { text-align: center; color: #867e73; font-style: italic; }
-  .footer { position: fixed; bottom: -7mm; left: 0; right: 0; text-align: center; color: #8b8378; font-size: 7px; letter-spacing: .12em; }
-  @media print { .event-card:last-child { margin-bottom: 0; } }
+  .summary { padding: 8px 10px; border: 1px solid #ded7cb; background: #faf8f3; margin-bottom: 17px; display: flex; justify-content: space-between; gap: 20px; }
+  .event-block { margin: 0 0 20px; padding: 0 0 18px; border-bottom: 1px solid #cfc6b7; page-break-inside: auto; }
+  .event-block:last-of-type { border-bottom: 0; margin-bottom: 0; }
+  .event-number { color: #9b814b; letter-spacing: .24em; font-size: 7px; font-weight: 700; margin-bottom: 3px; }
+  h2 { margin: 0 0 9px; font-family: Georgia, serif; font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: .025em; page-break-after: avoid; }
+  .details { margin-bottom: 12px; page-break-inside: avoid; }
+  .detail-line { display: flex; align-items: baseline; gap: 5px; margin: 2px 0; }
+  .detail-label { font-weight: 700; min-width: 94px; }
+  .detail-value { flex: 1; min-width: 0; word-break: break-word; }
+  .list-section { margin-top: 11px; }
+  h3 { margin: 0 0 4px; color: #725d31; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; page-break-after: avoid; }
+  .section-total { color: #6f675d; font-weight: 400; letter-spacing: 0; text-transform: none; }
+  .item-list { margin: 0; padding-left: 17px; }
+  .item-list li { margin: 2px 0; padding-left: 1px; word-break: break-word; page-break-inside: avoid; }
+  .empty-item { color: #867e73; font-style: italic; }
+  .notes { border-left: 2px solid #d8c59a; padding-left: 9px; min-height: 18px; white-space: normal; word-break: break-word; }
+  .footer { position: fixed; bottom: -8mm; left: 0; right: 0; text-align: center; color: #8b8378; font-size: 7px; letter-spacing: .12em; }
+  .empty-report { text-align: center; color: #867e73; font-style: italic; padding: 25px 0; }
 </style>
 </head>
 <body>
@@ -235,7 +223,7 @@ export function buildAgendaPdfHtml({
     <div class="meta">Período: ${escapeHtml(formatAgendaPdfDate(startDate))} — ${escapeHtml(formatAgendaPdfDate(endDate))}<br>Gerado em ${escapeHtml(generatedAt)}</div>
   </header>
   <div class="summary"><strong>${events.length} ${events.length === 1 ? "evento" : "eventos"}</strong><span>Relatório completo de agenda</span></div>
-  ${eventsHtml || '<div class="empty">Não existem eventos neste período.</div>'}
+  ${eventsHtml || '<div class="empty-report">Não existem eventos neste período.</div>'}
   <div class="footer">LLE HUB · RELATÓRIO INTERNO DE EVENTOS</div>
 </body>
 </html>`;
