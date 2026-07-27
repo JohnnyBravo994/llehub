@@ -198,19 +198,19 @@ export function buildAgendaPdfHtml({
   h1 { margin: 5px 0 0; font-family: Georgia, serif; font-size: 23px; font-weight: 400; }
   .meta { text-align: right; color: #6f675d; font-size: 9px; }
   .summary { padding: 8px 10px; border: 1px solid #ded7cb; background: #faf8f3; margin-bottom: 17px; display: flex; justify-content: space-between; gap: 20px; }
-  .event-block { margin: 0 0 20px; padding: 0 0 18px; border-bottom: 1px solid #cfc6b7; page-break-inside: auto; }
+  .event-block { margin: 0 0 20px; padding: 0 0 18px; border-bottom: 1px solid #cfc6b7; break-inside: avoid-page; page-break-inside: avoid; }
   .event-block:last-of-type { border-bottom: 0; margin-bottom: 0; }
   .event-number { color: #9b814b; letter-spacing: .24em; font-size: 7px; font-weight: 700; margin-bottom: 3px; }
-  h2 { margin: 0 0 9px; font-family: Georgia, serif; font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: .025em; page-break-after: avoid; }
+  h2 { margin: 0 0 9px; font-family: Georgia, serif; font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: .025em; break-after: avoid-page; page-break-after: avoid; }
   .details { margin-bottom: 12px; page-break-inside: avoid; }
   .detail-line { display: flex; align-items: baseline; gap: 5px; margin: 2px 0; }
   .detail-label { font-weight: 700; min-width: 94px; }
   .detail-value { flex: 1; min-width: 0; word-break: break-word; }
-  .list-section { margin-top: 11px; }
-  h3 { margin: 0 0 4px; color: #725d31; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; page-break-after: avoid; }
+  .list-section { margin-top: 11px; break-inside: avoid-page; page-break-inside: avoid; }
+  h3 { margin: 0 0 4px; color: #725d31; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; break-after: avoid-page; page-break-after: avoid; }
   .section-total { color: #6f675d; font-weight: 400; letter-spacing: 0; text-transform: none; }
   .item-list { margin: 0; padding-left: 17px; }
-  .item-list li { margin: 2px 0; padding-left: 1px; word-break: break-word; page-break-inside: avoid; }
+  .item-list li { margin: 2px 0; padding-left: 1px; word-break: break-word; break-inside: avoid-page; page-break-inside: avoid; }
   .empty-item { color: #867e73; font-style: italic; }
   .notes { border-left: 2px solid #d8c59a; padding-left: 9px; min-height: 18px; white-space: normal; word-break: break-word; }
   .footer { position: fixed; bottom: -8mm; left: 0; right: 0; text-align: center; color: #8b8378; font-size: 7px; letter-spacing: .12em; }
