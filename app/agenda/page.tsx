@@ -8,6 +8,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import React from "react";
 import { useRouter } from "next/navigation";
 import { ThemeSwitcher } from "../ThemeSwitcher";
+import { buildAgendaPdfHtml, formatAgendaPdfDate, type AgendaPdfEvent } from "./pdf";
 
 // ── CustomSelect — cross-browser dropdown (substitui <select> nativo) ─────────
 function CustomSelect({
@@ -86,7 +87,7 @@ import {
   registarVoltaMaterial, deleteMovimentoMaterial,
   getAllMaterialPacks, reservarMaterialPacksParaEvento, getMaterialPackReservasEvento, getMateriaisReservadosResumoEvento,
   reservarMaterialEvento, updateReservaMaterialEvento, deleteReservaMaterialEvento, confirmarSaidaReservaEvento,
-  getArtistConflictOverrides, dismissArtistConflict, getAgendaPageBundle, getAgendaFormLookups, getMaterialPackIdsForServico,
+  getArtistConflictOverrides, dismissArtistConflict, getAgendaPageBundle, getAgendaFormLookups, getMaterialPackIdsForServico, getAgendaPdfBundle,
 } from "../actions";
 
 interface AgendaEvent {
@@ -295,6 +296,12 @@ export default function AgendaPage() {
   const [waCustomStart, setWaCustomStart] = useState("");
   const [waCustomEnd, setWaCustomEnd] = useState("");
   const [waPeriodError, setWaPeriodError] = useState("");
+  const [pdfPeriodModal, setPdfPeriodModal] = useState(false);
+  const [pdfPeriodMode, setPdfPeriodMode] = useState<"today" | "week7" | "month" | "custom">("today");
+  const [pdfCustomStart, setPdfCustomStart] = useState("");
+  const [pdfCustomEnd, setPdfCustomEnd] = useState("");
+  const [pdfPeriodError, setPdfPeriodError] = useState("");
+  const [pdfGenerating, setPdfGenerating] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [artists, setArtists] = useState<ArtistRow[]>([emptyArtist()]);
   const [loadingArtists, setLoadingArtists] = useState(false);
@@ -1181,6 +1188,78 @@ export default function AgendaPage() {
     return lines.join("\n").trim();
   };
 
+  // ── PDF: impressão completa dos eventos ───────────────────────────────────
+  const openPdfPeriodModal = () => {
+    setPdfPeriodMode("today");
+    setPdfCustomStart("");
+    setPdfCustomEnd("");
+    setPdfPeriodError("");
+    setPdfPeriodModal(true);
+  };
+
+  const handlePrintAgendaPdf = async () => {
+    let startDate = "", endDate = "", label = "";
+    const toLocalDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const today = new Date();
+    if (pdfPeriodMode === "today") {
+      startDate = endDate = toLocalDateStr(today);
+      label = "Eventos de hoje";
+    } else if (pdfPeriodMode === "week7") {
+      const end = new Date(today);
+      end.setDate(today.getDate() + 6);
+      startDate = toLocalDateStr(today);
+      endDate = toLocalDateStr(end);
+      label = "Eventos dos próximos 7 dias";
+    } else if (pdfPeriodMode === "month") {
+      const [y, m] = selectedMonth.split("-").map(Number);
+      const daysInMonth = new Date(y, m, 0).getDate();
+      startDate = `${selectedMonth}-01`;
+      endDate = `${selectedMonth}-${String(daysInMonth).padStart(2, "0")}`;
+      const monthName = new Date(y, m - 1, 1).toLocaleDateString("pt-PT", { month: "long", year: "numeric" });
+      label = `Eventos de ${monthName}`;
+    } else {
+      if (!pdfCustomStart || !pdfCustomEnd) { setPdfPeriodError("Preenche as duas datas."); return; }
+      if (pdfCustomEnd < pdfCustomStart) { setPdfPeriodError("Data final não pode ser anterior à inicial."); return; }
+      startDate = pdfCustomStart;
+      endDate = pdfCustomEnd;
+      label = `Eventos de ${formatAgendaPdfDate(startDate)} a ${formatAgendaPdfDate(endDate)}`;
+    }
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      setPdfPeriodError("O navegador bloqueou a janela de impressão. Autoriza pop-ups para esta app e tenta novamente.");
+      return;
+    }
+    try { printWindow.opener = null; } catch { }
+    printWindow.document.write('<!doctype html><html><head><title>A preparar PDF...</title></head><body style="font-family:Arial;padding:40px;color:#333">A preparar o relatório completo...</body></html>');
+    printWindow.document.close();
+    setPdfGenerating(true);
+    setPdfPeriodError("");
+    try {
+      const result = await getAgendaPdfBundle(userName || "Admin", startDate, endDate);
+      if (!result.success) throw new Error(result.message || "Não foi possível carregar os eventos.");
+      const html = buildAgendaPdfHtml({
+        events: (result.data || []) as AgendaPdfEvent[],
+        startDate,
+        endDate,
+        label,
+        showValues: userRole !== "limited_novalues",
+      });
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      setPdfPeriodModal(false);
+      printWindow.focus();
+      printWindow.onafterprint = () => printWindow.close();
+      window.setTimeout(() => printWindow.print(), 350);
+    } catch (error) {
+      printWindow.close();
+      setPdfPeriodError(error instanceof Error ? error.message : "Não foi possível gerar o PDF.");
+    } finally {
+      setPdfGenerating(false);
+    }
+  };
+
   const handleCopyAgenda = () => {
     let startDate = "", endDate = "", label = "";
     if (waPeriodMode === "month") {
@@ -1253,6 +1332,13 @@ export default function AgendaPage() {
           <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.textSec, textTransform: "uppercase", fontWeight: 600 }}>Agenda 2026</p>
           <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
             <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
+            <button
+              onClick={openPdfPeriodModal}
+              style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.22)", color: "var(--theme-accent)", fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              PDF
+            </button>
             <button
               onClick={openWaPeriodModal}
               style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
@@ -1507,6 +1593,13 @@ export default function AgendaPage() {
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           <button
+            onClick={openPdfPeriodModal}
+            style={{ background: "rgba(var(--theme-accent-rgb),0.08)", border: "1px solid rgba(var(--theme-accent-rgb),0.2)", color: "var(--theme-accent)", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px" }}
+            title="Imprimir agenda completa em PDF"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          </button>
+          <button
             onClick={openWaPeriodModal}
             style={{ background: "rgba(93,202,165,0.08)", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px" }}
             title="Copiar Agenda para WhatsApp"
@@ -1696,6 +1789,55 @@ export default function AgendaPage() {
     </div>
 
     {/* ═══ MODAL (shared) ═══ */}
+      {/* PDF — Modal de Período */}
+      {pdfPeriodModal && (
+        <div onClick={(e: React.MouseEvent<HTMLDivElement>) => !pdfGenerating && e.target === e.currentTarget && setPdfPeriodModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1120, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "420px", maxWidth: "95vw", position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+              <div>
+                <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Imprimir agenda completa</p>
+                <p style={{ fontSize: "9px", color: "var(--theme-text-subtle)", marginTop: "0.35rem", lineHeight: 1.5 }}>Inclui dados do evento, notas, materiais e artistas com valores.</p>
+              </div>
+              <button disabled={pdfGenerating} onClick={() => setPdfPeriodModal(false)} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: pdfGenerating ? "default" : "pointer", fontSize: "16px", opacity: pdfGenerating ? 0.4 : 1 }}>✕</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.25rem" }}>
+              {([
+                { id: "today" as const, label: "Eventos de hoje", sub: new Date().toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" }) },
+                { id: "week7" as const, label: "Próximos 7 dias", sub: (() => { const t = new Date(); const e2 = new Date(t); e2.setDate(t.getDate() + 6); const fmt = (d: Date) => `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`; return `${fmt(t)} → ${fmt(e2)}`; })() },
+                { id: "month" as const, label: "Mês selecionado", sub: monthLabel(selectedMonth) },
+                { id: "custom" as const, label: "Intervalo personalizado", sub: "" },
+              ] as { id: "today" | "week7" | "month" | "custom"; label: string; sub: string }[]).map(opt => (
+                <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", cursor: pdfGenerating ? "default" : "pointer", padding: "0.65rem 0.75rem", background: pdfPeriodMode === opt.id ? "rgba(var(--theme-accent-rgb),0.06)" : "transparent", border: `1px solid ${pdfPeriodMode === opt.id ? "rgba(var(--theme-accent-rgb),0.22)" : "rgba(var(--theme-contrast-rgb),0.05)"}`, transition: "all 0.15s", opacity: pdfGenerating ? 0.6 : 1 }}>
+                  <input disabled={pdfGenerating} type="radio" name="pdfPeriod" checked={pdfPeriodMode === opt.id} onChange={() => { setPdfPeriodMode(opt.id); setPdfPeriodError(""); }} style={{ accentColor: "var(--theme-accent)", flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontSize: "11px", color: pdfPeriodMode === opt.id ? "var(--theme-text)" : "var(--theme-text-secondary)", letterSpacing: "0.04em" }}>{opt.label}</div>
+                    {opt.sub && <div style={{ fontSize: "9px", color: "var(--theme-text-subtle)", letterSpacing: "0.1em", marginTop: "2px", textTransform: "capitalize" }}>{opt.sub}</div>}
+                  </div>
+                </label>
+              ))}
+            </div>
+            {pdfPeriodMode === "custom" && (
+              <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.35em", color: "var(--theme-text-subtle)", textTransform: "uppercase", marginBottom: "0.4rem" }}>De</label>
+                  <input disabled={pdfGenerating} type="date" value={pdfCustomStart} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setPdfCustomStart(e.target.value); setPdfPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "11px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.35em", color: "var(--theme-text-subtle)", textTransform: "uppercase", marginBottom: "0.4rem" }}>Até</label>
+                  <input disabled={pdfGenerating} type="date" value={pdfCustomEnd} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setPdfCustomEnd(e.target.value); setPdfPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "11px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
+                </div>
+              </div>
+            )}
+            {pdfPeriodError && <p style={{ fontSize: "9px", color: "var(--theme-danger)", letterSpacing: "0.08em", marginBottom: "0.85rem", lineHeight: 1.5 }}>{pdfPeriodError}</p>}
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button disabled={pdfGenerating} onClick={() => setPdfPeriodModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: pdfGenerating ? "default" : "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: pdfGenerating ? 0.5 : 1 }}>Cancelar</button>
+              <button disabled={pdfGenerating} onClick={handlePrintAgendaPdf} style={{ background: "var(--theme-accent)", border: "none", color: "var(--theme-bg)", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: pdfGenerating ? "wait" : "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: pdfGenerating ? 0.65 : 1 }}>{pdfGenerating ? "A preparar..." : "Imprimir PDF"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* WhatsApp — Modal de Período */}
       {waPeriodModal && (
         <div onClick={e => e.target === e.currentTarget && setWaPeriodModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>

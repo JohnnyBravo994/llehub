@@ -3768,8 +3768,8 @@ export async function deleteMovimentoMaterial(id: number) {
 // Nunca filtrar diretamente com event_date >= YYYY-MM-DD sem normalizar primeiro.
 function sqlDateExpr(column: string) {
   return `(CASE
-    WHEN ${column} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' THEN ${column}
-    WHEN ${column} GLOB '[0-9][0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9]' THEN substr(${column},7,4) || '-' || substr(${column},4,2) || '-' || substr(${column},1,2)
+    WHEN substr(${column},1,10) GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' THEN substr(${column},1,10)
+    WHEN substr(${column},1,10) GLOB '[0-9][0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9]' THEN substr(${column},7,4) || '-' || substr(${column},4,2) || '-' || substr(${column},1,2)
     ELSE ${column}
   END)`;
 }
@@ -3888,6 +3888,61 @@ export async function getAgendaMonthIndex() {
   } catch (error) {
     console.error('Erro getAgendaMonthIndex:', error);
     return { success: false, data: [monthBounds().ym] };
+  }
+}
+
+export async function getAgendaPdfBundle(userName: string = 'Admin', startDate: string, endDate: string) {
+  noStore();
+  try {
+    const start = toIsoDateServer(startDate);
+    const end = toIsoDateServer(endDate);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+      return { success: false, data: [], message: 'Intervalo de datas inválido.' };
+    }
+    if (end < start) return { success: false, data: [], message: 'A data final não pode ser anterior à inicial.' };
+
+    const visibilityClause = userName === 'Larissa' ? "visibility = 'Public' AND " : '';
+    const startYear = Number(start.slice(0, 4));
+    const endYear = Number(end.slice(0, 4));
+    const years = Array.from({ length: Math.max(0, endYear - startYear + 1) }, (_, index) => startYear + index);
+    const legacyYearClause = years.length ? years.map(() => "event_date LIKE ?").join(" OR ") : "0";
+    const agendaRes = await turso.execute({
+      sql: `SELECT * FROM agenda
+            WHERE ${visibilityClause}(${sqlDateExpr('event_date')} BETWEEN ? AND ? OR ${legacyYearClause})
+            ORDER BY ${sqlDateExpr('event_date')} ASC, id ASC`,
+      args: [start, end, ...years.map(year => `%/${year}%`)],
+    });
+    const agendaData = agendaRes.rows
+      .map(normalizeAgendaRow)
+      .map((event: any) => ({ ...event, event_date: toIsoDateServer(event.event_date) }))
+      .filter((event: any) => event.event_date >= start && event.event_date <= end);
+
+    const artists = await getArtistasMapForEventoIds(agendaData.map((event: any) => Number(event.id)));
+    // Limitar concorrência: cada resumo executa quatro queries; evitar uma rajada excessiva
+    // ao imprimir meses com muitos eventos no ambiente serverless da Vercel/Turso.
+    const materialEntries: (readonly [number, any[]])[] = [];
+    const materialConcurrency = 4;
+    for (let index = 0; index < agendaData.length; index += materialConcurrency) {
+      const batch = agendaData.slice(index, index + materialConcurrency);
+      const batchEntries = await Promise.all(batch.map(async (event: any) => {
+        const result = await getMateriaisReservadosResumoEvento(Number(event.id));
+        return [Number(event.id), result.success ? result.data : []] as const;
+      }));
+      materialEntries.push(...batchEntries);
+    }
+    const materialsMap = Object.fromEntries(materialEntries);
+
+    return {
+      success: true,
+      data: agendaData.map((event: any) => ({
+        ...event,
+        artistas: artists.success ? (artists.data[Number(event.id)] || []) : [],
+        materiais: materialsMap[Number(event.id)] || [],
+      })),
+    };
+  } catch (error) {
+    console.error('Erro getAgendaPdfBundle:', error);
+    return { success: false, data: [], message: 'Não foi possível preparar o relatório de eventos.' };
   }
 }
 
