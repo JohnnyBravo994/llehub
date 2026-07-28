@@ -4,6 +4,7 @@ import MobTabBar from "../MobTabBar";
 
 import { ARTIST_TIPOS, MODALIDADES, SERVICOS_VENDIDOS, TIPOS_COMERCIAIS, VALOR_CONTEXTOS, resolveColaboradorNome } from "../constants";
 import { ArtistAutocomplete, type ArtistOption } from "../ArtistAutocomplete";
+import { ArtistTypeAutocomplete } from "../ArtistTypeAutocomplete";
 import { useEffect, useState, useCallback, useRef } from "react";
 import React from "react";
 import { useRouter } from "next/navigation";
@@ -87,7 +88,7 @@ import {
   registarVoltaMaterial, deleteMovimentoMaterial,
   getAllMaterialPacks, reservarMaterialPacksParaEvento, getMaterialPackReservasEvento, getMateriaisReservadosResumoEvento,
   reservarMaterialEvento, updateReservaMaterialEvento, deleteReservaMaterialEvento, confirmarSaidaReservaEvento,
-  getArtistConflictOverrides, dismissArtistConflict, getAgendaPageBundle, getAgendaFormLookups, getMaterialPackIdsForServico, getAgendaPdfBundle,
+  getArtistConflictOverrides, dismissArtistConflict, getAgendaPageBundle, getAgendaFormLookups, getMaterialPackIdsForServico, getAgendaPdfBundle, getAgendaWhatsAppBundle,
 } from "../actions";
 
 interface AgendaEvent {
@@ -250,23 +251,30 @@ function artistsSummary(artists: ArtistRow[]) {
 }
 
 const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura", tipo_comercial: "Evento", servico_comercial: "", valor_contexto: "Cliente Final", venue: "", contacto: "", notas: "", residencia_id: null as number | null };
-const emptyArtist = (): ArtistRow => ({ colaborador_id: null, nome: "", tipo: "DJ", fee: "" });
+const emptyArtist = (): ArtistRow => ({ colaborador_id: null, nome: "", tipo: "", fee: "" });
 
 function normalizeText(v: string) {
   return v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 }
 
-function tipoFromSkills(skills?: string) {
-  const first = (skills || "").split(",").map(s => s.trim()).filter(Boolean)[0] || "";
-  const map: Record<string, string> = {
+function tiposFromSkills(skills?: string): string[] {
+  const aliases: Record<string, string> = {
     "Cantor/a": "Cantor(a)", "Cantor(a)": "Cantor(a)", "DJ": "DJ", "Saxofonista": "Saxofonista", "Violinista": "Violinista",
     "Pianista": "Pianista", "Guitarrista": "Guitarrista", "Baterista": "Baterista", "Percussionista": "Percussionista",
     "Bailarino/a": "Bailarino(a)", "Ator/Host": "Animador / Host", "Animador/a": "Animador / Host",
     "Produtor/Coordenador": "Produtor", "Makeup & Hair": "Make-up & Hair", "Assistente de Guarda-Roupa": "Guarda-Roupa",
-    "Coreógrafo/a": "Coreógrafo(a)",
+    "Coreógrafo/a": "Coreógrafo(a)", "Coreografo/a": "Coreógrafo(a)",
   };
-  const mapped = map[first] || first || "DJ";
-  return (ARTIST_TIPOS as readonly string[]).includes(mapped) ? mapped : "DJ";
+  const allowed = ARTIST_TIPOS as readonly string[];
+  return Array.from(new Set((skills || "")
+    .split(/[,;\n]+/)
+    .map(skill => skill.trim())
+    .filter(Boolean)
+    .map(skill => Object.entries(aliases).find(([alias]) => normalizeText(alias) === normalizeText(skill))?.[1]
+      || allowed.find(tipo => normalizeText(tipo) === normalizeText(skill))
+      || skill)
+    .filter(tipo => allowed.includes(tipo))))
+    .sort((a, b) => a.localeCompare(b, "pt", { sensitivity: "base" }));
 }
 
 export default function AgendaPage() {
@@ -296,6 +304,7 @@ export default function AgendaPage() {
   const [waCustomStart, setWaCustomStart] = useState("");
   const [waCustomEnd, setWaCustomEnd] = useState("");
   const [waPeriodError, setWaPeriodError] = useState("");
+  const [waGenerating, setWaGenerating] = useState(false);
   const [pdfPeriodModal, setPdfPeriodModal] = useState(false);
   const [pdfPeriodMode, setPdfPeriodMode] = useState<"today" | "week7" | "month" | "custom">("today");
   const [pdfCustomStart, setPdfCustomStart] = useState("");
@@ -536,13 +545,22 @@ export default function AgendaPage() {
     showToast(`Saída registada: ${item.material_nome}`);
   };
 
-  const colaboradoresAtivos = colaboradores.filter(c => c.ativo === 1);
   const colaboradorDisplayName = (c: Colaborador) => c.nome_artistico || c.nome;
+  const colaboradoresAtivos = colaboradores
+    .filter(c => c.ativo === 1)
+    .sort((a, b) => colaboradorDisplayName(a).localeCompare(colaboradorDisplayName(b), "pt", { sensitivity: "base" }));
   const findColaboradorByNome = (nome: string) => colaboradoresAtivos.find(c => {
     const q = normalizeText(nome);
     return [c.nome, c.nome_artistico || "", c.nome_pessoal || ""].some(v => normalizeText(v) === q);
   });
   const findColaboradorById = (id?: number | null) => id ? colaboradores.find(c => c.id === id) : undefined;
+  const tiposDisponiveisParaArtista = (artista: ArtistRow) => {
+    const colaborador = findColaboradorById(artista.colaborador_id) || findColaboradorByNome(artista.nome);
+    const tiposDoColaborador = colaborador ? tiposFromSkills(colaborador.skills) : [];
+    return tiposDoColaborador.length > 0
+      ? tiposDoColaborador
+      : [...ARTIST_TIPOS].sort((a, b) => a.localeCompare(b, "pt", { sensitivity: "base" }));
+  };
   const isEmptyFee = (fee: string) => fee.trim() === "" || Number(fee.replace(",", ".")) === 0;
   const suggestedFeeForTipo = (tipo: string) => {
     const row = valoresFuncoes.find(v => v.ativo === 1 && normalizeText(v.funcao) === normalizeText(tipo));
@@ -591,11 +609,13 @@ export default function AgendaPage() {
   };
   const normalizeArtistRow = (a: any): ArtistRow => {
     const col = findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome || "");
+    const currentTipo = a.tipo || "";
+    const tiposPermitidos = col ? tiposFromSkills(col.skills) : [];
     return {
       id: a.id,
       colaborador_id: col?.id ?? a.colaborador_id ?? null,
       nome: col ? colaboradorDisplayName(col) : (a.nome || ""),
-      tipo: a.tipo || (col ? tipoFromSkills(col.skills) : "DJ"),
+      tipo: col && tiposPermitidos.length > 0 && currentTipo && !tiposPermitidos.includes(currentTipo) ? "" : currentTipo,
       fee: String(a.fee ?? ""),
     };
   };
@@ -603,10 +623,13 @@ export default function AgendaPage() {
   // Escrever/apagar no campo nunca deve selecionar automaticamente um colaborador.
   // A associação só acontece quando a pessoa clica numa sugestão.
   const updateArtistNome = (i: number, nome: string) => {
+    const exactColaborador = findColaboradorByNome(nome);
+    const tiposPermitidos = exactColaborador ? tiposFromSkills(exactColaborador.skills) : [];
     setArtists(prev => prev.map((a, idx) => idx === i ? {
       ...a,
       colaborador_id: null,
       nome,
+      tipo: exactColaborador && tiposPermitidos.length > 0 && !tiposPermitidos.includes(a.tipo) ? "" : a.tipo,
     } : a));
   };
 
@@ -614,15 +637,16 @@ export default function AgendaPage() {
     const col = suggestion.colaborador_id
       ? findColaboradorById(suggestion.colaborador_id)
       : findColaboradorByNome(suggestion.nome);
+    const tiposPermitidos = col ? tiposFromSkills(col.skills) : [];
     setArtists(prev => prev.map((a, idx) => {
       if (idx !== i) return a;
-      const nextTipo = suggestion.tipo || (col ? tipoFromSkills(col.skills) : a.tipo);
+      const nextTipo = tiposPermitidos.length > 0 && tiposPermitidos.includes(a.tipo) ? a.tipo : "";
       return {
         ...a,
         colaborador_id: col?.id ?? suggestion.colaborador_id ?? null,
         nome: col ? colaboradorDisplayName(col) : suggestion.nome,
         tipo: nextTipo,
-        fee: isEmptyFee(a.fee) && nextTipo ? suggestedFeeString(nextTipo) : a.fee,
+        fee: nextTipo && isEmptyFee(a.fee) ? suggestedFeeString(nextTipo) : a.fee,
       };
     }));
   };
@@ -982,7 +1006,7 @@ export default function AgendaPage() {
       .flat()
       .filter(a => a.nome?.trim() && a.tipo?.trim())
       .map(a => JSON.stringify({ nome: a.nome, tipo: a.tipo, colaborador_id: a.colaborador_id ?? null }))
-  )).map(j => JSON.parse(j)).sort((a, b) => a.nome.localeCompare(b.nome));
+  )).map(j => JSON.parse(j)).sort((a, b) => a.nome.localeCompare(b.nome, "pt", { sensitivity: "base" }));
 
   // Todos os dias do mês seleccionado para mostrar folgas
   const daysInSelectedMonth = (() => {
@@ -1103,7 +1127,14 @@ export default function AgendaPage() {
 
   const WEEKDAYS_PT_LONG = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
-  const buildAgendaTextForRange = (startDate: string, endDate: string, label: string): string => {
+  const buildAgendaTextForRange = (
+    startDate: string,
+    endDate: string,
+    label: string,
+    sourceEvents: AgendaEvent[] = events,
+    sourceLeads: Lead[] = confirmedLeads,
+    sourceArtistsMap: Record<number, ArtistRow[]> = artistasMap,
+  ): string => {
     const lines: string[] = [label, ""];
     const parseLocalDate = (dateStr: string) => {
       const [y, m, d] = dateStr.split("-").map(Number);
@@ -1117,10 +1148,10 @@ export default function AgendaPage() {
       const yyyy = cur.getFullYear();
       const dateStr = `${yyyy}-${mm}-${dd}`;
       const wd = WEEKDAYS_PT_LONG[cur.getDay()];
-      const dayEvents = events.filter(e => {
-        if (e.event_date !== dateStr) return false;
+      const dayEvents = sourceEvents.filter(e => {
+        if (toIsoDate(e.event_date) !== dateStr) return false;
         if (userName === "Larissa" && isSoJoao(e.tipo || "")) return false;
-        const evArtists = artistasMap[e.id] || [];
+        const evArtists = sourceArtistsMap[e.id] || [];
         if (filterArtista && !evArtists.some(a => resolveColaboradorNome(a.nome).toLowerCase() === filterArtista.toLowerCase())) return false;
         if (filterCliente && (() => {
           const cn = e.cliente_nome || '';
@@ -1131,7 +1162,7 @@ export default function AgendaPage() {
         if (filterEquipa && !parseEquipa(e.tipo || "").includes(filterEquipa)) return false;
         return true;
       });
-      const dayLeads = confirmedLeads.filter(l => l.event_date === dateStr);
+      const dayLeads = sourceLeads.filter(l => toIsoDate(l.event_date) === dateStr);
 
       // Dias sem nenhum evento/lead = Folga
       if (dayEvents.length === 0 && dayLeads.length === 0) {
@@ -1142,7 +1173,7 @@ export default function AgendaPage() {
         const totalItems = dayEvents.length + dayLeads.length;
 
         const eventLineFor = (e: AgendaEvent): string => {
-          const evArtists = (artistasMap[e.id] || []).filter(a => a.nome.trim());
+          const evArtists = (sourceArtistsMap[e.id] || []).filter(a => a.nome.trim());
           const seen = new Set<string>();
           const icons = evArtists
             .map(a => { const ic = TIPO_ICON[a.tipo] || ""; if (!ic || seen.has(ic)) return ""; seen.add(ic); return ic; })
@@ -1251,7 +1282,20 @@ export default function AgendaPage() {
       setPdfPeriodModal(false);
       printWindow.focus();
       printWindow.onafterprint = () => printWindow.close();
-      window.setTimeout(() => printWindow.print(), 350);
+
+      // Espera pelo ajuste de cada evento à respetiva página A4 antes de abrir
+      // a impressão. Isto evita que o Safari calcule as quebras antes do layout
+      // final estar pronto.
+      const printWhenReady = (attempt = 0) => {
+        const isReady = printWindow.document.documentElement.dataset.pdfReady === "true";
+        if (isReady || attempt >= 25) {
+          printWindow.focus();
+          printWindow.print();
+          return;
+        }
+        window.setTimeout(() => printWhenReady(attempt + 1), 80);
+      };
+      window.setTimeout(() => printWhenReady(), 40);
     } catch (error) {
       printWindow.close();
       setPdfPeriodError(error instanceof Error ? error.message : "Não foi possível gerar o PDF.");
@@ -1260,7 +1304,7 @@ export default function AgendaPage() {
     }
   };
 
-  const handleCopyAgenda = () => {
+  const handleCopyAgenda = async () => {
     let startDate = "", endDate = "", label = "";
     if (waPeriodMode === "month") {
       const [y, m] = selectedMonth.split("-").map(Number);
@@ -1288,25 +1332,67 @@ export default function AgendaPage() {
       const [, em, ed] = waCustomEnd.split("-");
       label = `*Agenda de ${sd}/${sm} a ${ed}/${em}*`;
     }
-    const text = buildAgendaTextForRange(startDate, endDate, label);
-    setWaText(text);
-    setWaCopied(false);
-    setWaPeriodModal(false);
-    setWaModal(true);
-    const doCopy = (t: string) => {
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(t).then(() => setWaCopied(true)).catch(() => {
+
+    setWaGenerating(true);
+    setWaPeriodError("");
+    try {
+      // A agenda visível só carrega o mês selecionado. Para períodos que atravessam
+      // o fim do mês (ex.: julho → agosto), o WhatsApp precisa de consultar a BD
+      // pelo intervalo completo, tal como já acontece no PDF.
+      const result = await getAgendaWhatsAppBundle(userName || "Admin", startDate, endDate);
+      if (!result.success) throw new Error(result.message || "Não foi possível carregar a agenda.");
+
+      const rangeEvents = (result.agenda || []) as AgendaEvent[];
+      const rawRangeLeads = (result.leads || []) as Lead[];
+      const rangeArtistsMap = Object.fromEntries(
+        Object.entries((result.artistas || {}) as Record<number, any[]>).map(([key, rows]) => [
+          key,
+          rows.map((a: any) => ({ ...a, colaborador_id: a.colaborador_id ?? null, fee: String(a.fee ?? "") })),
+        ])
+      ) as Record<number, ArtistRow[]>;
+
+      // Manter exatamente a mesma regra da agenda: só leads confirmadas e ainda
+      // não convertidas/duplicadas aparecem na mensagem.
+      const stripEmoji = (value: string) => value.replace(/[\p{Emoji}‍️]+/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
+      const rangeLeads = rawRangeLeads.filter(l => {
+        if (!CONFIRMED_STATUSES.includes(l.status || "") || !l.event_date) return false;
+        const leadTitle = stripEmoji(l.title || "");
+        const leadValue = l.value || 0;
+        const hasLinkedEvent = rangeEvents.some(e => e.origem_lead_id === l.id);
+        if (hasLinkedEvent) return false;
+        return !rangeEvents.some(e => {
+          if (toIsoDate(e.event_date) !== toIsoDate(l.event_date)) return false;
+          const agendaTitle = stripEmoji(e.title || "");
+          const titleMatch = agendaTitle.includes(leadTitle.slice(0, 12)) || leadTitle.includes(agendaTitle.slice(0, 12));
+          const valueMatch = leadValue > 0 && Number(e.bill) === leadValue;
+          return titleMatch || valueMatch;
+        });
+      });
+
+      const text = buildAgendaTextForRange(startDate, endDate, label, rangeEvents, rangeLeads, rangeArtistsMap);
+      setWaText(text);
+      setWaCopied(false);
+      setWaPeriodModal(false);
+      setWaModal(true);
+      const doCopy = (t: string) => {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(t).then(() => setWaCopied(true)).catch(() => {
+            const ta = document.createElement("textarea");
+            ta.value = t; document.body.appendChild(ta); ta.select();
+            document.execCommand("copy"); document.body.removeChild(ta); setWaCopied(true);
+          });
+        } else {
           const ta = document.createElement("textarea");
           ta.value = t; document.body.appendChild(ta); ta.select();
           document.execCommand("copy"); document.body.removeChild(ta); setWaCopied(true);
-        });
-      } else {
-        const ta = document.createElement("textarea");
-        ta.value = t; document.body.appendChild(ta); ta.select();
-        document.execCommand("copy"); document.body.removeChild(ta); setWaCopied(true);
-      }
-    };
-    doCopy(text);
+        }
+      };
+      doCopy(text);
+    } catch (error) {
+      setWaPeriodError(error instanceof Error ? error.message : "Não foi possível preparar a mensagem para WhatsApp.");
+    } finally {
+      setWaGenerating(false);
+    }
   };
 
   if (loading) return <Loading />;
@@ -1877,7 +1963,7 @@ export default function AgendaPage() {
             {waPeriodError && <p style={{ fontSize: "9px", color: "var(--theme-danger)", letterSpacing: "0.2em", marginBottom: "0.85rem", textTransform: "uppercase" }}>{waPeriodError}</p>}
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
               <button onClick={() => setWaPeriodModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Cancelar</button>
-              <button onClick={handleCopyAgenda} style={{ background: "var(--theme-success)", border: "none", color: "var(--theme-bg)", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Copiar Agenda</button>
+              <button disabled={waGenerating} onClick={handleCopyAgenda} style={{ background: "var(--theme-success)", border: "none", color: "var(--theme-bg)", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: waGenerating ? "wait" : "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: waGenerating ? 0.65 : 1 }}>{waGenerating ? "A preparar..." : "Copiar Agenda"}</button>
             </div>
           </div>
         </div>
@@ -2263,14 +2349,12 @@ export default function AgendaPage() {
                           inputStyle={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
                         />
                       </div>
-                      <CustomSelect
+                      <ArtistTypeAutocomplete
                         value={a.tipo}
                         onChange={v => updateArtistTipo(i, v)}
-                        options={[
-                          { value: "", label: "Sem tipo" },
-                          ...ARTIST_TIPOS.map(t => ({ value: t, label: t }))
-                        ]}
-                        style={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "10px" }}
+                        options={tiposDisponiveisParaArtista(a)}
+                        placeholder="s/ tipo"
+                        inputStyle={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "10px" }}
                       />
                       <input
                         type="text"

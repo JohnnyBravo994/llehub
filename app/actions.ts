@@ -876,7 +876,7 @@ export async function getDashboardData(userName: string = 'Admin', clientTodaySt
     for (const r of artistasRes.rows) {
       const eid = Number(r.evento_id);
       if (!artistasByEvento[eid]) artistasByEvento[eid] = [];
-      if (r.nome) artistasByEvento[eid].push({ nome: r.nome as string, tipo: (r.tipo as string) || 'DJ' });
+      if (r.nome) artistasByEvento[eid].push({ nome: r.nome as string, tipo: (r.tipo as string) || '' });
     }
 
     // Normaliza qualquer formato de data para YYYY-MM-DD
@@ -3888,6 +3888,67 @@ export async function getAgendaMonthIndex() {
   } catch (error) {
     console.error('Erro getAgendaMonthIndex:', error);
     return { success: false, data: [monthBounds().ym] };
+  }
+}
+
+export async function getAgendaWhatsAppBundle(userName: string = 'Admin', startDate: string, endDate: string) {
+  noStore();
+  try {
+    const start = toIsoDateServer(startDate);
+    const end = toIsoDateServer(endDate);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+      return { success: false, agenda: [], leads: [], artistas: {}, message: 'Intervalo de datas inválido.' };
+    }
+    if (end < start) {
+      return { success: false, agenda: [], leads: [], artistas: {}, message: 'A data final não pode ser anterior à inicial.' };
+    }
+
+    const startYear = Number(start.slice(0, 4));
+    const endYear = Number(end.slice(0, 4));
+    const years = Array.from({ length: Math.max(0, endYear - startYear + 1) }, (_, index) => startYear + index);
+    const agendaLegacyClause = years.length ? years.map(() => 'event_date LIKE ?').join(' OR ') : '0';
+    const leadLegacyClause = years.length ? years.map(() => 'l.event_date LIKE ?').join(' OR ') : '0';
+    const visibilityClause = userName === 'Larissa' ? "visibility = 'Public' AND " : '';
+
+    const [agendaRes, leadsRes] = await Promise.all([
+      turso.execute({
+        sql: `SELECT * FROM agenda
+              WHERE ${visibilityClause}(${sqlDateExpr('event_date')} BETWEEN ? AND ? OR ${agendaLegacyClause})
+              ORDER BY ${sqlDateExpr('event_date')} ASC, id ASC`,
+        args: [start, end, ...years.map(year => `%/${year}%`)],
+      }),
+      turso.execute({
+        sql: `SELECT l.*, (SELECT a.id FROM agenda a WHERE a.origem_lead_id = l.id LIMIT 1) as agenda_event_id
+              FROM leads l
+              WHERE (${sqlDateExpr('l.event_date')} BETWEEN ? AND ? OR ${leadLegacyClause})
+              ORDER BY ${sqlDateExpr('l.event_date')} ASC, l.id ASC`,
+        args: [start, end, ...years.map(year => `%/${year}%`)],
+      }),
+    ]);
+
+    const agendaData = agendaRes.rows
+      .map(normalizeAgendaRow)
+      .map((event: any) => ({ ...event, event_date: toIsoDateServer(event.event_date) }))
+      .filter((event: any) => event.event_date >= start && event.event_date <= end);
+    const leadsData = leadsRes.rows
+      .map(normalizeLeadRow)
+      .map((lead: any) => ({ ...lead, event_date: toIsoDateServer(lead.event_date) }))
+      .filter((lead: any) => lead.event_date >= start && lead.event_date <= end);
+
+    const artists = await getArtistasMapForEventoIds([
+      ...agendaData.map((event: any) => Number(event.id)),
+      ...leadsData.map((lead: any) => -Number(lead.id)),
+    ]);
+
+    return {
+      success: true,
+      agenda: agendaData,
+      leads: leadsData,
+      artistas: artists.success ? artists.data : {},
+    };
+  } catch (error) {
+    console.error('Erro getAgendaWhatsAppBundle:', error);
+    return { success: false, agenda: [], leads: [], artistas: {}, message: 'Não foi possível preparar a agenda para WhatsApp.' };
   }
 }
 
