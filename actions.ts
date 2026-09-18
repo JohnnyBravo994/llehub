@@ -247,14 +247,14 @@ export async function getDashboardData(userName: string = 'Admin', clientTodaySt
     // Filtra directamente no SQL: data >= hoje E não Cancelado
     const leadsFromDate = clientTodayStr || new Date().toISOString().split("T")[0];
     const leadsRes = await turso.execute({
-      sql: "SELECT * FROM leads WHERE event_date >= ? AND status != 'Cancelado' ORDER BY event_date ASC",
+      sql: "SELECT * FROM leads WHERE event_date >= ? AND COALESCE(LOWER(TRIM(status)), '') NOT IN ('cancelado', 'cancelada', 'cancelled', 'canceled') ORDER BY event_date ASC",
       args: [leadsFromDate]
     });
 
-    let agendaSql = "SELECT * FROM agenda WHERE status != 'Cancelado' AND event_date >= ? ORDER BY event_date ASC LIMIT 200";
+    let agendaSql = "SELECT * FROM agenda WHERE COALESCE(LOWER(TRIM(status)), '') NOT IN ('cancelado', 'cancelada', 'cancelled', 'canceled') AND event_date >= ? ORDER BY event_date ASC LIMIT 200";
     // Tania e Soraya vêem o calendário completo (igual ao João/Admin)
     // Larissa mantém restrição anterior (só Public)
-    if (userName === 'Larissa') agendaSql = "SELECT * FROM agenda WHERE status != 'Cancelado' AND event_date >= ? AND visibility = 'Public' ORDER BY event_date ASC LIMIT 200";
+    if (userName === 'Larissa') agendaSql = "SELECT * FROM agenda WHERE COALESCE(LOWER(TRIM(status)), '') NOT IN ('cancelado', 'cancelada', 'cancelled', 'canceled') AND event_date >= ? AND visibility = 'Public' ORDER BY event_date ASC LIMIT 200";
 
     const agendaAllRes = await turso.execute({ sql: agendaSql, args: [todayStr] });
 
