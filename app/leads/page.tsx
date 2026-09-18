@@ -205,7 +205,7 @@ function tipoFromSkills(skills?: string) {
   const map: Record<string, string> = {
     "Cantor/a": "Cantor(a)", "Cantor(a)": "Cantor(a)", "DJ": "DJ", "Saxofonista": "Saxofonista", "Violinista": "Violinista",
     "Pianista": "Pianista", "Guitarrista": "Guitarrista", "Baterista": "Baterista", "Percussionista": "Percussionista",
-    "Bailarino/a": "Bailarino(a)", "Ator/Host": "Animador / Host", "Animador/a": "Animador / Host",
+    "Bailarino/a": "Bailarino(a)", "Ator/Host": "Host", "Animador/a": "Animador(a)", "Animador": "Animador(a)", "Animadora": "Animador(a)",
     "Produtor/Coordenador": "Produtor", "Makeup & Hair": "Make-up & Hair", "Assistente de Guarda-Roupa": "Guarda-Roupa",
     "Coreógrafo/a": "Coreógrafo(a)",
   };

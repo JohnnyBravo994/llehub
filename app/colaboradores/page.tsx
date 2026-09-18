@@ -772,7 +772,7 @@ function ColabModalContent({ form, setForm, modal, saving, closeModal, handleSav
 
 function skillDisplayName(skill: string): string {
   if (skill === "Bailarino(a)") return "Bailarino / Bailarina";
-  if (skill === "Animador / Host") return "Animador / Animadora / Host";
+  if (skill === "Animador(a)") return "Animador / Animadora";
   if (skill === "Cantor(a)") return "Cantor / Cantora";
   if (skill === "Mágico(a)") return "Mágico / Mágica";
   if (skill === "Acrobata Aéreo(a)") return "Acrobata Aéreo / Aérea";

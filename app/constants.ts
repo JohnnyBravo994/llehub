@@ -32,7 +32,8 @@ export const SERVICOS_VENDIDOS = [
   "Lollipop - plataforma",
   "Chandelier - plataforma",
   "Diamante - plataforma",
-  "Animador / Host",
+  "Animador(a)",
+  "Host",
   "Animador Infantil c/ jogos",
   "Make-up & Hair",
   "Guarda Roupa",
@@ -202,7 +203,8 @@ export const ARTIST_TIPOS = [
   "Performer Straps",
   "Performer Plataforma",
   "Técnico de Rigging",
-  "Animador / Host",
+  "Animador(a)",
+  "Host",
   "MC",
   "Ator(a)",
   "Animador Infantil",
@@ -256,6 +258,19 @@ const COLABORADOR_SKILL_ALIASES: Record<string, string> = {
   "guarda roupa": "Guarda-Roupa",
   "palhaco": "Palhaço",
   "empregado trapalhao": "Empregado Trapalhão",
+  "animador": "Animador(a)",
+  "animadora": "Animador(a)",
+  "animador/a": "Animador(a)",
+  "host": "Host",
+};
+
+// Alguns registos antigos juntavam funções que agora são distintas.
+// Ao normalizar listas, preservamos a informação expandindo o legado em skills separadas.
+const COLABORADOR_MULTI_SKILL_ALIASES: Record<string, string[]> = {
+  "animador / host": ["Animador(a)", "Host"],
+  "animador/host": ["Animador(a)", "Host"],
+  "ator / host": ["Ator(a)", "Host"],
+  "ator/host": ["Ator(a)", "Host"],
 };
 
 function normalizeSkillKey(value: string): string {
@@ -278,16 +293,27 @@ export function normalizeColaboradorSkill(skill: string): string {
   return canonical || raw;
 }
 
+export function expandColaboradorSkill(skill: string): string[] {
+  const raw = (skill || "").trim();
+  if (!raw) return [];
+  const key = normalizeSkillKey(raw);
+  const multi = COLABORADOR_MULTI_SKILL_ALIASES[key];
+  if (multi) return multi.slice();
+  const canonical = normalizeColaboradorSkill(raw);
+  return canonical ? [canonical] : [];
+}
+
 export function normalizeColaboradorSkills(skills: string[]): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   for (const raw of skills || []) {
-    const canonical = normalizeColaboradorSkill(raw);
-    if (!canonical) continue;
-    const key = normalizeSkillKey(canonical);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(canonical);
+    for (const canonical of expandColaboradorSkill(raw)) {
+      if (!canonical) continue;
+      const key = normalizeSkillKey(canonical);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(canonical);
+    }
   }
   return out;
 }
@@ -416,7 +442,9 @@ export const SERVICO_SKILL_LINKS: Record<string, readonly string[]> = {
   "Lollipop - plataforma": ["Performer Plataforma"],
   "Chandelier - plataforma": ["Performer Plataforma"],
   "Diamante - plataforma": ["Performer Plataforma"],
-  "Animador / Host": ["Animador / Host", "MC"],
+  "Animador / Host": ["Animador(a)", "Host"],
+  "Animador(a)": ["Animador(a)"],
+  "Host": ["Host"],
   "Animador Infantil c/ jogos": ["Animador Infantil"],
   "Palhaço": ["Palhaço"],
   "Empregado Trapalhão": ["Empregado Trapalhão"],

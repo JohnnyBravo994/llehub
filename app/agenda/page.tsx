@@ -202,7 +202,7 @@ const TIPO_ICON: Record<string, string> = {
   "Artista de Fogo": "🔥", "Fire": "🔥", "Malabarista": "🤹", "Performer Bolas de Sabão": "🫧",
   "Mágico(a)": "🪄", "Mágico": "🪄", "Performer Cubo": "⬛",
   "Acrobata": "🤸", "Acrobata Aéreo(a)": "🎪", "Performer Lyra": "⭕", "Performer Straps": "🎪", "Performer Plataforma": "💎",
-  "Técnico de Rigging": "🧰", "Animador / Host": "🎙️", "Host": "🎙️", "MC": "🎤", "Ator(a)": "🎭", "Actor": "🎭",
+  "Técnico de Rigging": "🧰", "Animador(a)": "🎪", "Host": "🎙️", "MC": "🎤", "Ator(a)": "🎭", "Actor": "🎭",
   "Animador Infantil": "🎈", "Make-up & Hair": "💄", "Guarda-Roupa": "🥻", "Produtor": "🧑🏽‍💻",
   "Assistente de Produção": "📋", "Coreógrafo(a)": "🩰", "Coreógrafa": "🩰", "Fotógrafo/Videógrafo": "📷",
   "Animador": "🎪", "Comediante": "😂", "Ginasta": "🤸",
@@ -284,7 +284,7 @@ function tiposFromSkills(skills?: string): string[] {
   const aliases: Record<string, string> = {
     "Cantor/a": "Cantor(a)", "Cantor(a)": "Cantor(a)", "DJ": "DJ", "Saxofonista": "Saxofonista", "Violinista": "Violinista",
     "Pianista": "Pianista", "Guitarrista": "Guitarrista", "Baterista": "Baterista", "Percussionista": "Percussionista",
-    "Bailarino/a": "Bailarino(a)", "Ator/Host": "Animador / Host", "Animador/a": "Animador / Host",
+    "Bailarino/a": "Bailarino(a)", "Ator/Host": "Host", "Animador/a": "Animador(a)", "Animador": "Animador(a)", "Animadora": "Animador(a)",
     "Produtor/Coordenador": "Produtor", "Makeup & Hair": "Make-up & Hair", "Assistente de Guarda-Roupa": "Guarda-Roupa",
     "Coreógrafo/a": "Coreógrafo(a)", "Coreografo/a": "Coreógrafo(a)",
   };

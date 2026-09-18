@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@libsql/client";
-import { ARTIST_TIPOS, SERVICOS_VENDIDOS, AUTO_BUDGET_PACK_SERVICES, isMaterialValueService, isMaterialEquipmentService, normalizeColaboradorSkill, normalizeColaboradorSkills } from "./constants";
+import { ARTIST_TIPOS, SERVICOS_VENDIDOS, AUTO_BUDGET_PACK_SERVICES, isMaterialValueService, isMaterialEquipmentService, normalizeColaboradorSkill, normalizeColaboradorSkills, expandColaboradorSkill } from "./constants";
 
 const turso = createClient({
   url: process.env.TURSO_DATABASE_URL!,
@@ -215,11 +215,13 @@ async function normalizeExistingColaboradorSkills() {
     // maior valor/rating preenchido para não perder informação histórica.
     const grouped = new Map<string, any[]>();
     for (const row of profiles.rows as any[]) {
-      const canonical = normalizeColaboradorSkill(String(row.skill || ''));
-      if (!canonical) continue;
-      const key = `${Number(row.colaborador_id)}::${canonical}`;
-      if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key)!.push({ ...row, canonical });
+      const canonicals = expandColaboradorSkill(String(row.skill || ''));
+      for (const canonical of canonicals) {
+        if (!canonical) continue;
+        const key = `${Number(row.colaborador_id)}::${canonical}`;
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key)!.push({ ...row, canonical, original_skill: String(row.skill || '') });
+      }
     }
 
     const fields = [
@@ -257,7 +259,7 @@ async function normalizeExistingColaboradorSkills() {
           merged.custo_sud, merged.custo_evento_residencia, merged.custo_parceria, merged.custo_cliente_final, merged.rating,
         ],
       });
-      const variants = Array.from(new Set(rows.map(r => String(r.skill || '')).filter(s => s && s !== canonical)));
+      const variants = Array.from(new Set(rows.map(r => String(r.original_skill ?? r.skill ?? '')).filter(s => s && s !== canonical)));
       for (const variant of variants) {
         await turso.execute({ sql: "DELETE FROM colaborador_skill_profiles WHERE colaborador_id=? AND skill=?", args: [colaboradorId, variant] });
       }
