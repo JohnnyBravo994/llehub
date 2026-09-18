@@ -1,6 +1,7 @@
 "use client";
 
 import MobTabBar from "../MobTabBar";
+import DesktopNav from "../DesktopNav";
 
 import { useTheme } from "../useTheme";
 import { ThemeSwitcher } from "../ThemeSwitcher";
@@ -11,8 +12,9 @@ import {
   getAllColaboradores, createColaborador, updateColaborador,
   toggleColaboradorAtivo, setupColaboradores, getArtistasPorAssociar,
   associarArtistaNomeAColaborador, criarColaboradorEAssociarArtista, ignorarArtistaPorAssociar,
+  deleteColaborador, mergeColaboradores,
 } from "../actions";
-import { COLABORADOR_SKILLS } from "../constants";
+import { COLABORADOR_SKILLS, normalizeColaboradorSkills } from "../constants";
 
 interface SkillProfile {
   valor: number; // legado
@@ -93,7 +95,7 @@ function skillsToString(skills: string[]): string {
 }
 function stringToSkills(s: string): string[] {
   if (!s) return [];
-  return s.split(",").map(x => x.trim()).filter(Boolean);
+  return normalizeColaboradorSkills(s.split(",").map(x => x.trim()).filter(Boolean));
 }
 
 export default function ColaboradoresPage() {
@@ -115,6 +117,10 @@ export default function ColaboradoresPage() {
   const [profileColab, setProfileColab] = useState<Colaborador | null>(null);
   const [sortBy, setSortBy] = useState<ArtistSort>("rating");
   const [ratingFilter, setRatingFilter] = useState(0);
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergeSourceId, setMergeSourceId] = useState("");
+  const [mergeTargetId, setMergeTargetId] = useState("");
+  const [merging, setMerging] = useState(false);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
@@ -194,6 +200,55 @@ export default function ColaboradoresPage() {
     await toggleColaboradorAtivo(c.id, novo);
     showToast(novo === 1 ? `${nome} reativado` : `${nome} desativado — não foi apagado`);
     load();
+  };
+
+
+  const handleDeleteColaborador = async (c: Colaborador) => {
+    const nome = c.nome_artistico || c.nome;
+    const ok = window.confirm(`Retirar definitivamente ${nome} da base de colaboradores?\n\nSó é permitido se não tiver histórico associado. Se for um duplicado, usa "Ligar colaboradores" para preservar Agenda e Residências.`);
+    if (!ok) return;
+    const res = await deleteColaborador(c.id);
+    if (res.success) {
+      setProfileColab(null);
+      showToast(`${nome} retirado`);
+      await load();
+      return;
+    }
+    if ((res as any).blocked) {
+      window.alert((res as any).message || "Este colaborador tem histórico associado e não pode ser eliminado diretamente.");
+    } else {
+      showToast((res as any).message || "Erro ao retirar colaborador");
+    }
+  };
+
+  const openMerge = (source?: Colaborador) => {
+    setMergeSourceId(source ? String(source.id) : "");
+    setMergeTargetId("");
+    setMergeOpen(true);
+  };
+
+  const handleMergeColaboradores = async () => {
+    const sourceId = Number(mergeSourceId || 0);
+    const targetId = Number(mergeTargetId || 0);
+    if (!sourceId || !targetId || sourceId === targetId) { showToast("Escolhe dois colaboradores diferentes"); return; }
+    const source = colaboradores.find(c => c.id === sourceId);
+    const target = colaboradores.find(c => c.id === targetId);
+    if (!source || !target) { showToast("Colaborador não encontrado"); return; }
+    const ok = window.confirm(`Ligar/fundir colaboradores?\n\nFICA: ${target.nome_artistico || target.nome}\nÉ FUNDIDO E RETIRADO: ${source.nome_artistico || source.nome}\n\nAgenda, Leads/Histórico e Residências associados ao duplicado passam para o colaborador que fica. Os dados do que fica têm prioridade; campos vazios são preenchidos pelo duplicado.`);
+    if (!ok) return;
+    setMerging(true);
+    const res = await mergeColaboradores(sourceId, targetId);
+    setMerging(false);
+    if (res.success) {
+      setMergeOpen(false);
+      setProfileColab(null);
+      setMergeSourceId("");
+      setMergeTargetId("");
+      showToast(`Colaboradores ligados · ${(res as any).movedEvents || 0} registos históricos movidos`);
+      await load();
+    } else {
+      showToast((res as any).message || "Erro ao ligar colaboradores");
+    }
   };
 
 
@@ -308,17 +363,20 @@ export default function ColaboradoresPage() {
     <>
     {/* ═══ DESKTOP ═══ */}
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: C.pageBg, color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease", overflowX: "hidden" }}>
-      <Nav userName={userName} active="colaboradores" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");  }} />
+      <DesktopNav userName={userName} active="colaboradores" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
       <main style={{ padding: "2.75rem 3.25rem", maxWidth: "1500px", width: "100%", boxSizing: "border-box", margin: "0 auto", overflowX: "hidden" }}>
 
         {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", gap: "1rem" }}>
           <p style={{ fontSize: "11px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600 }}>Colaboradores</p>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
             <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
-          <button onClick={openCreate} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.gold, fontSize: "11px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <svg width="10" height="10" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
-            Novo Colaborador
-          </button>
+            <button onClick={() => openMerge()} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textSec, fontSize: "10px", letterSpacing: "0.18em", padding: "0.65rem 1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600 }}>Ligar colaboradores</button>
+            <button onClick={openCreate} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.gold, fontSize: "11px", letterSpacing: "0.3em", padding: "0.65rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <svg width="10" height="10" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
+              Novo Colaborador
+            </button>
+          </div>
         </div>
 
         {artistasPorAssociar.length > 0 && (
@@ -439,6 +497,7 @@ export default function ColaboradoresPage() {
           placeholder="Pesquisar colaborador..."
           style={{ flex: 1, background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "14px", padding: "0.6rem 0.9rem", outline: "none" }}
         />
+        <button onClick={() => openMerge()} title="Ligar colaboradores" style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-muted)", fontSize: "10px", padding: "0.6rem 0.7rem", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.08em" }}>Ligar</button>
         <button onClick={openCreate} style={{ background: "rgba(var(--theme-accent-rgb),0.12)", border: "1px solid rgba(var(--theme-accent-rgb),0.2)", color: "var(--theme-accent)", fontSize: "16px", padding: "0.6rem 0.9rem", cursor: "pointer" }}>+</button>
       </div>
 
@@ -527,16 +586,49 @@ export default function ColaboradoresPage() {
       </>
     )}
 
+
+    {mergeOpen && (
+      <div onClick={e => e.target === e.currentTarget && !merging && setMergeOpen(false)} style={{ ...overlayStyle, zIndex: 1250 }}>
+        <div style={{ ...modalStyle, width: "min(560px, 94vw)", maxHeight: "88vh", overflowY: "auto" }}>
+          <div style={topLineStyle} />
+          <div style={{ fontSize: "10px", letterSpacing: "0.32em", color: C.gold, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.55rem" }}>Ligar colaboradores</div>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "2rem", color: C.textPrimary, marginBottom: "0.7rem" }}>Fundir duplicados sem perder histórico</div>
+          <p style={{ color: C.textMuted, fontSize: "12px", lineHeight: 1.6, marginBottom: "1.35rem" }}>Escolhe primeiro o registo duplicado que deve desaparecer e depois o colaborador que deve ficar. Agenda e Residências são reassociadas automaticamente. Os dados já preenchidos no colaborador que fica têm prioridade.</p>
+          <div style={{ display: "grid", gap: "1rem" }}>
+            <div>
+              <label style={labelStyle}>Duplicado a fundir / retirar</label>
+              <select value={mergeSourceId} onChange={e => { setMergeSourceId(e.target.value); if (e.target.value === mergeTargetId) setMergeTargetId(""); }} style={inputStyle}>
+                <option value="">Escolher colaborador...</option>
+                {colaboradores.map(c => <option key={`source-${c.id}`} value={c.id}>{c.nome_artistico || c.nome}{c.nome_pessoal ? ` — ${c.nome_pessoal}` : ""}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Colaborador que fica</label>
+              <select value={mergeTargetId} onChange={e => setMergeTargetId(e.target.value)} style={inputStyle}>
+                <option value="">Escolher colaborador...</option>
+                {colaboradores.filter(c => String(c.id) !== mergeSourceId).map(c => <option key={`target-${c.id}`} value={c.id}>{c.nome_artistico || c.nome}{c.nome_pessoal ? ` — ${c.nome_pessoal}` : ""}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ marginTop: "1.4rem", padding: "0.85rem 1rem", border: `1px solid ${C.borderDim}`, color: C.textMuted, fontSize: "11px", lineHeight: 1.55 }}><strong style={{ color: C.textSec }}>Importante:</strong> isto é diferente de desativar. O duplicado é retirado depois de os vínculos e dados úteis serem passados para o colaborador que fica.</div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.7rem", marginTop: "1.3rem" }}>
+            <button onClick={() => !merging && setMergeOpen(false)} disabled={merging} style={btnSecStyle}>Cancelar</button>
+            <button onClick={handleMergeColaboradores} disabled={merging || !mergeSourceId || !mergeTargetId} style={{ ...btnPrimStyle, opacity: merging || !mergeSourceId || !mergeTargetId ? 0.55 : 1 }}>{merging ? "A ligar..." : "Ligar colaboradores"}</button>
+          </div>
+        </div>
+      </div>
+    )}
+
     {profileColab && (
       <>
         <div className="mob-page-desktop" onClick={e => e.target === e.currentTarget && closeProfile()} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", justifyContent: "flex-end", backdropFilter: "blur(3px)" }}>
           <div style={{ width: "min(640px, 94vw)", height: "100%", overflowY: "auto", background: C.surface, borderLeft: `1px solid ${C.border}`, boxShadow: "-24px 0 70px rgba(0,0,0,.28)", padding: "2rem", boxSizing: "border-box" }}>
-            <ProfileDrawerContent c={profileColab} onClose={closeProfile} onEdit={() => editFromProfile(profileColab)} C={C} compact={false} />
+            <ProfileDrawerContent c={profileColab} onClose={closeProfile} onEdit={() => editFromProfile(profileColab)} onDelete={() => handleDeleteColaborador(profileColab)} onMerge={() => openMerge(profileColab)} C={C} compact={false} />
           </div>
         </div>
         <div className="mob-shell" onClick={e => e.target === e.currentTarget && closeProfile()} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "flex-end", backdropFilter: "blur(3px)" }}>
           <div style={{ width: "100%", maxHeight: "90dvh", overflowY: "auto", background: C.surface, borderTop: `1px solid ${C.border}`, borderRadius: "14px 14px 0 0", padding: "1.25rem", paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))", boxSizing: "border-box" }}>
-            <ProfileDrawerContent c={profileColab} onClose={closeProfile} onEdit={() => editFromProfile(profileColab)} C={C} compact />
+            <ProfileDrawerContent c={profileColab} onClose={closeProfile} onEdit={() => editFromProfile(profileColab)} onDelete={() => handleDeleteColaborador(profileColab)} onMerge={() => openMerge(profileColab)} C={C} compact />
           </div>
         </div>
       </>
@@ -710,7 +802,7 @@ function StarRating({ value, onChange, C, readOnly = false, size = 18 }: { value
   );
 }
 
-function ProfileDrawerContent({ c, onClose, onEdit, C, compact }: { c: Colaborador; onClose: () => void; onEdit: () => void; C: any; compact?: boolean }) {
+function ProfileDrawerContent({ c, onClose, onEdit, onDelete, onMerge, C, compact }: { c: Colaborador; onClose: () => void; onEdit: () => void; onDelete: () => void; onMerge: () => void; C: any; compact?: boolean }) {
   const skills = stringToSkills(c.skills);
   const field = (label: string, value?: string) => (
     <div style={{ padding: compact ? "0.7rem 0" : "0.8rem 0", borderBottom: `1px solid ${C.borderDim}`, minWidth: 0 }}>
@@ -777,9 +869,15 @@ function ProfileDrawerContent({ c, onClose, onEdit, C, compact }: { c: Colaborad
         <div style={{ minHeight: "70px", padding: "0.8rem", border: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-contrast-rgb),0.012)", color: c.notas ? C.textSec : C.textMuted, fontSize: "13px", lineHeight: 1.55, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{c.notas || "Sem notas."}</div>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.65rem", marginTop: "1.4rem", paddingBottom: "0.5rem" }}>
-        <button onClick={onClose} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textSec, fontSize: "10px", letterSpacing: "0.22em", padding: "0.65rem 0.9rem", cursor: "pointer", textTransform: "uppercase" }}>Fechar</button>
-        <button onClick={onEdit} style={{ background: C.gold, border: 0, color: "var(--theme-accent-contrast)", fontSize: "10px", letterSpacing: "0.22em", padding: "0.65rem 1rem", cursor: "pointer", textTransform: "uppercase", fontWeight: 700 }}>Editar perfil</button>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.65rem", marginTop: "1.4rem", paddingBottom: "0.5rem", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "0.55rem", flexWrap: "wrap" }}>
+          <button onClick={onMerge} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textSec, fontSize: "10px", letterSpacing: "0.12em", padding: "0.65rem 0.8rem", cursor: "pointer", textTransform: "uppercase" }}>Ligar a outro</button>
+          <button onClick={onDelete} style={{ background: "transparent", border: "1px solid rgba(226,75,74,0.25)", color: C.red, fontSize: "10px", letterSpacing: "0.12em", padding: "0.65rem 0.8rem", cursor: "pointer", textTransform: "uppercase" }}>Retirar</button>
+        </div>
+        <div style={{ display: "flex", gap: "0.55rem" }}>
+          <button onClick={onClose} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textSec, fontSize: "10px", letterSpacing: "0.22em", padding: "0.65rem 0.9rem", cursor: "pointer", textTransform: "uppercase" }}>Fechar</button>
+          <button onClick={onEdit} style={{ background: C.gold, border: 0, color: "var(--theme-accent-contrast)", fontSize: "10px", letterSpacing: "0.22em", padding: "0.65rem 1rem", cursor: "pointer", textTransform: "uppercase", fontWeight: 700 }}>Editar perfil</button>
+        </div>
       </div>
     </div>
   );

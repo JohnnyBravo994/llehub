@@ -1,6 +1,7 @@
 "use client";
 
 import MobTabBar from "../MobTabBar";
+import DesktopNav from "../DesktopNav";
 
 import { useTheme } from "../useTheme";
 import { ThemeSwitcher } from "../ThemeSwitcher";
@@ -596,7 +597,7 @@ export default function MateriaisPage() {
     {/* ═══ DESKTOP ═══ */}
     {mobileView === false && (
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: C.pageBg, color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <Nav userName={userName} active="materiais" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");   }} />
+      <DesktopNav userName={userName} active="materiais" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
       <main style={{ padding: "2.75rem 3.25rem", maxWidth: "1500px", margin: "0 auto" }}>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>

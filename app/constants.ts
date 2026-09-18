@@ -206,6 +206,8 @@ export const ARTIST_TIPOS = [
   "MC",
   "Ator(a)",
   "Animador Infantil",
+  "Palhaço",
+  "Empregado Trapalhão",
   "Make-up & Hair",
   "Guarda-Roupa",
   "Produtor",
@@ -220,6 +222,76 @@ export const COLABORADOR_SKILLS = [
   ...ARTIST_TIPOS,
   "Performer Especial",
 ] as const;
+
+// Skills canónicas do Hub. Dados antigos podem ter nomes equivalentes (ex.:
+// "Acordeão" em vez de "Acordionista"). Centralizamos essa normalização para
+// evitar gavetas/skills duplicadas e para não criar novas variantes acidentais.
+const COLABORADOR_SKILL_ALIASES: Record<string, string> = {
+  "acordeao": "Acordionista",
+  "acordeon": "Acordionista",
+  "acordeonista": "Acordionista",
+  "sax": "Saxofonista",
+  "saxofone": "Saxofonista",
+  "saxofonista": "Saxofonista",
+  "violino": "Violinista",
+  "violinista": "Violinista",
+  "voz": "Cantor(a)",
+  "cantor": "Cantor(a)",
+  "cantora": "Cantor(a)",
+  "singer": "Cantor(a)",
+  "bailarino": "Bailarino(a)",
+  "bailarina": "Bailarino(a)",
+  "dancer": "Bailarino(a)",
+  "magico": "Mágico(a)",
+  "magica": "Mágico(a)",
+  "ator": "Ator(a)",
+  "atriz": "Ator(a)",
+  "coreografo": "Coreógrafo(a)",
+  "coreografa": "Coreógrafo(a)",
+  "acrobata aereo": "Acrobata Aéreo(a)",
+  "acrobata aerea": "Acrobata Aéreo(a)",
+  "fotografo/videografo": "Fotógrafo/Videógrafo",
+  "fotografo": "Fotógrafo/Videógrafo",
+  "videografo": "Fotógrafo/Videógrafo",
+  "guarda roupa": "Guarda-Roupa",
+  "palhaco": "Palhaço",
+  "empregado trapalhao": "Empregado Trapalhão",
+};
+
+function normalizeSkillKey(value: string): string {
+  return (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+export function normalizeColaboradorSkill(skill: string): string {
+  const raw = (skill || "").trim();
+  if (!raw) return "";
+  const key = normalizeSkillKey(raw);
+  const alias = COLABORADOR_SKILL_ALIASES[key];
+  if (alias) return alias;
+  const canonical = (COLABORADOR_SKILLS as readonly string[]).find(item => normalizeSkillKey(item) === key);
+  return canonical || raw;
+}
+
+export function normalizeColaboradorSkills(skills: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of skills || []) {
+    const canonical = normalizeColaboradorSkill(raw);
+    if (!canonical) continue;
+    const key = normalizeSkillKey(canonical);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(canonical);
+  }
+  return out;
+}
+
 
 export const MODALIDADES = ["Fatura", "Por Fora", "50% Por Fora", "10% Por Fora"];
 
@@ -346,6 +418,8 @@ export const SERVICO_SKILL_LINKS: Record<string, readonly string[]> = {
   "Diamante - plataforma": ["Performer Plataforma"],
   "Animador / Host": ["Animador / Host", "MC"],
   "Animador Infantil c/ jogos": ["Animador Infantil"],
+  "Palhaço": ["Palhaço"],
+  "Empregado Trapalhão": ["Empregado Trapalhão"],
   "Make-up & Hair": ["Make-up & Hair"],
   "Guarda Roupa": ["Guarda-Roupa"],
   "Produtor": ["Produtor"],

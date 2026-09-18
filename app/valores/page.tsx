@@ -1,6 +1,7 @@
 "use client";
 
 import MobTabBar from "../MobTabBar";
+import DesktopNav from "../DesktopNav";
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -190,7 +191,7 @@ export default function ValoresPage() {
   return <>
     {mobileView === false && (
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: C.pageBg, color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <Nav userName={userName} active="valores" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
+      <DesktopNav userName={userName} active="valores" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
       <main style={{ padding: "2.75rem 3.25rem", maxWidth: "1560px", margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", gap: "1rem" }}>
           <div>

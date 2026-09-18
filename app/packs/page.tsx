@@ -7,6 +7,7 @@ import { ThemeSwitcher } from "../ThemeSwitcher";
 import { useTheme } from "../useTheme";
 import { COLABORADOR_SKILLS } from "../constants";
 import { getAllPacksComerciais, createPackComercial, updatePackComercial, togglePackComercialAtivo, getAllMateriais } from "../actions";
+import DesktopNav from "../DesktopNav";
 
 type PackComponent = {
   id?: number; tipo: "skill" | "material"; referencia: string; material_id?: number | null;
@@ -104,8 +105,8 @@ export default function PacksPage() {
 
   return <>
     <div className="desk-shell" style={{ minHeight: "100vh", background: C.bg, color: C.text, opacity: mounted ? 1 : 0 }}>
-      <Nav active="packs" userName={userName} onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
-      <main style={{ marginLeft: 220, padding: "2.75rem 3rem", maxWidth: 1560 }}>
+      <DesktopNav userName={userName} active="packs" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
+      <main style={{ marginLeft: 0, padding: "2.75rem 3rem", maxWidth: 1560 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20, marginBottom: 24 }}>
           <div><div style={{ fontSize: 11, letterSpacing: ".26em", textTransform: "uppercase", color: C.accent }}>Produtos comerciais</div><h1 style={{ margin: "8px 0 6px", fontFamily: "'Cormorant Garamond',serif", fontWeight: 400, fontSize: 38 }}>Packs</h1><p style={{ margin: 0, color: C.muted, fontSize: 13 }}>Preço próprio do pack + composição por skills e materiais. Standalones continuam a vir de Colaboradores.</p></div>
           <div style={{ display: "flex", gap: 8 }}><ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} /><button onClick={openNew} style={{ ...button, background: C.accent, color: lightTheme ? "#fff" : "var(--theme-bg)", borderColor: C.accent }}>Novo Pack</button></div>

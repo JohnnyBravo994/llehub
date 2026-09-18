@@ -1,6 +1,7 @@
 "use client";
 
 import MobTabBar from "../MobTabBar";
+import DesktopNav from "../DesktopNav";
 
 import { useTheme } from "../useTheme";
 import { ThemeSwitcher } from "../ThemeSwitcher";
@@ -240,7 +241,7 @@ export default function FaturacaoPage() {
     <>
     {/* ═══ DESKTOP ═══ */}
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: C.pageBg, color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
-      <Nav userName={userName} active="faturacao" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");  }} />
+      <DesktopNav userName={userName} active="faturacao" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
 
       <main style={{ padding: "2.75rem 3.25rem", maxWidth: "1500px", margin: "0 auto" }}>
 

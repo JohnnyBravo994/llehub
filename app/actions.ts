@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@libsql/client";
-import { ARTIST_TIPOS, SERVICOS_VENDIDOS, AUTO_BUDGET_PACK_SERVICES, isMaterialValueService, isMaterialEquipmentService } from "./constants";
+import { ARTIST_TIPOS, SERVICOS_VENDIDOS, AUTO_BUDGET_PACK_SERVICES, isMaterialValueService, isMaterialEquipmentService, normalizeColaboradorSkill, normalizeColaboradorSkills } from "./constants";
 
 const turso = createClient({
   url: process.env.TURSO_DATABASE_URL!,
@@ -189,6 +189,82 @@ async function ensureColaboradoresExtendedColumns() {
   try { await turso.execute("UPDATE colaborador_skill_profiles SET valor_evento_residencia=custo_evento_residencia WHERE COALESCE(valor_evento_residencia,0)=0 AND COALESCE(custo_evento_residencia,0)>0"); } catch { }
   try { await turso.execute("UPDATE colaborador_skill_profiles SET valor_parceria=custo_parceria WHERE COALESCE(valor_parceria,0)=0 AND COALESCE(custo_parceria,0)>0"); } catch { }
   try { await turso.execute("UPDATE colaborador_skill_profiles SET valor_cliente_final=custo_cliente_final WHERE COALESCE(valor_cliente_final,0)=0 AND COALESCE(custo_cliente_final,0)>0"); } catch { }
+}
+
+
+async function normalizeExistingColaboradorSkills() {
+  try {
+    const [cols, profiles] = await Promise.all([
+      turso.execute("SELECT id, skills FROM colaboradores"),
+      turso.execute(`SELECT colaborador_id, skill, valor, custo_interno, custo_evento,
+                            valor_sud, valor_evento_residencia, valor_parceria, valor_cliente_final,
+                            custo_sud, custo_evento_residencia, custo_parceria, custo_cliente_final, rating
+                     FROM colaborador_skill_profiles`),
+    ]);
+
+    for (const row of cols.rows as any[]) {
+      const raw = String(row.skills || '');
+      const canonical = normalizeColaboradorSkills(raw.split(',').map((s: string) => s.trim()).filter(Boolean));
+      const next = canonical.join(', ');
+      if (next !== raw) {
+        await turso.execute({ sql: "UPDATE colaboradores SET skills=? WHERE id=?", args: [next, Number(row.id)] });
+      }
+    }
+
+    // Agrupa variantes da mesma skill por colaborador. Ao colidir, preservamos o
+    // maior valor/rating preenchido para não perder informação histórica.
+    const grouped = new Map<string, any[]>();
+    for (const row of profiles.rows as any[]) {
+      const canonical = normalizeColaboradorSkill(String(row.skill || ''));
+      if (!canonical) continue;
+      const key = `${Number(row.colaborador_id)}::${canonical}`;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push({ ...row, canonical });
+    }
+
+    const fields = [
+      'valor','custo_interno','custo_evento','valor_sud','valor_evento_residencia',
+      'valor_parceria','valor_cliente_final','custo_sud','custo_evento_residencia',
+      'custo_parceria','custo_cliente_final','rating'
+    ];
+    for (const rows of grouped.values()) {
+      const colaboradorId = Number(rows[0].colaborador_id);
+      const canonical = String(rows[0].canonical);
+      const merged: Record<string, number> = {};
+      for (const field of fields) merged[field] = Math.max(0, ...rows.map(r => Number(r[field] || 0)));
+      await turso.execute({
+        sql: `INSERT INTO colaborador_skill_profiles
+              (colaborador_id, skill, valor, custo_interno, custo_evento,
+               valor_sud, valor_evento_residencia, valor_parceria, valor_cliente_final,
+               custo_sud, custo_evento_residencia, custo_parceria, custo_cliente_final, rating, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+              ON CONFLICT(colaborador_id, skill) DO UPDATE SET
+                valor=MAX(valor, excluded.valor),
+                custo_interno=MAX(custo_interno, excluded.custo_interno),
+                custo_evento=MAX(custo_evento, excluded.custo_evento),
+                valor_sud=MAX(valor_sud, excluded.valor_sud),
+                valor_evento_residencia=MAX(valor_evento_residencia, excluded.valor_evento_residencia),
+                valor_parceria=MAX(valor_parceria, excluded.valor_parceria),
+                valor_cliente_final=MAX(valor_cliente_final, excluded.valor_cliente_final),
+                custo_sud=MAX(custo_sud, excluded.custo_sud),
+                custo_evento_residencia=MAX(custo_evento_residencia, excluded.custo_evento_residencia),
+                custo_parceria=MAX(custo_parceria, excluded.custo_parceria),
+                custo_cliente_final=MAX(custo_cliente_final, excluded.custo_cliente_final),
+                rating=MAX(rating, excluded.rating), updated_at=datetime('now')`,
+        args: [
+          colaboradorId, canonical, merged.valor, merged.custo_interno, merged.custo_evento,
+          merged.valor_sud, merged.valor_evento_residencia, merged.valor_parceria, merged.valor_cliente_final,
+          merged.custo_sud, merged.custo_evento_residencia, merged.custo_parceria, merged.custo_cliente_final, merged.rating,
+        ],
+      });
+      const variants = Array.from(new Set(rows.map(r => String(r.skill || '')).filter(s => s && s !== canonical)));
+      for (const variant of variants) {
+        await turso.execute({ sql: "DELETE FROM colaborador_skill_profiles WHERE colaborador_id=? AND skill=?", args: [colaboradorId, variant] });
+      }
+    }
+  } catch (error) {
+    console.error("Erro a normalizar skills de colaboradores:", error);
+  }
 }
 
 async function ensureArtistasAssociacaoIgnoradosTable() {
@@ -2115,6 +2191,7 @@ export async function setupColaboradores() {
       )
     `);
     await ensureColaboradoresExtendedColumns();
+    await normalizeExistingColaboradorSkills();
     // Adicionar coluna colaborador_id a artistas_evento se não existir
     try { await turso.execute("ALTER TABLE artistas_evento ADD COLUMN colaborador_id INTEGER"); } catch { }
     return { success: true };
@@ -2127,6 +2204,7 @@ export async function setupColaboradores() {
 export async function getAllColaboradores() {
   try {
     await ensureColaboradoresExtendedColumns();
+    await normalizeExistingColaboradorSkills();
     const [res, profiles] = await Promise.all([
       turso.execute("SELECT * FROM colaboradores ORDER BY COALESCE(NULLIF(nome_artistico, ''), nome) ASC"),
       turso.execute(`SELECT colaborador_id, skill, valor, custo_interno, custo_evento,
@@ -2201,7 +2279,7 @@ type ColaboradorSkillProfileInput = Record<string, {
 
 async function saveColaboradorSkillProfiles(colaboradorId: number, skills: string, profiles?: ColaboradorSkillProfileInput) {
   await ensureColaboradoresExtendedColumns();
-  const selected = Array.from(new Set((skills || '').split(',').map(s => s.trim()).filter(Boolean)));
+  const selected = normalizeColaboradorSkills((skills || '').split(',').map(s => s.trim()).filter(Boolean));
   if (selected.length === 0) {
     await turso.execute({ sql: "DELETE FROM colaborador_skill_profiles WHERE colaborador_id=?", args: [colaboradorId] });
     return;
@@ -2263,13 +2341,13 @@ export async function createColaborador(data: {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         nomeArtistico, nomeArtistico, data.nome_pessoal || '', data.contacto || '', data.email || '', data.iban || '',
-        data.skills || '', data.notas || '', data.ativo ?? 1, data.restricoes_alimentares || '', data.tamanho_cima || '',
+        normalizeColaboradorSkills((data.skills || '').split(',').map(s => s.trim()).filter(Boolean)).join(', '), data.notas || '', data.ativo ?? 1, data.restricoes_alimentares || '', data.tamanho_cima || '',
         data.tamanho_baixo || '', data.calcado || '',
       ],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
     const id = Number(last.rows[0].id);
-    await saveColaboradorSkillProfiles(id, data.skills || '', data.skill_profiles);
+    await saveColaboradorSkillProfiles(id, normalizeColaboradorSkills((data.skills || '').split(',').map(s => s.trim()).filter(Boolean)).join(', '), data.skill_profiles);
     return { success: true, id };
   } catch (error) {
     console.error("Erro criar colaborador:", error);
@@ -2290,11 +2368,11 @@ export async function updateColaborador(id: number, data: {
             restricoes_alimentares=?, tamanho_cima=?, tamanho_baixo=?, calcado=? WHERE id=?`,
       args: [
         nomeArtistico, nomeArtistico, data.nome_pessoal || '', data.contacto || '', data.email || '', data.iban || '',
-        data.skills || '', data.notas || '', data.ativo ?? 1, data.restricoes_alimentares || '', data.tamanho_cima || '',
+        normalizeColaboradorSkills((data.skills || '').split(',').map(s => s.trim()).filter(Boolean)).join(', '), data.notas || '', data.ativo ?? 1, data.restricoes_alimentares || '', data.tamanho_cima || '',
         data.tamanho_baixo || '', data.calcado || '', id,
       ],
     });
-    await saveColaboradorSkillProfiles(id, data.skills || '', data.skill_profiles);
+    await saveColaboradorSkillProfiles(id, normalizeColaboradorSkills((data.skills || '').split(',').map(s => s.trim()).filter(Boolean)).join(', '), data.skill_profiles);
     return { success: true };
   } catch (error) {
     console.error("Erro update colaborador:", error);
@@ -2309,6 +2387,106 @@ export async function toggleColaboradorAtivo(id: number, ativo: number) {
   } catch { return { success: false }; }
 }
 
+
+export async function deleteColaborador(id: number) {
+  try {
+    await setupColaboradores();
+    const col = await turso.execute({ sql: "SELECT id, COALESCE(NULLIF(nome_artistico,''), nome) AS nome FROM colaboradores WHERE id=?", args: [id] });
+    if (col.rows.length === 0) return { success: false, message: "Colaborador não encontrado." };
+    const refs = await turso.execute({ sql: "SELECT COUNT(*) AS total FROM artistas_evento WHERE colaborador_id=?", args: [id] });
+    const residenciaRefs = await turso.execute({ sql: "SELECT COUNT(*) AS total FROM residencias_ativas WHERE performer_padrao_id=?", args: [id] });
+    const totalRefs = Number((refs.rows[0] as any)?.total || 0) + Number((residenciaRefs.rows[0] as any)?.total || 0);
+    if (totalRefs > 0) {
+      return { success: false, blocked: true, references: totalRefs, message: "Este colaborador tem histórico associado. Liga-o/funde-o com outro colaborador ou desativa-o para preservar o histórico." };
+    }
+    await turso.execute({ sql: "DELETE FROM colaborador_skill_profiles WHERE colaborador_id=?", args: [id] });
+    await turso.execute({ sql: "DELETE FROM colaboradores WHERE id=?", args: [id] });
+    return { success: true };
+  } catch (error) {
+    console.error("Erro eliminar colaborador:", error);
+    return { success: false, message: "Erro ao retirar colaborador." };
+  }
+}
+
+export async function mergeColaboradores(sourceId: number, targetId: number) {
+  try {
+    await setupColaboradores();
+    if (!sourceId || !targetId || sourceId === targetId) return { success: false, message: "Escolhe dois colaboradores diferentes." };
+    const res = await turso.execute({ sql: `SELECT * FROM colaboradores WHERE id IN (?, ?)`, args: [sourceId, targetId] });
+    const rows = res.rows as any[];
+    const source = rows.find(r => Number(r.id) === sourceId);
+    const target = rows.find(r => Number(r.id) === targetId);
+    if (!source || !target) return { success: false, message: "Colaborador não encontrado." };
+
+    const sourceSkills = normalizeColaboradorSkills(String(source.skills || '').split(',').map(s => s.trim()).filter(Boolean));
+    const targetSkills = normalizeColaboradorSkills(String(target.skills || '').split(',').map(s => s.trim()).filter(Boolean));
+    const mergedSkills = normalizeColaboradorSkills([...targetSkills, ...sourceSkills]);
+
+    const profileRes = await turso.execute({ sql: `SELECT * FROM colaborador_skill_profiles WHERE colaborador_id IN (?, ?)`, args: [sourceId, targetId] });
+    const numericFields = ['valor','custo_interno','custo_evento','valor_sud','valor_evento_residencia','valor_parceria','valor_cliente_final','custo_sud','custo_evento_residencia','custo_parceria','custo_cliente_final','rating'];
+    const targetProfiles = new Map<string, any>();
+    const sourceProfiles = new Map<string, any>();
+    for (const row of profileRes.rows as any[]) {
+      const skill = normalizeColaboradorSkill(String(row.skill || ''));
+      if (!skill) continue;
+      (Number(row.colaborador_id) === targetId ? targetProfiles : sourceProfiles).set(skill, row);
+    }
+
+    // O colaborador escolhido para ficar é sempre a fonte principal. O duplicado
+    // apenas preenche campos/valores que estejam vazios no destino.
+    const mergedProfiles = new Map<string, any>();
+    for (const skill of mergedSkills) {
+      const tp = targetProfiles.get(skill) || {};
+      const sp = sourceProfiles.get(skill) || {};
+      const merged: Record<string, number> = {};
+      for (const field of numericFields) {
+        const targetValue = Number(tp[field] || 0);
+        const sourceValue = Number(sp[field] || 0);
+        merged[field] = targetValue > 0 ? targetValue : sourceValue;
+      }
+      mergedProfiles.set(skill, merged);
+    }
+
+    const pick = (field: string) => String(target[field] || '').trim() || String(source[field] || '').trim();
+    const mergedNotes = [String(target.notas || '').trim(), String(source.notas || '').trim()]
+      .filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join('\n');
+    await turso.execute({
+      sql: `UPDATE colaboradores SET nome=?, nome_artistico=?, nome_pessoal=?, contacto=?, email=?, iban=?, skills=?, notas=?, ativo=?,
+            restricoes_alimentares=?, tamanho_cima=?, tamanho_baixo=?, calcado=? WHERE id=?`,
+      args: [
+        pick('nome_artistico') || pick('nome'), pick('nome_artistico') || pick('nome'), pick('nome_pessoal'), pick('contacto'), pick('email'), pick('iban'),
+        mergedSkills.join(', '), mergedNotes, (Number(target.ativo) === 1 || Number(source.ativo) === 1) ? 1 : 0,
+        pick('restricoes_alimentares'), pick('tamanho_cima'), pick('tamanho_baixo'), pick('calcado'), targetId,
+      ],
+    });
+
+    await turso.execute({ sql: "DELETE FROM colaborador_skill_profiles WHERE colaborador_id=?", args: [targetId] });
+    for (const [skill, p] of mergedProfiles.entries()) {
+      await turso.execute({
+        sql: `INSERT INTO colaborador_skill_profiles
+              (colaborador_id, skill, valor, custo_interno, custo_evento,
+               valor_sud, valor_evento_residencia, valor_parceria, valor_cliente_final,
+               custo_sud, custo_evento_residencia, custo_parceria, custo_cliente_final, rating, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+        args: [targetId, skill, p.valor, p.custo_interno, p.custo_evento, p.valor_sud, p.valor_evento_residencia,
+               p.valor_parceria, p.valor_cliente_final, p.custo_sud, p.custo_evento_residencia, p.custo_parceria, p.custo_cliente_final, p.rating],
+      });
+    }
+
+    const targetName = String(target.nome_artistico || target.nome || '').trim();
+    const movedEvents = await turso.execute({ sql: "UPDATE artistas_evento SET colaborador_id=? WHERE colaborador_id=?", args: [targetId, sourceId] });
+    try {
+      await turso.execute({ sql: "UPDATE residencias_ativas SET performer_padrao_id=?, performer_padrao_nome=? WHERE performer_padrao_id=?", args: [targetId, targetName, sourceId] });
+    } catch { }
+
+    await turso.execute({ sql: "DELETE FROM colaborador_skill_profiles WHERE colaborador_id=?", args: [sourceId] });
+    await turso.execute({ sql: "DELETE FROM colaboradores WHERE id=?", args: [sourceId] });
+    return { success: true, movedEvents: Number(movedEvents.rowsAffected || 0), targetId };
+  } catch (error) {
+    console.error("Erro ligar/fundir colaboradores:", error);
+    return { success: false, message: "Erro ao ligar colaboradores." };
+  }
+}
 
 type ArtistaPorAssociar = {
   nome: string;
@@ -2404,7 +2582,7 @@ export async function criarColaboradorEAssociarArtista(nome: string, skill?: str
       nome: nomeLimpo,
       nome_artistico: nomeLimpo,
       nome_pessoal: '',
-      skills: (skill || '').trim(),
+      skills: normalizeColaboradorSkill((skill || '').trim()),
       ativo: 1,
     });
     if (!created.success || !created.id) return { success: false, message: "Não foi possível criar colaborador." };
