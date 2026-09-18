@@ -8,7 +8,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Restaurar tema ao carregar (roda apenas no cliente)
     const saved = localStorage.getItem('lle_light_theme');
-    const isLight = saved ? JSON.parse(saved) : false;
+    const isLight = saved === 'true';
     
     const html = document.documentElement;
     if (isLight) {

@@ -10,6 +10,10 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
         <div style={{ color: "var(--theme-accent)", letterSpacing: ".25em", fontSize: 11, textTransform: "uppercase", fontWeight: 700 }}>LLE Hub</div>
         <h1 style={{ fontSize: 24, margin: "1rem 0 .6rem" }}>O ecrã encontrou um erro.</h1>
         <p style={{ color: "var(--theme-text-muted)", lineHeight: 1.6, fontSize: 14 }}>Os dados ainda não foram gravados. Tenta reabrir este ecrã; se o erro se repetir, regista a ação que o provocou.</p>
+        <details style={{ marginTop: "1rem", color: "var(--theme-text-muted)", fontSize: 12 }}>
+          <summary style={{ cursor: "pointer", color: "var(--theme-text-secondary)" }}>Detalhes técnicos</summary>
+          <code style={{ display: "block", marginTop: ".6rem", padding: ".75rem", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{error?.name || "Error"}: {error?.message || "Erro sem mensagem"}{error?.digest ? `\nDigest: ${error.digest}` : ""}</code>
+        </details>
         <button onClick={reset} style={{ marginTop: "1.5rem", padding: ".8rem 1rem", border: "1px solid var(--theme-input-border)", background: "var(--theme-input-bg)", color: "var(--theme-text)", cursor: "pointer" }}>Tentar novamente</button>
       </div>
     </main>

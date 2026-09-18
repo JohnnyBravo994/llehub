@@ -9,7 +9,7 @@ export const useTheme = () => {
   // Inicializar tema do localStorage e aplicar ao document
   useEffect(() => {
     const saved = localStorage.getItem('lle_light_theme');
-    const isLight = saved ? JSON.parse(saved) : false;
+    const isLight = saved === 'true';
     setLightTheme(isLight);
     
     // Aplicar classe ao HTML elemento

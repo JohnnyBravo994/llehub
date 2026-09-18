@@ -125,6 +125,9 @@ export default function PagamentosPage() {
     return found?.iban || "";
   }
 
+  const filtered = pagamentos.filter(p => p.evento_data.startsWith(selectedYear));
+  const byMonth = groupByMonth(filtered);
+
   function exportCSV() {
     const rows = selectedMonth ? (byMonth[selectedMonth] || []) : [];
     if (rows.length === 0) { showToast("Sem dados para exportar"); return; }
@@ -164,8 +167,6 @@ export default function PagamentosPage() {
     load();
   }, [load]);
 
-  const filtered = pagamentos.filter(p => p.evento_data.startsWith(selectedYear));
-  const byMonth = groupByMonth(filtered);
   const months = Object.keys(byMonth).sort();
 
   // Auto-select current or latest month when year changes

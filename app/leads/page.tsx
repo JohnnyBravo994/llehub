@@ -338,6 +338,7 @@ export default function LeadsPage() {
     load(selectedMonth);
   }, [load, selectedMonth]);
 
+  const colaboradorDisplayName = (c: Colaborador) => String(c.nome_artistico || c.nome || "");
   const colaboradoresAtivos = colaboradores
     .filter(c => c.ativo === 1)
     .sort((a, b) => colaboradorDisplayName(a).localeCompare(colaboradorDisplayName(b), "pt-PT", { sensitivity: "base" }));
@@ -357,7 +358,6 @@ export default function LeadsPage() {
     const ref = standaloneReferenceFromColaboradores(component.referencia, contexto, colaboradoresAtivos, form.tipo_comercial);
     return sum + Number(ref?.custo || 0) * qty;
   }, 0);
-  const colaboradorDisplayName = (c: Colaborador) => c.nome_artistico || c.nome;
   const findColaboradorByNome = (nome: string) => colaboradoresAtivos.find(c => {
     const q = normalizeText(nome);
     return [c.nome, c.nome_artistico || "", c.nome_pessoal || ""].some(v => normalizeText(v) === q);

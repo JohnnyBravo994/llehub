@@ -370,6 +370,7 @@ export default function AgendaPage() {
     }
     return false;
   });
+  const Colors = getColors(lightTheme);
   const [confirmedLeads, setConfirmedLeads] = useState<Lead[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
@@ -1730,8 +1731,7 @@ export default function AgendaPage() {
   if (loading) return <Loading />;
 
   const todayStr = new Date().toISOString().split("T")[0];
-  // Get colors based on current theme
-  const Colors = getColors(lightTheme);
+  // Colors resolved near theme state so all render helpers can use them safely.
   const bsColors: Record<string, string> = {
     "Contacto": "var(--theme-text-muted)", "Proposta Enviada": Colors.blue,
     "Em Negociação": Colors.amber, "Confirmado": Colors.green,
