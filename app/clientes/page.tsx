@@ -150,11 +150,11 @@ export default function ClientesPage() {
   };
   const overlayStyle: React.CSSProperties = {
     position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000,
-    display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)",
+    display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "none",
   };
   const overlayBottomStyle: React.CSSProperties = {
     position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000,
-    display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)",
+    display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "none",
   };
 
   if (loading) {

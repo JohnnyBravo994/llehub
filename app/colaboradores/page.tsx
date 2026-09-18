@@ -310,11 +310,11 @@ export default function ColaboradoresPage() {
 
   const overlayStyle: React.CSSProperties = {
     position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000,
-    display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)",
+    display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "none",
   };
   const overlayBottomStyle: React.CSSProperties = {
     position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000,
-    display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)",
+    display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "none",
   };
   const modalStyle: React.CSSProperties = {
     background: "var(--theme-surface)", border: `1px solid ${C.border}`,
@@ -362,6 +362,7 @@ export default function ColaboradoresPage() {
   return (
     <>
     {/* ═══ DESKTOP ═══ */}
+    {!modal.open && (
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: C.pageBg, color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease", overflowX: "hidden" }}>
       <DesktopNav userName={userName} active="colaboradores" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
       <main style={{ padding: "2.75rem 3.25rem", maxWidth: "1500px", width: "100%", boxSizing: "border-box", margin: "0 auto", overflowX: "hidden" }}>
@@ -478,9 +479,10 @@ export default function ColaboradoresPage() {
           )}
         </div>
       </main>
-    </div>
+    </div>)}
 
     {/* ═══ MOBILE ═══ */}
+    {!modal.open && (
     <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "var(--theme-text)", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
@@ -564,7 +566,7 @@ export default function ColaboradoresPage() {
       </div>
 
       <MobTabBar active="colaboradores" role="admin" lightTheme={lightTheme} />
-    </div>
+    </div>)}
 
     {/* Modal */}
     {modal.open && (
@@ -621,12 +623,12 @@ export default function ColaboradoresPage() {
 
     {profileColab && (
       <>
-        <div className="mob-page-desktop" onClick={e => e.target === e.currentTarget && closeProfile()} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", justifyContent: "flex-end", backdropFilter: "blur(3px)" }}>
+        <div className="mob-page-desktop" onClick={e => e.target === e.currentTarget && closeProfile()} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", justifyContent: "flex-end", backdropFilter: "none" }}>
           <div style={{ width: "min(640px, 94vw)", height: "100%", overflowY: "auto", background: C.surface, borderLeft: `1px solid ${C.border}`, boxShadow: "-24px 0 70px rgba(0,0,0,.28)", padding: "2rem", boxSizing: "border-box" }}>
             <ProfileDrawerContent c={profileColab} onClose={closeProfile} onEdit={() => editFromProfile(profileColab)} onDelete={() => handleDeleteColaborador(profileColab)} onMerge={() => openMerge(profileColab)} C={C} compact={false} />
           </div>
         </div>
-        <div className="mob-shell" onClick={e => e.target === e.currentTarget && closeProfile()} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "flex-end", backdropFilter: "blur(3px)" }}>
+        <div className="mob-shell" onClick={e => e.target === e.currentTarget && closeProfile()} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "flex-end", backdropFilter: "none" }}>
           <div style={{ width: "100%", maxHeight: "90dvh", overflowY: "auto", background: C.surface, borderTop: `1px solid ${C.border}`, borderRadius: "14px 14px 0 0", padding: "1.25rem", paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))", boxSizing: "border-box" }}>
             <ProfileDrawerContent c={profileColab} onClose={closeProfile} onEdit={() => editFromProfile(profileColab)} onDelete={() => handleDeleteColaborador(profileColab)} onMerge={() => openMerge(profileColab)} C={C} compact />
           </div>

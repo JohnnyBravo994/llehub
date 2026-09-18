@@ -554,8 +554,8 @@ export default function MateriaisPage() {
   };
 
   // ── Styles ─────────────────────────────────────────────────────────────
-  const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
-  const overlayBottomStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)" };
+  const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "none" };
+  const overlayBottomStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "none" };
   const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: `1px solid ${C.border}`, padding: "2.5rem", width: "480px", maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", position: "relative" };
   const modalMobStyle: React.CSSProperties = { background: "var(--theme-surface)", borderTop: `1px solid ${C.border}`, width: "100%", maxHeight: "92dvh", overflowY: "auto", padding: "1.5rem 1.25rem", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))", borderRadius: "12px 12px 0 0", position: "relative" };
   const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" };
@@ -1337,11 +1337,6 @@ function MaterialModalContent({ materialForm, setMaterialForm, materialModal, sa
             </div>
           ))}
         </div>
-      </div>
-
-      <div style={{ marginBottom: "1.5rem" }}>
-        <label style={labelStyle}>Notas</label>
-        <textarea style={{ ...inputStyle, height: "60px", resize: "vertical" as any }} value={materialForm.notas} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, notas: e.target.value }))} />
       </div>
 
       <div style={{ display: "flex", gap: "0.95rem" }}>

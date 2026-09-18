@@ -678,7 +678,7 @@ const tds = ({ muted, nowrap, maxW }: { muted?: boolean; nowrap?: boolean; maxW?
 });
 const inlineInput: React.CSSProperties = { background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat',sans-serif", fontSize: "13px", padding: "4px 8px", outline: "none" };
 const smallBtn: React.CSSProperties = { background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-muted)", fontSize: "10px", letterSpacing: "0.2em", padding: "3px 8px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 };
-const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
+const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "none" };
 const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2.5rem", width: "460px", maxWidth: "90vw", position: "relative" };
 const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" };
 const labelStyle: React.CSSProperties = { display: "block", fontSize: "9px", letterSpacing: "0.4em", color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.6rem" };

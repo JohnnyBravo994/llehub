@@ -268,14 +268,19 @@ function fmtDate(s: string) {
   return `${date} · ${weekday.charAt(0).toUpperCase() + weekday.slice(1)}`;
 }
 
+function safeNumber(value: number | string | undefined | null) {
+  const n = typeof value === "string" ? Number(value.replace(",", ".")) : Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function effectiveReceived(total: number | string | undefined, received: number | string | undefined, status?: string) {
-  const t = Math.max(0, Number(total || 0));
-  const r = Math.max(0, Number(received || 0));
+  const t = Math.max(0, safeNumber(total));
+  const r = Math.max(0, safeNumber(received));
   return status === "Pago" && t > 0 ? Math.max(t, r) : r;
 }
 
 function paymentPercent(total: number | string | undefined, received: number | string | undefined, status?: string) {
-  const t = Number(total || 0);
+  const t = safeNumber(total);
   if (t <= 0) return 0;
   return Math.max(0, Math.min(100, (effectiveReceived(total, received, status) / t) * 100));
 }
@@ -1737,6 +1742,7 @@ export default function AgendaPage() {
   return (
     <>
     {/* ═══ DESKTOP ═══ */}
+    {!modal.open && !materialModal.open && (
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: lightTheme ? "#FFFBF7" : "var(--theme-bg)", color: lightTheme ? Colors.textPrimary : Colors.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <DesktopNav userName={userName} active="agenda" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
 
@@ -1997,9 +2003,10 @@ export default function AgendaPage() {
         </div>
       </main>
 
-    </div>{/* end desktop */}
+    </div>)}{/* end desktop */}
 
     {/* ═══ MOBILE ═══ */}
+    {!modal.open && !materialModal.open && (
     <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "var(--theme-text)", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       {/* Mobile top nav */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
@@ -2232,12 +2239,12 @@ export default function AgendaPage() {
 
       {/* Bottom tab bar */}
       <MobTabBar active="agenda" role={userRole} lightTheme={lightTheme} />
-    </div>
+    </div>)}
 
     {/* ═══ MODAL (shared) ═══ */}
       {/* PDF — Modal de Período */}
       {pdfPeriodModal && (
-        <div onClick={(e: React.MouseEvent<HTMLDivElement>) => !pdfGenerating && e.target === e.currentTarget && setPdfPeriodModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1120, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+        <div onClick={(e: React.MouseEvent<HTMLDivElement>) => !pdfGenerating && e.target === e.currentTarget && setPdfPeriodModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1120, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "none" }}>
           <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "420px", maxWidth: "95vw", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
@@ -2286,7 +2293,7 @@ export default function AgendaPage() {
 
       {/* WhatsApp — Modal de Período */}
       {waPeriodModal && (
-        <div onClick={e => e.target === e.currentTarget && setWaPeriodModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+        <div onClick={e => e.target === e.currentTarget && setWaPeriodModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "none" }}>
           <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "400px", maxWidth: "95vw", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
@@ -2331,7 +2338,7 @@ export default function AgendaPage() {
 
       {/* WhatsApp Modal */}
       {waModal && (
-        <div onClick={e => e.target === e.currentTarget && setWaModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+        <div onClick={e => e.target === e.currentTarget && setWaModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "none" }}>
           <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "500px", maxWidth: "95vw", maxHeight: "85vh", display: "flex", flexDirection: "column", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
@@ -2690,8 +2697,7 @@ export default function AgendaPage() {
                   inputMode="decimal"
                   value={form.bill}
                   onChange={e => setForm(f => ({ ...f, bill: e.target.value, valor_recebido: f.billing_status === "Pago" ? e.target.value : f.valor_recebido, autobudget_snapshot: "" }))}
-                  onFocus={e => { if (e.target.value === "0") setForm(f => ({ ...f, bill: "" })); }}
-                  onBlur={e => { if (e.target.value === "") setForm(f => ({ ...f, bill: "0" })); }}
+                  onFocus={e => e.currentTarget.select()}
                 />
               </FormField>
               )}
@@ -2704,8 +2710,7 @@ export default function AgendaPage() {
                     inputMode="decimal"
                     value={form.valor_recebido}
                     onChange={e => setForm(f => ({ ...f, valor_recebido: e.target.value }))}
-                    onFocus={e => { if (e.target.value === "0") setForm(f => ({ ...f, valor_recebido: "" })); }}
-                    onBlur={e => { if (e.target.value === "") setForm(f => ({ ...f, valor_recebido: "0" })); }}
+                    onFocus={e => e.currentTarget.select()}
                   />
                   <div style={{ marginTop: "6px", fontSize: "11px", color: Colors.textMuted, display: "flex", justifyContent: "space-between", gap: "0.75rem" }}>
                     <span>{paymentPercent(form.bill, form.valor_recebido, form.billing_status).toFixed(0)}% pago</span>
@@ -2950,7 +2955,7 @@ export default function AgendaPage() {
 
       {/* ── Gaveta: Materiais do Evento ── */}
       {materialModal.open && materialModal.event && (
-        <div onClick={e => e.target === e.currentTarget && closeMaterialModal()} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1150, display: "flex", justifyContent: "flex-end", backdropFilter: "blur(4px)" }}>
+        <div onClick={e => e.target === e.currentTarget && closeMaterialModal()} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1150, display: "flex", justifyContent: "flex-end", backdropFilter: "none" }}>
           <div style={{ background: "var(--theme-surface)", borderLeft: `1px solid ${Colors.border}`, padding: "1.6rem", width: "600px", maxWidth: "94vw", height: "100vh", overflowY: "auto", position: "relative", boxShadow: "-24px 0 60px rgba(0,0,0,.28)" }}>
             <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: "1px", background: "linear-gradient(180deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ position: "sticky", top: "-1.6rem", zIndex: 2, margin: "-1.6rem -1.6rem 1.15rem", padding: "1.35rem 1.6rem 1rem", background: "var(--theme-surface)", borderBottom: `1px solid ${Colors.borderDim}` }}>
@@ -3202,7 +3207,7 @@ const createTdStyle = (lightTheme: boolean, { muted, nowrap, maxW }: { muted?: b
     textOverflow: maxW ? "ellipsis" : undefined
   };
 };
-const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)" };
+const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "none" };
 const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "clamp(1.25rem, 4vw, 2.5rem)", width: "640px", maxWidth: "96vw", maxHeight: "92dvh", overflowY: "auto", position: "relative" };
 const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" };
 const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "13px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };

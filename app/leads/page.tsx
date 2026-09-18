@@ -213,14 +213,19 @@ function tipoFromSkills(skills?: string) {
   return mapped && (ARTIST_TIPOS as readonly string[]).includes(mapped) ? mapped : "";
 }
 
+function safeNumber(value: number | string | undefined | null) {
+  const n = typeof value === "string" ? Number(value.replace(",", ".")) : Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function effectiveReceived(total: number | string | undefined, received: number | string | undefined, status?: string) {
-  const t = Math.max(0, Number(total || 0));
-  const r = Math.max(0, Number(received || 0));
+  const t = Math.max(0, safeNumber(total));
+  const r = Math.max(0, safeNumber(received));
   return status === "Pago" && t > 0 ? Math.max(t, r) : r;
 }
 
 function paymentPercent(total: number | string | undefined, received: number | string | undefined, status?: string) {
-  const t = Number(total || 0);
+  const t = safeNumber(total);
   if (t <= 0) return 0;
   return Math.max(0, Math.min(100, (effectiveReceived(total, received, status) / t) * 100));
 }
@@ -1162,6 +1167,7 @@ export default function LeadsPage() {
   return (
     <>
     {/* ═══ DESKTOP ═══ */}
+    {!modal.open && (
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: C.pageBg, color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <DesktopNav userName={userName} active="leads" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
 
@@ -1273,9 +1279,10 @@ export default function LeadsPage() {
         </div>
       </main>
 
-    </div>{/* end desktop */}
+    </div>)}{/* end desktop */}
 
     {/* ═══ MOBILE ═══ */}
+    {!modal.open && (
     <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "var(--theme-text)", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(var(--theme-contrast-rgb),0.05)", background:"var(--theme-nav-bg)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
         <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"var(--theme-accent)", fontWeight:300 }}>LLE</span>
@@ -1366,12 +1373,12 @@ export default function LeadsPage() {
       </div>
 
       <MobTabBar active="leads" role={userRole} lightTheme={lightTheme} />
-    </div>
+    </div>)}
 
     {/* ═══ MODAL (partilhado desktop+mobile) ═══ */}
       {/* WhatsApp — Modal de Seleção de Meses */}
       {waMonthModal && (
-        <div onClick={e => e.target === e.currentTarget && setWaMonthModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+        <div onClick={e => e.target === e.currentTarget && setWaMonthModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "none" }}>
           <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "380px", maxWidth: "95vw", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
@@ -1418,7 +1425,7 @@ export default function LeadsPage() {
 
     {/* WhatsApp Modal — Pré-visualização */}
       {waModal && (
-        <div onClick={e => e.target === e.currentTarget && setWaModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+        <div onClick={e => e.target === e.currentTarget && setWaModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "none" }}>
           <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "500px", maxWidth: "95vw", maxHeight: "85vh", display: "flex", flexDirection: "column", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
@@ -1667,13 +1674,13 @@ export default function LeadsPage() {
             </FormField>
             {userRole !== "limited_novalues" && (
             <FormField label="Faturação estimada (€)">
-              <input style={inputStyle} type="number" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value, valor_recebido: f.status === "Pago" ? e.target.value : f.valor_recebido, autobudget_snapshot: "" }))} />
+              <input style={inputStyle} type="number" value={form.value} onFocus={e => e.currentTarget.select()} onChange={e => setForm(f => ({ ...f, value: e.target.value, valor_recebido: f.status === "Pago" ? e.target.value : f.valor_recebido, autobudget_snapshot: "" }))} />
             </FormField>
             )}
             {userRole !== "limited_novalues" && (
             <FormField label="Valor pago até agora (€)">
               <div>
-                <input style={inputStyle} type="number" min="0" value={form.valor_recebido} onChange={e => setForm(f => ({ ...f, valor_recebido: e.target.value }))} />
+                <input style={inputStyle} type="number" min="0" value={form.valor_recebido} onFocus={e => e.currentTarget.select()} onChange={e => setForm(f => ({ ...f, valor_recebido: e.target.value }))} />
                 <div style={{ marginTop: "6px", fontSize: "11px", color: C.textMuted, display: "flex", justifyContent: "space-between", gap: "0.75rem" }}>
                   <span>{paymentPercent(form.value, form.valor_recebido, form.status).toFixed(0)}% pago</span>
                   <span>{Math.max(0, Number(form.value || 0) - effectiveReceived(form.value, form.valor_recebido, form.status)).toLocaleString("pt-PT")}€ por receber</span>
@@ -1900,7 +1907,7 @@ function FormField({ label, children, style }: { label: string; children: React.
 // ── Styles ────────────────────────────────────────────────────────────────────
 const addBtnStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-accent-muted)", fontSize: "10px", letterSpacing: "0.35em", padding: "0.5rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s" };
 const tdStyle = ({ muted, nowrap, maxW }: { muted?: boolean; nowrap?: boolean; maxW?: string }): React.CSSProperties => ({ fontSize: "14px", color: muted ? "var(--theme-text-muted)" : "var(--theme-text)", padding: "0.85rem 1.25rem", borderBottom: "1px solid var(--theme-border)", whiteSpace: nowrap ? "nowrap" : undefined, maxWidth: maxW, overflow: maxW ? "hidden" : undefined, textOverflow: maxW ? "ellipsis" : undefined });
-const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
+const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "none" };
 const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2.5rem", width: "520px", maxWidth: "90vw", maxHeight: "90vh", overflowY: "auto", position: "relative" };
 const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" };
 const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "13px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };

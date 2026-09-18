@@ -79,6 +79,42 @@ function percentagemPaga(item: FatItem) {
 }
 
 // Display alias if available, otherwise official name
+
+function InlineReceivedEditor({
+  initialValue, onSave, onCancel, compact = false, color, borderColor,
+}: {
+  initialValue: string;
+  onSave: (value: string) => void | Promise<void>;
+  onCancel: () => void;
+  compact?: boolean;
+  color: string;
+  borderColor: string;
+}) {
+  const [draft, setDraft] = useState(initialValue);
+  return (
+    <div onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: "4px", justifyContent: "flex-end" }}>
+      <input
+        autoFocus
+        inputMode="decimal"
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === "Enter") onSave(draft);
+          if (e.key === "Escape") onCancel();
+        }}
+        style={{
+          width: compact ? "72px" : "86px",
+          background: "var(--theme-input-bg)",
+          border: `1px solid ${borderColor}`, color, fontFamily: "inherit",
+          fontSize: compact ? "11px" : "12px", padding: compact ? "3px 5px" : "3px 6px",
+          outline: "none", textAlign: "right",
+        }}
+      />
+      <button onClick={() => onSave(draft)} style={{ background: "transparent", border: 0, color, cursor: "pointer", fontSize: compact ? "12px" : "13px", padding: "1px 4px" }}>✓</button>
+      {!compact && <button onClick={onCancel} style={{ background: "transparent", border: 0, color: "var(--theme-text-muted)", cursor: "pointer", fontSize: "13px", padding: "1px 4px" }}>✕</button>}
+    </div>
+  );
+}
 function displayClienteName(nome: string, clienteInfo?: { alias?: string }) {
   return clienteInfo?.alias?.trim() || nome;
 }
@@ -155,9 +191,10 @@ export default function FaturacaoPage() {
     return next;
   });
 
-  async function handleSaveValorRecebido() {
+  async function handleSaveValorRecebido(rawValue?: string) {
     if (!editingRecebido) return;
-    const valor = parseFloat(editingRecebido.valor.replace(",", ".")) || 0;
+    const parsed = Number((rawValue ?? editingRecebido.valor ?? "0").replace(",", "."));
+    const valor = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
     await updateValorRecebido(editingRecebido.origem, editingRecebido.id, valor);
     setEditingRecebido(null);
     showToast("Valor recebido guardado");
@@ -418,17 +455,14 @@ export default function FaturacaoPage() {
                             {item.billing_status !== 'Cancelado' && (
                               <div style={{ marginTop: "5px", minWidth: "150px" }}>
                                 {editingRecebido?.origem === item.origem && editingRecebido?.id === item.id && item.billing_status !== 'Pago' ? (
-                                  <div style={{ display: "flex", alignItems: "center", gap: "4px", justifyContent: "flex-end" }}>
-                                    <input
-                                      autoFocus
-                                      value={editingRecebido?.valor ?? ""}
-                                      onChange={e => setEditingRecebido(r => r ? { ...r, valor: e.target.value } : r)}
-                                      onKeyDown={e => { if (e.key === "Enter") handleSaveValorRecebido(); if (e.key === "Escape") setEditingRecebido(null); }}
-                                      style={{ width: "86px", background: "rgba(var(--theme-contrast-rgb),0.06)", border: `1px solid ${C.green}44`, color: C.green, fontFamily: "inherit", fontSize: "12px", padding: "3px 6px", outline: "none", textAlign: "right" }}
-                                    />
-                                    <button onClick={handleSaveValorRecebido} style={{ background: "transparent", border: "none", color: C.green, cursor: "pointer", fontSize: "13px", padding: "1px 4px" }}>✓</button>
-                                    <button onClick={() => setEditingRecebido(null)} style={{ background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: "13px", padding: "1px 4px" }}>✕</button>
-                                  </div>
+                                  <InlineReceivedEditor
+                                    key={`${item.origem}-${item.id}`}
+                                    initialValue={editingRecebido?.valor ?? ""}
+                                    onSave={handleSaveValorRecebido}
+                                    onCancel={() => setEditingRecebido(null)}
+                                    color={C.green}
+                                    borderColor={`${C.green}44`}
+                                  />
                                 ) : (
                                   <button
                                     onClick={() => item.billing_status !== 'Pago' && setEditingRecebido({ origem: item.origem, id: item.id, valor: String(item.valor_recebido || "") })}
@@ -629,16 +663,15 @@ export default function FaturacaoPage() {
                         <span className="mob-card-value">{fmtEuro(item.valor)}</span>
                         {item.billing_status !== "Cancelado" && item.valor > 0 && (
                           editingRecebido?.origem === item.origem && editingRecebido?.id === item.id && item.billing_status !== "Pago" ? (
-                            <div onClick={e => e.stopPropagation()} style={{display:"flex",alignItems:"center",gap:"4px"}}>
-                              <input
-                                autoFocus
-                                value={editingRecebido?.valor ?? ""}
-                                onChange={e => setEditingRecebido(r => r ? { ...r, valor: e.target.value } : r)}
-                                onKeyDown={e => { if (e.key === "Enter") handleSaveValorRecebido(); if (e.key === "Escape") setEditingRecebido(null); }}
-                                style={{width:"72px",background:"var(--theme-input-bg)",border:"1px solid var(--theme-input-border)",color:"var(--theme-success)",fontSize:"11px",padding:"3px 5px",textAlign:"right",outline:"none"}}
-                              />
-                              <button onClick={e => { e.stopPropagation(); handleSaveValorRecebido(); }} style={{background:"transparent",border:0,color:"var(--theme-success)",fontSize:"12px",padding:"2px"}}>✓</button>
-                            </div>
+                            <InlineReceivedEditor
+                              key={`${item.origem}-${item.id}-mobile`}
+                              initialValue={editingRecebido?.valor ?? ""}
+                              onSave={handleSaveValorRecebido}
+                              onCancel={() => setEditingRecebido(null)}
+                              compact
+                              color="var(--theme-success)"
+                              borderColor="var(--theme-input-border)"
+                            />
                           ) : (
                             <button
                               onClick={e => { e.stopPropagation(); if (item.billing_status !== "Pago") setEditingRecebido({ origem: item.origem, id: item.id, valor: String(item.valor_recebido || "") }); }}
@@ -725,7 +758,7 @@ function FormField({ label, children }: { label: string; children: React.ReactNo
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const addBtnStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-accent-muted)", fontSize: "10px", letterSpacing: "0.35em", padding: "0.5rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s" };
-const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
+const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "none" };
 const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2.5rem", width: "480px", maxWidth: "90vw", maxHeight: "90vh", overflowY: "auto", position: "relative" };
 const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" };
 const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "13px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
