@@ -134,9 +134,24 @@ const DEFAULT_VALORES_MASTER: ValorMasterSeed[] = [
 async function ensureColaboradoresExtendedColumns() {
   try { await turso.execute("ALTER TABLE colaboradores ADD COLUMN nome_artistico TEXT DEFAULT ''"); } catch { }
   try { await turso.execute("ALTER TABLE colaboradores ADD COLUMN nome_pessoal TEXT DEFAULT ''"); } catch { }
+  try { await turso.execute("ALTER TABLE colaboradores ADD COLUMN restricoes_alimentares TEXT DEFAULT ''"); } catch { }
+  try { await turso.execute("ALTER TABLE colaboradores ADD COLUMN tamanho_cima TEXT DEFAULT ''"); } catch { }
+  try { await turso.execute("ALTER TABLE colaboradores ADD COLUMN tamanho_baixo TEXT DEFAULT ''"); } catch { }
+  try { await turso.execute("ALTER TABLE colaboradores ADD COLUMN calcado TEXT DEFAULT ''"); } catch { }
   try {
     await turso.execute("UPDATE colaboradores SET nome_artistico = nome WHERE COALESCE(nome_artistico, '') = ''");
   } catch { }
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS colaborador_skill_profiles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      colaborador_id INTEGER NOT NULL,
+      skill TEXT NOT NULL,
+      valor REAL NOT NULL DEFAULT 0,
+      rating INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(colaborador_id, skill)
+    )
+  `);
 }
 
 async function ensureArtistasAssociacaoIgnoradosTable() {
@@ -1829,7 +1844,19 @@ export async function setupColaboradores() {
 export async function getAllColaboradores() {
   try {
     await ensureColaboradoresExtendedColumns();
-    const res = await turso.execute("SELECT * FROM colaboradores ORDER BY COALESCE(NULLIF(nome_artistico, ''), nome) ASC");
+    const [res, profiles] = await Promise.all([
+      turso.execute("SELECT * FROM colaboradores ORDER BY COALESCE(NULLIF(nome_artistico, ''), nome) ASC"),
+      turso.execute("SELECT colaborador_id, skill, valor, rating FROM colaborador_skill_profiles ORDER BY skill ASC"),
+    ]);
+    const profileMap: Record<number, Record<string, { valor: number; rating: number }>> = {};
+    for (const r of profiles.rows as any[]) {
+      const id = Number(r.colaborador_id);
+      if (!profileMap[id]) profileMap[id] = {};
+      profileMap[id][String(r.skill || '')] = {
+        valor: Number(r.valor || 0),
+        rating: Math.max(0, Math.min(5, Number(r.rating || 0))),
+      };
+    }
     return {
       success: true,
       data: res.rows.map((r: any) => ({
@@ -1842,6 +1869,11 @@ export async function getAllColaboradores() {
         iban: (r.iban as string) || '',
         skills: (r.skills as string) || '',
         notas: (r.notas as string) || '',
+        restricoes_alimentares: (r.restricoes_alimentares as string) || '',
+        tamanho_cima: (r.tamanho_cima as string) || '',
+        tamanho_baixo: (r.tamanho_baixo as string) || '',
+        calcado: (r.calcado as string) || '',
+        skill_profiles: profileMap[Number(r.id)] || {},
         ativo: r.ativo === 1 || r.ativo === true ? 1 : 0,
       }))
     };
@@ -1851,19 +1883,55 @@ export async function getAllColaboradores() {
   }
 }
 
+type ColaboradorSkillProfileInput = Record<string, { valor?: number | string; rating?: number | string }>;
+
+async function saveColaboradorSkillProfiles(colaboradorId: number, skills: string, profiles?: ColaboradorSkillProfileInput) {
+  await ensureColaboradoresExtendedColumns();
+  const selected = Array.from(new Set((skills || '').split(',').map(s => s.trim()).filter(Boolean)));
+  if (selected.length === 0) {
+    await turso.execute({ sql: "DELETE FROM colaborador_skill_profiles WHERE colaborador_id=?", args: [colaboradorId] });
+    return;
+  }
+  const placeholders = selected.map(() => '?').join(',');
+  await turso.execute({
+    sql: `DELETE FROM colaborador_skill_profiles WHERE colaborador_id=? AND skill NOT IN (${placeholders})`,
+    args: [colaboradorId, ...selected],
+  });
+  for (const skill of selected) {
+    const p = profiles?.[skill] || {};
+    const valor = Math.max(0, Number(p.valor || 0) || 0);
+    const rating = Math.max(0, Math.min(5, Math.round(Number(p.rating || 0) || 0)));
+    await turso.execute({
+      sql: `INSERT INTO colaborador_skill_profiles (colaborador_id, skill, valor, rating, updated_at)
+            VALUES (?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(colaborador_id, skill) DO UPDATE SET valor=excluded.valor, rating=excluded.rating, updated_at=datetime('now')`,
+      args: [colaboradorId, skill, valor, rating],
+    });
+  }
+}
+
 export async function createColaborador(data: {
   nome: string; nome_artistico?: string; nome_pessoal?: string; contacto?: string; email?: string; iban?: string;
-  skills?: string; notas?: string; ativo?: number;
+  skills?: string; notas?: string; ativo?: number; restricoes_alimentares?: string; tamanho_cima?: string;
+  tamanho_baixo?: string; calcado?: string; skill_profiles?: ColaboradorSkillProfileInput;
 }) {
   try {
     await ensureColaboradoresExtendedColumns();
     const nomeArtistico = (data.nome_artistico || data.nome || '').trim();
     await turso.execute({
-      sql: "INSERT INTO colaboradores (nome, nome_artistico, nome_pessoal, contacto, email, iban, skills, notas, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      args: [nomeArtistico, nomeArtistico, data.nome_pessoal || '', data.contacto || '', data.email || '', data.iban || '', data.skills || '', data.notas || '', data.ativo ?? 1],
+      sql: `INSERT INTO colaboradores
+            (nome, nome_artistico, nome_pessoal, contacto, email, iban, skills, notas, ativo, restricoes_alimentares, tamanho_cima, tamanho_baixo, calcado)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        nomeArtistico, nomeArtistico, data.nome_pessoal || '', data.contacto || '', data.email || '', data.iban || '',
+        data.skills || '', data.notas || '', data.ativo ?? 1, data.restricoes_alimentares || '', data.tamanho_cima || '',
+        data.tamanho_baixo || '', data.calcado || '',
+      ],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
-    return { success: true, id: Number(last.rows[0].id) };
+    const id = Number(last.rows[0].id);
+    await saveColaboradorSkillProfiles(id, data.skills || '', data.skill_profiles);
+    return { success: true, id };
   } catch (error) {
     console.error("Erro criar colaborador:", error);
     return { success: false, message: "Erro ao criar colaborador." };
@@ -1872,15 +1940,22 @@ export async function createColaborador(data: {
 
 export async function updateColaborador(id: number, data: {
   nome: string; nome_artistico?: string; nome_pessoal?: string; contacto?: string; email?: string; iban?: string;
-  skills?: string; notas?: string; ativo?: number;
+  skills?: string; notas?: string; ativo?: number; restricoes_alimentares?: string; tamanho_cima?: string;
+  tamanho_baixo?: string; calcado?: string; skill_profiles?: ColaboradorSkillProfileInput;
 }) {
   try {
     await ensureColaboradoresExtendedColumns();
     const nomeArtistico = (data.nome_artistico || data.nome || '').trim();
     await turso.execute({
-      sql: "UPDATE colaboradores SET nome=?, nome_artistico=?, nome_pessoal=?, contacto=?, email=?, iban=?, skills=?, notas=?, ativo=? WHERE id=?",
-      args: [nomeArtistico, nomeArtistico, data.nome_pessoal || '', data.contacto || '', data.email || '', data.iban || '', data.skills || '', data.notas || '', data.ativo ?? 1, id],
+      sql: `UPDATE colaboradores SET nome=?, nome_artistico=?, nome_pessoal=?, contacto=?, email=?, iban=?, skills=?, notas=?, ativo=?,
+            restricoes_alimentares=?, tamanho_cima=?, tamanho_baixo=?, calcado=? WHERE id=?`,
+      args: [
+        nomeArtistico, nomeArtistico, data.nome_pessoal || '', data.contacto || '', data.email || '', data.iban || '',
+        data.skills || '', data.notas || '', data.ativo ?? 1, data.restricoes_alimentares || '', data.tamanho_cima || '',
+        data.tamanho_baixo || '', data.calcado || '', id,
+      ],
     });
+    await saveColaboradorSkillProfiles(id, data.skills || '', data.skill_profiles);
     return { success: true };
   } catch (error) {
     console.error("Erro update colaborador:", error);

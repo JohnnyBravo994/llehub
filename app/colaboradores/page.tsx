@@ -14,9 +14,13 @@ import {
 } from "../actions";
 import { COLABORADOR_SKILLS } from "../constants";
 
+interface SkillProfile { valor: number; rating: number; }
+
 interface Colaborador {
   id: number; nome: string; nome_artistico?: string; nome_pessoal?: string;
   contacto: string; email: string; iban: string; skills: string; notas: string; ativo: number;
+  restricoes_alimentares: string; tamanho_cima: string; tamanho_baixo: string; calcado: string;
+  skill_profiles: Record<string, SkillProfile>;
 }
 
 interface ArtistaPorAssociar {
@@ -44,6 +48,8 @@ const ALL_SKILLS = COLABORADOR_SKILLS;
 
 const emptyForm = {
   nome: "", nome_pessoal: "", contacto: "", email: "", iban: "", skills: [] as string[], notas: "", ativo: 1,
+  restricoes_alimentares: "", tamanho_cima: "", tamanho_baixo: "", calcado: "",
+  skill_profiles: {} as Record<string, { valor: string; rating: number }>,
 };
 
 function skillsToString(skills: string[]): string {
@@ -70,6 +76,7 @@ export default function ColaboradoresPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
+  const [profileColab, setProfileColab] = useState<Colaborador | null>(null);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
@@ -101,11 +108,20 @@ export default function ColaboradoresPage() {
       nome: c.nome_artistico || c.nome, nome_pessoal: c.nome_pessoal || "",
       contacto: c.contacto, email: c.email, iban: c.iban,
       skills: stringToSkills(c.skills), notas: c.notas, ativo: c.ativo,
+      restricoes_alimentares: c.restricoes_alimentares || "", tamanho_cima: c.tamanho_cima || "",
+      tamanho_baixo: c.tamanho_baixo || "", calcado: c.calcado || "",
+      skill_profiles: Object.fromEntries(stringToSkills(c.skills).map(skill => [skill, {
+        valor: c.skill_profiles?.[skill]?.valor ? String(c.skill_profiles[skill].valor) : "",
+        rating: c.skill_profiles?.[skill]?.rating || 0,
+      }])),
     });
     setModal({ open: true, editing: c });
   };
 
   const closeModal = () => setModal({ open: false, editing: null });
+  const openProfile = (c: Colaborador) => setProfileColab(c);
+  const closeProfile = () => setProfileColab(null);
+  const editFromProfile = (c: Colaborador) => { setProfileColab(null); openEdit(c); };
 
   const handleSave = async () => {
     if (!form.nome.trim()) { showToast("Nome é obrigatório"); return; }
@@ -153,11 +169,26 @@ export default function ColaboradoresPage() {
   };
 
   const toggleSkill = (skill: string) => {
+    setForm(f => {
+      const exists = f.skills.includes(skill);
+      const profiles = { ...f.skill_profiles };
+      if (exists) delete profiles[skill];
+      else profiles[skill] = profiles[skill] || { valor: "", rating: 0 };
+      return {
+        ...f,
+        skills: exists ? f.skills.filter(s => s !== skill) : [...f.skills, skill],
+        skill_profiles: profiles,
+      };
+    });
+  };
+
+  const setSkillProfile = (skill: string, patch: Partial<{ valor: string; rating: number }>) => {
     setForm(f => ({
       ...f,
-      skills: f.skills.includes(skill)
-        ? f.skills.filter(s => s !== skill)
-        : [...f.skills, skill],
+      skill_profiles: {
+        ...f.skill_profiles,
+        [skill]: { ...(f.skill_profiles[skill] || { valor: "", rating: 0 }), ...patch },
+      },
     }));
   };
 
@@ -226,9 +257,9 @@ export default function ColaboradoresPage() {
   return (
     <>
     {/* ═══ DESKTOP ═══ */}
-    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: C.pageBg, color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
+    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: C.pageBg, color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease", overflowX: "hidden" }}>
       <Nav userName={userName} active="colaboradores" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");  }} />
-      <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
+      <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", width: "100%", boxSizing: "border-box", margin: "0 auto", overflowX: "hidden" }}>
 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
@@ -275,7 +306,7 @@ export default function ColaboradoresPage() {
         )}
 
         {/* Filters */}
-        <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative", marginBottom: "0" }}>
+        <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, position: "relative", marginBottom: "0", overflow: "hidden", minWidth: 0 }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
           <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.borderDim}` }}>
             <input
@@ -298,60 +329,16 @@ export default function ColaboradoresPage() {
             </button>
           </div>
 
-          {/* Table */}
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  {["Nome Artístico", "Nome Pessoal", "Contacto", "Email", "IBAN", "Funções / Skills", "Estado", "Ações"].map((h, i) => (
-                    <th key={h} style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${C.border}`, textAlign: i >= 6 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(c => (
-                  <tr key={c.id} style={{ opacity: c.ativo === 0 ? 0.45 : 1 }}>
-                    <td style={tdS()}><span style={{ fontWeight: 600, fontSize: "11px" }}>{c.nome_artistico || c.nome}</span></td>
-                    <td style={tdS({ muted: true })}>{c.nome_pessoal || "—"}</td>
-                    <td style={tdS({ muted: true })}>{c.contacto || "—"}</td>
-                    <td style={tdS({ muted: true })}>{c.email || "—"}</td>
-                    <td style={tdS({ muted: true, nowrap: true })}>
-                      {c.iban
-                        ? <span style={{ fontFamily: "monospace", fontSize: "10px", color: C.textSec }}>{c.iban}</span>
-                        : <span style={{ color: C.textMuted }}>—</span>}
-                    </td>
-                    <td style={{ ...tdS({}), maxWidth: "220px" }}>
-                      {stringToSkills(c.skills).length > 0
-                        ? <div style={{ display: "flex", flexWrap: "wrap", gap: "3px" }}>
-                            {stringToSkills(c.skills).map(s => (
-                              <span key={s} style={{ fontSize: "8px", background: "rgba(var(--theme-accent-rgb),0.1)", color: C.gold, padding: "2px 6px", letterSpacing: "0.1em" }}>{s}</span>
-                            ))}
-                          </div>
-                        : <span style={{ color: C.textMuted, fontSize: "10px" }}>—</span>}
-                    </td>
-                    <td style={{ ...tdS({}), textAlign: "right" }}>
-                      <span style={{ fontSize: "8px", letterSpacing: "0.2em", color: c.ativo === 1 ? C.green : C.textMuted, fontWeight: 600, textTransform: "uppercase" }}>
-                        {c.ativo === 1 ? "Ativo" : "Inativo"}
-                      </span>
-                    </td>
-                    <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
-                      <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
-                        <button onClick={() => openEdit(c)} title="Editar" style={iconBtnStyle}><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M11 2l3 3-9 9H2v-3L11 2z" /></svg></button>
-                        <button onClick={() => handleToggleAtivo(c)} title={c.ativo === 1 ? "Marcar Inativo" : "Marcar Ativo"} style={{ ...iconBtnStyle, color: c.ativo === 1 ? C.textMuted : C.green }}>
-                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
-                            {c.ativo === 1 ? <path d="M12 4L6 10 4 8" /> : <circle cx="8" cy="8" r="6" />}
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filtered.length === 0 && (
-                  <tr><td colSpan={8} style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem colaboradores encontrados</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          {/* Colaboradores agrupados por função / skill */}
+          <SkillDrawers
+            colaboradores={filtered}
+            filterSkill={filterSkill}
+            onEdit={openEdit}
+            onOpenProfile={openProfile}
+            onToggleAtivo={handleToggleAtivo}
+            C={C}
+            compact={false}
+          />
         </div>
 
         {/* Count */}
@@ -420,39 +407,17 @@ export default function ColaboradoresPage() {
         </div>
       )}
 
-      {/* List */}
-      <div className="mob-list">
-        {filtered.map(c => (
-          <div key={c.id} style={{ padding: "1rem 1.1rem", borderBottom: "1px solid var(--theme-border)", opacity: c.ativo === 0 ? 0.5 : 1 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--theme-text)", marginBottom: "3px" }}>{c.nome_artistico || c.nome}</div>
-                {c.nome_pessoal && <div style={{ fontSize: "10px", color: "var(--theme-text-secondary)", marginBottom: "2px" }}>{c.nome_pessoal}</div>}
-                {c.contacto && <div style={{ fontSize: "10px", color: "var(--theme-text-muted)" }}>{c.contacto}</div>}
-                {stringToSkills(c.skills).length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "3px", marginTop: "4px" }}>
-                    {stringToSkills(c.skills).slice(0, 3).map(s => (
-                      <span key={s} style={{ fontSize: "7px", background: "rgba(var(--theme-accent-rgb),0.1)", color: "var(--theme-accent)", padding: "2px 5px", letterSpacing: "0.1em" }}>{s}</span>
-                    ))}
-                    {stringToSkills(c.skills).length > 3 && <span style={{ fontSize: "7px", color: "var(--theme-text-subtle)" }}>+{stringToSkills(c.skills).length - 3}</span>}
-                  </div>
-                )}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px", marginLeft: "0.5rem" }}>
-                <span style={{ fontSize: "8px", color: c.ativo === 1 ? "var(--theme-success)" : "var(--theme-text-faint)", letterSpacing: "0.2em", textTransform: "uppercase" }}>
-                  {c.ativo === 1 ? "Ativo" : "Inativo"}
-                </span>
-                <div style={{ display: "flex", gap: "4px" }}>
-                  <button onClick={() => openEdit(c)} style={{ background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-muted)", fontSize: "10px", padding: "4px 8px", cursor: "pointer" }}>✏️</button>
-                  <button onClick={() => handleToggleAtivo(c)} style={{ background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: c.ativo === 1 ? "var(--theme-text-subtle)" : "var(--theme-success)", fontSize: "10px", padding: "4px 8px", cursor: "pointer" }}>
-                    {c.ativo === 1 ? "⏸" : "▶"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-        {filtered.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "var(--theme-text-faint)", letterSpacing: "0.2em" }}>Sem colaboradores</div>}
+      {/* Gavetas por função / skill */}
+      <div style={{ padding: "0.7rem 0.75rem 1rem" }}>
+        <SkillDrawers
+          colaboradores={filtered}
+          filterSkill={filterSkill}
+          onEdit={openEdit}
+          onOpenProfile={openProfile}
+          onToggleAtivo={handleToggleAtivo}
+          C={C}
+          compact
+        />
       </div>
 
       <MobTabBar active="colaboradores" role="admin" lightTheme={lightTheme} />
@@ -465,71 +430,29 @@ export default function ColaboradoresPage() {
         <div className="mob-page-desktop" onClick={e => e.target === e.currentTarget && closeModal()} style={overlayStyle}>
           <div style={modalStyle}>
             <div style={topLineStyle} />
-            <ColabModalContent form={form} setForm={setForm} modal={modal} saving={saving} closeModal={closeModal} handleSave={handleSave} toggleSkill={toggleSkill} labelStyle={labelStyle} inputStyle={inputStyle} btnPrimStyle={btnPrimStyle} btnSecStyle={btnSecStyle} C={C} ALL_SKILLS={ALL_SKILLS} />
+            <ColabModalContent form={form} setForm={setForm} modal={modal} saving={saving} closeModal={closeModal} handleSave={handleSave} toggleSkill={toggleSkill} setSkillProfile={setSkillProfile} labelStyle={labelStyle} inputStyle={inputStyle} btnPrimStyle={btnPrimStyle} btnSecStyle={btnSecStyle} C={C} ALL_SKILLS={ALL_SKILLS} />
           </div>
         </div>
         {/* Mobile bottom sheet */}
         <div className="mob-shell" onClick={e => e.target === e.currentTarget && closeModal()} style={overlayBottomStyle}>
           <div style={modalMobStyle}>
             <div style={topLineStyle} />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-              <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600 }}>
-                {modal.editing ? "Editar Colaborador" : "Novo Colaborador"}
-              </p>
-              <button onClick={closeModal} style={{ background: "none", border: "none", color: C.textMuted, fontSize: "20px", cursor: "pointer", lineHeight: 1 }}>×</button>
-            </div>
+            <ColabModalContent form={form} setForm={setForm} modal={modal} saving={saving} closeModal={closeModal} handleSave={handleSave} toggleSkill={toggleSkill} setSkillProfile={setSkillProfile} labelStyle={labelStyle} inputStyle={inputStyle} btnPrimStyle={btnPrimStyle} btnSecStyle={btnSecStyle} C={C} ALL_SKILLS={ALL_SKILLS} mobile />
+          </div>
+        </div>
+      </>
+    )}
 
-            <div style={{ marginBottom: "1rem" }}>
-              <label style={labelStyle}>Nome Artístico *</label>
-              <input style={inputStyle} value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} placeholder="Gio, DJ João, Annia..." />
-            </div>
-            <div style={{ marginBottom: "1rem" }}>
-              <label style={labelStyle}>Nome Pessoal / Fiscal</label>
-              <input style={inputStyle} value={form.nome_pessoal} onChange={e => setForm(f => ({ ...f, nome_pessoal: e.target.value }))} placeholder="Nome civil/fiscal..." />
-            </div>
-            <div style={{ marginBottom: "1rem" }}>
-              <label style={labelStyle}>Contacto / Telefone</label>
-              <input style={inputStyle} value={form.contacto} onChange={e => setForm(f => ({ ...f, contacto: e.target.value }))} placeholder="+351..." />
-            </div>
-            <div style={{ marginBottom: "1rem" }}>
-              <label style={labelStyle}>Email</label>
-              <input style={inputStyle} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="email@..." />
-            </div>
-            <div style={{ marginBottom: "1rem" }}>
-              <label style={labelStyle}>IBAN (opcional)</label>
-              <input style={{ ...inputStyle, fontFamily: "monospace", letterSpacing: "0.08em" }} value={form.iban} onChange={e => setForm(f => ({ ...f, iban: e.target.value }))} placeholder="PT50..." />
-            </div>
-            <div style={{ marginBottom: "1rem" }}>
-              <label style={labelStyle}>Funções / Skills</label>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "0.35rem" }}>
-                {ALL_SKILLS.map(s => (
-                  <button key={s} onClick={() => toggleSkill(s)} style={{
-                    background: form.skills.includes(s) ? "rgba(var(--theme-accent-rgb),0.18)" : "rgba(var(--theme-contrast-rgb),0.04)",
-                    border: `1px solid ${form.skills.includes(s) ? "rgba(var(--theme-accent-rgb),0.4)" : "rgba(var(--theme-contrast-rgb),0.1)"}`,
-                    color: form.skills.includes(s) ? C.gold : C.textMuted,
-                    fontSize: "11px", padding: "8px 12px", cursor: "pointer", fontFamily: "inherit",
-                    minHeight: "36px",
-                  }}>{s}</button>
-                ))}
-              </div>
-            </div>
-            <div style={{ marginBottom: "1rem" }}>
-              <label style={labelStyle}>Notas</label>
-              <textarea style={{ ...inputStyle, height: "70px", resize: "vertical" }} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Notas internas..." />
-            </div>
-            <div style={{ marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <label style={{ ...labelStyle, marginBottom: 0 }}>Estado</label>
-              <button onClick={() => setForm(f => ({ ...f, ativo: f.ativo === 1 ? 0 : 1 }))} style={{
-                background: form.ativo === 1 ? "rgba(93,202,165,0.12)" : "rgba(var(--theme-contrast-rgb),0.04)",
-                border: `1px solid ${form.ativo === 1 ? "rgba(93,202,165,0.3)" : "rgba(var(--theme-contrast-rgb),0.08)"}`,
-                color: form.ativo === 1 ? C.green : C.textMuted, fontSize: "10px", letterSpacing: "0.15em",
-                padding: "8px 16px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600,
-              }}>{form.ativo === 1 ? "● Ativo" : "○ Inativo"}</button>
-            </div>
-            <div style={{ display: "flex", gap: "0.75rem" }}>
-              <button onClick={closeModal} style={{ ...btnSecStyle, flex: 1 }}>Cancelar</button>
-              <button onClick={handleSave} disabled={saving} style={{ ...btnPrimStyle, flex: 2 }}>{saving ? "A guardar..." : modal.editing ? "Guardar" : "Criar"}</button>
-            </div>
+    {profileColab && (
+      <>
+        <div className="mob-page-desktop" onClick={e => e.target === e.currentTarget && closeProfile()} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", justifyContent: "flex-end", backdropFilter: "blur(3px)" }}>
+          <div style={{ width: "min(560px, 92vw)", height: "100%", overflowY: "auto", background: C.surface, borderLeft: `1px solid ${C.border}`, boxShadow: "-24px 0 70px rgba(0,0,0,.28)", padding: "2rem", boxSizing: "border-box" }}>
+            <ProfileDrawerContent c={profileColab} onClose={closeProfile} onEdit={() => editFromProfile(profileColab)} C={C} compact={false} />
+          </div>
+        </div>
+        <div className="mob-shell" onClick={e => e.target === e.currentTarget && closeProfile()} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "flex-end", backdropFilter: "blur(3px)" }}>
+          <div style={{ width: "100%", maxHeight: "90dvh", overflowY: "auto", background: C.surface, borderTop: `1px solid ${C.border}`, borderRadius: "14px 14px 0 0", padding: "1.25rem", paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))", boxSizing: "border-box" }}>
+            <ProfileDrawerContent c={profileColab} onClose={closeProfile} onEdit={() => editFromProfile(profileColab)} C={C} compact />
           </div>
         </div>
       </>
@@ -543,7 +466,7 @@ export default function ColaboradoresPage() {
   );
 }
 
-function ColabModalContent({ form, setForm, modal, saving, closeModal, handleSave, toggleSkill, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C, ALL_SKILLS }: any) {
+function ColabModalContent({ form, setForm, modal, saving, closeModal, handleSave, toggleSkill, setSkillProfile, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C, ALL_SKILLS, mobile }: any) {
   return (
     <>
       <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "1.5rem" }}>
@@ -581,14 +504,60 @@ function ColabModalContent({ form, setForm, modal, saving, closeModal, handleSav
               background: form.skills.includes(s) ? "rgba(var(--theme-accent-rgb),0.18)" : "rgba(var(--theme-contrast-rgb),0.03)",
               border: `1px solid ${form.skills.includes(s) ? "rgba(var(--theme-accent-rgb),0.4)" : "rgba(var(--theme-contrast-rgb),0.08)"}`,
               color: form.skills.includes(s) ? C.gold : C.textMuted,
-              fontSize: "8px", letterSpacing: "0.15em", padding: "4px 8px",
+              fontSize: mobile ? "10px" : "8px", letterSpacing: "0.08em", padding: mobile ? "7px 10px" : "4px 8px",
               cursor: "pointer", fontFamily: "inherit", textTransform: "none" as any,
             }}>{s}</button>
           ))}
         </div>
       </div>
+
+      {form.skills.length > 0 && (
+        <div style={{ marginBottom: "1.1rem", border: `1px solid ${C.border}`, background: "rgba(var(--theme-contrast-rgb),0.015)" }}>
+          <div style={{ padding: "0.65rem 0.8rem", borderBottom: `1px solid ${C.borderDim}` }}>
+            <span style={{ ...labelStyle, marginBottom: 0 }}>Valor e classificação por skill</span>
+          </div>
+          {form.skills.map((skill: string) => {
+            const profile = form.skill_profiles[skill] || { valor: "", rating: 0 };
+            return (
+              <div key={skill} style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "minmax(150px,1fr) 120px 170px", gap: "0.65rem", alignItems: "center", padding: "0.75rem 0.8rem", borderBottom: `1px solid ${C.borderDim}` }}>
+                <div style={{ fontSize: "10px", color: C.textPrimary, fontWeight: 600 }}>{skill}</div>
+                <div>
+                  <label style={{ ...labelStyle, fontSize: "6px", marginBottom: "0.25rem" }}>Fee habitual €</label>
+                  <input type="number" min="0" step="0.01" style={{ ...inputStyle, padding: "0.5rem 0.65rem" }} value={profile.valor} onChange={(e: any) => setSkillProfile(skill, { valor: e.target.value })} placeholder="0" />
+                </div>
+                <div>
+                  <label style={{ ...labelStyle, fontSize: "6px", marginBottom: "0.25rem" }}>Classificação</label>
+                  <StarRating value={profile.rating || 0} onChange={(rating: number) => setSkillProfile(skill, { rating })} C={C} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+        <div>
+          <label style={labelStyle}>Restrições alimentares</label>
+          <input style={inputStyle} value={form.restricoes_alimentares} onChange={(e: any) => setForm((f: any) => ({ ...f, restricoes_alimentares: e.target.value }))} placeholder="Sem restrições, vegetariano, alergia..." />
+        </div>
+        <div>
+          <label style={labelStyle}>Calçado</label>
+          <input style={inputStyle} value={form.calcado} onChange={(e: any) => setForm((f: any) => ({ ...f, calcado: e.target.value }))} placeholder="Ex: 39" />
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+        <div>
+          <label style={labelStyle}>Tamanho parte de cima</label>
+          <input style={inputStyle} value={form.tamanho_cima} onChange={(e: any) => setForm((f: any) => ({ ...f, tamanho_cima: e.target.value }))} placeholder="Ex: S / 36 / medidas" />
+        </div>
+        <div>
+          <label style={labelStyle}>Tamanho parte de baixo</label>
+          <input style={inputStyle} value={form.tamanho_baixo} onChange={(e: any) => setForm((f: any) => ({ ...f, tamanho_baixo: e.target.value }))} placeholder="Ex: M / 38 / medidas" />
+        </div>
+      </div>
+
       <div style={{ marginBottom: "1rem" }}>
-        <label style={labelStyle}>Notas</label>
+        <label style={labelStyle}>Notas internas</label>
         <textarea style={{ ...inputStyle, height: "70px", resize: "vertical" as any }} value={form.notas} onChange={(e: any) => setForm((f: any) => ({ ...f, notas: e.target.value }))} placeholder="Notas internas..." />
       </div>
       <div style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
@@ -606,6 +575,188 @@ function ColabModalContent({ form, setForm, modal, saving, closeModal, handleSav
         <button onClick={handleSave} disabled={saving} style={btnPrimStyle}>{saving ? "A guardar..." : modal.editing ? "Guardar" : "Criar"}</button>
       </div>
     </>
+  );
+}
+
+
+function skillDisplayName(skill: string): string {
+  if (skill === "Bailarino(a)") return "Bailarino / Bailarina";
+  if (skill === "Animador / Host") return "Animador / Animadora / Host";
+  if (skill === "Cantor(a)") return "Cantor / Cantora";
+  if (skill === "Mágico(a)") return "Mágico / Mágica";
+  if (skill === "Acrobata Aéreo(a)") return "Acrobata Aéreo / Aérea";
+  return skill;
+}
+
+function StarRating({ value, onChange, C, readOnly = false, size = 18 }: { value: number; onChange?: (rating: number) => void; C: any; readOnly?: boolean; size?: number }) {
+  const safe = Math.max(0, Math.min(5, Number(value || 0)));
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "2px" }} aria-label={`${safe} de 5 estrelas`}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <button
+          key={n}
+          type="button"
+          disabled={readOnly}
+          onClick={() => !readOnly && onChange?.(n === safe ? 0 : n)}
+          title={readOnly ? `${safe}/5` : `${n} estrela${n === 1 ? "" : "s"}`}
+          style={{
+            appearance: "none", border: 0, background: "transparent", padding: "0 1px", margin: 0,
+            cursor: readOnly ? "default" : "pointer", color: n <= safe ? C.gold : "rgba(var(--theme-contrast-rgb),0.16)",
+            fontSize: `${size}px`, lineHeight: 1, fontFamily: "Arial,sans-serif",
+          }}
+        >★</button>
+      ))}
+      {safe === 0 && readOnly && <span style={{ fontSize: "8px", color: C.textMuted, marginLeft: "5px" }}>sem avaliação</span>}
+    </div>
+  );
+}
+
+function ProfileDrawerContent({ c, onClose, onEdit, C, compact }: { c: Colaborador; onClose: () => void; onEdit: () => void; C: any; compact?: boolean }) {
+  const skills = stringToSkills(c.skills);
+  const field = (label: string, value?: string) => (
+    <div style={{ padding: compact ? "0.7rem 0" : "0.8rem 0", borderBottom: `1px solid ${C.borderDim}`, minWidth: 0 }}>
+      <div style={{ fontSize: "7px", letterSpacing: "0.22em", textTransform: "uppercase", color: C.textMuted, marginBottom: "0.35rem" }}>{label}</div>
+      <div style={{ fontSize: compact ? "11px" : "12px", color: value ? C.textPrimary : C.textMuted, overflowWrap: "anywhere" }}>{value || "—"}</div>
+    </div>
+  );
+
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", paddingBottom: "1rem", borderBottom: `1px solid ${C.borderDim}` }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: "7px", letterSpacing: "0.32em", color: C.gold, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.45rem" }}>Perfil do colaborador</div>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: compact ? "2rem" : "2.5rem", lineHeight: 1, color: C.textPrimary, overflowWrap: "anywhere" }}>{c.nome_artistico || c.nome}</div>
+          {c.nome_pessoal && c.nome_pessoal !== (c.nome_artistico || c.nome) && <div style={{ marginTop: "0.45rem", color: C.textMuted, fontSize: "10px" }}>{c.nome_pessoal}</div>}
+          <div style={{ marginTop: "0.7rem", display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: c.ativo === 1 ? C.green : C.textMuted }}>{c.ativo === 1 ? "● Ativo" : "○ Inativo"}</span>
+            <span style={{ fontSize: "8px", color: C.textMuted }}>{skills.length} {skills.length === 1 ? "função" : "funções"}</span>
+          </div>
+        </div>
+        <button onClick={onClose} style={{ ...iconBtnStyle, fontSize: "16px", flexShrink: 0 }} title="Fechar">×</button>
+      </div>
+
+      <div style={{ marginTop: "1.2rem" }}>
+        <div style={{ fontSize: "8px", letterSpacing: "0.28em", color: C.goldDim, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.55rem" }}>Funções / Skills</div>
+        {skills.length === 0 ? <div style={{ color: C.textMuted, fontSize: "10px" }}>Sem funções definidas.</div> : (
+          <div style={{ display: "grid", gap: "0.45rem" }}>
+            {skills.map(skill => {
+              const profile = c.skill_profiles?.[skill] || { valor: 0, rating: 0 };
+              return (
+                <div key={skill} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: "0.8rem", alignItems: "center", padding: "0.75rem 0.8rem", border: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-contrast-rgb),0.014)" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: "10px", color: C.textPrimary, fontWeight: 650, overflowWrap: "anywhere" }}>{skillDisplayName(skill)}</div>
+                    <div style={{ marginTop: "0.3rem" }}><StarRating value={profile.rating} C={C} readOnly size={13} /></div>
+                  </div>
+                  <div style={{ color: profile.valor > 0 ? C.gold : C.textMuted, fontSize: "12px", fontWeight: 700, whiteSpace: "nowrap" }}>{profile.valor > 0 ? `${profile.valor.toLocaleString("pt-PT", { maximumFractionDigits: 2 })} €` : "—"}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: "1.3rem", display: "grid", gridTemplateColumns: compact ? "1fr" : "1fr 1fr", columnGap: "1.2rem" }}>
+        {field("Contacto", c.contacto)}
+        {field("Email", c.email)}
+        {field("IBAN", c.iban)}
+        {field("Restrições alimentares", c.restricoes_alimentares)}
+        {field("Parte de cima", c.tamanho_cima)}
+        {field("Parte de baixo", c.tamanho_baixo)}
+        {field("Calçado", c.calcado)}
+        {field("Nome pessoal / fiscal", c.nome_pessoal)}
+      </div>
+
+      <div style={{ marginTop: "1.25rem" }}>
+        <div style={{ fontSize: "7px", letterSpacing: "0.22em", textTransform: "uppercase", color: C.textMuted, marginBottom: "0.45rem" }}>Notas internas</div>
+        <div style={{ minHeight: "70px", padding: "0.8rem", border: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-contrast-rgb),0.012)", color: c.notas ? C.textSec : C.textMuted, fontSize: "11px", lineHeight: 1.55, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{c.notas || "Sem notas."}</div>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.65rem", marginTop: "1.4rem", paddingBottom: "0.5rem" }}>
+        <button onClick={onClose} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textSec, fontSize: "8px", letterSpacing: "0.22em", padding: "0.65rem 0.9rem", cursor: "pointer", textTransform: "uppercase" }}>Fechar</button>
+        <button onClick={onEdit} style={{ background: C.gold, border: 0, color: "var(--theme-accent-contrast)", fontSize: "8px", letterSpacing: "0.22em", padding: "0.65rem 1rem", cursor: "pointer", textTransform: "uppercase", fontWeight: 700 }}>Editar perfil</button>
+      </div>
+    </div>
+  );
+}
+
+function SkillDrawers({ colaboradores, filterSkill, onEdit, onOpenProfile, onToggleAtivo, C, compact }: {
+  colaboradores: Colaborador[];
+  filterSkill: string;
+  onEdit: (c: Colaborador) => void;
+  onOpenProfile: (c: Colaborador) => void;
+  onToggleAtivo: (c: Colaborador) => void;
+  C: any;
+  compact?: boolean;
+}) {
+  const namedSkills = filterSkill
+    ? [filterSkill]
+    : ALL_SKILLS.filter(skill => colaboradores.some(c => stringToSkills(c.skills).includes(skill)));
+  const semFuncao = !filterSkill ? colaboradores.filter(c => stringToSkills(c.skills).length === 0) : [];
+  const groups = [
+    ...namedSkills.map(skill => ({ skill, people: colaboradores.filter(c => stringToSkills(c.skills).includes(skill)) })),
+    ...(semFuncao.length ? [{ skill: "Sem função definida", people: semFuncao }] : []),
+  ].filter(g => g.people.length > 0);
+
+  if (groups.length === 0) {
+    return <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem colaboradores encontrados</div>;
+  }
+
+  return (
+    <div style={{ display: "grid", gap: compact ? "0.55rem" : "0.7rem", padding: compact ? 0 : "0.8rem" }}>
+      {groups.map(group => (
+        <details key={group.skill} open={Boolean(filterSkill)} style={{ border: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-contrast-rgb),0.012)" }}>
+          <summary style={{ listStyle: "none", cursor: "pointer", padding: compact ? "0.85rem 0.9rem" : "0.95rem 1.1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", userSelect: "none" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.7rem", minWidth: 0 }}>
+              <span style={{ color: C.gold, fontSize: compact ? "11px" : "12px", fontWeight: 700 }}>{skillDisplayName(group.skill)}</span>
+              <span style={{ fontSize: "8px", color: C.textMuted, letterSpacing: "0.15em" }}>{group.people.length}</span>
+            </div>
+            <span style={{ color: C.textMuted, fontSize: "12px" }}>⌄</span>
+          </summary>
+          <div style={{ borderTop: `1px solid ${C.borderDim}` }}>
+            {group.people.map(c => {
+              const profile = c.skill_profiles?.[group.skill] || { valor: 0, rating: 0 };
+              return (
+                <div key={`${group.skill}-${c.id}`} style={{ padding: compact ? "0.85rem 0.9rem" : "0.9rem 1.1rem", borderBottom: `1px solid ${C.borderDim}`, opacity: c.ativo === 0 ? 0.48 : 1, minWidth: 0 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: compact ? "minmax(0,1fr) auto" : "minmax(0,1.35fr) 110px 150px auto", gap: compact ? "0.6rem" : "1rem", alignItems: "center", minWidth: 0 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <button type="button" onClick={() => onOpenProfile(c)} style={{ display: "block", maxWidth: "100%", background: "transparent", border: 0, padding: 0, margin: 0, color: C.textPrimary, fontFamily: "inherit", fontSize: compact ? "12px" : "11px", fontWeight: 700, cursor: "pointer", textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title="Abrir perfil">
+                        {c.nome_artistico || c.nome}
+                      </button>
+                      <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {c.contacto || c.email || c.nome_pessoal || "Abrir perfil para ver dados"}
+                      </div>
+                    </div>
+                    {!compact && (
+                      <div>
+                        <div style={{ fontSize: "7px", color: C.textMuted, letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: "4px" }}>Fee habitual</div>
+                        <div style={{ fontSize: "12px", color: profile.valor > 0 ? C.gold : C.textMuted, fontWeight: 700 }}>{profile.valor > 0 ? `${profile.valor.toLocaleString("pt-PT", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €` : "—"}</div>
+                      </div>
+                    )}
+                    {!compact && (
+                      <div>
+                        <div style={{ fontSize: "7px", color: C.textMuted, letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: "4px" }}>Classificação</div>
+                        <StarRating value={profile.rating} C={C} readOnly size={15} />
+                      </div>
+                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: "5px", justifyContent: "flex-end" }}>
+                      {compact && (
+                        <div style={{ marginRight: "5px", textAlign: "right" }}>
+                          <div style={{ color: profile.valor > 0 ? C.gold : C.textMuted, fontSize: "10px", fontWeight: 700 }}>{profile.valor > 0 ? `${profile.valor.toLocaleString("pt-PT")} €` : "—"}</div>
+                          <StarRating value={profile.rating} C={C} readOnly size={12} />
+                        </div>
+                      )}
+                      <button onClick={() => onOpenProfile(c)} title="Ver perfil completo" style={iconBtnStyle}>〉</button>
+                      <button onClick={() => onEdit(c)} title="Editar colaborador" style={iconBtnStyle}>✏</button>
+                      <button onClick={() => onToggleAtivo(c)} title={c.ativo === 1 ? "Marcar Inativo" : "Marcar Ativo"} style={{ ...iconBtnStyle, color: c.ativo === 1 ? C.textMuted : C.green }}>{c.ativo === 1 ? "⏸" : "▶"}</button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </details>
+      ))}
+    </div>
   );
 }
 
@@ -648,16 +799,16 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     ...((role !== "limited_novalues" && role !== "finance") ? [{ href: "/materiais", label: "Materiais" }] : []),
   ];
   return (
-    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", padding: "1.25rem 2.5rem", borderBottom: "1px solid var(--theme-border)", position: "sticky", top: 0, zIndex: 100, background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)", maxWidth: "100vw", boxSizing: "border-box", overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", minWidth: 0, flex: 1 }}>
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
-        <div style={{ display: "flex", gap: "0.25rem" }}>
+        <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap", minWidth: 0 }}>
           {links.map(l => (
             <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "var(--theme-accent)" : "var(--theme-text-muted)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", flexShrink: 0 }}>
         <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
         <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
       </div>
