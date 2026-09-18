@@ -94,7 +94,7 @@ interface Lead {
   local?: string; contacto?: string; notas?: string;
   cliente_nome?: string; cliente_id?: number | null; modalidade?: string;
   agenda_event_id?: number | null; event_id?: string;
-  tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string;
+  tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string; residencia_id?: number | null;
   material_revenue?: number; material_cost?: number;
 }
 
@@ -107,6 +107,10 @@ interface Cliente { id: number; nome: string; nif?: string; alias?: string; }
 interface Colaborador {
   id: number; nome: string; nome_artistico?: string; nome_pessoal?: string; contacto?: string; email?: string; iban?: string;
   skills?: string; notas?: string; ativo: number;
+  skill_profiles?: Record<string, {
+    valor?: number; custo_interno?: number; custo_sud?: number; custo_residencia?: number;
+    custo_evento_residencia?: number; custo_parceria?: number; custo_cliente_final?: number; rating?: number;
+  }>;
 }
 
 interface ValorFuncao {
@@ -115,6 +119,10 @@ interface ValorFuncao {
 interface ValorMaster {
   id: number; servico: string; duracao_formato: string; contexto: string; cliente_nome?: string;
   custo_interno: number; valor_parceiro: number; valor_sud: number; valor_cliente_final: number; notas?: string; ativo: number;
+}
+interface ResidenciaAtiva {
+  id: number; nome: string; cliente_id?: number | null; cliente_nome: string; local: string; servico: string; duracao_formato: string;
+  custo_interno: number; valor_cliente: number; performer_padrao_id?: number | null; performer_padrao_nome?: string; notas?: string; ativo: number;
 }
 interface MaterialPackItem { id: number; pack_id: number; material_nome: string; categoria: string; quantidade: number; notas?: string; }
 interface MaterialPack {
@@ -134,9 +142,9 @@ function displayClienteNome(lead: { cliente_id?: number | null; cliente_nome?: s
   }
   return lead.cliente_nome || '';
 }
-interface ArtistRow { id?: number; colaborador_id?: number | null; nome: string; tipo: string; fee: string; }
+interface ArtistRow { id?: number; colaborador_id?: number | null; nome: string; tipo: string; fee: string; fee_auto?: boolean; }
 
-const emptyArtist = (): ArtistRow => ({ colaborador_id: null, nome: "", tipo: "DJ", fee: "" });
+const emptyArtist = (): ArtistRow => ({ colaborador_id: null, nome: "", tipo: "DJ", fee: "", fee_auto: true });
 
 const C = {
   gold: "var(--theme-accent)", goldDim: "var(--theme-accent-muted)", surface: "var(--theme-surface)", pageBg: "var(--theme-bg)",
@@ -193,7 +201,7 @@ function tipoFromSkills(skills?: string) {
 }
 
 const STATUS_OPTIONS = ["Contacto", "Proposta Enviada", "Em Negociação", "Confirmado", "Em Adjudicação", "Adjudicado", "Faturado", "Pago", "Cancelado"];
-const emptyForm = { title: "", event_date: "", value: "0", status: "Contacto", local: "", contacto: "", notas: "", cliente_nome: "", cliente_id: null as number | null, modalidade: "Fatura", tipo_comercial: "Evento", servico_comercial: "", valor_contexto: "Cliente Final" };
+const emptyForm = { title: "", event_date: "", value: "0", status: "Contacto", local: "", contacto: "", notas: "", cliente_nome: "", cliente_id: null as number | null, modalidade: "Fatura", tipo_comercial: "Evento", servico_comercial: "", valor_contexto: "Cliente Final", residencia_id: null as number | null };
 
 const addArtistRow = (setArtists: React.Dispatch<React.SetStateAction<ArtistRow[]>>) => 
   setArtists(prev => [...prev, emptyArtist()]);
@@ -216,6 +224,7 @@ export default function LeadsPage() {
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [valoresFuncoes, setValoresFuncoes] = useState<ValorFuncao[]>([]);
   const [valoresMaster, setValoresMaster] = useState<ValorMaster[]>([]);
+  const [residenciasAtivas, setResidenciasAtivas] = useState<ResidenciaAtiva[]>([]);
   const [materialPacks, setMaterialPacks] = useState<MaterialPack[]>([]);
   const [selectedPackIds, setSelectedPackIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
@@ -261,6 +270,7 @@ export default function LeadsPage() {
       if (r.colaboradores?.success) setColaboradores(r.colaboradores.data as Colaborador[]);
       if (r.valoresFuncoes?.success) setValoresFuncoes(r.valoresFuncoes.data as ValorFuncao[]);
       if (r.valoresMaster?.success) setValoresMaster(r.valoresMaster.data as ValorMaster[]);
+      if (r.residencias?.success) setResidenciasAtivas((r.residencias.data as ResidenciaAtiva[]).filter(x => x.ativo === 1));
       setLookupsLoaded(true);
     }
     setLookupsLoading(false);
@@ -308,9 +318,52 @@ export default function LeadsPage() {
     const row = valoresFuncoes.find(v => v.ativo === 1 && normalizeText(v.funcao) === normalizeText(tipo));
     return row?.custo_padrao || 0;
   };
-  const suggestedFeeString = (tipo: string) => {
-    const value = suggestedFeeForTipo(tipo);
-    return value ? String(value) : "";
+  const skillProfileFor = (col: Colaborador | undefined, tipo: string) => {
+    if (!col?.skill_profiles || !tipo) return undefined;
+    const exact = col.skill_profiles[tipo];
+    if (exact) return exact;
+    const key = Object.keys(col.skill_profiles).find(k => normalizeText(k) === normalizeText(tipo));
+    return key ? col.skill_profiles[key] : undefined;
+  };
+  const suggestedFeeForArtist = (
+    col: Colaborador | undefined,
+    tipo: string,
+    tipoComercial: string = form.tipo_comercial,
+    valorContexto: string = form.valor_contexto,
+    residenciaId: number | null = form.residencia_id,
+  ) => {
+    const fallback = suggestedFeeForTipo(tipo);
+    if (!col || !tipo) return fallback;
+    const p = skillProfileFor(col, tipo);
+    if (!p) return fallback;
+
+    if (tipoComercial === "Residência") {
+      const residencia = residenciaId ? residenciasAtivas.find(r => r.id === residenciaId) : undefined;
+      const performerMatches = !!residencia && (
+        residencia.performer_padrao_id === col.id ||
+        (!!residencia.performer_padrao_nome && normalizeText(residencia.performer_padrao_nome) === normalizeText(col.nome_artistico || col.nome))
+      );
+      if (residencia && performerMatches && Number(residencia.custo_interno || 0) > 0) return Number(residencia.custo_interno);
+      return Number(p.custo_residencia || p.custo_interno || fallback || 0);
+    }
+    if (tipoComercial === "Evento de Residência") {
+      return Number(p.custo_evento_residencia || p.custo_residencia || p.custo_interno || fallback || 0);
+    }
+    if (valorContexto === "SUD") return Number(p.custo_sud || p.custo_interno || fallback || 0);
+    if (valorContexto === "Parceiro") return Number(p.custo_parceria || p.custo_interno || fallback || 0);
+    if (valorContexto === "Residência") return Number(p.custo_residencia || p.custo_interno || fallback || 0);
+    if (valorContexto === "Evento Residência") return Number(p.custo_evento_residencia || p.custo_residencia || p.custo_interno || fallback || 0);
+    if (valorContexto === "Cliente Final") return Number(p.custo_cliente_final || p.custo_interno || fallback || 0);
+    return Number(p.custo_interno || fallback || 0);
+  };
+  const repriceAutoArtists = (tipoComercial: string, valorContexto: string, residenciaId: number | null) => {
+    setArtists(prev => prev.map(a => {
+      if (!(a.fee_auto || isEmptyFee(a.fee))) return a;
+      const col = findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome);
+      if (!col || !a.tipo) return a;
+      const fee = suggestedFeeForArtist(col, a.tipo, tipoComercial, valorContexto, residenciaId);
+      return { ...a, fee: fee ? String(fee) : "", fee_auto: true };
+    }));
   };
 
   const inferValorContexto = (clienteNome: string, tipoComercial: string) => {
@@ -374,6 +427,7 @@ export default function LeadsPage() {
       nome: col ? colaboradorDisplayName(col) : (a.nome || ""),
       tipo: a.tipo || (col ? tipoFromSkills(col.skills) : "DJ"),
       fee: String(a.fee ?? ""),
+      fee_auto: false,
     };
   };
 
@@ -394,22 +448,46 @@ export default function LeadsPage() {
     setArtists(prev => prev.map((a, idx) => {
       if (idx !== i) return a;
       const nextTipo = suggestion.tipo || (col ? tipoFromSkills(col.skills) : a.tipo);
+      const fee = col && nextTipo ? suggestedFeeForArtist(col, nextTipo) : (nextTipo ? suggestedFeeForTipo(nextTipo) : 0);
       return {
         ...a,
         colaborador_id: col?.id ?? suggestion.colaborador_id ?? null,
         nome: col ? colaboradorDisplayName(col) : suggestion.nome,
         tipo: nextTipo,
-        fee: isEmptyFee(a.fee) && nextTipo ? suggestedFeeString(nextTipo) : a.fee,
+        fee: fee ? String(fee) : "",
+        fee_auto: true,
       };
     }));
   };
 
   const updateArtistTipo = (i: number, tipo: string) => {
-    setArtists(prev => prev.map((a, idx) => idx === i ? {
-      ...a,
-      tipo,
-      fee: isEmptyFee(a.fee) ? suggestedFeeString(tipo) : a.fee,
-    } : a));
+    setArtists(prev => prev.map((a, idx) => {
+      if (idx !== i) return a;
+      const col = findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome);
+      const fee = col ? suggestedFeeForArtist(col, tipo) : suggestedFeeForTipo(tipo);
+      return { ...a, tipo, fee: fee ? String(fee) : "", fee_auto: true };
+    }));
+  };
+  const updateArtistFee = (i: number, value: string) =>
+    setArtists(prev => prev.map((a, idx) => idx === i ? { ...a, fee: value, fee_auto: false } : a));
+
+  const applyResidenciaAtiva = (id: number | null) => {
+    const r = id ? residenciasAtivas.find(x => x.id === id) : undefined;
+    const nextTipo = r ? (form.tipo_comercial === "Evento de Residência" ? "Evento de Residência" : "Residência") : form.tipo_comercial;
+    const nextContext = r ? (nextTipo === "Evento de Residência" ? "Evento Residência" : "Residência") : form.valor_contexto;
+    setForm(f => ({
+      ...f,
+      residencia_id: id,
+      tipo_comercial: nextTipo,
+      valor_contexto: nextContext,
+      servico_comercial: r?.servico || f.servico_comercial,
+      local: r?.local || f.local,
+      cliente_nome: r?.cliente_nome || f.cliente_nome,
+      cliente_id: r?.cliente_id ?? f.cliente_id,
+      value: r?.valor_cliente ? String(r.valor_cliente) : f.value,
+    }));
+    if (r?.cliente_nome) setClienteSearch(r.cliente_nome);
+    repriceAutoArtists(nextTipo, nextContext, id);
   };
 
   const validArtistsPayload = () => artists.filter(a => a.nome.trim()).map(a => ({
@@ -446,6 +524,7 @@ export default function LeadsPage() {
       tipo_comercial: l.tipo_comercial || "Evento",
       servico_comercial: l.servico_comercial || "",
       valor_contexto: l.valor_contexto || inferValorContexto(l.cliente_nome || "", l.tipo_comercial || "Evento"),
+      residencia_id: l.residencia_id ?? null,
     });
     setClienteSearch(l.cliente_nome || "");
     setClienteDropOpen(false);
@@ -493,6 +572,7 @@ export default function LeadsPage() {
       valor_contexto: form.valor_contexto,
       local: form.local || "",
       contacto: form.contacto || "", notas: form.notas || "",
+      residencia_id: form.residencia_id,
     };
     const validArtists = validArtistsPayload();
     const getAutoPackIds = async () => {
@@ -539,6 +619,7 @@ export default function LeadsPage() {
           origem_lead_id: modal.editing.id,
           contacto: form.contacto || "",
           notas: form.notas || "",
+          residencia_id: form.residencia_id,
         });
         if (agendaRes.success && agendaRes.id) {
           await syncArtistasEvento(agendaRes.id, form.title.trim(), form.event_date, validArtists);
@@ -572,6 +653,7 @@ export default function LeadsPage() {
           origem_lead_id: res.id ?? null,
           contacto: form.contacto || "",
           notas: form.notas || "",
+          residencia_id: form.residencia_id,
         });
         if (agendaRes.success && agendaRes.id) {
           await syncArtistasEvento(agendaRes.id, form.title.trim(), form.event_date, validArtists);
@@ -607,6 +689,7 @@ export default function LeadsPage() {
       origem_lead_id: modal.editing.id,
       contacto: form.contacto || "",
       notas: form.notas || "",
+      residencia_id: form.residencia_id,
     });
     setConverting(false);
     if (res.success) {
@@ -1227,7 +1310,9 @@ export default function LeadsPage() {
                           <div
                             key={c.id}
                             onMouseDown={() => {
-                              setForm(f => ({ ...f, cliente_nome: c.nome, cliente_id: c.id, valor_contexto: inferValorContexto(c.nome, f.tipo_comercial) }));
+                              const nextContext = inferValorContexto(c.nome, form.tipo_comercial);
+                              setForm(f => ({ ...f, cliente_nome: c.nome, cliente_id: c.id, valor_contexto: nextContext }));
+                              repriceAutoArtists(form.tipo_comercial, nextContext, form.residencia_id);
                               setClienteSearch(c.nome);
                               setClienteDropOpen(false);
                             }}
@@ -1254,6 +1339,40 @@ export default function LeadsPage() {
               )}
             </FormField>
 
+            {/* Contexto operacional — sempre visível, independente do Auto Budget */}
+            <FormField label="Contexto do Trabalho">
+              <CustomSelect
+                value={form.tipo_comercial}
+                onChange={v => {
+                  const nextContext = inferValorContexto(form.cliente_nome, v);
+                  const nextResidenciaId = v === "Residência" || v === "Evento de Residência" ? form.residencia_id : null;
+                  setForm(f => ({ ...f, tipo_comercial: v, valor_contexto: nextContext, residencia_id: nextResidenciaId }));
+                  repriceAutoArtists(v, nextContext, nextResidenciaId);
+                }}
+                options={TIPOS_COMERCIAIS.map(t => ({ value: t, label: t }))}
+                style={inputStyle}
+              />
+              <p style={{ marginTop: "0.4rem", fontSize: "8px", color: C.textMuted, lineHeight: 1.45 }}>
+                Define o custo sugerido dos artistas mesmo sem usar o Auto Budget.
+              </p>
+            </FormField>
+            {(form.tipo_comercial === "Residência" || form.tipo_comercial === "Evento de Residência") && (
+              <FormField label="Residência Ativa">
+                <CustomSelect
+                  value={form.residencia_id ? String(form.residencia_id) : ""}
+                  onChange={v => applyResidenciaAtiva(v ? Number(v) : null)}
+                  options={[
+                    { value: "", label: "Sem residência específica — usar tabela do colaborador" },
+                    ...residenciasAtivas.map(r => ({ value: String(r.id), label: `${r.nome}${r.cliente_nome ? ` · ${r.cliente_nome}` : ""}${r.local ? ` · ${r.local}` : ""}` }))
+                  ]}
+                  style={inputStyle}
+                />
+                <p style={{ marginTop: "0.4rem", fontSize: "8px", color: C.textMuted, lineHeight: 1.45 }}>
+                  Se estiver definida, o custo dessa residência tem prioridade; caso contrário usa a tabela do colaborador.
+                </p>
+              </FormField>
+            )}
+
             <div style={{ gridColumn: "1 / -1", marginBottom: "1rem" }}>
               <button
                 type="button"
@@ -1269,7 +1388,7 @@ export default function LeadsPage() {
               >
                 <span>
                   <b style={{ display: "block", fontSize: "9px", letterSpacing: "0.28em", textTransform: "uppercase" }}>Auto Budget</b>
-                  <small style={{ display: "block", marginTop: "4px", fontSize: "8px", letterSpacing: "0.06em", color: C.textMuted }}>Serviços · tipo comercial · perfil de valor · cálculo automático</small>
+                  <small style={{ display: "block", marginTop: "4px", fontSize: "8px", letterSpacing: "0.06em", color: C.textMuted }}>Serviços · perfil de valor · cálculo automático</small>
                 </span>
                 <span style={{ fontSize: "12px" }}>{budgetOpen ? "−" : "+"}</span>
               </button>
@@ -1287,18 +1406,13 @@ export default function LeadsPage() {
                       placeholder="DJ todo o dia + Banda + Acrobata + Produtor..."
                     />
                   </FormField>
-                  <FormField label="Tipo Comercial">
-                    <CustomSelect
-                      value={form.tipo_comercial}
-                      onChange={v => setForm(f => ({ ...f, tipo_comercial: v, valor_contexto: inferValorContexto(f.cliente_nome, v) }))}
-                      options={TIPOS_COMERCIAIS.map(t => ({ value: t, label: t }))}
-                      style={inputStyle}
-                    />
-                  </FormField>
                   <FormField label="Perfil de Valor">
                     <CustomSelect
                       value={form.valor_contexto}
-                      onChange={v => setForm(f => ({ ...f, valor_contexto: v }))}
+                      onChange={v => {
+                        setForm(f => ({ ...f, valor_contexto: v }));
+                        repriceAutoArtists(form.tipo_comercial, v, form.residencia_id);
+                      }}
                       options={VALOR_CONTEXTOS.map(c => ({ value: c, label: c }))}
                       style={inputStyle}
                     />
@@ -1369,7 +1483,7 @@ export default function LeadsPage() {
                 )}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "6px" }}>
-                {["Nome", "Tipo", "Fee (€)", ""].map(h => (
+                {["Nome", "Tipo", "Custo (€)", ""].map(h => (
                   <span key={h} style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600, padding: "0 4px" }}>{h}</span>
                 ))}
               </div>
@@ -1408,9 +1522,9 @@ export default function LeadsPage() {
                     type="text"
                     inputMode="decimal"
                     value={a.fee}
-                    onChange={e => updateArtist(setArtists, i, "fee", e.target.value)}
-                    onFocus={e => { if (e.target.value === "0") updateArtist(setArtists, i, "fee", ""); }}
-                    onBlur={e => { if (e.target.value === "") updateArtist(setArtists, i, "fee", "0"); }}
+                    onChange={e => updateArtistFee(i, e.target.value)}
+                    onFocus={e => { if (e.target.value === "0") updateArtistFee(i, ""); }}
+                    onBlur={e => { if (e.target.value === "") updateArtistFee(i, "0"); }}
                     placeholder="0"
                     style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
                   />

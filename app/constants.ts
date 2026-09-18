@@ -78,6 +78,40 @@ export const SERVICOS_VENDIDOS = [
   "Aluguer de Carrinha",
 ] as const;
 
+// Organização comercial usada pelo Auto Budget.
+// Packs aparecem primeiro no seletor; Standalones são todos os restantes serviços.
+// Quando existir uma página própria de Packs, esta lista poderá passar a ser alimentada por essa fonte.
+export const AUTO_BUDGET_PACK_SERVICES = [
+  "Som 1 PA",
+  "Som 2 PAs",
+  "AV base evento",
+  "AV Base",
+  "AV Premium",
+  "Discurso",
+  "DJ Basic",
+  "Let's Party",
+  "Premium",
+  "Trio Fado",
+  "Annia Solo c/ AVs",
+  "Banda Duo s/ AV",
+  "Banda Duo c/ AVs",
+  "Banda Trio s/ AV",
+  "Banda Trio c/ AVs",
+  "Banda quarteto s/ AV",
+  "Banda quarteto c/ AVs",
+  "Banda quinteto s/ AV",
+  "Banda quinteto c/ AVs",
+  "Banda quinteto + Cantor",
+  "Banda quinteto + Cantor c/ AVs",
+  "Banda quinteto + 2 Back Vocals",
+  "Banda quinteto + 2 BVs c/ AVs",
+] as const;
+
+const AUTO_BUDGET_PACK_KEYS = new Set<string>(AUTO_BUDGET_PACK_SERVICES);
+
+export function isAutoBudgetPackService(service: string): boolean {
+  return AUTO_BUDGET_PACK_KEYS.has(service);
+}
 
 export const MATERIAL_EQUIPMENT_SERVICES = [
   "DJ Booth LED - branco",

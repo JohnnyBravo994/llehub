@@ -22,7 +22,6 @@ interface SkillProfile {
 }
 
 type PriceKey = "custo_interno" | "custo_sud" | "custo_residencia" | "custo_evento_residencia" | "custo_parceria" | "custo_cliente_final";
-type ArtistSort = "rating" | "name" | PriceKey;
 
 const PRICE_FIELDS: { key: PriceKey; label: string; short: string }[] = [
   { key: "custo_interno", label: "Custo Interno", short: "Interno" },
@@ -77,12 +76,6 @@ const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
 
 
 const ALL_SKILLS = COLABORADOR_SKILLS;
-const SORTED_SKILLS = [...ALL_SKILLS].sort((a, b) => skillDisplayName(a).localeCompare(skillDisplayName(b), "pt", { sensitivity: "base" }));
-const ARTIST_SORT_OPTIONS: { value: ArtistSort; label: string }[] = [
-  { value: "rating", label: "Estrelas · 5 → 1" },
-  { value: "name", label: "Nome · A → Z" },
-  ...PRICE_FIELDS.map(field => ({ value: field.key as ArtistSort, label: `${field.label} · maior → menor` })),
-];
 
 const emptyForm = {
   nome: "", nome_pessoal: "", contacto: "", email: "", iban: "", skills: [] as string[], notas: "", ativo: 1,
@@ -110,8 +103,6 @@ export default function ColaboradoresPage() {
   const [search, setSearch] = useState("");
   const [filterSkill, setFilterSkill] = useState("");
   const [showInactive, setShowInactive] = useState(false);
-  const [artistSort, setArtistSort] = useState<ArtistSort>("rating");
-  const [minRating, setMinRating] = useState(0);
   const [modal, setModal] = useState<{ open: boolean; editing: Colaborador | null }>({ open: false, editing: null });
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -252,13 +243,7 @@ export default function ColaboradoresPage() {
       const haystack = `${c.nome} ${c.nome_artistico || ""} ${c.nome_pessoal || ""} ${c.email || ""}`.toLowerCase();
       if (!haystack.includes(q)) return false;
     }
-    const skills = stringToSkills(c.skills);
-    if (filterSkill && !skills.includes(filterSkill)) return false;
-    if (minRating > 0) {
-      const relevantSkills = filterSkill ? [filterSkill] : skills;
-      const hasRating = relevantSkills.some(skill => Number(c.skill_profiles?.[skill]?.rating || 0) >= minRating);
-      if (!hasRating) return false;
-    }
+    if (filterSkill && !stringToSkills(c.skills).includes(filterSkill)) return false;
     return true;
   });
 
@@ -378,24 +363,7 @@ export default function ColaboradoresPage() {
               style={{ background: filterSkill ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: filterSkill ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", appearance: "none" as any, minWidth: "150px", textTransform: "uppercase" }}
             >
               <option value="">Função / Skill</option>
-              {SORTED_SKILLS.map(s => <option key={s} value={s}>{skillDisplayName(s)}</option>)}
-            </select>
-            <select
-              value={artistSort} onChange={e => setArtistSort(e.target.value as ArtistSort)}
-              style={{ background: "var(--theme-input-bg)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: C.textSec, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.16em", padding: "0.9rem 1rem", outline: "none", cursor: "pointer", minWidth: "190px", textTransform: "uppercase" }}
-            >
-              {ARTIST_SORT_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-            </select>
-            <select
-              value={minRating} onChange={e => setMinRating(Number(e.target.value))}
-              style={{ background: minRating ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: "none", borderRight: `1px solid ${C.borderDim}`, color: minRating ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.16em", padding: "0.9rem 1rem", outline: "none", cursor: "pointer", minWidth: "120px", textTransform: "uppercase" }}
-            >
-              <option value={0}>Todas estrelas</option>
-              <option value={5}>5 estrelas</option>
-              <option value={4}>4+ estrelas</option>
-              <option value={3}>3+ estrelas</option>
-              <option value={2}>2+ estrelas</option>
-              <option value={1}>1+ estrela</option>
+              {ALL_SKILLS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
             <button
               onClick={() => setShowInactive(v => !v)}
@@ -409,8 +377,6 @@ export default function ColaboradoresPage() {
           <SkillDrawers
             colaboradores={filtered}
             filterSkill={filterSkill}
-            artistSort={artistSort}
-            minRating={minRating}
             onEdit={openEdit}
             onOpenProfile={openProfile}
             onToggleAtivo={handleToggleAtivo}
@@ -456,24 +422,7 @@ export default function ColaboradoresPage() {
           style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: filterSkill ? "var(--theme-accent)" : "var(--theme-text-muted)", fontFamily: "inherit", fontSize: "11px", padding: "0.5rem 0.75rem", outline: "none" }}
         >
           <option value="">Todas as funções</option>
-          {SORTED_SKILLS.map(s => <option key={s} value={s}>{skillDisplayName(s)}</option>)}
-        </select>
-        <select
-          value={artistSort} onChange={e => setArtistSort(e.target.value as ArtistSort)}
-          style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-muted)", fontFamily: "inherit", fontSize: "11px", padding: "0.5rem 0.75rem", outline: "none" }}
-        >
-          {ARTIST_SORT_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-        </select>
-        <select
-          value={minRating} onChange={e => setMinRating(Number(e.target.value))}
-          style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: minRating ? "var(--theme-accent)" : "var(--theme-text-muted)", fontFamily: "inherit", fontSize: "11px", padding: "0.5rem 0.75rem", outline: "none" }}
-        >
-          <option value={0}>Todas as classificações</option>
-          <option value={5}>5 estrelas</option>
-          <option value={4}>4+ estrelas</option>
-          <option value={3}>3+ estrelas</option>
-          <option value={2}>2+ estrelas</option>
-          <option value={1}>1+ estrela</option>
+          {ALL_SKILLS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <button onClick={() => setShowInactive(v => !v)} style={{ width: "100%", background: showInactive ? "rgba(var(--theme-accent-rgb),0.08)" : "transparent", border: "1px solid var(--theme-input-border)", color: showInactive ? "var(--theme-accent)" : "var(--theme-text-muted)", fontFamily: "inherit", fontSize: "9px", letterSpacing: "0.16em", padding: "0.5rem 0.7rem", cursor: "pointer", textTransform: "uppercase" }}>
           {showInactive ? "✓ Ocultar inativos" : "Mostrar inativos"}
@@ -510,8 +459,6 @@ export default function ColaboradoresPage() {
         <SkillDrawers
           colaboradores={filtered}
           filterSkill={filterSkill}
-          artistSort={artistSort}
-          minRating={minRating}
           onEdit={openEdit}
           onOpenProfile={openProfile}
           onToggleAtivo={handleToggleAtivo}
@@ -798,45 +745,22 @@ function ProfileDrawerContent({ c, onClose, onEdit, C, compact }: { c: Colaborad
   );
 }
 
-function SkillDrawers({ colaboradores, filterSkill, artistSort, minRating, onEdit, onOpenProfile, onToggleAtivo, C, compact }: {
+function SkillDrawers({ colaboradores, filterSkill, onEdit, onOpenProfile, onToggleAtivo, C, compact }: {
   colaboradores: Colaborador[];
   filterSkill: string;
-  artistSort: ArtistSort;
-  minRating: number;
   onEdit: (c: Colaborador) => void;
   onOpenProfile: (c: Colaborador) => void;
   onToggleAtivo: (c: Colaborador) => void;
   C: any;
   compact?: boolean;
 }) {
-  const namedSkills = (filterSkill
+  const namedSkills = filterSkill
     ? [filterSkill]
-    : SORTED_SKILLS.filter(skill => colaboradores.some(c => stringToSkills(c.skills).includes(skill))))
-    .sort((a, b) => skillDisplayName(a).localeCompare(skillDisplayName(b), "pt", { sensitivity: "base" }));
-  const semFuncao = !filterSkill && minRating === 0 ? colaboradores.filter(c => stringToSkills(c.skills).length === 0) : [];
-  const sortPeople = (skill: string, people: Colaborador[]) => {
-    const visible = skill === "Sem função definida" || minRating === 0
-      ? [...people]
-      : people.filter(c => Number(c.skill_profiles?.[skill]?.rating || 0) >= minRating);
-    return visible.sort((a, b) => {
-      const nameA = (a.nome_artistico || a.nome || "").trim();
-      const nameB = (b.nome_artistico || b.nome || "").trim();
-      if (artistSort === "name" || skill === "Sem função definida") {
-        return nameA.localeCompare(nameB, "pt", { sensitivity: "base" });
-      }
-      const profileA = a.skill_profiles?.[skill] || emptySkillProfile;
-      const profileB = b.skill_profiles?.[skill] || emptySkillProfile;
-      if (artistSort === "rating") {
-        const diff = Number(profileB.rating || 0) - Number(profileA.rating || 0);
-        return diff || nameA.localeCompare(nameB, "pt", { sensitivity: "base" });
-      }
-      const diff = Number(profileB[artistSort] || 0) - Number(profileA[artistSort] || 0);
-      return diff || Number(profileB.rating || 0) - Number(profileA.rating || 0) || nameA.localeCompare(nameB, "pt", { sensitivity: "base" });
-    });
-  };
+    : ALL_SKILLS.filter(skill => colaboradores.some(c => stringToSkills(c.skills).includes(skill)));
+  const semFuncao = !filterSkill ? colaboradores.filter(c => stringToSkills(c.skills).length === 0) : [];
   const groups = [
-    ...namedSkills.map(skill => ({ skill, people: sortPeople(skill, colaboradores.filter(c => stringToSkills(c.skills).includes(skill))) })),
-    ...(semFuncao.length ? [{ skill: "Sem função definida", people: sortPeople("Sem função definida", semFuncao) }] : []),
+    ...namedSkills.map(skill => ({ skill, people: colaboradores.filter(c => stringToSkills(c.skills).includes(skill)) })),
+    ...(semFuncao.length ? [{ skill: "Sem função definida", people: semFuncao }] : []),
   ].filter(g => g.people.length > 0);
 
   if (groups.length === 0) {

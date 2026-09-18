@@ -4479,13 +4479,14 @@ export async function getAgendaFormLookups() {
 
 export async function getLeadsFormLookups() {
   try {
-    const [clientes, colaboradores, valoresFuncoes, valoresMaster] = await Promise.all([
+    const [clientes, colaboradores, valoresFuncoes, valoresMaster, residencias] = await Promise.all([
       getAllClientes(),
       getAllColaboradores(),
       getAllValoresFuncoes(),
       getAllValoresMaster(),
+      getAllResidenciasAtivas(),
     ]);
-    return { success: true, clientes, colaboradores, valoresFuncoes, valoresMaster };
+    return { success: true, clientes, colaboradores, valoresFuncoes, valoresMaster, residencias };
   } catch (error) {
     console.error('Erro getLeadsFormLookups:', error);
     return { success: false };

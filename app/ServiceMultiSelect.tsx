@@ -1,7 +1,12 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { SERVICOS_VENDIDOS, parseServicosContratados, serializeServicosContratados } from "./constants";
+import {
+  SERVICOS_VENDIDOS,
+  isAutoBudgetPackService,
+  parseServicosContratados,
+  serializeServicosContratados,
+} from "./constants";
 
 export function ServiceMultiSelect({
   value,
@@ -31,6 +36,12 @@ export function ServiceMultiSelect({
   }, [selected]);
   const normalizedSearch = search.trim().toLocaleLowerCase("pt-PT");
   const filtered = allOptions.filter(s => s.toLocaleLowerCase("pt-PT").includes(normalizedSearch));
+  const packs = filtered
+    .filter(isAutoBudgetPackService)
+    .sort((a, b) => a.localeCompare(b, "pt-PT", { sensitivity: "base" }));
+  const standalones = filtered
+    .filter(service => !isAutoBudgetPackService(service))
+    .sort((a, b) => a.localeCompare(b, "pt-PT", { sensitivity: "base" }));
   const exactExists = allOptions.some(s => s.toLocaleLowerCase("pt-PT") === normalizedSearch);
 
   const setSelected = (items: string[]) => onChange(serializeServicosContratados(items));
@@ -104,23 +115,38 @@ export function ServiceMultiSelect({
           </div>
 
           <div style={{ maxHeight: "280px", overflowY: "auto" }}>
-            {filtered.map(service => {
-              const active = selected.includes(service);
-              return (
-                <button key={service} type="button" onClick={() => toggle(service)} style={{
-                  width: "100%", display: "flex", alignItems: "center", gap: "9px", padding: "0.55rem 0.65rem",
-                  border: "none", borderBottom: "1px solid var(--theme-border)", background: active ? "rgba(var(--theme-accent-rgb),0.06)" : "transparent",
-                  color: active ? "var(--theme-accent)" : "var(--theme-text-secondary)", cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+            {[
+              { label: "PACKS", items: packs },
+              { label: "STANDALONES", items: standalones },
+            ].map(group => group.items.length > 0 && (
+              <div key={group.label}>
+                <div style={{
+                  position: "sticky", top: 0, zIndex: 2, padding: "0.55rem 0.65rem 0.4rem",
+                  background: "var(--theme-surface-elevated)", color: "var(--theme-accent)",
+                  fontSize: "8px", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase",
+                  borderBottom: "1px solid var(--theme-border)",
                 }}>
-                  <span style={{
-                    width: "15px", height: "15px", flexShrink: 0, display: "grid", placeItems: "center",
-                    border: `1px solid ${active ? "var(--theme-accent)" : "var(--theme-input-border)"}`,
-                    background: active ? "rgba(var(--theme-accent-rgb),0.12)" : "transparent", fontSize: "9px",
-                  }}>{active ? "✓" : ""}</span>
-                  <span style={{ fontSize: "10px" }}>{service}</span>
-                </button>
-              );
-            })}
+                  {group.label}
+                </div>
+                {group.items.map(service => {
+                  const active = selected.includes(service);
+                  return (
+                    <button key={service} type="button" onClick={() => toggle(service)} style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: "9px", padding: "0.55rem 0.65rem",
+                      border: "none", borderBottom: "1px solid var(--theme-border)", background: active ? "rgba(var(--theme-accent-rgb),0.06)" : "transparent",
+                      color: active ? "var(--theme-accent)" : "var(--theme-text-secondary)", cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+                    }}>
+                      <span style={{
+                        width: "15px", height: "15px", flexShrink: 0, display: "grid", placeItems: "center",
+                        border: `1px solid ${active ? "var(--theme-accent)" : "var(--theme-input-border)"}`,
+                        background: active ? "rgba(var(--theme-accent-rgb),0.12)" : "transparent", fontSize: "9px",
+                      }}>{active ? "✓" : ""}</span>
+                      <span style={{ fontSize: "10px" }}>{service}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
             {filtered.length === 0 && (
               <div style={{ padding: "1rem", color: "var(--theme-text-faint)", fontSize: "10px", textAlign: "center" }}>Sem resultados</div>
             )}

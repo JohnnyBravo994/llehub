@@ -114,7 +114,7 @@ interface Lead {
 const CONFIRMED_STATUSES = ["Confirmado", "Em Adjudicação", "Adjudicado", "Pago"];
 
 interface ArtistRow {
-  id?: number; colaborador_id?: number | null; nome: string; tipo: string; fee: string;
+  id?: number; colaborador_id?: number | null; nome: string; tipo: string; fee: string; fee_auto?: boolean;
 }
 
 interface ConflictOverride { event_date: string; artist_key: string; artist_name: string; note?: string; }
@@ -126,6 +126,10 @@ interface Cliente {
 interface Colaborador {
   id: number; nome: string; nome_artistico?: string; nome_pessoal?: string; contacto?: string; email?: string; iban?: string;
   skills?: string; notas?: string; ativo: number;
+  skill_profiles?: Record<string, {
+    valor?: number; custo_interno?: number; custo_sud?: number; custo_residencia?: number;
+    custo_evento_residencia?: number; custo_parceria?: number; custo_cliente_final?: number; rating?: number;
+  }>;
 }
 
 interface ValorFuncao {
@@ -257,7 +261,7 @@ function artistsSummary(artists: ArtistRow[]) {
 }
 
 const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura", tipo_comercial: "Evento", servico_comercial: "", valor_contexto: "Cliente Final", venue: "", contacto: "", notas: "", residencia_id: null as number | null };
-const emptyArtist = (): ArtistRow => ({ colaborador_id: null, nome: "", tipo: "", fee: "" });
+const emptyArtist = (): ArtistRow => ({ colaborador_id: null, nome: "", tipo: "", fee: "", fee_auto: true });
 
 function normalizeText(v: string) {
   return v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
@@ -585,9 +589,52 @@ export default function AgendaPage() {
     const row = valoresFuncoes.find(v => v.ativo === 1 && normalizeText(v.funcao) === normalizeText(tipo));
     return row?.custo_padrao || 0;
   };
-  const suggestedFeeString = (tipo: string) => {
-    const value = suggestedFeeForTipo(tipo);
-    return value ? String(value) : "";
+  const skillProfileFor = (col: Colaborador | undefined, tipo: string) => {
+    if (!col?.skill_profiles || !tipo) return undefined;
+    const exact = col.skill_profiles[tipo];
+    if (exact) return exact;
+    const key = Object.keys(col.skill_profiles).find(k => normalizeText(k) === normalizeText(tipo));
+    return key ? col.skill_profiles[key] : undefined;
+  };
+  const suggestedFeeForArtist = (
+    col: Colaborador | undefined,
+    tipo: string,
+    tipoComercial: string = form.tipo_comercial,
+    valorContexto: string = form.valor_contexto,
+    residenciaId: number | null = form.residencia_id,
+  ) => {
+    const fallback = suggestedFeeForTipo(tipo);
+    if (!col || !tipo) return fallback;
+    const p = skillProfileFor(col, tipo);
+    if (!p) return fallback;
+
+    if (tipoComercial === "Residência") {
+      const residencia = residenciaId ? residenciasAtivas.find(r => r.id === residenciaId) : undefined;
+      const performerMatches = !!residencia && (
+        residencia.performer_padrao_id === col.id ||
+        (!!residencia.performer_padrao_nome && normalizeText(residencia.performer_padrao_nome) === normalizeText(col.nome_artistico || col.nome))
+      );
+      if (residencia && performerMatches && Number(residencia.custo_interno || 0) > 0) return Number(residencia.custo_interno);
+      return Number(p.custo_residencia || p.custo_interno || fallback || 0);
+    }
+    if (tipoComercial === "Evento de Residência") {
+      return Number(p.custo_evento_residencia || p.custo_residencia || p.custo_interno || fallback || 0);
+    }
+    if (valorContexto === "SUD") return Number(p.custo_sud || p.custo_interno || fallback || 0);
+    if (valorContexto === "Parceiro") return Number(p.custo_parceria || p.custo_interno || fallback || 0);
+    if (valorContexto === "Residência") return Number(p.custo_residencia || p.custo_interno || fallback || 0);
+    if (valorContexto === "Evento Residência") return Number(p.custo_evento_residencia || p.custo_residencia || p.custo_interno || fallback || 0);
+    if (valorContexto === "Cliente Final") return Number(p.custo_cliente_final || p.custo_interno || fallback || 0);
+    return Number(p.custo_interno || fallback || 0);
+  };
+  const repriceAutoArtists = (tipoComercial: string, valorContexto: string, residenciaId: number | null) => {
+    setArtists(prev => prev.map(a => {
+      if (!(a.fee_auto || isEmptyFee(a.fee))) return a;
+      const col = findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome);
+      if (!col || !a.tipo) return a;
+      const fee = suggestedFeeForArtist(col, a.tipo, tipoComercial, valorContexto, residenciaId);
+      return { ...a, fee: fee ? String(fee) : "", fee_auto: true };
+    }));
   };
 
   const materiaisFinanceiros = materiaisReservadosResumo.filter(m => Number(m.contabilizar || 0) === 1);
@@ -658,6 +705,7 @@ export default function AgendaPage() {
       nome: col ? colaboradorDisplayName(col) : (a.nome || ""),
       tipo: col && tiposPermitidos.length > 0 && currentTipo && !tiposPermitidos.includes(currentTipo) ? "" : currentTipo,
       fee: String(a.fee ?? ""),
+      fee_auto: false,
     };
   };
 
@@ -681,33 +729,46 @@ export default function AgendaPage() {
     const tiposPermitidos = col ? tiposFromSkills(col.skills) : [];
     setArtists(prev => prev.map((a, idx) => {
       if (idx !== i) return a;
-      const nextTipo = tiposPermitidos.length > 0 && tiposPermitidos.includes(a.tipo) ? a.tipo : "";
+      const suggestionTipo = suggestion.tipo || "";
+      const nextTipo = suggestionTipo && tiposPermitidos.includes(suggestionTipo)
+        ? suggestionTipo
+        : (tiposPermitidos.length > 0 && tiposPermitidos.includes(a.tipo)
+          ? a.tipo
+          : (tiposPermitidos.length === 1 ? tiposPermitidos[0] : ""));
+      const fee = col && nextTipo ? suggestedFeeForArtist(col, nextTipo) : (nextTipo ? suggestedFeeForTipo(nextTipo) : 0);
       return {
         ...a,
         colaborador_id: col?.id ?? suggestion.colaborador_id ?? null,
         nome: col ? colaboradorDisplayName(col) : suggestion.nome,
         tipo: nextTipo,
-        fee: nextTipo && isEmptyFee(a.fee) ? suggestedFeeString(nextTipo) : a.fee,
+        fee: fee ? String(fee) : "",
+        fee_auto: true,
       };
     }));
   };
 
   const updateArtistTipo = (i: number, tipo: string) => {
-    setArtists(prev => prev.map((a, idx) => idx === i ? {
-      ...a,
-      tipo,
-      fee: isEmptyFee(a.fee) ? suggestedFeeString(tipo) : a.fee,
-    } : a));
+    setArtists(prev => prev.map((a, idx) => {
+      if (idx !== i) return a;
+      const col = findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome);
+      const fee = col ? suggestedFeeForArtist(col, tipo) : suggestedFeeForTipo(tipo);
+      return { ...a, tipo, fee: fee ? String(fee) : "", fee_auto: true };
+    }));
   };
+
+  const updateArtistFee = (i: number, value: string) =>
+    setArtists(prev => prev.map((a, idx) => idx === i ? { ...a, fee: value, fee_auto: false } : a));
 
   const applyResidenciaAtiva = (id: number | null) => {
     const r = id ? residenciasAtivas.find(x => x.id === id) : undefined;
+    const nextTipoComercial = r ? (form.tipo_comercial === "Evento de Residência" ? "Evento de Residência" : "Residência") : form.tipo_comercial;
+    const nextValorContexto = r ? (nextTipoComercial === "Evento de Residência" ? "Evento Residência" : "Residência") : form.valor_contexto;
     setForm(f => ({
       ...f,
       residencia_id: id,
-      tipo_comercial: r ? "Residência" : f.tipo_comercial,
+      tipo_comercial: nextTipoComercial,
       servico_comercial: r?.servico || f.servico_comercial,
-      valor_contexto: r ? "Residência" : f.valor_contexto,
+      valor_contexto: nextValorContexto,
       title: r?.nome || f.title,
       venue: r?.local || f.venue,
       time: r?.duracao_formato || f.time,
@@ -722,13 +783,12 @@ export default function AgendaPage() {
         nome: r.performer_padrao_nome || "",
         tipo: r.servico || "DJ",
         fee: r.custo_interno ? String(r.custo_interno) : "",
+        fee_auto: true,
       }]);
     } else if (r) {
-      setArtists(prev => prev.map((a, idx) => idx === 0 ? {
-        ...a,
-        tipo: r.servico || a.tipo,
-        fee: isEmptyFee(a.fee) && r.custo_interno ? String(r.custo_interno) : a.fee,
-      } : a));
+      repriceAutoArtists(nextTipoComercial, nextValorContexto, id);
+    } else {
+      repriceAutoArtists(form.tipo_comercial, form.valor_contexto, null);
     }
   };
 
@@ -2119,7 +2179,15 @@ export default function AgendaPage() {
               {!modal.editing && (
                 <button
                   type="button"
-                  onClick={() => setIsResidencia(r => !r)}
+                  onClick={() => {
+                    const next = !isResidencia;
+                    setIsResidencia(next);
+                    const nextTipo = next ? "Residência" : "Evento";
+                    const nextContext = next ? "Residência" : inferValorContexto(form.cliente_nome, "Evento");
+                    const nextResidenciaId = next ? form.residencia_id : null;
+                    setForm(f => ({ ...f, tipo_comercial: nextTipo, valor_contexto: nextContext, residencia_id: nextResidenciaId }));
+                    repriceAutoArtists(nextTipo, nextContext, nextResidenciaId);
+                  }}
                   style={{
                     background: isResidencia ? "rgba(var(--theme-accent-rgb),0.12)" : "transparent",
                     border: `1px solid ${isResidencia ? Colors.gold : "rgba(var(--theme-contrast-rgb),0.08)"}`,
@@ -2169,20 +2237,6 @@ export default function AgendaPage() {
                         Adicionar data
                       </button>
                     </div>
-                  </FormField>
-                  <FormField label="Residência Ativa" style={{ gridColumn: "1 / -1" }}>
-                    <CustomSelect
-                      value={form.residencia_id ? String(form.residencia_id) : ""}
-                      onChange={v => applyResidenciaAtiva(v ? Number(v) : null)}
-                      options={[
-                        { value: "", label: "Sem residência master" },
-                        ...residenciasAtivas.map(r => ({ value: String(r.id), label: `${r.nome}${r.cliente_nome ? ` · ${r.cliente_nome}` : ""}${r.local ? ` · ${r.local}` : ""}` }))
-                      ]}
-                      style={inputStyle}
-                    />
-                    <p style={{ marginTop: "0.5rem", fontSize: "9px", color: Colors.textMuted, letterSpacing: "0.08em" }}>
-                      Ao escolher uma residência ativa, a app preenche cliente, local, serviço, duração, faturação e custo sugerido do performer.
-                    </p>
                   </FormField>
                 </>
               ) : (
@@ -2282,7 +2336,9 @@ export default function AgendaPage() {
                             <div
                               key={c.id}
                               onMouseDown={() => {
-                                setForm(f => ({ ...f, cliente_nome: c.nome, valor_contexto: inferValorContexto(c.nome, f.tipo_comercial) }));
+                                const nextContext = inferValorContexto(c.nome, form.tipo_comercial);
+                                setForm(f => ({ ...f, cliente_nome: c.nome, valor_contexto: nextContext }));
+                                repriceAutoArtists(form.tipo_comercial, nextContext, form.residencia_id);
                                 setClienteSearch((c as any).alias?.trim() || c.nome);
                                 setClienteDropOpen(false);
                               }}
@@ -2309,6 +2365,41 @@ export default function AgendaPage() {
                   </div>
                 )}
               </FormField>
+
+              {/* Contexto operacional — sempre visível, independente do Auto Budget */}
+              <FormField label="Contexto do Trabalho">
+                <CustomSelect
+                  value={form.tipo_comercial}
+                  onChange={v => {
+                    const nextContext = inferValorContexto(form.cliente_nome, v);
+                    const nextResidenciaId = v === "Residência" || v === "Evento de Residência" ? form.residencia_id : null;
+                    setForm(f => ({ ...f, tipo_comercial: v, valor_contexto: nextContext, residencia_id: nextResidenciaId }));
+                    repriceAutoArtists(v, nextContext, nextResidenciaId);
+                  }}
+                  options={TIPOS_COMERCIAIS.map(t => ({ value: t, label: t }))}
+                  style={inputStyle}
+                />
+                <p style={{ marginTop: "0.4rem", fontSize: "8px", color: Colors.textMuted, lineHeight: 1.45 }}>
+                  Define o custo sugerido dos artistas mesmo sem usar o Auto Budget.
+                </p>
+              </FormField>
+              {(form.tipo_comercial === "Residência" || form.tipo_comercial === "Evento de Residência") && (
+                <FormField label="Residência Ativa">
+                  <CustomSelect
+                    value={form.residencia_id ? String(form.residencia_id) : ""}
+                    onChange={v => applyResidenciaAtiva(v ? Number(v) : null)}
+                    options={[
+                      { value: "", label: "Sem residência específica — usar tabela do colaborador" },
+                      ...residenciasAtivas.map(r => ({ value: String(r.id), label: `${r.nome}${r.cliente_nome ? ` · ${r.cliente_nome}` : ""}${r.local ? ` · ${r.local}` : ""}` }))
+                    ]}
+                    style={inputStyle}
+                  />
+                  <p style={{ marginTop: "0.4rem", fontSize: "8px", color: Colors.textMuted, lineHeight: 1.45 }}>
+                    Se estiver definida, o custo dessa residência tem prioridade; caso contrário usa a tabela do colaborador.
+                  </p>
+                </FormField>
+              )}
+
               <div style={{ gridColumn: "1 / -1", marginBottom: "1rem" }}>
                 <button
                   type="button"
@@ -2324,7 +2415,7 @@ export default function AgendaPage() {
                 >
                   <span>
                     <b style={{ display: "block", fontSize: "9px", letterSpacing: "0.28em", textTransform: "uppercase" }}>Auto Budget</b>
-                    <small style={{ display: "block", marginTop: "4px", fontSize: "8px", letterSpacing: "0.06em", color: Colors.textMuted }}>Serviços · tipo comercial · perfil de valor · cálculo automático</small>
+                    <small style={{ display: "block", marginTop: "4px", fontSize: "8px", letterSpacing: "0.06em", color: Colors.textMuted }}>Serviços · perfil de valor · cálculo automático</small>
                   </span>
                   <span style={{ fontSize: "12px" }}>{budgetOpen ? "−" : "+"}</span>
                 </button>
@@ -2342,18 +2433,13 @@ export default function AgendaPage() {
                         placeholder="DJ todo o dia + Banda + Acrobata + Produtor..."
                       />
                     </FormField>
-                    <FormField label="Tipo Comercial">
-                      <CustomSelect
-                        value={form.tipo_comercial}
-                        onChange={v => setForm(f => ({ ...f, tipo_comercial: v, valor_contexto: inferValorContexto(f.cliente_nome, v) }))}
-                        options={TIPOS_COMERCIAIS.map(t => ({ value: t, label: t }))}
-                        style={inputStyle}
-                      />
-                    </FormField>
                     <FormField label="Perfil de Valor">
                       <CustomSelect
                         value={form.valor_contexto}
-                        onChange={v => setForm(f => ({ ...f, valor_contexto: v }))}
+                        onChange={v => {
+                          setForm(f => ({ ...f, valor_contexto: v }));
+                          repriceAutoArtists(form.tipo_comercial, v, form.residencia_id);
+                        }}
                         options={VALOR_CONTEXTOS.map(c => ({ value: c, label: c }))}
                         style={inputStyle}
                       />
@@ -2506,7 +2592,7 @@ export default function AgendaPage() {
                 <>
                   {/* Table header */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "6px" }}>
-                    {["Nome", "Tipo", "Fee (€)", ""].map(h => (
+                    {["Nome", "Tipo", "Custo (€)", ""].map(h => (
                       <span key={h} style={{ fontSize: "7px", letterSpacing: "0.3em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600, padding: "0 4px" }}>{h}</span>
                     ))}
                   </div>
@@ -2546,9 +2632,9 @@ export default function AgendaPage() {
                         type="text"
                         inputMode="decimal"
                         value={a.fee}
-                        onChange={e => updateArtist(i, "fee", e.target.value)}
-                        onFocus={e => { if (e.target.value === "0") updateArtist(i, "fee", ""); }}
-                        onBlur={e => { if (e.target.value === "") updateArtist(i, "fee", "0"); }}
+                        onChange={e => updateArtistFee(i, e.target.value)}
+                        onFocus={e => { if (e.target.value === "0") updateArtistFee(i, ""); }}
+                        onBlur={e => { if (e.target.value === "") updateArtistFee(i, "0"); }}
                         placeholder="0"
                         style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
                       />
