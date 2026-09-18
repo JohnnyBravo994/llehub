@@ -1350,15 +1350,18 @@ export async function getAllPagamentos(limit: number = 500) {
   try {
     const sql = "SELECT ae.*, a.status as evento_status, a.client_cachet as evento_cachet FROM artistas_evento ae LEFT JOIN agenda a ON ae.evento_id = a.id ORDER BY ae.evento_data DESC, ae.id DESC LIMIT ?";
     const res = await turso.execute({ sql, args: [limit] });
+    const rows = res.rows as any[];
+    const materialFinance = await getMaterialFinanceMapForEventIds(Array.from(new Set(rows.map((r: any) => Number(r.evento_id)).filter(Boolean))));
     return {
       success: true,
-      data: res.rows.map((r: any) => ({
+      data: rows.map((r: any) => ({
         id: Number(r.id), evento_id: Number(r.evento_id),
         evento_nome: r.evento_nome as string, evento_data: r.evento_data as string,
         colaborador_id: r.colaborador_id == null ? null : Number(r.colaborador_id),
         nome: r.nome as string, tipo: r.tipo as string, fee: Number(r.fee),
         evento_status: r.evento_status as string,
         evento_cachet: Number(r.evento_cachet) || 0,
+        evento_material_custo: materialFinance[Number(r.evento_id)]?.material_cost || 0,
       })),
     };
   } catch (error) {
@@ -3008,24 +3011,74 @@ export async function getMaterialPackReservasEvento(eventoId: number) {
 }
 
 
+function materialValorParaContexto(row: any, contexto?: string) {
+  const ctx = String(contexto || 'Cliente Final').trim();
+  if (ctx === 'SUD') return Number(row?.valor_sud || row?.valor_cliente_final || row?.valor_parceiro || 0);
+  if (ctx === 'Parceiro' || ctx === 'Residência') return Number(row?.valor_parceiro || row?.valor_cliente_final || 0);
+  return Number(row?.valor_cliente_final || row?.valor_parceiro || row?.valor_sud || 0);
+}
+
+async function ajustarFaturacaoEventoPorMaterial(eventoId: number, delta: number) {
+  if (!eventoId || !Number.isFinite(delta) || Math.abs(delta) < 0.000001) {
+    const current = await turso.execute({ sql: "SELECT client_cachet FROM agenda WHERE id=? LIMIT 1", args: [eventoId] });
+    return Number((current.rows[0] as any)?.client_cachet || 0);
+  }
+  const current = await turso.execute({
+    sql: "SELECT client_cachet, event_id, origem_lead_id FROM agenda WHERE id=? LIMIT 1",
+    args: [eventoId],
+  });
+  if (!current.rows.length) return 0;
+  const row = current.rows[0] as any;
+  const novoValor = Math.round((Number(row.client_cachet || 0) + Number(delta || 0)) * 100) / 100;
+  if (row.event_id) {
+    await propagateByEventId(String(row.event_id), { value: novoValor });
+  } else {
+    await turso.execute({ sql: "UPDATE agenda SET client_cachet=? WHERE id=?", args: [novoValor, eventoId] });
+    if (row.origem_lead_id) await turso.execute({ sql: "UPDATE leads SET value=? WHERE id=?", args: [novoValor, Number(row.origem_lead_id)] });
+  }
+  return novoValor;
+}
+
+async function valoresMaterialEvento(eventoId: number, materialId: number) {
+  const res = await turso.execute({
+    sql: `SELECT m.*, COALESCE(a.valor_contexto, 'Cliente Final') AS evento_contexto
+          FROM materiais m
+          LEFT JOIN agenda a ON a.id=?
+          WHERE m.id=? LIMIT 1`,
+    args: [eventoId, materialId],
+  });
+  if (!res.rows.length) return { custo: 0, valor: 0, contexto: 'Cliente Final' };
+  const row = res.rows[0] as any;
+  const contexto = String(row.evento_contexto || 'Cliente Final');
+  return {
+    custo: Number(row.custo_interno || 0),
+    valor: materialValorParaContexto(row, contexto),
+    contexto,
+  };
+}
+
 export async function reservarMaterialEvento(data: {
   evento_id: number; material_id: number; material_nome: string; material_imagem?: string;
   quantidade: number; origem?: string; origem_detalhe?: string; notas?: string; reservado_por?: string;
 }) {
   try {
     await setupMateriais();
+    const qty = Math.max(1, Number(data.quantidade) || 1);
+    const valores = await valoresMaterialEvento(data.evento_id, data.material_id);
     await turso.execute({
       sql: `INSERT INTO material_reservas
-        (evento_id, material_id, material_nome, material_imagem, quantidade, origem, origem_detalhe, notas, reservado_por, ativo)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+        (evento_id, material_id, material_nome, material_imagem, quantidade, origem, origem_detalhe, notas, reservado_por,
+         custo_unitario, valor_unitario, valor_contexto, contabilizar, ativo)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1)`,
       args: [
         data.evento_id, data.material_id, data.material_nome, data.material_imagem || '',
-        Math.max(1, Number(data.quantidade) || 1), data.origem || 'Loja', data.origem_detalhe || '',
-        data.notas || '', data.reservado_por || '',
+        qty, data.origem || 'Loja', data.origem_detalhe || '', data.notas || '', data.reservado_por || '',
+        valores.custo, valores.valor, valores.contexto,
       ],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
-    return { success: true, id: Number(last.rows[0].id) };
+    const newBill = await ajustarFaturacaoEventoPorMaterial(data.evento_id, valores.valor * qty);
+    return { success: true, id: Number(last.rows[0].id), new_bill: newBill, material_revenue: valores.valor * qty, material_cost: valores.custo * qty };
   } catch (error) {
     console.error('Erro reservarMaterialEvento:', error);
     return { success: false, message: 'Erro ao reservar material.' };
@@ -3036,12 +3089,22 @@ export async function updateReservaMaterialEvento(id: number, quantidade: number
   try {
     await setupMateriais();
     const qty = Math.max(1, Number(quantidade) || 1);
-    if (source === 'legacy') {
-      await turso.execute({ sql: "UPDATE material_movimentos SET quantidade=? WHERE id=? AND COALESCE(saida_confirmada, 1)=0", args: [qty, id] });
-    } else {
-      await turso.execute({ sql: "UPDATE material_reservas SET quantidade=? WHERE id=? AND ativo=1", args: [qty, id] });
+    const table = source === 'legacy' ? 'material_movimentos' : 'material_reservas';
+    const activeClause = source === 'legacy' ? "AND COALESCE(saida_confirmada,1)=0" : "AND ativo=1";
+    const rowRes = await turso.execute({ sql: `SELECT * FROM ${table} WHERE id=? ${activeClause} LIMIT 1`, args: [id] });
+    if (!rowRes.rows.length) return { success: false };
+    const row = rowRes.rows[0] as any;
+    const oldQty = Math.max(1, Number(row.quantidade) || 1);
+    let valorUnit = Number(row.valor_unitario || 0);
+    let custoUnit = Number(row.custo_unitario || 0);
+    if (Number(row.contabilizar || 0) === 1 && valorUnit === 0 && custoUnit === 0) {
+      const fallback = await valoresMaterialEvento(Number(row.evento_id), Number(row.material_id));
+      valorUnit = fallback.valor; custoUnit = fallback.custo;
     }
-    return { success: true };
+    await turso.execute({ sql: `UPDATE ${table} SET quantidade=? WHERE id=? ${activeClause}`, args: [qty, id] });
+    const delta = Number(row.contabilizar || 0) === 1 ? valorUnit * (qty - oldQty) : 0;
+    const newBill = row.evento_id ? await ajustarFaturacaoEventoPorMaterial(Number(row.evento_id), delta) : 0;
+    return { success: true, new_bill: newBill, material_revenue_delta: delta, material_cost_delta: Number(row.contabilizar || 0) === 1 ? custoUnit * (qty - oldQty) : 0 };
   } catch (error) {
     console.error('Erro updateReservaMaterialEvento:', error);
     return { success: false };
@@ -3051,12 +3114,21 @@ export async function updateReservaMaterialEvento(id: number, quantidade: number
 export async function deleteReservaMaterialEvento(id: number, source: 'manual' | 'legacy' = 'manual') {
   try {
     await setupMateriais();
+    const table = source === 'legacy' ? 'material_movimentos' : 'material_reservas';
+    const rowRes = await turso.execute({ sql: `SELECT * FROM ${table} WHERE id=? LIMIT 1`, args: [id] });
+    const row = rowRes.rows[0] as any;
+    let newBill = 0;
+    if (row && Number(row.contabilizar || 0) === 1 && row.evento_id) {
+      let valorUnit = Number(row.valor_unitario || 0);
+      if (!valorUnit) valorUnit = (await valoresMaterialEvento(Number(row.evento_id), Number(row.material_id))).valor;
+      newBill = await ajustarFaturacaoEventoPorMaterial(Number(row.evento_id), -valorUnit * Math.max(1, Number(row.quantidade) || 1));
+    }
     if (source === 'legacy') {
       await turso.execute({ sql: "DELETE FROM material_movimentos WHERE id=? AND COALESCE(saida_confirmada, 1)=0", args: [id] });
     } else {
       await turso.execute({ sql: "UPDATE material_reservas SET ativo=0 WHERE id=?", args: [id] });
     }
-    return { success: true };
+    return { success: true, new_bill: newBill };
   } catch (error) {
     console.error('Erro deleteReservaMaterialEvento:', error);
     return { success: false };
@@ -3094,13 +3166,15 @@ export async function confirmarSaidaReservaEvento(data: {
     await turso.execute({
       sql: `INSERT INTO material_movimentos
         (material_id, material_nome, material_imagem, quantidade, quantidade_devolvida, quantidade_consumida,
-         origem, origem_detalhe, dono_material, quem_levou, evento, evento_id, responsavel, notas, data_saida, saida_confirmada)
-        VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 1)`,
+         origem, origem_detalhe, dono_material, quem_levou, evento, evento_id, responsavel, notas, data_saida, saida_confirmada,
+         custo_unitario, valor_unitario, valor_contexto, contabilizar)
+        VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 1, ?, ?, ?, ?)`,
       args: [
         Number(r.material_id), (r.material_nome as string) || '', (r.material_imagem as string) || '', data.quantidade ? Math.max(1, Number(data.quantidade) || 1) : (Number(r.quantidade) || 1),
         data.origem || (r.origem as string) || 'Loja', data.origem_detalhe || (r.origem_detalhe as string) || '',
         (r.dono_material as string) || 'LLE', data.quem_levou || data.responsavel || '',
         (r.evento_nome as string) || '', Number(r.evento_id), data.responsavel || '', data.notas || (r.notas as string) || '',
+        Number(r.custo_unitario || 0), Number(r.valor_unitario || 0), (r.valor_contexto as string) || '', Number(r.contabilizar || 0),
       ],
     });
     await turso.execute({ sql: "UPDATE material_reservas SET ativo=0 WHERE id=?", args: [data.id] });
@@ -3132,7 +3206,8 @@ export async function getMateriaisReservadosResumoEvento(eventoId: number) {
       turso.execute({
         sql: `SELECT mr.id, mr.material_id, mr.material_nome,
                      COALESCE(NULLIF(mr.material_imagem,''), m.imagem, '') AS material_imagem,
-                     mr.quantidade, mr.origem, mr.origem_detalhe, mr.notas, mr.reservado_por
+                     mr.quantidade, mr.origem, mr.origem_detalhe, mr.notas, mr.reservado_por,
+                     mr.custo_unitario, mr.valor_unitario, mr.valor_contexto, mr.contabilizar
               FROM material_reservas mr
               LEFT JOIN materiais m ON m.id=mr.material_id
               WHERE mr.evento_id=? AND mr.ativo=1
@@ -3142,7 +3217,8 @@ export async function getMateriaisReservadosResumoEvento(eventoId: number) {
       turso.execute({
         sql: `SELECT mm.id, mm.material_id, mm.material_nome,
                      COALESCE(NULLIF(mm.material_imagem,''), m.imagem, '') AS material_imagem,
-                     mm.quantidade, mm.origem, mm.origem_detalhe, mm.notas, mm.responsavel AS reservado_por
+                     mm.quantidade, mm.origem, mm.origem_detalhe, mm.notas, mm.responsavel AS reservado_por,
+                     mm.custo_unitario, mm.valor_unitario, mm.valor_contexto, mm.contabilizar
               FROM material_movimentos mm
               LEFT JOIN materiais m ON m.id=mm.material_id
               WHERE mm.evento_id=? AND COALESCE(mm.saida_confirmada,1)=0
@@ -3155,7 +3231,7 @@ export async function getMateriaisReservadosResumoEvento(eventoId: number) {
                      COALESCE(NULLIF(mm.material_imagem,''), m.imagem, '') AS material_imagem,
                      mm.quantidade, mm.quantidade_devolvida, mm.quantidade_consumida,
                      mm.estado_regresso, mm.data_volta, mm.notas, mm.origem, mm.origem_detalhe,
-                     mm.quem_levou, mm.responsavel
+                     mm.quem_levou, mm.responsavel, mm.custo_unitario, mm.valor_unitario, mm.valor_contexto, mm.contabilizar
               FROM material_movimentos mm
               LEFT JOIN materiais m ON m.id=mm.material_id
               WHERE mm.evento_id=? AND COALESCE(mm.saida_confirmada,1)=1
@@ -3181,6 +3257,8 @@ export async function getMateriaisReservadosResumoEvento(eventoId: number) {
       data_volta: (r.data_volta as string) || '', notas: (r.notas as string) || '',
       origem: (r.origem as string) || 'Loja', origem_detalhe: (r.origem_detalhe as string) || '',
       quem_levou: (r.quem_levou as string) || (r.responsavel as string) || '',
+      custo_unitario: Number(r.custo_unitario) || 0, valor_unitario: Number(r.valor_unitario) || 0,
+      valor_contexto: (r.valor_contexto as string) || '', contabilizar: Number(r.contabilizar) || 0,
       status: Number(r.quantidade_devolvida || 0) + Number(r.quantidade_consumida || 0) >= Number(r.quantidade || 0) ? 'devolvido' : 'fora',
     }));
 
@@ -3197,7 +3275,10 @@ export async function getMateriaisReservadosResumoEvento(eventoId: number) {
       quantidade: Number(r.quantidade) || 0, quantidade_devolvida: 0, quantidade_consumida: 0,
       estado_regresso: 'Reservado', data_volta: '', notas: (r.notas as string) || 'Reservado para este evento; ainda não saiu do local.',
       origem: (r.origem as string) || 'Loja', origem_detalhe: (r.origem_detalhe as string) || '',
-      reservado_por: (r.reservado_por as string) || '', status: 'reservado',
+      reservado_por: (r.reservado_por as string) || '',
+      custo_unitario: Number(r.custo_unitario) || 0, valor_unitario: Number(r.valor_unitario) || 0,
+      valor_contexto: (r.valor_contexto as string) || '', contabilizar: Number(r.contabilizar) || 0,
+      status: 'reservado',
     }));
     const legacyRows = (legacyRes.rows as any[]).map((r: any) => ({
       id: Number(r.id), source: 'legacy', material_id: Number(r.material_id) || 0,
@@ -3205,7 +3286,10 @@ export async function getMateriaisReservadosResumoEvento(eventoId: number) {
       quantidade: Number(r.quantidade) || 0, quantidade_devolvida: 0, quantidade_consumida: 0,
       estado_regresso: 'Reservado', data_volta: '', notas: (r.notas as string) || 'Reserva antiga corrigida; ainda não saiu do local.',
       origem: (r.origem as string) || 'Loja', origem_detalhe: (r.origem_detalhe as string) || '',
-      reservado_por: (r.reservado_por as string) || '', status: 'reservado',
+      reservado_por: (r.reservado_por as string) || '',
+      custo_unitario: Number(r.custo_unitario) || 0, valor_unitario: Number(r.valor_unitario) || 0,
+      valor_contexto: (r.valor_contexto as string) || '', contabilizar: Number(r.contabilizar) || 0,
+      status: 'reservado',
     }));
     const legacyByName = new Map<string, number>();
     for (const row of legacyRows) {
@@ -3223,7 +3307,9 @@ export async function getMateriaisReservadosResumoEvento(eventoId: number) {
         material_nome: name, material_imagem: (r.material_imagem as string) || '',
         quantidade: quantity, quantidade_devolvida: 0, quantidade_consumida: 0,
         estado_regresso: 'Reservado', data_volta: '', notas: `Incluído em ${((r.pack_nome as string) || 'pack de material')}. Ainda não saiu do local.`,
-        origem: 'Loja', origem_detalhe: '', reservado_por: '', status: 'reservado', pack_nome: (r.pack_nome as string) || '',
+        origem: 'Loja', origem_detalhe: '', reservado_por: '',
+        custo_unitario: 0, valor_unitario: 0, valor_contexto: '', contabilizar: 0,
+        status: 'reservado', pack_nome: (r.pack_nome as string) || '',
       };
     }).filter((row: any) => row.quantidade > 0);
     const reservations: any[] = [...manualRows, ...legacyRows, ...packRows];
@@ -3395,6 +3481,10 @@ export async function setupMateriais() {
       "quem_confirmou_regresso TEXT DEFAULT ''",
       "notas_regresso TEXT DEFAULT ''",
       "saida_confirmada INTEGER DEFAULT 1",
+      "custo_unitario REAL NOT NULL DEFAULT 0",
+      "valor_unitario REAL NOT NULL DEFAULT 0",
+      "valor_contexto TEXT DEFAULT ''",
+      "contabilizar INTEGER DEFAULT 0",
     ];
     for (const col of movimentoCols) {
       try { await turso.execute(`ALTER TABLE material_movimentos ADD COLUMN ${col}`); } catch { }
@@ -3413,10 +3503,23 @@ export async function setupMateriais() {
         origem_detalhe TEXT DEFAULT '',
         notas TEXT DEFAULT '',
         reservado_por TEXT DEFAULT '',
+        custo_unitario REAL NOT NULL DEFAULT 0,
+        valor_unitario REAL NOT NULL DEFAULT 0,
+        valor_contexto TEXT DEFAULT '',
+        contabilizar INTEGER DEFAULT 0,
         ativo INTEGER DEFAULT 1,
         created_at TEXT DEFAULT (datetime('now'))
       )
     `);
+    const reservaFinanceCols = [
+      "custo_unitario REAL NOT NULL DEFAULT 0",
+      "valor_unitario REAL NOT NULL DEFAULT 0",
+      "valor_contexto TEXT DEFAULT ''",
+      "contabilizar INTEGER DEFAULT 0",
+    ];
+    for (const col of reservaFinanceCols) {
+      try { await turso.execute(`ALTER TABLE material_reservas ADD COLUMN ${col}`); } catch { }
+    }
     try { await turso.execute("CREATE INDEX IF NOT EXISTS idx_material_reservas_evento_ativo ON material_reservas(evento_id, ativo)"); } catch { }
     // Registos criados pela antiga ação “Reservar” na Agenda não tinham quem_levou.
     // Quando foram criados mais de 2 dias antes do evento, são reservas e não saídas físicas.
@@ -3757,11 +3860,86 @@ export async function registarVoltaMaterial(id: number, quantidade_devolvida: nu
 
 export async function deleteMovimentoMaterial(id: number) {
   try {
+    await setupMateriais();
+    const rowRes = await turso.execute({ sql: "SELECT * FROM material_movimentos WHERE id=? LIMIT 1", args: [id] });
+    const row = rowRes.rows[0] as any;
+    let newBill = 0;
+    if (row && Number(row.contabilizar || 0) === 1 && row.evento_id) {
+      let valorUnit = Number(row.valor_unitario || 0);
+      if (!valorUnit) valorUnit = (await valoresMaterialEvento(Number(row.evento_id), Number(row.material_id))).valor;
+      newBill = await ajustarFaturacaoEventoPorMaterial(Number(row.evento_id), -valorUnit * Math.max(1, Number(row.quantidade) || 1));
+    }
     await turso.execute({ sql: "DELETE FROM material_movimentos WHERE id=?", args: [id] });
-    return { success: true };
+    return { success: true, new_bill: newBill };
   } catch { return { success: false }; }
 }
 
+
+async function getMaterialFinanceMapForEventIds(eventIds: number[]) {
+  const ids = Array.from(new Set(eventIds.map(Number).filter(Boolean)));
+  const out: Record<number, { material_revenue: number; material_cost: number; material_count: number }> = {};
+  if (!ids.length) return out;
+  try {
+    await setupMateriais();
+    const placeholders = ids.map(() => '?').join(',');
+    const [reservas, movimentos, presencas] = await Promise.all([
+      turso.execute({
+        sql: `SELECT evento_id,
+                     COALESCE(SUM(quantidade * valor_unitario),0) AS receita,
+                     COALESCE(SUM(quantidade * custo_unitario),0) AS custo
+              FROM material_reservas
+              WHERE ativo=1 AND contabilizar=1 AND evento_id IN (${placeholders})
+              GROUP BY evento_id`,
+        args: ids,
+      }),
+      turso.execute({
+        sql: `SELECT evento_id,
+                     COALESCE(SUM(quantidade * valor_unitario),0) AS receita,
+                     COALESCE(SUM(quantidade * custo_unitario),0) AS custo
+              FROM material_movimentos
+              WHERE contabilizar=1 AND evento_id IN (${placeholders})
+              GROUP BY evento_id`,
+        args: ids,
+      }),
+      turso.execute({
+        sql: `SELECT evento_id, 1 AS material_count
+              FROM (
+                SELECT evento_id FROM material_reservas
+                WHERE ativo=1 AND evento_id IN (${placeholders})
+                UNION
+                SELECT r.evento_id FROM material_pack_reservas r
+                JOIN material_pack_items i ON i.pack_id=r.pack_id AND i.ativo=1
+                WHERE r.evento_id IN (${placeholders})
+                UNION
+                SELECT evento_id FROM material_movimentos
+                WHERE evento_id IN (${placeholders})
+              ) x
+              GROUP BY evento_id`,
+        args: [...ids, ...ids, ...ids],
+      }),
+    ]);
+    for (const id of ids) out[id] = { material_revenue: 0, material_cost: 0, material_count: 0 };
+    for (const row of [...(reservas.rows as any[]), ...(movimentos.rows as any[])]) {
+      const id = Number(row.evento_id) || 0;
+      if (!id) continue;
+      const cur = out[id] || { material_revenue: 0, material_cost: 0, material_count: 0 };
+      cur.material_revenue += Number(row.receita || 0);
+      cur.material_cost += Number(row.custo || 0);
+      out[id] = cur;
+    }
+    for (const row of presencas.rows as any[]) {
+      const id = Number(row.evento_id) || 0;
+      if (!id) continue;
+      const cur = out[id] || { material_revenue: 0, material_cost: 0, material_count: 0 };
+      cur.material_count = Number(row.material_count || 0) > 0 ? 1 : 0;
+      out[id] = cur;
+    }
+    return out;
+  } catch (error) {
+    console.error('Erro material finance map:', error);
+    return out;
+  }
+}
 
 // ── PAGE BUNDLES: carregamento por mês + lazy lookups ────────────────────────
 // Datas antigas da app existem em formatos diferentes (YYYY-MM-DD e DD/MM/YYYY).
@@ -4032,8 +4210,11 @@ export async function getAgendaPageBundle(userName: string = 'Admin', month?: st
     });
 
     // Filtro final em JS para normalizar DD/MM/YYYY, D/M/YYYY, YYYY-MM-DD e datas com hora.
-    const agendaData = agendaRes.rows.map(normalizeAgendaRow).filter((r: any) => monthKeyServer(r.event_date) === ym);
-    const leadsData = leadsRes.rows.map(normalizeLeadRow).filter((r: any) => monthKeyServer(r.event_date) === ym);
+    const rawAgendaData = agendaRes.rows.map(normalizeAgendaRow).filter((r: any) => monthKeyServer(r.event_date) === ym);
+    const rawLeadsData = leadsRes.rows.map(normalizeLeadRow).filter((r: any) => monthKeyServer(r.event_date) === ym);
+    const materialFinance = await getMaterialFinanceMapForEventIds(rawAgendaData.map((e: any) => Number(e.id)));
+    const agendaData = rawAgendaData.map((e: any) => ({ ...e, ...(materialFinance[Number(e.id)] || { material_revenue: 0, material_cost: 0, material_count: 0 }) }));
+    const leadsData = rawLeadsData.map((l: any) => ({ ...l, ...(l.agenda_event_id ? (materialFinance[Number(l.agenda_event_id)] || { material_revenue: 0, material_cost: 0, material_count: 0 }) : { material_revenue: 0, material_cost: 0, material_count: 0 }) }));
     const artists = await getArtistasMapForEventoIds([...agendaData.map((e: any) => Number(e.id)), ...leadsData.map((l: any) => -Number(l.id))]);
     const [months, conflicts] = await Promise.all([getAgendaMonthIndex(), getArtistConflictOverrides()]);
     return {
@@ -4070,9 +4251,13 @@ export async function getLeadsPageBundle(month?: string) {
       args: likeArgs,
     });
 
-    const leadsData = leadsRes.rows.map(normalizeLeadRow).filter((r: any) => monthKeyServer(r.event_date) === ym);
-    const agendaData = agendaRes.rows.map(normalizeAgendaRow).filter((r: any) => monthKeyServer(r.event_date) === ym).map((r: any) => ({
+    const rawLeadsData = leadsRes.rows.map(normalizeLeadRow).filter((r: any) => monthKeyServer(r.event_date) === ym);
+    const rawAgendaRows = agendaRes.rows.map(normalizeAgendaRow).filter((r: any) => monthKeyServer(r.event_date) === ym);
+    const materialFinance = await getMaterialFinanceMapForEventIds(rawAgendaRows.map((e: any) => Number(e.id)));
+    const leadsData = rawLeadsData.map((l: any) => ({ ...l, ...(l.agenda_event_id ? (materialFinance[Number(l.agenda_event_id)] || { material_revenue: 0, material_cost: 0, material_count: 0 }) : { material_revenue: 0, material_cost: 0, material_count: 0 }) }));
+    const agendaData = rawAgendaRows.map((r: any) => ({
       id: Number(r.id), title: r.title || '', event_date: r.event_date || '', event_id: r.event_id || '', origem_lead_id: r.origem_lead_id ?? null, cancelled: r.cancelled || 0,
+      ...(materialFinance[Number(r.id)] || { material_revenue: 0, material_cost: 0, material_count: 0 }),
     }));
     const artists = await getArtistasMapForEventoIds([...agendaData.map((e: any) => Number(e.id)), ...leadsData.map((l: any) => -Number(l.id))]);
     const [months, conflicts] = await Promise.all([getAgendaMonthIndex(), getArtistConflictOverrides()]);

@@ -2,9 +2,10 @@
 
 import MobTabBar from "../MobTabBar";
 
-import { ARTIST_TIPOS, MODALIDADES, SERVICOS_VENDIDOS, TIPOS_COMERCIAIS, VALOR_CONTEXTOS, resolveColaboradorNome } from "../constants";
+import { ARTIST_TIPOS, MODALIDADES, SERVICOS_VENDIDOS, TIPOS_COMERCIAIS, VALOR_CONTEXTOS, resolveColaboradorNome, parseServicosContratados } from "../constants";
 import { ArtistAutocomplete, type ArtistOption } from "../ArtistAutocomplete";
 import { ArtistTypeAutocomplete } from "../ArtistTypeAutocomplete";
+import { ServiceMultiSelect } from "../ServiceMultiSelect";
 import { useEffect, useState, useCallback, useRef } from "react";
 import React from "react";
 import { useRouter } from "next/navigation";
@@ -98,6 +99,7 @@ interface AgendaEvent {
   origem_lead_id?: number | null; venue?: string;
   contacto?: string; notas?: string; residencia_id?: number | null; event_id?: string;
   tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string;
+  material_revenue?: number; material_cost?: number; material_count?: number;
 }
 
 interface Lead {
@@ -105,6 +107,7 @@ interface Lead {
   status?: string; cancelled?: number; cliente_nome?: string; modalidade?: string; cliente_id?: number | null;
   agenda_event_id?: number | null; event_id?: string;
   tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string;
+  material_revenue?: number; material_cost?: number; material_count?: number;
   local?: string; contacto?: string; notas?: string;
 }
 
@@ -142,6 +145,7 @@ interface ResidenciaAtiva {
 interface MaterialItem {
   id: number; nome: string; categoria: string; imagem: string;
   quantidade_total: number; notas: string; ativo: number;
+  custo_interno: number; valor_parceiro: number; valor_sud: number; valor_cliente_final: number;
 }
 
 interface MaterialMovimento {
@@ -163,6 +167,7 @@ interface MaterialReservadoResumo {
   material_id: number; material_nome: string; material_imagem?: string; quantidade: number;
   quantidade_devolvida: number; quantidade_consumida: number; estado_regresso: string; data_volta: string; notas: string;
   origem?: string; origem_detalhe?: string; reservado_por?: string; quem_levou?: string; pack_nome?: string;
+  custo_unitario?: number; valor_unitario?: number; valor_contexto?: string; contabilizar?: number;
 }
 
 const MATERIAL_ORIGENS = ["Loja", "João", "Annia", "Outro"];
@@ -297,6 +302,8 @@ export default function AgendaPage() {
   const [lookupsLoaded, setLookupsLoaded] = useState(false);
   const [lookupsLoading, setLookupsLoading] = useState(false);
   const [modal, setModal] = useState<{ open: boolean; editing: AgendaEvent | null }>({ open: false, editing: null });
+  const [budgetOpen, setBudgetOpen] = useState(false);
+  const [useMaterials, setUseMaterials] = useState(false);
   const [waModal, setWaModal] = useState(false);
   const [waText, setWaText] = useState("");
   const [waCopied, setWaCopied] = useState(false);
@@ -455,14 +462,15 @@ export default function AgendaPage() {
   const refreshMateriaisResumo = useCallback(async (eventoId: number) => {
     setLoadingMateriaisResumo(true);
     const r = await getMateriaisReservadosResumoEvento(eventoId);
+    const rows = r.success ? (r.data as MaterialReservadoResumo[]) : [];
     if (r.success) {
-      const rows = r.data as MaterialReservadoResumo[];
       setMateriaisReservadosResumo(rows);
       setReservaQtyDrafts(Object.fromEntries(rows
         .filter(item => item.status === "reservado" && item.source !== "pack")
         .map(item => [`${item.source}-${item.id}`, item.quantidade])));
     }
     setLoadingMateriaisResumo(false);
+    return rows;
   }, []);
 
   const openMaterialModal = (e: AgendaEvent) => {
@@ -490,8 +498,10 @@ export default function AgendaPage() {
       quantidade: reservaForm.quantidade, origem: reservaForm.origem, origem_detalhe: reservaForm.origem_detalhe,
       reservado_por: userName, notas: reservaForm.notas,
     });
+    if (res.success && typeof res.new_bill === "number") setForm(f => ({ ...f, bill: String(res.new_bill) }));
     setReservaForm(emptyReservaForm);
     await Promise.all([loadMateriais(true), refreshMateriaisResumo(materialModal.event.id)]);
+    await load();
     setReservaSaving(false);
     showToast(res.success ? `Material reservado: ${mat.nome}` : "Não foi possível reservar o material");
   };
@@ -499,29 +509,36 @@ export default function AgendaPage() {
   const handleRemoverReservaMaterial = async (id: number) => {
     await deleteMovimentoMaterial(id);
     await loadMateriais(true);
+    await load();
   };
 
   const handleMaterialVoltou = async (mov: MaterialMovimento) => {
     await registarVoltaMaterial(mov.id, mov.quantidade, mov.quantidade);
     await loadMateriais(true);
     if (materialModal.event) await refreshMateriaisResumo(materialModal.event.id);
+    await load();
   };
 
   const handleGuardarQuantidadeReserva = async (item: MaterialReservadoResumo) => {
     if (!materialModal.event || item.source === "pack" || item.source === "movement") return;
     const key = `${item.source}-${item.id}`;
     const qty = Math.max(1, Number(reservaQtyDrafts[key]) || 1);
-    await updateReservaMaterialEvento(item.id, qty, item.source);
+    const res = await updateReservaMaterialEvento(item.id, qty, item.source);
+    if (res.success && typeof res.new_bill === "number") setForm(f => ({ ...f, bill: String(res.new_bill) }));
     await refreshMateriaisResumo(materialModal.event.id);
+    await load();
     showToast("Quantidade da reserva atualizada");
   };
 
   const handleRemoverItemMaterial = async (item: MaterialReservadoResumo) => {
     if (!materialModal.event) return;
-    if (item.source === "movement") await deleteMovimentoMaterial(item.id);
-    else if (item.source === "manual" || item.source === "legacy") await deleteReservaMaterialEvento(item.id, item.source);
+    let res: any;
+    if (item.source === "movement") res = await deleteMovimentoMaterial(item.id);
+    else if (item.source === "manual" || item.source === "legacy") res = await deleteReservaMaterialEvento(item.id, item.source);
     else { showToast("Este material vem de um pack; altera o pack associado ao serviço"); return; }
+    if (res?.success && typeof res.new_bill === "number") setForm(f => ({ ...f, bill: String(res.new_bill) }));
     await Promise.all([loadMateriais(true), refreshMateriaisResumo(materialModal.event.id)]);
+    await load();
     showToast(item.source === "movement" ? "Saída removida" : "Reserva removida");
   };
 
@@ -543,6 +560,7 @@ export default function AgendaPage() {
       });
     }
     await Promise.all([loadMateriais(true), refreshMateriaisResumo(materialModal.event.id)]);
+    await load();
     showToast(`Saída registada: ${item.material_nome}`);
   };
 
@@ -572,6 +590,10 @@ export default function AgendaPage() {
     return value ? String(value) : "";
   };
 
+  const materiaisFinanceiros = materiaisReservadosResumo.filter(m => Number(m.contabilizar || 0) === 1);
+  const materiaisReceita = materiaisFinanceiros.reduce((sum, m) => sum + (Number(m.valor_unitario || 0) * Math.max(1, Number(m.quantidade) || 1)), 0);
+  const materiaisCusto = materiaisFinanceiros.reduce((sum, m) => sum + (Number(m.custo_unitario || 0) * Math.max(1, Number(m.quantidade) || 1)), 0);
+
   const inferValorContexto = (clienteNome: string, tipoComercial: string) => {
     if (tipoComercial === "Residência") return "Residência";
     if (tipoComercial === "Evento de Residência") return "Evento Residência";
@@ -582,7 +604,7 @@ export default function AgendaPage() {
     return "Cliente Final";
   };
 
-  const valorMasterSuggestion = (servico?: string, contexto?: string) => {
+  const valorMasterSuggestionSingle = (servico: string, contexto?: string) => {
     const svc = normalizeText(servico || "");
     if (!svc) return null;
     const ctx = contexto || "Cliente Final";
@@ -599,14 +621,32 @@ export default function AgendaPage() {
       : (ctx === "Parceiro" || ctx === "Residência")
         ? Number(row.valor_parceiro || 0)
         : Number(row.valor_cliente_final || 0);
-    return { row, valor, custo: Number(row.custo_interno || 0) };
+    return { row, valor, custo: Number(row.custo_interno || 0), servico };
+  };
+
+  const valorMasterSuggestion = (servicoValue?: string, contexto?: string) => {
+    const selected = parseServicosContratados(servicoValue);
+    const servicos = selected.length > 0 ? selected : ((servicoValue || "").trim() ? [String(servicoValue).trim()] : []);
+    if (servicos.length === 0) return null;
+    const found = servicos.map(s => valorMasterSuggestionSingle(s, contexto)).filter(Boolean) as NonNullable<ReturnType<typeof valorMasterSuggestionSingle>>[];
+    if (found.length === 0) return null;
+    const foundNames = new Set(found.map(x => x.servico));
+    return {
+      row: found[0].row,
+      valor: found.reduce((sum, x) => sum + x.valor, 0),
+      custo: found.reduce((sum, x) => sum + x.custo, 0),
+      encontrados: found.length,
+      total: servicos.length,
+      semValor: servicos.filter(s => !foundNames.has(s)),
+    };
   };
 
   const aplicarValorSugerido = () => {
     const suggestion = valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto);
-    if (!suggestion || !suggestion.valor) { showToast("Sem valor sugerido para esta combinação"); return; }
-    setForm(f => ({ ...f, bill: String(suggestion.valor) }));
-    showToast(`Valor sugerido aplicado: ${suggestion.valor}€`);
+    const total = Number(suggestion?.valor || 0) + materiaisReceita;
+    if (!total && !suggestion) { showToast("Sem valor sugerido para esta combinação"); return; }
+    setForm(f => ({ ...f, bill: String(total) }));
+    showToast(`Auto Budget aplicado: ${total}€`);
   };
   const normalizeArtistRow = (a: any): ArtistRow => {
     const col = findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome || "");
@@ -694,6 +734,8 @@ export default function AgendaPage() {
 
   const openCreate = () => {
     loadLookups();
+    setBudgetOpen(false);
+    setUseMaterials(false);
     setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
     setArtists([emptyArtist()]);
     setClienteSearch("");
@@ -709,6 +751,8 @@ export default function AgendaPage() {
 
   const openEdit = (e: AgendaEvent) => {
     loadLookups();
+    setBudgetOpen(false);
+    setUseMaterials(false);
     setForm({
       title: e.title, date: e.event_date, time: e.time_range || "",
       tipo: e.tipo || "", bill: String(e.bill || 0),
@@ -730,7 +774,7 @@ export default function AgendaPage() {
     setResidenciaDates([]);
     setModal({ open: true, editing: e });
     setMateriaisReservadosResumo([]);
-    refreshMateriaisResumo(e.id);
+    refreshMateriaisResumo(e.id).then(rows => { if (rows.length > 0) setUseMaterials(true); });
     const cachedArtists = (artistasMap[e.id] || []).map(normalizeArtistRow);
     if (cachedArtists.length > 0) {
       setArtists(cachedArtists);
@@ -748,6 +792,8 @@ export default function AgendaPage() {
 
   const closeModal = () => {
     setModal({ open: false, editing: null });
+    setBudgetOpen(false);
+    setUseMaterials(false);
     setForm(emptyForm);
     setArtists([emptyArtist()]);
     setIsResidencia(false);
@@ -786,14 +832,20 @@ export default function AgendaPage() {
     }));
     const reservarPacksEvento = async (eventoId: number, eventoNome: string) => {
       const manualIds = selectedPackIds;
-      const auto = await getMaterialPackIdsForServico(form.servico_comercial || form.title || cleanTitle, form.valor_contexto || "Normal");
-      const packIds = Array.from(new Set([...(manualIds || []), ...((auto.success ? auto.data : []) as number[])]));
+      const selectedServices = parseServicosContratados(form.servico_comercial);
+      const servicesForPacks = selectedServices.length > 0 ? selectedServices : [form.servico_comercial || form.title || cleanTitle];
+      const autoIds: number[] = [];
+      for (const service of servicesForPacks.filter(Boolean)) {
+        const auto = await getMaterialPackIdsForServico(service, form.valor_contexto || "Normal");
+        if (auto.success) autoIds.push(...((auto.data || []) as number[]));
+      }
+      const packIds = Array.from(new Set([...(manualIds || []), ...autoIds]));
       if (packIds.length === 0) return;
       await reservarMaterialPacksParaEvento({
         evento_id: eventoId,
         evento_nome: eventoNome,
         pack_ids: packIds,
-        servico: form.servico_comercial || form.title || cleanTitle,
+        servico: servicesForPacks.filter(Boolean).join(" + ") || form.title || cleanTitle,
         reservado_por: userName,
       });
     };
@@ -1010,11 +1062,11 @@ export default function AgendaPage() {
     .filter(a => !normalizeText(resolveColaboradorNome(a.nome || "")).includes("annia"))
     .reduce((sum, a) => sum + (parseFloat(String(a.fee || 0)) || 0), 0);
 
-  const lucroVisivel = (valor: number | string | undefined, rows: ArtistRow[]) =>
-    Number(valor || 0) - custoArtistasParaLucro(rows);
+  const lucroVisivel = (valor: number | string | undefined, rows: ArtistRow[], materialCost: number = 0) =>
+    Number(valor || 0) - custoArtistasParaLucro(rows) - Number(materialCost || 0);
 
-  const temMovimentoFinanceiro = (valor: number | string | undefined, rows: ArtistRow[]) =>
-    Number(valor || 0) !== 0 || custoArtistasParaLucro(rows) !== 0;
+  const temMovimentoFinanceiro = (valor: number | string | undefined, rows: ArtistRow[], materialCost: number = 0) =>
+    Number(valor || 0) !== 0 || custoArtistasParaLucro(rows) !== 0 || Number(materialCost || 0) !== 0;
 
   const artistsForAgendaLead = (l: Lead) =>
     l.agenda_event_id ? (artistasMap[l.agenda_event_id] || []) : (artistasMap[-l.id] || []);
@@ -1557,11 +1609,11 @@ export default function AgendaPage() {
                           <StatusBadge color={Colors.amber} label={l.status || "Confirmado"} />
                         </td>
                         <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "11px" }}>
-                          {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(l.value, artistsForAgendaLead(l)) ? (
+                          {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(l.value, artistsForAgendaLead(l), l.material_cost || 0) ? (
                             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
                               <span>{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
-                              <span style={{ fontSize: "8px", color: lucroVisivel(l.value, artistsForAgendaLead(l)) >= 0 ? Colors.green : Colors.red, fontWeight: 600 }}>
-                                Lucro {lucroVisivel(l.value, artistsForAgendaLead(l)).toLocaleString("pt-PT")}€
+                              <span style={{ fontSize: "8px", color: lucroVisivel(l.value, artistsForAgendaLead(l), l.material_cost || 0) >= 0 ? Colors.green : Colors.red, fontWeight: 600 }}>
+                                Lucro {lucroVisivel(l.value, artistsForAgendaLead(l), l.material_cost || 0).toLocaleString("pt-PT")}€
                               </span>
                             </div>
                           ) : "—")}
@@ -1647,11 +1699,11 @@ export default function AgendaPage() {
                       })()}
                     </td>
                     <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "11px" }}>
-                      {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(e.bill, artistasMap[e.id] || []) ? (
+                      {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(e.bill, artistasMap[e.id] || [], e.material_cost || 0) ? (
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
                           <span>{Number(e.bill || 0).toLocaleString("pt-PT")}€</span>
-                          <span style={{ fontSize: "8px", color: lucroVisivel(e.bill, artistasMap[e.id] || []) >= 0 ? Colors.green : Colors.red, fontWeight: 600 }}>
-                            Lucro {lucroVisivel(e.bill, artistasMap[e.id] || []).toLocaleString("pt-PT")}€
+                          <span style={{ fontSize: "8px", color: lucroVisivel(e.bill, artistasMap[e.id] || [], e.material_cost || 0) >= 0 ? Colors.green : Colors.red, fontWeight: 600 }}>
+                            Lucro {lucroVisivel(e.bill, artistasMap[e.id] || [], e.material_cost || 0).toLocaleString("pt-PT")}€
                           </span>
                         </div>
                       ) : "—")}
@@ -1659,12 +1711,14 @@ export default function AgendaPage() {
                     <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
                       {userRole !== "limited_novalues" && (
                       <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
-                        <IconBtn
-                          title={materiaisPendentesDoEvento(e.id).length > 0 ? `${materiaisPendentesDoEvento(e.id).length} material(is) reservado(s)` : "Reservar material"}
-                          onClick={() => openMaterialModal(e)}
-                          icon="material"
-                          success={materiaisPendentesDoEvento(e.id).length > 0}
-                        />
+                        {(e.material_count || 0) > 0 && (
+                          <IconBtn
+                            title="Ver materiais do evento"
+                            onClick={() => openMaterialModal(e)}
+                            icon="material"
+                            success
+                          />
+                        )}
                         <IconBtn title="Editar" onClick={() => openEdit(e)} icon="edit" />
                         {!e.cancelled
                           ? <IconBtn title="Cancelar" onClick={() => handleCancel(e)} icon="cancel" danger disabled={cancellingId === e.id} />
@@ -1830,10 +1884,10 @@ export default function AgendaPage() {
                   </div>
                 </div>
                 <div className="mob-card-right">
-                  {userRole !== "limited_novalues" && temMovimentoFinanceiro(l.value, artistsForAgendaLead(l))
+                  {userRole !== "limited_novalues" && temMovimentoFinanceiro(l.value, artistsForAgendaLead(l), l.material_cost || 0)
                     ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
                         <span className="mob-card-value">{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
-                        <span style={{fontSize:"8px",fontWeight:700,color:lucroVisivel(l.value, artistsForAgendaLead(l))>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(l.value, artistsForAgendaLead(l)).toLocaleString("pt-PT")}€</span>
+                        <span style={{fontSize:"8px",fontWeight:700,color:lucroVisivel(l.value, artistsForAgendaLead(l), l.material_cost || 0)>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(l.value, artistsForAgendaLead(l), l.material_cost || 0).toLocaleString("pt-PT")}€</span>
                       </div>
                     : <span className="mob-card-value muted">—</span>
                   }
@@ -1877,18 +1931,18 @@ export default function AgendaPage() {
                 </div>
               </div>
               <div className="mob-card-right">
-                {userRole !== "limited_novalues" && temMovimentoFinanceiro(e.bill, artistasMap[e.id]||[])
+                {userRole !== "limited_novalues" && temMovimentoFinanceiro(e.bill, artistasMap[e.id]||[], e.material_cost || 0)
                   ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
                       <span className="mob-card-value">{Number(e.bill || 0).toLocaleString("pt-PT")}€</span>
-                      <span style={{fontSize:"8px",fontWeight:700,color:lucroVisivel(e.bill, artistasMap[e.id]||[])>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(e.bill, artistasMap[e.id]||[]).toLocaleString("pt-PT")}€</span>
+                      <span style={{fontSize:"8px",fontWeight:700,color:lucroVisivel(e.bill, artistasMap[e.id]||[], e.material_cost || 0)>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(e.bill, artistasMap[e.id]||[], e.material_cost || 0).toLocaleString("pt-PT")}€</span>
                     </div>
                   : <span className="mob-card-value muted">—</span>
                 }
-                {userRole !== "limited_novalues" && (
+                {userRole !== "limited_novalues" && (e.material_count || 0) > 0 && (
                   <button
                     onClick={(ev) => { ev.stopPropagation(); openMaterialModal(e); }}
-                    title="Material"
-                    style={{ background: "transparent", border: "none", color: materiaisPendentesDoEvento(e.id).length > 0 ? "var(--theme-success)" : "var(--theme-text-subtle)", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
+                    title="Ver materiais do evento"
+                    style={{ background: "transparent", border: "none", color: "var(--theme-success)", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
                   >
                     <svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="1.8"><rect x="2" y="5" width="12" height="9" rx="1.2" /><path d="M5.5 5V3.5a2 2 0 014 0V5" /></svg>
                   </button>
@@ -2255,41 +2309,76 @@ export default function AgendaPage() {
                   </div>
                 )}
               </FormField>
-              <FormField label="Tipo Comercial">
-                <CustomSelect
-                  value={form.tipo_comercial}
-                  onChange={v => setForm(f => ({ ...f, tipo_comercial: v, valor_contexto: inferValorContexto(f.cliente_nome, v) }))}
-                  options={TIPOS_COMERCIAIS.map(t => ({ value: t, label: t }))}
-                  style={inputStyle}
-                />
-              </FormField>
-              <FormField label="Serviço Vendido">
-                <input
-                  list="agenda-servicos-vendidos-list"
-                  style={inputStyle}
-                  value={form.servico_comercial}
-                  onChange={e => setForm(f => ({ ...f, servico_comercial: e.target.value }))}
-                  placeholder="DJ s/ AV, Banda c/ AVs..."
-                />
-              </FormField>
-              <FormField label="Perfil de Valor">
-                <CustomSelect
-                  value={form.valor_contexto}
-                  onChange={v => setForm(f => ({ ...f, valor_contexto: v }))}
-                  options={VALOR_CONTEXTOS.map(c => ({ value: c, label: c }))}
-                  style={inputStyle}
-                />
-              </FormField>
-              <FormField label="Sugestão">
-                <button type="button" onClick={aplicarValorSugerido} style={{ ...btnSecStyle, width: "100%" }}>
-                  Calcular valor
+              <div style={{ gridColumn: "1 / -1", marginBottom: "1rem" }}>
+                <button
+                  type="button"
+                  onClick={() => setBudgetOpen(v => !v)}
+                  style={{
+                    width: "100%", minHeight: "48px", padding: "0 1rem",
+                    display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
+                    background: budgetOpen ? "rgba(var(--theme-accent-rgb),0.055)" : "rgba(var(--theme-contrast-rgb),0.015)",
+                    border: `1px solid ${budgetOpen ? "rgba(var(--theme-accent-rgb),0.22)" : "var(--theme-input-border)"}`,
+                    color: budgetOpen ? Colors.gold : Colors.textMuted,
+                    cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+                  }}
+                >
+                  <span>
+                    <b style={{ display: "block", fontSize: "9px", letterSpacing: "0.28em", textTransform: "uppercase" }}>Auto Budget</b>
+                    <small style={{ display: "block", marginTop: "4px", fontSize: "8px", letterSpacing: "0.06em", color: Colors.textMuted }}>Serviços · tipo comercial · perfil de valor · cálculo automático</small>
+                  </span>
+                  <span style={{ fontSize: "12px" }}>{budgetOpen ? "−" : "+"}</span>
                 </button>
-              </FormField>
-              {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto) && (
-                <div style={{ gridColumn: "1 / -1", fontSize: "10px", color: Colors.textMuted, letterSpacing: "0.05em", marginTop: "-0.6rem", marginBottom: "0.6rem" }}>
-                  Sugestão: {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)?.valor || 0}€ · Custo interno: {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)?.custo || 0}€ · {form.valor_contexto || "Cliente Final"}
-                </div>
-              )}
+
+                {budgetOpen && (
+                  <div style={{
+                    display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 1.5rem",
+                    padding: "1rem", border: "1px solid rgba(var(--theme-accent-rgb),0.14)", borderTop: "none",
+                    background: "rgba(var(--theme-accent-rgb),0.018)",
+                  }}>
+                    <FormField label="Serviços Contratados" style={{ gridColumn: "1 / -1" }}>
+                      <ServiceMultiSelect
+                        value={form.servico_comercial}
+                        onChange={v => setForm(f => ({ ...f, servico_comercial: v }))}
+                        placeholder="DJ todo o dia + Banda + Acrobata + Produtor..."
+                      />
+                    </FormField>
+                    <FormField label="Tipo Comercial">
+                      <CustomSelect
+                        value={form.tipo_comercial}
+                        onChange={v => setForm(f => ({ ...f, tipo_comercial: v, valor_contexto: inferValorContexto(f.cliente_nome, v) }))}
+                        options={TIPOS_COMERCIAIS.map(t => ({ value: t, label: t }))}
+                        style={inputStyle}
+                      />
+                    </FormField>
+                    <FormField label="Perfil de Valor">
+                      <CustomSelect
+                        value={form.valor_contexto}
+                        onChange={v => setForm(f => ({ ...f, valor_contexto: v }))}
+                        options={VALOR_CONTEXTOS.map(c => ({ value: c, label: c }))}
+                        style={inputStyle}
+                      />
+                    </FormField>
+                    <FormField label="Sugestão" style={{ gridColumn: "1 / -1" }}>
+                      <button type="button" onClick={aplicarValorSugerido} style={{ ...btnSecStyle, width: "100%" }}>
+                        Calcular valor dos serviços selecionados
+                      </button>
+                    </FormField>
+                    {(valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto) || materiaisReceita > 0 || materiaisCusto > 0) && (() => {
+                      const suggestion = valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto);
+                      const totalValor = Number(suggestion?.valor || 0) + materiaisReceita;
+                      const totalCusto = Number(suggestion?.custo || 0) + materiaisCusto;
+                      return (
+                        <div style={{ gridColumn: "1 / -1", fontSize: "10px", color: Colors.textMuted, letterSpacing: "0.05em", marginTop: "-0.5rem", marginBottom: "0.2rem", lineHeight: 1.6 }}>
+                          Sugestão total: <b style={{ color: Colors.gold }}>{totalValor}€</b> · Custo interno: {totalCusto}€ · {form.valor_contexto || "Cliente Final"}
+                          {materiaisReceita > 0 || materiaisCusto > 0 ? <span> · Materiais {materiaisReceita}€ / custo {materiaisCusto}€</span> : null}
+                          {suggestion && suggestion.total > 1 && <span> · {suggestion.encontrados}/{suggestion.total} serviços com tabela</span>}
+                          {suggestion && suggestion.semValor.length > 0 && <div style={{ marginTop: "3px", color: "var(--theme-warning)" }}>Sem valor automático: {suggestion.semValor.join(" · ")}</div>}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
               {userRole !== "limited_novalues" && (
               <FormField label="Faturação (€)">
                 <input
@@ -2319,36 +2408,85 @@ export default function AgendaPage() {
                   style={inputStyle}
                 />
               </FormField>
-              {modal.editing && (
-                <div style={{ gridColumn: "1 / -1", border: `1px solid ${Colors.borderDim}`, padding: "0.85rem", background: "rgba(var(--theme-contrast-rgb),0.015)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", marginBottom: "0.65rem" }}>
-                    <div style={{ fontSize: "7px", letterSpacing: "0.35em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 700 }}>Materiais do evento</div>
-                    <button type="button" onClick={() => openMaterialModal(modal.editing as AgendaEvent)} style={{ ...btnSecStyle, padding: "0.45rem 0.7rem", fontSize: "8px" }}>Gerir materiais</button>
-                  </div>
-                  {loadingMateriaisResumo ? (
-                    <div style={{ color: Colors.textMuted, fontSize: "10px" }}>A carregar materiais...</div>
-                  ) : materiaisReservadosResumo.length ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                      {materiaisReservadosResumo.map((m, idx) => {
-                        const voltou = m.quantidade_devolvida + m.quantidade_consumida;
-                        const estado = m.status === "reservado" ? "Reservado · ainda no local" : m.status === "fora" ? "Fora do local" : "Devolvido";
-                        const stateColor = m.status === "reservado" ? Colors.blue : m.status === "fora" ? Colors.amber : Colors.green;
-                        return (
-                          <div key={`${m.source}-${m.id}-${m.material_nome}-${idx}`} style={{ display: "flex", justifyContent: "space-between", gap: "0.7rem", color: Colors.textSec, fontSize: "11px", lineHeight: 1.4 }}>
-                            <span><strong style={{ color: Colors.textPrimary }}>{m.quantidade}x {m.material_nome}</strong>{voltou ? <span> · voltou/consumido: {voltou}</span> : null}</span>
-                            <span style={{ color: stateColor, fontSize: "9px", whiteSpace: "nowrap" }}>{estado}</span>
+              <div style={{ gridColumn: "1 / -1", marginTop: "0.15rem" }}>
+                <label style={{
+                  minHeight: "48px", padding: "0 0.9rem", display: "flex", alignItems: "center", gap: "0.75rem",
+                  border: `1px solid ${useMaterials ? "rgba(var(--theme-accent-rgb),0.24)" : Colors.borderDim}`,
+                  background: useMaterials ? "rgba(var(--theme-accent-rgb),0.045)" : "rgba(var(--theme-contrast-rgb),0.012)",
+                  cursor: "pointer", color: useMaterials ? Colors.gold : Colors.textMuted,
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={useMaterials}
+                    onChange={async e => {
+                      const checked = e.target.checked;
+                      if (!checked && materiaisReservadosResumo.length > 0) {
+                        showToast("Remove primeiro os materiais associados ao evento");
+                        return;
+                      }
+                      setUseMaterials(checked);
+                      if (checked) {
+                        await loadMateriais();
+                        if (modal.editing) await refreshMateriaisResumo(modal.editing.id);
+                      }
+                    }}
+                    style={{ width: "16px", height: "16px", accentColor: "var(--theme-accent)" }}
+                  />
+                  <span>
+                    <b style={{ display: "block", fontSize: "9px", letterSpacing: "0.22em", textTransform: "uppercase" }}>Usar materiais neste evento</b>
+                    <small style={{ display: "block", marginTop: "3px", fontSize: "8px", color: Colors.textMuted }}>Abre a gestão de equipamento apenas quando é necessária.</small>
+                  </span>
+                </label>
+
+                {useMaterials && (
+                  <div style={{ border: `1px solid ${Colors.borderDim}`, borderTop: "none", padding: "0.9rem", background: "rgba(var(--theme-contrast-rgb),0.012)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", marginBottom: "0.75rem" }}>
+                      <div>
+                        <div style={{ fontSize: "7px", letterSpacing: "0.35em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 700 }}>Materiais do evento</div>
+                        {(materiaisReceita > 0 || materiaisCusto > 0) && (
+                          <div style={{ marginTop: "5px", fontSize: "9px", color: Colors.textMuted }}>
+                            Faturação materiais <b style={{ color: Colors.gold }}>{materiaisReceita}€</b> · Custo <b style={{ color: materiaisCusto > 0 ? Colors.amber : Colors.green }}>{materiaisCusto}€</b>
                           </div>
-                        );
-                      })}
+                        )}
+                      </div>
+                      {modal.editing ? (
+                        <button type="button" onClick={() => openMaterialModal(modal.editing as AgendaEvent)} style={{ ...btnSecStyle, padding: "0.45rem 0.7rem", fontSize: "8px" }}>Gerir materiais</button>
+                      ) : (
+                        <span style={{ fontSize: "8px", color: Colors.textMuted }}>Guarda o evento primeiro</span>
+                      )}
                     </div>
-                  ) : (
-                    <div style={{ color: Colors.textMuted, fontSize: "10px" }}>Sem materiais associados.</div>
-                  )}
-                </div>
-              )}
-              <FormField label="Notas de materiais / observações" style={{ gridColumn: "1 / -1" }}>
+                    {loadingMateriaisResumo ? (
+                      <div style={{ color: Colors.textMuted, fontSize: "10px" }}>A carregar materiais...</div>
+                    ) : materiaisReservadosResumo.length ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: "8px" }}>
+                        {materiaisReservadosResumo.map((m, idx) => {
+                          const estado = m.status === "reservado" ? "Reservado" : m.status === "fora" ? "Fora" : "Devolvido";
+                          const stateColor = m.status === "reservado" ? Colors.blue : m.status === "fora" ? Colors.amber : Colors.green;
+                          const valor = Number(m.contabilizar || 0) === 1 ? Number(m.valor_unitario || 0) * Math.max(1, Number(m.quantidade) || 1) : 0;
+                          const custo = Number(m.contabilizar || 0) === 1 ? Number(m.custo_unitario || 0) * Math.max(1, Number(m.quantidade) || 1) : 0;
+                          return (
+                            <div key={`${m.source}-${m.id}-${idx}`} style={{ display: "grid", gridTemplateColumns: "54px 1fr", gap: "8px", padding: "7px", border: `1px solid ${Colors.borderDim}`, background: "var(--theme-subtle-bg)" }}>
+                              <div style={{ width: "54px", height: "54px", overflow: "hidden", background: "rgba(var(--theme-contrast-rgb),0.04)", display: "grid", placeItems: "center" }}>
+                                {m.material_imagem ? <img src={m.material_imagem} alt={m.material_nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: "18px", opacity: 0.45 }}>▣</span>}
+                              </div>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: "10px", color: Colors.textPrimary, fontWeight: 650, lineHeight: 1.25 }}>{m.material_nome} <span style={{ color: Colors.textMuted }}>×{m.quantidade}</span></div>
+                                <div style={{ fontSize: "8px", color: stateColor, marginTop: "3px" }}>{estado}{m.source === "pack" ? " · incluído no serviço" : ""}</div>
+                                {Number(m.contabilizar || 0) === 1 && <div style={{ fontSize: "8px", color: Colors.textMuted, marginTop: "3px" }}>+{valor}€ faturação · {custo}€ custo</div>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{ color: Colors.textMuted, fontSize: "10px" }}>Sem materiais associados.</div>
+                    )}
+                  </div>
+                )}
+              </div>
+              {useMaterials && <FormField label="Notas de materiais / observações" style={{ gridColumn: "1 / -1" }}>
                 <textarea style={{ ...inputStyle, minHeight: "72px", resize: "vertical" }} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Ex: dual mic extra, 2 colunas, cabos XLR... / observações" />
-              </FormField>
+              </FormField>}
             </div>
 
             {/* ── Artistas ── */}
@@ -2476,16 +2614,20 @@ export default function AgendaPage() {
         </div>
       )}
 
-      {/* ── Modal: Reservar Material ── */}
+      {/* ── Gaveta: Materiais do Evento ── */}
       {materialModal.open && materialModal.event && (
-        <div onClick={e => e.target === e.currentTarget && closeMaterialModal()} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1150, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "var(--theme-surface)", border: `1px solid ${Colors.border}`, padding: "2rem", width: "480px", maxWidth: "95vw", maxHeight: "88vh", overflowY: "auto", position: "relative" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
-              <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Material do Evento</p>
-              <button onClick={closeMaterialModal} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: "pointer", fontSize: "16px" }}>✕</button>
+        <div onClick={e => e.target === e.currentTarget && closeMaterialModal()} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1150, display: "flex", justifyContent: "flex-end", backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "var(--theme-surface)", borderLeft: `1px solid ${Colors.border}`, padding: "1.6rem", width: "540px", maxWidth: "94vw", height: "100vh", overflowY: "auto", position: "relative", boxShadow: "-24px 0 60px rgba(0,0,0,.28)" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: "1px", background: "linear-gradient(180deg, transparent, var(--theme-accent), transparent)" }} />
+            <div style={{ position: "sticky", top: "-1.6rem", zIndex: 2, margin: "-1.6rem -1.6rem 1.15rem", padding: "1.35rem 1.6rem 1rem", background: "var(--theme-surface)", borderBottom: `1px solid ${Colors.borderDim}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
+                <div>
+                  <p style={{ fontSize: "9px", letterSpacing: "0.35em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.25rem" }}>Materiais do Evento</p>
+                  <p style={{ fontSize: "13px", color: Colors.textPrimary, margin: 0 }}>{materialModal.event.title}</p>
+                </div>
+                <button onClick={closeMaterialModal} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: "pointer", fontSize: "18px", padding: "6px" }}>✕</button>
+              </div>
             </div>
-            <p style={{ fontSize: "12px", color: Colors.textPrimary, marginBottom: "1.25rem" }}>{materialModal.event.title}</p>
 
             <div style={{ marginBottom: "1.25rem", display: "flex", flexDirection: "column", gap: "7px" }}>
               {loadingMateriaisResumo && <div style={{ fontSize: "10px", color: Colors.textMuted }}>A carregar materiais...</div>}
@@ -2500,11 +2642,20 @@ export default function AgendaPage() {
                 return (
                   <div key={`${key}-${item.material_nome}-${idx}`} style={{ padding: "0.7rem", background: "var(--theme-subtle-bg)", border: `1px solid ${isReserva ? "rgba(80,140,220,0.28)" : isFora ? "rgba(223,155,52,0.28)" : Colors.borderDim}` }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem" }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: "11px", color: Colors.textPrimary, fontWeight: 650 }}>{item.material_nome} <span style={{ color: Colors.textMuted }}>×{item.quantidade}</span></div>
-                        <div style={{ fontSize: "9px", marginTop: "2px", color: isReserva ? Colors.blue : isFora ? Colors.amber : Colors.green }}>
-                          {isReserva ? "Reservado · ainda no local" : isFora ? `Fora${item.quem_levou ? ` · levou ${item.quem_levou}` : ""}` : "Devolvido"}
-                          {item.source === "pack" && item.pack_nome ? ` · ${item.pack_nome}` : ""}
+                      <div style={{ display: "flex", gap: "9px", minWidth: 0 }}>
+                        <div style={{ width: "64px", height: "64px", flexShrink: 0, overflow: "hidden", background: "rgba(var(--theme-contrast-rgb),0.04)", display: "grid", placeItems: "center", border: `1px solid ${Colors.borderDim}` }}>
+                          {item.material_imagem ? <img src={item.material_imagem} alt={item.material_nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: "20px", opacity: 0.45 }}>▣</span>}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
+                            <div style={{ fontSize: "11px", color: Colors.textPrimary, fontWeight: 650 }}>{item.material_nome}</div>
+                            <span style={{ minWidth: "26px", textAlign: "center", fontSize: "8px", color: Colors.gold, border: `1px solid ${Colors.border}`, padding: "2px 6px" }}>×{item.quantidade}</span>
+                          </div>
+                          <div style={{ fontSize: "9px", marginTop: "2px", color: isReserva ? Colors.blue : isFora ? Colors.amber : Colors.green }}>
+                            {isReserva ? "Reservado · ainda no local" : isFora ? `Fora${item.quem_levou ? ` · levou ${item.quem_levou}` : ""}` : "Devolvido"}
+                            {item.source === "pack" && item.pack_nome ? ` · ${item.pack_nome}` : ""}
+                          </div>
+                          {Number(item.contabilizar || 0) === 1 && <div style={{ fontSize: "8px", color: Colors.textMuted, marginTop: "3px" }}>+{Number(item.valor_unitario || 0) * Math.max(1, Number(item.quantidade) || 1)}€ faturação · {Number(item.custo_unitario || 0) * Math.max(1, Number(item.quantidade) || 1)}€ custo</div>}
                         </div>
                       </div>
                       {(item.source === "manual" || item.source === "legacy") && isReserva && (
@@ -2528,10 +2679,25 @@ export default function AgendaPage() {
             <p style={{ fontSize: "8px", letterSpacing: "0.3em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Reservar novo material</p>
 
             <div style={{ marginBottom: "0.85rem" }}>
-              <select style={{ ...inputStyle, cursor: "pointer" }} value={reservaForm.material_id} onChange={(e: any) => setReservaForm(f => ({ ...f, material_id: Number(e.target.value) }))}>
-                <option value={0}>Selecionar material...</option>
-                {materiaisAtivos.map(m => <option key={m.id} value={m.id}>{m.nome}{m.categoria ? ` · ${m.categoria}` : ""}</option>)}
-              </select>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: "7px", maxHeight: "310px", overflowY: "auto", paddingRight: "2px" }}>
+                {materiaisAtivos.map(m => {
+                  const active = reservaForm.material_id === m.id;
+                  const valor = form.valor_contexto === "SUD"
+                    ? (m.valor_sud || m.valor_cliente_final || m.valor_parceiro || 0)
+                    : (form.valor_contexto === "Parceiro" || form.valor_contexto === "Residência")
+                      ? (m.valor_parceiro || m.valor_cliente_final || 0)
+                      : (m.valor_cliente_final || m.valor_parceiro || m.valor_sud || 0);
+                  return (
+                    <button key={m.id} type="button" onClick={() => setReservaForm(f => ({ ...f, material_id: m.id }))} style={{ padding: "6px", border: `1px solid ${active ? "rgba(var(--theme-accent-rgb),0.5)" : Colors.borderDim}`, background: active ? "rgba(var(--theme-accent-rgb),0.08)" : "var(--theme-subtle-bg)", color: active ? Colors.gold : Colors.textPrimary, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
+                      <div style={{ aspectRatio: "1.25", overflow: "hidden", background: "rgba(var(--theme-contrast-rgb),0.04)", display: "grid", placeItems: "center", marginBottom: "5px" }}>
+                        {m.imagem ? <img src={m.imagem} alt={m.nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: "22px", opacity: 0.38 }}>▣</span>}
+                      </div>
+                      <div style={{ fontSize: "8.5px", fontWeight: 650, lineHeight: 1.25 }}>{m.nome}</div>
+                      <div style={{ fontSize: "7.5px", color: Colors.textMuted, marginTop: "3px" }}>{valor}€ · custo {m.custo_interno || 0}€</div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "0.75rem", marginBottom: "0.85rem" }}>

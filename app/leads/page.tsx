@@ -2,8 +2,9 @@
 
 import MobTabBar from "../MobTabBar";
 
-import { ARTIST_TIPOS, MODALIDADES, SERVICOS_VENDIDOS, TIPOS_COMERCIAIS, VALOR_CONTEXTOS, resolveColaboradorNome } from "../constants";
+import { ARTIST_TIPOS, MODALIDADES, SERVICOS_VENDIDOS, TIPOS_COMERCIAIS, VALOR_CONTEXTOS, resolveColaboradorNome, parseServicosContratados } from "../constants";
 import { ArtistAutocomplete, type ArtistOption } from "../ArtistAutocomplete";
+import { ServiceMultiSelect } from "../ServiceMultiSelect";
 import { useTheme } from "../useTheme";
 import { ThemeSwitcher } from "../ThemeSwitcher";
 import React, { useEffect, useState, useCallback, useRef } from "react";
@@ -94,10 +95,12 @@ interface Lead {
   cliente_nome?: string; cliente_id?: number | null; modalidade?: string;
   agenda_event_id?: number | null; event_id?: string;
   tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string;
+  material_revenue?: number; material_cost?: number;
 }
 
 interface AgendaEvent {
   id: number; title: string; event_date: string; event_id?: string; origem_lead_id?: number | null; cancelled?: number;
+  material_revenue?: number; material_cost?: number;
 }
 interface ConflictOverride { event_date: string; artist_key: string; artist_name: string; note?: string; }
 interface Cliente { id: number; nome: string; nif?: string; alias?: string; }
@@ -218,6 +221,7 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<{ open: boolean; editing: Lead | null }>({ open: false, editing: null });
+  const [budgetOpen, setBudgetOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [clienteSearch, setClienteSearch] = useState("");
   const [clienteDropOpen, setClienteDropOpen] = useState(false);
@@ -319,7 +323,7 @@ export default function LeadsPage() {
     return "Cliente Final";
   };
 
-  const valorMasterSuggestion = (servico?: string, contexto?: string) => {
+  const valorMasterSuggestionSingle = (servico: string, contexto?: string) => {
     const svc = normalizeText(servico || "");
     if (!svc) return null;
     const ctx = contexto || "Cliente Final";
@@ -336,14 +340,31 @@ export default function LeadsPage() {
       : (ctx === "Parceiro" || ctx === "Residência")
         ? Number(row.valor_parceiro || 0)
         : Number(row.valor_cliente_final || 0);
-    return { row, valor, custo: Number(row.custo_interno || 0) };
+    return { row, valor, custo: Number(row.custo_interno || 0), servico };
+  };
+
+  const valorMasterSuggestion = (servicoValue?: string, contexto?: string) => {
+    const selected = parseServicosContratados(servicoValue);
+    const servicos = selected.length > 0 ? selected : ((servicoValue || "").trim() ? [String(servicoValue).trim()] : []);
+    if (servicos.length === 0) return null;
+    const found = servicos.map(s => valorMasterSuggestionSingle(s, contexto)).filter(Boolean) as NonNullable<ReturnType<typeof valorMasterSuggestionSingle>>[];
+    if (found.length === 0) return null;
+    const foundNames = new Set(found.map(x => x.servico));
+    return {
+      row: found[0].row,
+      valor: found.reduce((sum, x) => sum + x.valor, 0),
+      custo: found.reduce((sum, x) => sum + x.custo, 0),
+      encontrados: found.length,
+      total: servicos.length,
+      semValor: servicos.filter(s => !foundNames.has(s)),
+    };
   };
 
   const aplicarValorSugerido = () => {
     const suggestion = valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto);
     if (!suggestion || !suggestion.valor) { showToast("Sem valor sugerido para esta combinação"); return; }
     setForm(f => ({ ...f, value: String(suggestion.valor) }));
-    showToast(`Valor sugerido aplicado: ${suggestion.valor}€`);
+    showToast(`Auto Budget aplicado: ${suggestion.valor}€`);
   };
   const normalizeArtistRow = (a: any): ArtistRow => {
     const col = findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome || "");
@@ -406,6 +427,7 @@ export default function LeadsPage() {
 
   const openCreate = () => {
     loadLookups();
+    setBudgetOpen(false);
     setForm({ ...emptyForm, event_date: new Date().toISOString().split("T")[0] });
     setArtists([emptyArtist()]);
     setSelectedPackIds([]);
@@ -415,6 +437,7 @@ export default function LeadsPage() {
 
   const openEdit = (l: Lead) => {
     loadLookups();
+    setBudgetOpen(false);
     setForm({
       title: l.title, event_date: l.event_date, value: String(l.value || 0),
       status: l.status || "Contacto", local: l.local || "", contacto: l.contacto || "",
@@ -451,6 +474,7 @@ export default function LeadsPage() {
 
   const closeModal = () => {
     setModal({ open: false, editing: null });
+    setBudgetOpen(false);
     resetClienteState();
   };
 
@@ -472,8 +496,14 @@ export default function LeadsPage() {
     };
     const validArtists = validArtistsPayload();
     const getAutoPackIds = async () => {
-      const auto = await getMaterialPackIdsForServico(form.servico_comercial || form.title, form.valor_contexto || "Normal");
-      return Array.from(new Set([...(selectedPackIds || []), ...((auto.success ? auto.data : []) as number[])]));
+      const selectedServices = parseServicosContratados(form.servico_comercial);
+      const servicesForPacks = selectedServices.length > 0 ? selectedServices : [form.servico_comercial || form.title];
+      const autoIds: number[] = [];
+      for (const service of servicesForPacks.filter(Boolean)) {
+        const auto = await getMaterialPackIdsForServico(service, form.valor_contexto || "Normal");
+        if (auto.success) autoIds.push(...((auto.data || []) as number[]));
+      }
+      return Array.from(new Set([...(selectedPackIds || []), ...autoIds]));
     };
     if (modal.editing) {
       const previousStatus = modal.editing.status || "";
@@ -581,9 +611,15 @@ export default function LeadsPage() {
     setConverting(false);
     if (res.success) {
       if (res.id) {
-        const auto = await getMaterialPackIdsForServico(form.servico_comercial || form.title, form.valor_contexto || "Normal");
+        const selectedServices = parseServicosContratados(form.servico_comercial);
+        const servicesForPacks = selectedServices.length > 0 ? selectedServices : [form.servico_comercial || form.title];
+        const autoIds: number[] = [];
+        for (const service of servicesForPacks.filter(Boolean)) {
+          const auto = await getMaterialPackIdsForServico(service, form.valor_contexto || "Normal");
+          if (auto.success) autoIds.push(...((auto.data || []) as number[]));
+        }
         await syncArtistasEvento(res.id, form.title.trim(), form.event_date, validArtistsPayload());
-        await syncMaterialPacksLead(modal.editing.id, auto.success ? (auto.data as number[]) : []);
+        await syncMaterialPacksLead(modal.editing.id, Array.from(new Set(autoIds)));
         await reservarMaterialPacksDaLeadParaEvento(modal.editing.id, res.id, form.title.trim(), "Lead");
       }
       showToast("Evento criado na Agenda");
@@ -635,11 +671,11 @@ export default function LeadsPage() {
     .filter(a => !normalizeText(resolveColaboradorNome(a.nome || "")).includes("annia"))
     .reduce((sum, a) => sum + (parseFloat(String(a.fee || 0)) || 0), 0);
 
-  const lucroVisivel = (valor: number | string | undefined, rows: ArtistRow[]) =>
-    Number(valor || 0) - custoArtistasParaLucro(rows);
+  const lucroVisivel = (valor: number | string | undefined, rows: ArtistRow[], materialCost: number = 0) =>
+    Number(valor || 0) - custoArtistasParaLucro(rows) - Number(materialCost || 0);
 
-  const temMovimentoFinanceiro = (valor: number | string | undefined, rows: ArtistRow[]) =>
-    Number(valor || 0) !== 0 || custoArtistasParaLucro(rows) !== 0;
+  const temMovimentoFinanceiro = (valor: number | string | undefined, rows: ArtistRow[], materialCost: number = 0) =>
+    Number(valor || 0) !== 0 || custoArtistasParaLucro(rows) !== 0 || Number(materialCost || 0) !== 0;
 
   const conflictOverrideKeys = new Set(conflictOverrides.map(o => `${o.event_date}|${o.artist_key}`));
   const conflictItems = [
@@ -914,11 +950,11 @@ export default function LeadsPage() {
                           <StatusBadge color={statusColor(l.status)} label={l.status || "Pendente"} />
                         </td>
                         <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: C.gold, fontWeight: 600, fontSize: "11px" }}>
-                          {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(l.value, artistsForLead(l)) ? (
+                          {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(l.value, artistsForLead(l), l.material_cost || 0) ? (
                             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
                               <span>{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
-                              <span style={{ fontSize: "8px", color: lucroVisivel(l.value, artistsForLead(l)) >= 0 ? C.green : C.red, fontWeight: 600 }}>
-                                Lucro {lucroVisivel(l.value, artistsForLead(l)).toLocaleString("pt-PT")}€
+                              <span style={{ fontSize: "8px", color: lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0) >= 0 ? C.green : C.red, fontWeight: 600 }}>
+                                Lucro {lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0).toLocaleString("pt-PT")}€
                               </span>
                             </div>
                           ) : "—")}
@@ -1023,10 +1059,10 @@ export default function LeadsPage() {
                     </div>
                   </div>
                   <div className="mob-card-right">
-                    {userRole !== "limited_novalues" && temMovimentoFinanceiro(l.value, artistsForLead(l))
+                    {userRole !== "limited_novalues" && temMovimentoFinanceiro(l.value, artistsForLead(l), l.material_cost || 0)
                       ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
                           <span className="mob-card-value">{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
-                          <span style={{fontSize:"8px",fontWeight:700,color:lucroVisivel(l.value, artistsForLead(l))>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(l.value, artistsForLead(l)).toLocaleString("pt-PT")}€</span>
+                          <span style={{fontSize:"8px",fontWeight:700,color:lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0)>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0).toLocaleString("pt-PT")}€</span>
                         </div>
                       : <span className="mob-card-value muted">—</span>
                     }
@@ -1218,41 +1254,73 @@ export default function LeadsPage() {
               )}
             </FormField>
 
-            <FormField label="Tipo Comercial">
-              <CustomSelect
-                value={form.tipo_comercial}
-                onChange={v => setForm(f => ({ ...f, tipo_comercial: v, valor_contexto: inferValorContexto(f.cliente_nome, v) }))}
-                options={TIPOS_COMERCIAIS.map(t => ({ value: t, label: t }))}
-                style={inputStyle}
-              />
-            </FormField>
-            <FormField label="Serviço Vendido">
-              <input
-                list="leads-servicos-vendidos-list"
-                style={inputStyle}
-                value={form.servico_comercial}
-                onChange={e => setForm(f => ({ ...f, servico_comercial: e.target.value }))}
-                placeholder="DJ s/ AV, Banda c/ AVs..."
-              />
-            </FormField>
-            <FormField label="Perfil de Valor">
-              <CustomSelect
-                value={form.valor_contexto}
-                onChange={v => setForm(f => ({ ...f, valor_contexto: v }))}
-                options={VALOR_CONTEXTOS.map(c => ({ value: c, label: c }))}
-                style={inputStyle}
-              />
-            </FormField>
-            <FormField label="Sugestão">
-              <button type="button" onClick={aplicarValorSugerido} style={{ ...btnSecStyle, width: "100%" }}>
-                Calcular valor
+            <div style={{ gridColumn: "1 / -1", marginBottom: "1rem" }}>
+              <button
+                type="button"
+                onClick={() => setBudgetOpen(v => !v)}
+                style={{
+                  width: "100%", minHeight: "48px", padding: "0 1rem",
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
+                  background: budgetOpen ? "rgba(var(--theme-accent-rgb),0.055)" : "rgba(var(--theme-contrast-rgb),0.015)",
+                  border: `1px solid ${budgetOpen ? "rgba(var(--theme-accent-rgb),0.22)" : "var(--theme-input-border)"}`,
+                  color: budgetOpen ? C.gold : C.textMuted,
+                  cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+                }}
+              >
+                <span>
+                  <b style={{ display: "block", fontSize: "9px", letterSpacing: "0.28em", textTransform: "uppercase" }}>Auto Budget</b>
+                  <small style={{ display: "block", marginTop: "4px", fontSize: "8px", letterSpacing: "0.06em", color: C.textMuted }}>Serviços · tipo comercial · perfil de valor · cálculo automático</small>
+                </span>
+                <span style={{ fontSize: "12px" }}>{budgetOpen ? "−" : "+"}</span>
               </button>
-            </FormField>
-            {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto) && (
-              <div style={{ fontSize: "10px", color: C.textMuted, letterSpacing: "0.05em", marginTop: "-0.6rem", marginBottom: "0.6rem" }}>
-                Sugestão: {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)?.valor || 0}€ · Custo interno: {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)?.custo || 0}€ · {form.valor_contexto || "Cliente Final"}
-              </div>
-            )}
+
+              {budgetOpen && (
+                <div style={{
+                  display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 1.5rem",
+                  padding: "1rem", border: "1px solid rgba(var(--theme-accent-rgb),0.14)", borderTop: "none",
+                  background: "rgba(var(--theme-accent-rgb),0.018)",
+                }}>
+                  <FormField label="Serviços Contratados" style={{ gridColumn: "1 / -1" }}>
+                    <ServiceMultiSelect
+                      value={form.servico_comercial}
+                      onChange={v => setForm(f => ({ ...f, servico_comercial: v }))}
+                      placeholder="DJ todo o dia + Banda + Acrobata + Produtor..."
+                    />
+                  </FormField>
+                  <FormField label="Tipo Comercial">
+                    <CustomSelect
+                      value={form.tipo_comercial}
+                      onChange={v => setForm(f => ({ ...f, tipo_comercial: v, valor_contexto: inferValorContexto(f.cliente_nome, v) }))}
+                      options={TIPOS_COMERCIAIS.map(t => ({ value: t, label: t }))}
+                      style={inputStyle}
+                    />
+                  </FormField>
+                  <FormField label="Perfil de Valor">
+                    <CustomSelect
+                      value={form.valor_contexto}
+                      onChange={v => setForm(f => ({ ...f, valor_contexto: v }))}
+                      options={VALOR_CONTEXTOS.map(c => ({ value: c, label: c }))}
+                      style={inputStyle}
+                    />
+                  </FormField>
+                  <FormField label="Sugestão" style={{ gridColumn: "1 / -1" }}>
+                    <button type="button" onClick={aplicarValorSugerido} style={{ ...btnSecStyle, width: "100%" }}>
+                      Calcular valor dos serviços selecionados
+                    </button>
+                  </FormField>
+                  {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto) && (() => {
+                    const suggestion = valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)!;
+                    return (
+                      <div style={{ gridColumn: "1 / -1", fontSize: "10px", color: C.textMuted, letterSpacing: "0.05em", marginTop: "-0.5rem", marginBottom: "0.2rem", lineHeight: 1.6 }}>
+                        Sugestão total: <b style={{ color: C.gold }}>{suggestion.valor || 0}€</b> · Custo interno: {suggestion.custo || 0}€ · {form.valor_contexto || "Cliente Final"}
+                        {suggestion.total > 1 && <span> · {suggestion.encontrados}/{suggestion.total} serviços com tabela</span>}
+                        {suggestion.semValor.length > 0 && <div style={{ marginTop: "3px", color: "var(--theme-warning)" }}>Sem valor automático: {suggestion.semValor.join(" · ")}</div>}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
 
             <FormField label="Data do Evento">
               <input style={inputStyle} type="date" value={form.event_date} onChange={e => setForm(f => ({ ...f, event_date: e.target.value }))} />

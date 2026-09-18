@@ -13,7 +13,7 @@ import { getPagamentosPageBundle, updatePagamento, deletePagamento, addPagamento
 interface Pagamento {
   id: number; evento_id: number; evento_nome: string; evento_data: string;
   nome: string; tipo: string; fee: number; evento_status?: string;
-  evento_cachet: number;
+  evento_cachet: number; evento_material_custo?: number;
 }
 
 interface Colaborador {
@@ -70,16 +70,18 @@ function groupByMonth(data: Pagamento[]) {
 const ANNIA_NOME = "annia";
 
 function calcLucro(rows: Pagamento[]) {
-  const eventosVistos = new Map<number, number>();
+  const eventosVistos = new Map<number, { faturacao: number; materialCost: number }>();
   for (const p of rows) {
     if (!eventosVistos.has(p.evento_id)) {
-      eventosVistos.set(p.evento_id, p.evento_cachet);
+      eventosVistos.set(p.evento_id, { faturacao: p.evento_cachet, materialCost: Number(p.evento_material_custo || 0) });
     }
   }
-  const faturado = Array.from(eventosVistos.values()).reduce((s, v) => s + v, 0);
-  const custos = rows
+  const faturado = Array.from(eventosVistos.values()).reduce((s, v) => s + v.faturacao, 0);
+  const custosArtistas = rows
     .filter(p => !p.nome.toLowerCase().includes(ANNIA_NOME))
     .reduce((s, p) => s + p.fee, 0);
+  const custosMateriais = Array.from(eventosVistos.values()).reduce((s, v) => s + v.materialCost, 0);
+  const custos = custosArtistas + custosMateriais;
   const lucro = faturado - custos;
   return { faturado, custos, lucro };
 }

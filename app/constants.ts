@@ -205,3 +205,83 @@ export const COLABORADOR_ALIASES: Record<string, string> = {
 export function resolveColaboradorNome(nome: string): string {
   return COLABORADOR_ALIASES[nome.trim().toLowerCase()] ?? nome.trim();
 }
+
+// Um evento/lead pode incluir vários serviços contratados. Mantemos o campo legado
+// `servico_comercial` por compatibilidade, serializando múltiplos valores com um
+// separador que não colide com os nomes do catálogo.
+export const SERVICOS_CONTRATADOS_SEPARATOR = " || ";
+
+export function parseServicosContratados(value?: string | null): string[] {
+  const raw = (value || "").trim();
+  if (!raw) return [];
+  if (raw.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return Array.from(new Set(parsed.map(String).map(s => s.trim()).filter(Boolean)));
+    } catch {}
+  }
+  return Array.from(new Set(raw.split(/\s*\|\|\s*/g).map(s => s.trim()).filter(Boolean)));
+}
+
+export function serializeServicosContratados(items: string[]): string {
+  return Array.from(new Set(items.map(s => s.trim()).filter(Boolean))).join(SERVICOS_CONTRATADOS_SEPARATOR);
+}
+
+// Fundação para ligar o catálogo comercial às capacidades dos colaboradores.
+// Não fundimos as duas listas: um serviço vendido pode exigir várias skills e
+// alguns serviços (AV, material, packs) não correspondem a uma pessoa.
+export const SERVICO_SKILL_LINKS: Record<string, readonly string[]> = {
+  "DJ": ["DJ"],
+  "DJ s/ AV": ["DJ"],
+  "DJ todo o dia": ["DJ"],
+  "Karaoke s/ AV": ["Karaoke Host"],
+  "Sax": ["Saxofonista"],
+  "Violinista": ["Violinista"],
+  "Acordionista": ["Acordionista"],
+  "Cantor(a)": ["Cantor(a)"],
+  "Bailarinos s/ receção": ["Bailarino(a)"],
+  "Bailarinos c/ receção": ["Bailarino(a)"],
+  "Asas Isis (2 bailarinos)": ["Bailarino(a) Asas Isis"],
+  "Artista de Fogo": ["Artista de Fogo"],
+  "Artista de Malabares": ["Malabarista"],
+  "Show Bolas de Sabão": ["Performer Bolas de Sabão"],
+  "Mágico(a)": ["Mágico(a)"],
+  "Cubo (a partir de 3m)": ["Performer Cubo"],
+  "Forças Combinadas - dueto": ["Acrobata"],
+  "Acro - dueto": ["Acrobata"],
+  "Acro Aéreos - solo": ["Acrobata Aéreo(a)"],
+  "Lyra Aéreos - dueto": ["Performer Lyra"],
+  "Straps Aéreos - solo": ["Performer Straps"],
+  "Straps Aéreos - dueto": ["Performer Straps"],
+  "Pórtico Aéreos": ["Técnico de Rigging", "Acrobata Aéreo(a)"],
+  "Spiral - plataforma": ["Performer Plataforma"],
+  "Lollipop - plataforma": ["Performer Plataforma"],
+  "Chandelier - plataforma": ["Performer Plataforma"],
+  "Diamante - plataforma": ["Performer Plataforma"],
+  "Animador / Host": ["Animador / Host", "MC"],
+  "Animador Infantil c/ jogos": ["Animador Infantil"],
+  "Make-up & Hair": ["Make-up & Hair"],
+  "Guarda Roupa": ["Guarda-Roupa"],
+  "Produtor": ["Produtor"],
+  "Trio Fado": ["Cantor(a) Fado", "Guitarra Portuguesa", "Viola/Guitarra Fado"],
+  "Annia Solo": ["Cantor(a)"],
+  "Annia Solo c/ AVs": ["Cantor(a)"],
+  "Banda Duo s/ AV": ["Cantor(a)", "Pianista", "Guitarrista"],
+  "Banda Duo c/ AVs": ["Cantor(a)", "Pianista", "Guitarrista"],
+  "Banda Trio s/ AV": ["Cantor(a)", "Pianista", "Saxofonista", "Guitarrista"],
+  "Banda Trio c/ AVs": ["Cantor(a)", "Pianista", "Saxofonista", "Guitarrista"],
+  "Banda quarteto s/ AV": ["Cantor(a)", "Pianista", "Saxofonista", "Baixista"],
+  "Banda quarteto c/ AVs": ["Cantor(a)", "Pianista", "Saxofonista", "Baixista"],
+  "Banda quinteto s/ AV": ["Cantor(a)", "Pianista", "Saxofonista", "Guitarrista", "Baterista"],
+  "Banda quinteto c/ AVs": ["Cantor(a)", "Pianista", "Saxofonista", "Guitarrista", "Baterista"],
+  "Banda quinteto + Cantor": ["Cantor(a)", "Pianista", "Saxofonista", "Guitarrista", "Baterista"],
+  "Banda quinteto + Cantor c/ AVs": ["Cantor(a)", "Pianista", "Saxofonista", "Guitarrista", "Baterista"],
+  "Banda quinteto + 2 Back Vocals": ["Cantor(a)", "Pianista", "Saxofonista", "Guitarrista", "Baterista"],
+  "Banda quinteto + 2 BVs c/ AVs": ["Cantor(a)", "Pianista", "Saxofonista", "Guitarrista", "Baterista"],
+  "Técnico de Som": ["Técnico de Som"],
+  "Técnico de Luz": ["Técnico de Luz"],
+};
+
+export function skillsForServicosContratados(value?: string | null): string[] {
+  return Array.from(new Set(parseServicosContratados(value).flatMap(s => SERVICO_SKILL_LINKS[s] || [])));
+}
