@@ -14,7 +14,38 @@ import {
 } from "../actions";
 import { COLABORADOR_SKILLS } from "../constants";
 
-interface SkillProfile { valor: number; rating: number; }
+interface SkillProfile {
+  valor: number; // legado: espelha custo_interno para compatibilidade
+  custo_interno: number; custo_sud: number; custo_residencia: number;
+  custo_evento_residencia: number; custo_parceria: number; custo_cliente_final: number;
+  rating: number;
+}
+
+type PriceKey = "custo_interno" | "custo_sud" | "custo_residencia" | "custo_evento_residencia" | "custo_parceria" | "custo_cliente_final";
+
+const PRICE_FIELDS: { key: PriceKey; label: string; short: string }[] = [
+  { key: "custo_interno", label: "Custo Interno", short: "Interno" },
+  { key: "custo_sud", label: "Custo SUD", short: "SUD" },
+  { key: "custo_residencia", label: "Custo Residência", short: "Residência" },
+  { key: "custo_evento_residencia", label: "Custo Evento Residência", short: "Evento Resid." },
+  { key: "custo_parceria", label: "Custo Parceria", short: "Parceria" },
+  { key: "custo_cliente_final", label: "Custo Cliente Final", short: "Cliente Final" },
+];
+
+const emptySkillProfileForm = () => ({
+  custo_interno: "", custo_sud: "", custo_residencia: "", custo_evento_residencia: "",
+  custo_parceria: "", custo_cliente_final: "", rating: 0,
+});
+
+const emptySkillProfile: SkillProfile = {
+  valor: 0, custo_interno: 0, custo_sud: 0, custo_residencia: 0, custo_evento_residencia: 0,
+  custo_parceria: 0, custo_cliente_final: 0, rating: 0,
+};
+
+function formatEuro(value: number) {
+  const n = Number(value || 0);
+  return n > 0 ? `${n.toLocaleString("pt-PT", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €` : "—";
+}
 
 interface Colaborador {
   id: number; nome: string; nome_artistico?: string; nome_pessoal?: string;
@@ -49,7 +80,7 @@ const ALL_SKILLS = COLABORADOR_SKILLS;
 const emptyForm = {
   nome: "", nome_pessoal: "", contacto: "", email: "", iban: "", skills: [] as string[], notas: "", ativo: 1,
   restricoes_alimentares: "", tamanho_cima: "", tamanho_baixo: "", calcado: "",
-  skill_profiles: {} as Record<string, { valor: string; rating: number }>,
+  skill_profiles: {} as Record<string, ReturnType<typeof emptySkillProfileForm>>,
 };
 
 function skillsToString(skills: string[]): string {
@@ -110,10 +141,18 @@ export default function ColaboradoresPage() {
       skills: stringToSkills(c.skills), notas: c.notas, ativo: c.ativo,
       restricoes_alimentares: c.restricoes_alimentares || "", tamanho_cima: c.tamanho_cima || "",
       tamanho_baixo: c.tamanho_baixo || "", calcado: c.calcado || "",
-      skill_profiles: Object.fromEntries(stringToSkills(c.skills).map(skill => [skill, {
-        valor: c.skill_profiles?.[skill]?.valor ? String(c.skill_profiles[skill].valor) : "",
-        rating: c.skill_profiles?.[skill]?.rating || 0,
-      }])),
+      skill_profiles: Object.fromEntries(stringToSkills(c.skills).map(skill => {
+        const p = c.skill_profiles?.[skill] || emptySkillProfile;
+        return [skill, {
+          custo_interno: p.custo_interno ? String(p.custo_interno) : "",
+          custo_sud: p.custo_sud ? String(p.custo_sud) : "",
+          custo_residencia: p.custo_residencia ? String(p.custo_residencia) : "",
+          custo_evento_residencia: p.custo_evento_residencia ? String(p.custo_evento_residencia) : "",
+          custo_parceria: p.custo_parceria ? String(p.custo_parceria) : "",
+          custo_cliente_final: p.custo_cliente_final ? String(p.custo_cliente_final) : "",
+          rating: p.rating || 0,
+        }];
+      })),
     });
     setModal({ open: true, editing: c });
   };
@@ -141,8 +180,13 @@ export default function ColaboradoresPage() {
 
   const handleToggleAtivo = async (c: Colaborador) => {
     const novo = c.ativo === 1 ? 0 : 1;
+    const nome = c.nome_artistico || c.nome;
+    if (novo === 0) {
+      const ok = window.confirm(`Desativar ${nome}?\n\nNão apaga o colaborador nem o histórico. Podes reativá-lo em "Mostrar inativos".`);
+      if (!ok) return;
+    }
     await toggleColaboradorAtivo(c.id, novo);
-    showToast(novo === 1 ? "Marcado como Ativo" : "Marcado como Inativo");
+    showToast(novo === 1 ? `${nome} reativado` : `${nome} desativado — não foi apagado`);
     load();
   };
 
@@ -173,7 +217,7 @@ export default function ColaboradoresPage() {
       const exists = f.skills.includes(skill);
       const profiles = { ...f.skill_profiles };
       if (exists) delete profiles[skill];
-      else profiles[skill] = profiles[skill] || { valor: "", rating: 0 };
+      else profiles[skill] = profiles[skill] || emptySkillProfileForm();
       return {
         ...f,
         skills: exists ? f.skills.filter(s => s !== skill) : [...f.skills, skill],
@@ -182,12 +226,12 @@ export default function ColaboradoresPage() {
     });
   };
 
-  const setSkillProfile = (skill: string, patch: Partial<{ valor: string; rating: number }>) => {
+  const setSkillProfile = (skill: string, patch: Partial<ReturnType<typeof emptySkillProfileForm>>) => {
     setForm(f => ({
       ...f,
       skill_profiles: {
         ...f.skill_profiles,
-        [skill]: { ...(f.skill_profiles[skill] || { valor: "", rating: 0 }), ...patch },
+        [skill]: { ...(f.skill_profiles[skill] || emptySkillProfileForm()), ...patch },
       },
     }));
   };
@@ -325,7 +369,7 @@ export default function ColaboradoresPage() {
               onClick={() => setShowInactive(v => !v)}
               style={{ background: showInactive ? "rgba(var(--theme-accent-rgb),0.08)" : "rgba(var(--theme-contrast-rgb),0.02)", border: "none", color: showInactive ? C.gold : C.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", cursor: "pointer", whiteSpace: "nowrap", textTransform: "uppercase" }}
             >
-              {showInactive ? "✓ " : ""}Inativos
+              {showInactive ? "✓ " : ""}Mostrar inativos
             </button>
           </div>
 
@@ -372,7 +416,7 @@ export default function ColaboradoresPage() {
       </div>
 
       {/* Skill filter mobile */}
-      <div style={{ padding: "0.5rem 1rem", borderBottom: "1px solid var(--theme-border)" }}>
+      <div style={{ padding: "0.5rem 1rem", borderBottom: "1px solid var(--theme-border)", display: "grid", gap: "0.45rem" }}>
         <select
           value={filterSkill} onChange={e => setFilterSkill(e.target.value)}
           style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: filterSkill ? "var(--theme-accent)" : "var(--theme-text-muted)", fontFamily: "inherit", fontSize: "11px", padding: "0.5rem 0.75rem", outline: "none" }}
@@ -380,6 +424,9 @@ export default function ColaboradoresPage() {
           <option value="">Todas as funções</option>
           {ALL_SKILLS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
+        <button onClick={() => setShowInactive(v => !v)} style={{ width: "100%", background: showInactive ? "rgba(var(--theme-accent-rgb),0.08)" : "transparent", border: "1px solid var(--theme-input-border)", color: showInactive ? "var(--theme-accent)" : "var(--theme-text-muted)", fontFamily: "inherit", fontSize: "9px", letterSpacing: "0.16em", padding: "0.5rem 0.7rem", cursor: "pointer", textTransform: "uppercase" }}>
+          {showInactive ? "✓ Ocultar inativos" : "Mostrar inativos"}
+        </button>
       </div>
 
       {artistasPorAssociar.length > 0 && (
@@ -514,20 +561,32 @@ function ColabModalContent({ form, setForm, modal, saving, closeModal, handleSav
       {form.skills.length > 0 && (
         <div style={{ marginBottom: "1.1rem", border: `1px solid ${C.border}`, background: "rgba(var(--theme-contrast-rgb),0.015)" }}>
           <div style={{ padding: "0.65rem 0.8rem", borderBottom: `1px solid ${C.borderDim}` }}>
-            <span style={{ ...labelStyle, marginBottom: 0 }}>Valor e classificação por skill</span>
+            <span style={{ ...labelStyle, marginBottom: 0 }}>Valores e classificação por skill</span>
           </div>
           {form.skills.map((skill: string) => {
-            const profile = form.skill_profiles[skill] || { valor: "", rating: 0 };
+            const profile = form.skill_profiles[skill] || emptySkillProfileForm();
             return (
-              <div key={skill} style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "minmax(150px,1fr) 120px 170px", gap: "0.65rem", alignItems: "center", padding: "0.75rem 0.8rem", borderBottom: `1px solid ${C.borderDim}` }}>
-                <div style={{ fontSize: "10px", color: C.textPrimary, fontWeight: 600 }}>{skill}</div>
-                <div>
-                  <label style={{ ...labelStyle, fontSize: "6px", marginBottom: "0.25rem" }}>Fee habitual €</label>
-                  <input type="number" min="0" step="0.01" style={{ ...inputStyle, padding: "0.5rem 0.65rem" }} value={profile.valor} onChange={(e: any) => setSkillProfile(skill, { valor: e.target.value })} placeholder="0" />
+              <div key={skill} style={{ padding: "0.8rem", borderBottom: `1px solid ${C.borderDim}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", marginBottom: "0.75rem" }}>
+                  <div style={{ fontSize: "10px", color: C.textPrimary, fontWeight: 700 }}>{skillDisplayName(skill)}</div>
+                  <div>
+                    <label style={{ ...labelStyle, fontSize: "6px", marginBottom: "0.2rem" }}>Classificação nesta skill</label>
+                    <StarRating value={profile.rating || 0} onChange={(rating: number) => setSkillProfile(skill, { rating })} C={C} />
+                  </div>
                 </div>
-                <div>
-                  <label style={{ ...labelStyle, fontSize: "6px", marginBottom: "0.25rem" }}>Classificação</label>
-                  <StarRating value={profile.rating || 0} onChange={(rating: number) => setSkillProfile(skill, { rating })} C={C} />
+                <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(3,minmax(0,1fr))", gap: "0.55rem" }}>
+                  {PRICE_FIELDS.map(field => (
+                    <div key={field.key}>
+                      <label style={{ ...labelStyle, fontSize: "6px", marginBottom: "0.25rem", letterSpacing: "0.18em" }}>{field.label}</label>
+                      <input
+                        type="number" min="0" step="0.01"
+                        style={{ ...inputStyle, padding: "0.5rem 0.65rem" }}
+                        value={profile[field.key]}
+                        onChange={(e: any) => setSkillProfile(skill, { [field.key]: e.target.value } as any)}
+                        placeholder="0"
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
             );
@@ -640,14 +699,21 @@ function ProfileDrawerContent({ c, onClose, onEdit, C, compact }: { c: Colaborad
         {skills.length === 0 ? <div style={{ color: C.textMuted, fontSize: "10px" }}>Sem funções definidas.</div> : (
           <div style={{ display: "grid", gap: "0.45rem" }}>
             {skills.map(skill => {
-              const profile = c.skill_profiles?.[skill] || { valor: 0, rating: 0 };
+              const profile = c.skill_profiles?.[skill] || emptySkillProfile;
               return (
-                <div key={skill} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: "0.8rem", alignItems: "center", padding: "0.75rem 0.8rem", border: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-contrast-rgb),0.014)" }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: "10px", color: C.textPrimary, fontWeight: 650, overflowWrap: "anywhere" }}>{skillDisplayName(skill)}</div>
-                    <div style={{ marginTop: "0.3rem" }}><StarRating value={profile.rating} C={C} readOnly size={13} /></div>
+                <div key={skill} style={{ padding: "0.8rem", border: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-contrast-rgb),0.014)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "0.8rem", alignItems: "center", marginBottom: "0.7rem" }}>
+                    <div style={{ fontSize: "10px", color: C.textPrimary, fontWeight: 700, overflowWrap: "anywhere" }}>{skillDisplayName(skill)}</div>
+                    <StarRating value={profile.rating} C={C} readOnly size={13} />
                   </div>
-                  <div style={{ color: profile.valor > 0 ? C.gold : C.textMuted, fontSize: "12px", fontWeight: 700, whiteSpace: "nowrap" }}>{profile.valor > 0 ? `${profile.valor.toLocaleString("pt-PT", { maximumFractionDigits: 2 })} €` : "—"}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr 1fr" : "repeat(3,minmax(0,1fr))", gap: "0.45rem" }}>
+                    {PRICE_FIELDS.map(field => (
+                      <div key={field.key} style={{ padding: "0.55rem 0.6rem", border: `1px solid ${C.borderDim}`, minWidth: 0 }}>
+                        <div style={{ fontSize: "6px", letterSpacing: "0.13em", textTransform: "uppercase", color: C.textMuted, marginBottom: "0.25rem" }}>{field.short}</div>
+                        <div style={{ fontSize: "10px", color: Number(profile[field.key] || 0) > 0 ? C.gold : C.textMuted, fontWeight: 700 }}>{formatEuro(Number(profile[field.key] || 0))}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               );
             })}
@@ -701,61 +767,111 @@ function SkillDrawers({ colaboradores, filterSkill, onEdit, onOpenProfile, onTog
     return <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem colaboradores encontrados</div>;
   }
 
+  const metaBox = (label: string, value?: string) => (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ fontSize: "6px", letterSpacing: "0.14em", textTransform: "uppercase", color: C.textMuted, marginBottom: "3px" }}>{label}</div>
+      <div style={{ fontSize: compact ? "9px" : "10px", color: value ? C.textSec : C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={value || ""}>{value || "—"}</div>
+    </div>
+  );
+
+  const actionStyle = (kind: "normal" | "danger" | "success" = "normal"): React.CSSProperties => ({
+    background: kind === "success" ? "rgba(93,202,165,0.08)" : "transparent",
+    border: `1px solid ${kind === "danger" ? "rgba(220,90,90,0.24)" : kind === "success" ? "rgba(93,202,165,0.24)" : C.border}`,
+    color: kind === "danger" ? C.red : kind === "success" ? C.green : C.textSec,
+    fontSize: "7px", letterSpacing: "0.14em", padding: compact ? "0.45rem 0.55rem" : "0.45rem 0.7rem",
+    cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", whiteSpace: "nowrap",
+  });
+
   return (
-    <div style={{ display: "grid", gap: compact ? "0.55rem" : "0.7rem", padding: compact ? 0 : "0.8rem" }}>
-      {groups.map(group => (
-        <details key={group.skill} open={Boolean(filterSkill)} style={{ border: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-contrast-rgb),0.012)" }}>
-          <summary style={{ listStyle: "none", cursor: "pointer", padding: compact ? "0.85rem 0.9rem" : "0.95rem 1.1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", userSelect: "none" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.7rem", minWidth: 0 }}>
-              <span style={{ color: C.gold, fontSize: compact ? "11px" : "12px", fontWeight: 700 }}>{skillDisplayName(group.skill)}</span>
-              <span style={{ fontSize: "8px", color: C.textMuted, letterSpacing: "0.15em" }}>{group.people.length}</span>
-            </div>
-            <span style={{ color: C.textMuted, fontSize: "12px" }}>⌄</span>
-          </summary>
-          <div style={{ borderTop: `1px solid ${C.borderDim}` }}>
-            {group.people.map(c => {
-              const profile = c.skill_profiles?.[group.skill] || { valor: 0, rating: 0 };
-              return (
-                <div key={`${group.skill}-${c.id}`} style={{ padding: compact ? "0.85rem 0.9rem" : "0.9rem 1.1rem", borderBottom: `1px solid ${C.borderDim}`, opacity: c.ativo === 0 ? 0.48 : 1, minWidth: 0 }}>
-                  <div style={{ display: "grid", gridTemplateColumns: compact ? "minmax(0,1fr) auto" : "minmax(0,1.35fr) 110px 150px auto", gap: compact ? "0.6rem" : "1rem", alignItems: "center", minWidth: 0 }}>
-                    <div style={{ minWidth: 0 }}>
-                      <button type="button" onClick={() => onOpenProfile(c)} style={{ display: "block", maxWidth: "100%", background: "transparent", border: 0, padding: 0, margin: 0, color: C.textPrimary, fontFamily: "inherit", fontSize: compact ? "12px" : "11px", fontWeight: 700, cursor: "pointer", textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title="Abrir perfil">
-                        {c.nome_artistico || c.nome}
-                      </button>
-                      <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {c.contacto || c.email || c.nome_pessoal || "Abrir perfil para ver dados"}
+    <div style={{ display: "grid", gap: compact ? "0.55rem" : "0.7rem", padding: compact ? 0 : "0.8rem", minWidth: 0 }}>
+      {groups.map(group => {
+        const hasPricing = group.skill !== "Sem função definida";
+        const activePeople = group.people.filter(c => c.ativo === 1);
+        const reference = Object.fromEntries(PRICE_FIELDS.map(field => [
+          field.key,
+          hasPricing ? Math.max(0, ...activePeople.map(c => Number((c.skill_profiles?.[group.skill] || emptySkillProfile)[field.key] || 0))) : 0,
+        ])) as Record<PriceKey, number>;
+
+        return (
+          <details key={group.skill} open={Boolean(filterSkill)} style={{ border: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-contrast-rgb),0.012)", minWidth: 0 }}>
+            <summary style={{ listStyle: "none", cursor: "pointer", padding: compact ? "0.85rem 0.9rem" : "0.95rem 1.1rem", display: "grid", gridTemplateColumns: compact ? "1fr auto" : "minmax(150px,220px) minmax(0,1fr) auto", gap: compact ? "0.7rem" : "1rem", alignItems: "center", userSelect: "none", minWidth: 0 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.7rem", minWidth: 0 }}>
+                  <span style={{ color: C.gold, fontSize: compact ? "11px" : "12px", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{skillDisplayName(group.skill)}</span>
+                  <span style={{ fontSize: "8px", color: C.textMuted, letterSpacing: "0.15em" }}>{group.people.length}</span>
+                </div>
+                {hasPricing && <div style={{ marginTop: "3px", fontSize: "6px", letterSpacing: "0.11em", color: C.textMuted, textTransform: "uppercase" }}>Referência = valor mais alto entre ativos</div>}
+              </div>
+              {hasPricing && !compact && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(6,minmax(64px,1fr))", gap: "0.35rem", minWidth: 0 }}>
+                  {PRICE_FIELDS.map(field => (
+                    <div key={field.key} style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: "5.5px", letterSpacing: "0.08em", textTransform: "uppercase", color: C.textMuted, marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{field.short}</div>
+                      <div style={{ fontSize: "9px", color: reference[field.key] > 0 ? C.gold : C.textMuted, fontWeight: 700, whiteSpace: "nowrap" }}>{formatEuro(reference[field.key])}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <span style={{ color: C.textMuted, fontSize: "7px", letterSpacing: "0.12em", textTransform: "uppercase", whiteSpace: "nowrap" }}>{compact ? "Abrir ▾" : "Abrir ▾"}</span>
+              {hasPricing && compact && (
+                <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.35rem", paddingTop: "0.35rem" }}>
+                  {PRICE_FIELDS.map(field => (
+                    <div key={field.key} style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", fontSize: "8px" }}>
+                      <span style={{ color: C.textMuted }}>{field.short}</span>
+                      <strong style={{ color: reference[field.key] > 0 ? C.gold : C.textMuted }}>{formatEuro(reference[field.key])}</strong>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </summary>
+
+            <div style={{ borderTop: `1px solid ${C.borderDim}` }}>
+              {group.people.map(c => {
+                const profile = hasPricing ? (c.skill_profiles?.[group.skill] || emptySkillProfile) : emptySkillProfile;
+                return (
+                  <div key={`${group.skill}-${c.id}`} style={{ padding: compact ? "0.9rem" : "1rem 1.1rem", borderBottom: `1px solid ${C.borderDim}`, opacity: c.ativo === 0 ? 0.55 : 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap", minWidth: 0 }}>
+                      <div style={{ minWidth: 0, flex: "1 1 240px" }}>
+                        <button type="button" onClick={() => onOpenProfile(c)} style={{ display: "block", maxWidth: "100%", background: "transparent", border: 0, padding: 0, margin: 0, color: C.textPrimary, fontFamily: "inherit", fontSize: compact ? "12px" : "11px", fontWeight: 700, cursor: "pointer", textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title="Abrir perfil">
+                          {c.nome_artistico || c.nome}
+                        </button>
+                        <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {[c.contacto, c.email].filter(Boolean).join(" · ") || "Sem contacto registado"}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.55rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                        {hasPricing && <StarRating value={profile.rating} C={C} readOnly size={compact ? 12 : 14} />}
+                        <button onClick={() => onOpenProfile(c)} style={actionStyle()}>Ver perfil</button>
+                        <button onClick={() => onEdit(c)} style={actionStyle()}>Editar</button>
+                        <button onClick={() => onToggleAtivo(c)} style={actionStyle(c.ativo === 1 ? "danger" : "success")}>{c.ativo === 1 ? "Desativar" : "Reativar"}</button>
                       </div>
                     </div>
-                    {!compact && (
-                      <div>
-                        <div style={{ fontSize: "7px", color: C.textMuted, letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: "4px" }}>Fee habitual</div>
-                        <div style={{ fontSize: "12px", color: profile.valor > 0 ? C.gold : C.textMuted, fontWeight: 700 }}>{profile.valor > 0 ? `${profile.valor.toLocaleString("pt-PT", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €` : "—"}</div>
+
+                    {hasPricing && (
+                      <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr 1fr" : "repeat(6,minmax(64px,1fr))", gap: "0.4rem", marginTop: "0.8rem", minWidth: 0 }}>
+                        {PRICE_FIELDS.map(field => (
+                          <div key={field.key} style={{ padding: compact ? "0.5rem" : "0.55rem 0.6rem", border: `1px solid ${C.borderDim}`, minWidth: 0 }}>
+                            <div style={{ fontSize: "5.5px", letterSpacing: "0.1em", textTransform: "uppercase", color: C.textMuted, marginBottom: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{field.short}</div>
+                            <div style={{ fontSize: compact ? "9px" : "10px", color: Number(profile[field.key] || 0) > 0 ? C.gold : C.textMuted, fontWeight: 700, whiteSpace: "nowrap" }}>{formatEuro(Number(profile[field.key] || 0))}</div>
+                          </div>
+                        ))}
                       </div>
                     )}
-                    {!compact && (
-                      <div>
-                        <div style={{ fontSize: "7px", color: C.textMuted, letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: "4px" }}>Classificação</div>
-                        <StarRating value={profile.rating} C={C} readOnly size={15} />
-                      </div>
-                    )}
-                    <div style={{ display: "flex", alignItems: "center", gap: "5px", justifyContent: "flex-end" }}>
-                      {compact && (
-                        <div style={{ marginRight: "5px", textAlign: "right" }}>
-                          <div style={{ color: profile.valor > 0 ? C.gold : C.textMuted, fontSize: "10px", fontWeight: 700 }}>{profile.valor > 0 ? `${profile.valor.toLocaleString("pt-PT")} €` : "—"}</div>
-                          <StarRating value={profile.rating} C={C} readOnly size={12} />
-                        </div>
-                      )}
-                      <button onClick={() => onOpenProfile(c)} title="Ver perfil completo" style={iconBtnStyle}>〉</button>
-                      <button onClick={() => onEdit(c)} title="Editar colaborador" style={iconBtnStyle}>✏</button>
-                      <button onClick={() => onToggleAtivo(c)} title={c.ativo === 1 ? "Marcar Inativo" : "Marcar Ativo"} style={{ ...iconBtnStyle, color: c.ativo === 1 ? C.textMuted : C.green }}>{c.ativo === 1 ? "⏸" : "▶"}</button>
+
+                    <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr 1fr" : "minmax(190px,2fr) repeat(3,minmax(90px,1fr))", gap: "0.65rem", marginTop: "0.7rem", paddingTop: "0.65rem", borderTop: `1px solid ${C.borderDim}`, minWidth: 0 }}>
+                      {metaBox("IBAN", c.iban)}
+                      {metaBox("Parte de cima", c.tamanho_cima)}
+                      {metaBox("Parte de baixo", c.tamanho_baixo)}
+                      {metaBox("Calçado", c.calcado)}
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </details>
-      ))}
+                );
+              })}
+            </div>
+          </details>
+        );
+      })}
     </div>
   );
 }

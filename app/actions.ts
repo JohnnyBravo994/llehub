@@ -147,11 +147,27 @@ async function ensureColaboradoresExtendedColumns() {
       colaborador_id INTEGER NOT NULL,
       skill TEXT NOT NULL,
       valor REAL NOT NULL DEFAULT 0,
+      custo_interno REAL NOT NULL DEFAULT 0,
+      custo_sud REAL NOT NULL DEFAULT 0,
+      custo_residencia REAL NOT NULL DEFAULT 0,
+      custo_evento_residencia REAL NOT NULL DEFAULT 0,
+      custo_parceria REAL NOT NULL DEFAULT 0,
+      custo_cliente_final REAL NOT NULL DEFAULT 0,
       rating INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT DEFAULT (datetime('now')),
       UNIQUE(colaborador_id, skill)
     )
   `);
+  try { await turso.execute("ALTER TABLE colaborador_skill_profiles ADD COLUMN custo_interno REAL NOT NULL DEFAULT 0"); } catch { }
+  try { await turso.execute("ALTER TABLE colaborador_skill_profiles ADD COLUMN custo_sud REAL NOT NULL DEFAULT 0"); } catch { }
+  try { await turso.execute("ALTER TABLE colaborador_skill_profiles ADD COLUMN custo_residencia REAL NOT NULL DEFAULT 0"); } catch { }
+  try { await turso.execute("ALTER TABLE colaborador_skill_profiles ADD COLUMN custo_evento_residencia REAL NOT NULL DEFAULT 0"); } catch { }
+  try { await turso.execute("ALTER TABLE colaborador_skill_profiles ADD COLUMN custo_parceria REAL NOT NULL DEFAULT 0"); } catch { }
+  try { await turso.execute("ALTER TABLE colaborador_skill_profiles ADD COLUMN custo_cliente_final REAL NOT NULL DEFAULT 0"); } catch { }
+  // Migração sem perda: o antigo "Fee habitual" passa a custo interno quando ainda não existe valor novo.
+  try {
+    await turso.execute("UPDATE colaborador_skill_profiles SET custo_interno=valor WHERE COALESCE(custo_interno,0)=0 AND COALESCE(valor,0)>0");
+  } catch { }
 }
 
 async function ensureArtistasAssociacaoIgnoradosTable() {
@@ -1846,14 +1862,26 @@ export async function getAllColaboradores() {
     await ensureColaboradoresExtendedColumns();
     const [res, profiles] = await Promise.all([
       turso.execute("SELECT * FROM colaboradores ORDER BY COALESCE(NULLIF(nome_artistico, ''), nome) ASC"),
-      turso.execute("SELECT colaborador_id, skill, valor, rating FROM colaborador_skill_profiles ORDER BY skill ASC"),
+      turso.execute(`SELECT colaborador_id, skill, valor, custo_interno, custo_sud, custo_residencia,
+                            custo_evento_residencia, custo_parceria, custo_cliente_final, rating
+                     FROM colaborador_skill_profiles ORDER BY skill ASC`),
     ]);
-    const profileMap: Record<number, Record<string, { valor: number; rating: number }>> = {};
+    const profileMap: Record<number, Record<string, {
+      valor: number; custo_interno: number; custo_sud: number; custo_residencia: number;
+      custo_evento_residencia: number; custo_parceria: number; custo_cliente_final: number; rating: number;
+    }>> = {};
     for (const r of profiles.rows as any[]) {
       const id = Number(r.colaborador_id);
       if (!profileMap[id]) profileMap[id] = {};
+      const legacyValor = Number(r.valor || 0);
       profileMap[id][String(r.skill || '')] = {
-        valor: Number(r.valor || 0),
+        valor: legacyValor,
+        custo_interno: Number(r.custo_interno || legacyValor || 0),
+        custo_sud: Number(r.custo_sud || 0),
+        custo_residencia: Number(r.custo_residencia || 0),
+        custo_evento_residencia: Number(r.custo_evento_residencia || 0),
+        custo_parceria: Number(r.custo_parceria || 0),
+        custo_cliente_final: Number(r.custo_cliente_final || 0),
         rating: Math.max(0, Math.min(5, Number(r.rating || 0))),
       };
     }
@@ -1883,7 +1911,11 @@ export async function getAllColaboradores() {
   }
 }
 
-type ColaboradorSkillProfileInput = Record<string, { valor?: number | string; rating?: number | string }>;
+type ColaboradorSkillProfileInput = Record<string, {
+  valor?: number | string; custo_interno?: number | string; custo_sud?: number | string;
+  custo_residencia?: number | string; custo_evento_residencia?: number | string;
+  custo_parceria?: number | string; custo_cliente_final?: number | string; rating?: number | string;
+}>;
 
 async function saveColaboradorSkillProfiles(colaboradorId: number, skills: string, profiles?: ColaboradorSkillProfileInput) {
   await ensureColaboradoresExtendedColumns();
@@ -1899,13 +1931,23 @@ async function saveColaboradorSkillProfiles(colaboradorId: number, skills: strin
   });
   for (const skill of selected) {
     const p = profiles?.[skill] || {};
-    const valor = Math.max(0, Number(p.valor || 0) || 0);
+    const custoInterno = Math.max(0, Number(p.custo_interno ?? p.valor ?? 0) || 0);
+    const custoSud = Math.max(0, Number(p.custo_sud || 0) || 0);
+    const custoResidencia = Math.max(0, Number(p.custo_residencia || 0) || 0);
+    const custoEventoResidencia = Math.max(0, Number(p.custo_evento_residencia || 0) || 0);
+    const custoParceria = Math.max(0, Number(p.custo_parceria || 0) || 0);
+    const custoClienteFinal = Math.max(0, Number(p.custo_cliente_final || 0) || 0);
     const rating = Math.max(0, Math.min(5, Math.round(Number(p.rating || 0) || 0)));
     await turso.execute({
-      sql: `INSERT INTO colaborador_skill_profiles (colaborador_id, skill, valor, rating, updated_at)
-            VALUES (?, ?, ?, ?, datetime('now'))
-            ON CONFLICT(colaborador_id, skill) DO UPDATE SET valor=excluded.valor, rating=excluded.rating, updated_at=datetime('now')`,
-      args: [colaboradorId, skill, valor, rating],
+      sql: `INSERT INTO colaborador_skill_profiles
+            (colaborador_id, skill, valor, custo_interno, custo_sud, custo_residencia, custo_evento_residencia, custo_parceria, custo_cliente_final, rating, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(colaborador_id, skill) DO UPDATE SET
+              valor=excluded.valor, custo_interno=excluded.custo_interno, custo_sud=excluded.custo_sud,
+              custo_residencia=excluded.custo_residencia, custo_evento_residencia=excluded.custo_evento_residencia,
+              custo_parceria=excluded.custo_parceria, custo_cliente_final=excluded.custo_cliente_final,
+              rating=excluded.rating, updated_at=datetime('now')`,
+      args: [colaboradorId, skill, custoInterno, custoInterno, custoSud, custoResidencia, custoEventoResidencia, custoParceria, custoClienteFinal, rating],
     });
   }
 }
