@@ -18,7 +18,7 @@ interface Lead {
 interface AgendaEvent {
   id: number; title: string; event_date: string; hours?: string;
   location?: string; staff?: string; bill?: number; artists?: string;
-  status?: string;
+  status?: string; billing_status?: string;
   artistas?: { nome: string; tipo: string }[];
 }
 
@@ -129,7 +129,7 @@ export default function Dashboard() {
   // Usa data local (não UTC) para evitar desfasamento depois da meia-noite
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  const activeAgenda = agendaAll.filter(a => !isCancelledStatus(a.status));
+  const activeAgenda = agendaAll.filter(a => !isCancelledStatus(a.status) && !isCancelledStatus(a.billing_status));
   const todayEvs = activeAgenda.filter(a => a.event_date === todayStr);
 
   // Leads activas — 3 regras por ordem:

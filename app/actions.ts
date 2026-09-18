@@ -945,6 +945,12 @@ function uuidv4(): string {
   });
 }
 
+const CANCELLED_STATUS_VALUES = new Set(['cancelado', 'cancelada', 'cancelled', 'canceled']);
+
+function isCancelledValue(value: unknown): boolean {
+  return CANCELLED_STATUS_VALUES.has(String(value ?? '').trim().toLocaleLowerCase('pt-PT'));
+}
+
 // ── SYNC CENTRAL por event_id ─────────────────────────────────────────────────
 // Propaga campos partilhados para todos os registos com o mesmo event_id.
 // Não sobrescreve event_id nem id; só os campos de conteúdo.
@@ -963,7 +969,17 @@ async function propagateByEventId(event_id: string, fields: {
   if (f.title !== undefined)         { agendaUpdates.push('event_name=?');    agendaArgs.push(f.title); }
   if (f.event_date !== undefined)    { agendaUpdates.push('event_date=?');    agendaArgs.push(f.event_date); }
   if (f.value !== undefined)         { agendaUpdates.push('client_cachet=?'); agendaArgs.push(f.value); }
-  if (f.status !== undefined)        { agendaUpdates.push('billing_status=?');agendaArgs.push(f.status); }
+  if (f.status !== undefined) {
+    agendaUpdates.push('billing_status=?');
+    agendaArgs.push(f.status);
+    // Cancelamento comercial também é cancelamento real do evento.
+    // Estados não-cancelados NÃO restauram automaticamente um evento cancelado;
+    // o restauro continua explícito via restoreAgendaEvent().
+    if (isCancelledValue(f.status)) {
+      agendaUpdates.push('status=?');
+      agendaArgs.push('Cancelado');
+    }
+  }
   if (f.cliente_id !== undefined)    { agendaUpdates.push('cliente_id=?');    agendaArgs.push(f.cliente_id ?? null); }
   if (f.cliente_nome !== undefined)  { agendaUpdates.push('cliente_nome=?');  agendaArgs.push(f.cliente_nome); }
   if (f.modalidade !== undefined)    { agendaUpdates.push('modalidade=?');    agendaArgs.push(f.modalidade); }
@@ -1230,10 +1246,10 @@ export async function getDashboardData(userName: string = 'Admin', clientTodaySt
       args: [leadsFromDate]
     });
 
-    let agendaSql = "SELECT * FROM agenda WHERE COALESCE(LOWER(TRIM(status)), '') NOT IN ('cancelado', 'cancelada', 'cancelled', 'canceled') AND event_date >= ? ORDER BY event_date ASC LIMIT 200";
+    let agendaSql = "SELECT * FROM agenda WHERE COALESCE(LOWER(TRIM(status)), '') NOT IN ('cancelado', 'cancelada', 'cancelled', 'canceled') AND COALESCE(LOWER(TRIM(billing_status)), '') NOT IN ('cancelado', 'cancelada', 'cancelled', 'canceled') AND event_date >= ? ORDER BY event_date ASC LIMIT 200";
     // Tania e Soraya vêem o calendário completo (igual ao João/Admin)
     // Larissa mantém restrição anterior (só Public)
-    if (userName === 'Larissa') agendaSql = "SELECT * FROM agenda WHERE COALESCE(LOWER(TRIM(status)), '') NOT IN ('cancelado', 'cancelada', 'cancelled', 'canceled') AND event_date >= ? AND visibility = 'Public' ORDER BY event_date ASC LIMIT 200";
+    if (userName === 'Larissa') agendaSql = "SELECT * FROM agenda WHERE COALESCE(LOWER(TRIM(status)), '') NOT IN ('cancelado', 'cancelada', 'cancelled', 'canceled') AND COALESCE(LOWER(TRIM(billing_status)), '') NOT IN ('cancelado', 'cancelada', 'cancelled', 'canceled') AND event_date >= ? AND visibility = 'Public' ORDER BY event_date ASC LIMIT 200";
 
     const agendaAllRes = await turso.execute({ sql: agendaSql, args: [todayStr] });
 
@@ -1352,7 +1368,7 @@ export async function getAgendaPaginated(userName: string = 'Admin', page: numbe
       time_range: r.location || '',
       tipo: r.staff_needed || '',
       bill: r.client_cachet || 0,
-      cancelled: r.status === 'Cancelado' ? 1 : 0,
+      cancelled: (isCancelledValue(r.status) || isCancelledValue(r.billing_status)) ? 1 : 0,
       billing_status: r.billing_status || '',
       cliente_id: r.cliente_id || null,
       cliente_nome: r.cliente_nome || '',
@@ -1418,7 +1434,7 @@ export async function getAllAgenda(userName: string = 'Admin', limit: number = 5
         return {
           ...r, id: r.id, title: finalTitle, time_range: r.location || '', venue: r.venue || '',
           tipo: r.staff_needed || '', bill: r.client_cachet || 0,
-          cancelled: r.status === 'Cancelado' ? 1 : 0,
+          cancelled: (isCancelledValue(r.status) || isCancelledValue(r.billing_status)) ? 1 : 0,
           billing_status: r.billing_status || '', cliente_id: r.cliente_id || null,
           cliente_nome: r.cliente_nome || '', modalidade: r.modalidade || 'Fatura',
           tipo_comercial: r.tipo_comercial || 'Evento',
@@ -1456,9 +1472,11 @@ export async function createAgendaEvent(data: {
       if (existingEid) eventId = existingEid;
     }
 
+    const billingStatus = data.billing_status || 'Contacto';
+    const structuralStatus = isCancelledValue(billingStatus) ? 'Cancelado' : 'Confirmado';
     await turso.execute({
-      sql: "INSERT INTO agenda (event_name, event_date, location, staff_needed, client_cachet, status, visibility, billing_status, cliente_id, cliente_nome, modalidade, tipo_comercial, servico_comercial, valor_contexto, autobudget_snapshot, valor_recebido, origem_lead_id, venue, contacto, notas, event_id, residencia_id) VALUES (?, ?, ?, ?, ?, 'Confirmado', 'Public', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', Number(data.valor_recebido || 0), data.origem_lead_id ?? null, data.venue || '', data.contacto || '', data.notas || '', eventId, data.residencia_id ?? null],
+      sql: "INSERT INTO agenda (event_name, event_date, location, staff_needed, client_cachet, status, visibility, billing_status, cliente_id, cliente_nome, modalidade, tipo_comercial, servico_comercial, valor_contexto, autobudget_snapshot, valor_recebido, origem_lead_id, venue, contacto, notas, event_id, residencia_id) VALUES (?, ?, ?, ?, ?, ?, 'Public', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [data.title, data.date, data.time, data.tipo, data.bill, structuralStatus, billingStatus, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', Number(data.valor_recebido || 0), data.origem_lead_id ?? null, data.venue || '', data.contacto || '', data.notas || '', eventId, data.residencia_id ?? null],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
     const newId = Number(last.rows[0].id);
@@ -1492,9 +1510,11 @@ export async function updateAgendaEvent(
 ) {
   try {
     await ensureCommercialColumns();
+    const billingStatus = data.billing_status || 'Contacto';
+    const shouldCancel = isCancelledValue(billingStatus);
     await turso.execute({
-      sql: "UPDATE agenda SET event_name=?, event_date=?, location=?, staff_needed=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, autobudget_snapshot=?, valor_recebido=?, venue=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
-      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', Number(data.valor_recebido || 0), data.venue || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, id],
+      sql: "UPDATE agenda SET event_name=?, event_date=?, location=?, staff_needed=?, client_cachet=?, status=CASE WHEN ?=1 THEN 'Cancelado' ELSE status END, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, autobudget_snapshot=?, valor_recebido=?, venue=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
+      args: [data.title, data.date, data.time, data.tipo, data.bill, shouldCancel ? 1 : 0, billingStatus, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', Number(data.valor_recebido || 0), data.venue || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, id],
     });
 
     // Obter event_id e origem_lead_id actuais
@@ -1534,7 +1554,7 @@ export async function updateAgendaEvent(
     // Propagar todos os campos para todos os registos com o mesmo event_id
     await propagateByEventId(eventId, {
       title: data.title, event_date: data.date, value: data.bill,
-      status: data.billing_status || 'Contacto',
+      status: billingStatus,
       cliente_id: data.cliente_id ?? null, cliente_nome: data.cliente_nome || '',
       modalidade: data.modalidade || 'Fatura',
       tipo_comercial: data.tipo_comercial || 'Evento',
@@ -1555,7 +1575,7 @@ export async function updateAgendaEvent(
         await turso.execute({ sql: "UPDATE leads SET event_id=? WHERE id=?", args: [eventId, leadId] });
         await turso.execute({
           sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, autobudget_snapshot=?, local=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
-          args: [data.title, data.date, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', data.venue || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, leadId],
+          args: [data.title, data.date, data.bill, billingStatus, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', data.venue || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, leadId],
         });
       }
     }
@@ -2145,7 +2165,10 @@ export async function updateItemBillingStatus(origem: 'agenda' | 'lead', id: num
       const current = await turso.execute({ sql: "SELECT event_id, client_cachet, COALESCE(valor_recebido,0) AS valor_recebido FROM agenda WHERE id=?", args: [id] });
       const row = current.rows[0] as any;
       const valorRecebido = billing_status === 'Pago' ? Number(row?.client_cachet || 0) : Number(row?.valor_recebido || 0);
-      await turso.execute({ sql: "UPDATE agenda SET billing_status=?, valor_recebido=? WHERE id=?", args: [billing_status, valorRecebido, id] });
+      await turso.execute({
+        sql: "UPDATE agenda SET billing_status=?, status=CASE WHEN ?=1 THEN 'Cancelado' ELSE status END, valor_recebido=? WHERE id=?",
+        args: [billing_status, isCancelledValue(billing_status) ? 1 : 0, valorRecebido, id],
+      });
       const eid = row?.event_id;
       if (eid) await propagateByEventId(eid, { status: billing_status, valor_recebido: valorRecebido });
     } else {
@@ -4241,7 +4264,7 @@ export async function setupMateriais() {
 export async function getEventosParaMateriais() {
   try {
     const res = await turso.execute(
-      "SELECT id, event_name, event_date, status FROM agenda WHERE status != 'Cancelado' ORDER BY event_date ASC"
+      "SELECT id, event_name, event_date, status FROM agenda WHERE status != 'Cancelado' AND COALESCE(LOWER(TRIM(billing_status)), '') NOT IN ('cancelado','cancelada','cancelled','canceled') ORDER BY event_date ASC"
     );
     return {
       success: true,
@@ -4665,7 +4688,7 @@ function normalizeAgendaRow(r: any) {
     venue: (r.venue as string) || '',
     tipo: (r.staff_needed as string) || '',
     bill: Number(r.client_cachet) || 0,
-    cancelled: r.status === 'Cancelado' ? 1 : 0,
+    cancelled: (isCancelledValue(r.status) || isCancelledValue(r.billing_status)) ? 1 : 0,
     billing_status: (r.billing_status as string) || '',
     cliente_id: r.cliente_id || null,
     cliente_nome: (r.cliente_nome as string) || '',
@@ -5119,6 +5142,7 @@ async function queryMateriaisInitialBundleFast() {
       LEFT JOIN materiais m ON LOWER(TRIM(m.nome)) = LOWER(TRIM(i.material_nome)) AND m.ativo = 1
       WHERE COALESCE(r.encerrada_sem_fluxo,0)=0
         AND (a.status IS NULL OR a.status != 'Cancelado')
+        AND (a.billing_status IS NULL OR LOWER(TRIM(a.billing_status)) NOT IN ('cancelado','cancelada','cancelled','canceled'))
         AND (a.event_date IS NULL OR date(a.event_date) >= date('now', '-1 day'))
       GROUP BY r.evento_id, evento_nome, evento_data, i.material_nome
       ORDER BY CASE WHEN evento_data = '' THEN 1 ELSE 0 END, evento_data ASC, evento_nome ASC, i.material_nome ASC
@@ -5133,6 +5157,7 @@ async function queryMateriaisInitialBundleFast() {
       LEFT JOIN agenda a ON a.id=mr.evento_id
       LEFT JOIN materiais m ON m.id=mr.material_id
       WHERE mr.ativo=1 AND COALESCE(mr.encerrada_sem_fluxo,0)=0 AND (a.status IS NULL OR a.status!='Cancelado')
+        AND (a.billing_status IS NULL OR LOWER(TRIM(a.billing_status)) NOT IN ('cancelado','cancelada','cancelled','canceled'))
         AND (a.event_date IS NULL OR date(a.event_date) >= date('now','-1 day'))
       ORDER BY a.event_date ASC, mr.id ASC
     `),
@@ -5148,6 +5173,7 @@ async function queryMateriaisInitialBundleFast() {
       WHERE COALESCE(mm.saida_confirmada,1)=0
         AND mm.quantidade > COALESCE(mm.quantidade_devolvida,0)+COALESCE(mm.quantidade_consumida,0)
         AND (a.status IS NULL OR a.status!='Cancelado')
+        AND (a.billing_status IS NULL OR LOWER(TRIM(a.billing_status)) NOT IN ('cancelado','cancelada','cancelled','canceled'))
       ORDER BY a.event_date ASC, mm.id ASC
     `),
   ]);
@@ -5338,6 +5364,7 @@ export async function getMateriaisSaidaLookups() {
         SELECT id, event_name, event_date
         FROM agenda
         WHERE status != 'Cancelado'
+          AND COALESCE(LOWER(TRIM(billing_status)), '') NOT IN ('cancelado','cancelada','cancelled','canceled')
           AND (event_date IS NULL OR date(event_date) >= date('now', '-30 day'))
         ORDER BY CASE WHEN event_date IS NULL OR event_date='' THEN 1 ELSE 0 END, event_date ASC
         LIMIT 250
