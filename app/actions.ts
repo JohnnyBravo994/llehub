@@ -2705,9 +2705,15 @@ async function ensureMaterialPacksTables() {
       valor_cobrado REAL NOT NULL DEFAULT 0,
       desconto_oferta REAL NOT NULL DEFAULT 0,
       reservado_por TEXT DEFAULT '',
+      encerrada_sem_fluxo INTEGER DEFAULT 0,
+      encerrada_por TEXT DEFAULT '',
+      encerrada_em TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now'))
     )
   `);
+  for (const col of ["encerrada_sem_fluxo INTEGER DEFAULT 0", "encerrada_por TEXT DEFAULT ''", "encerrada_em TEXT DEFAULT ''"]) {
+    try { await turso.execute(`ALTER TABLE material_pack_reservas ADD COLUMN ${col}`); } catch { }
+  }
   try { await turso.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_material_pack_reserva_evento_pack ON material_pack_reservas(evento_id, pack_id)"); } catch { }
   const packValueCols = [
     "duracao_formato TEXT DEFAULT ''",
@@ -2995,7 +3001,7 @@ export async function getMaterialPackReservasEvento(eventoId: number) {
     await setupMateriais();
     await seedMaterialPacks();
     const res = await turso.execute({
-      sql: "SELECT * FROM material_pack_reservas WHERE evento_id=? ORDER BY created_at ASC",
+      sql: "SELECT * FROM material_pack_reservas WHERE evento_id=? AND COALESCE(encerrada_sem_fluxo,0)=0 ORDER BY created_at ASC",
       args: [eventoId],
     });
     return { success: true, data: res.rows.map((r: any) => ({
@@ -3135,6 +3141,51 @@ export async function deleteReservaMaterialEvento(id: number, source: 'manual' |
   }
 }
 
+export async function retirarReservaOperacionalEvento(eventoId: number, retiradoPor = '') {
+  try {
+    await setupMateriais();
+    const id = Number(eventoId) || 0;
+    if (!id) return { success: false, message: 'Evento inválido.' };
+    const actor = String(retiradoPor || '').trim();
+
+    const [manualCountRes, legacyCountRes, packCountRes] = await Promise.all([
+      turso.execute({ sql: "SELECT COUNT(*) AS total FROM material_reservas WHERE evento_id=? AND ativo=1 AND COALESCE(encerrada_sem_fluxo,0)=0", args: [id] }),
+      turso.execute({ sql: "SELECT COUNT(*) AS total FROM material_movimentos WHERE evento_id=? AND COALESCE(saida_confirmada,1)=0", args: [id] }),
+      turso.execute({ sql: "SELECT COUNT(*) AS total FROM material_pack_reservas WHERE evento_id=? AND COALESCE(encerrada_sem_fluxo,0)=0", args: [id] }),
+    ]);
+
+    await Promise.all([
+      turso.execute({
+        sql: `UPDATE material_reservas
+              SET encerrada_sem_fluxo=1, encerrada_por=?, encerrada_em=datetime('now')
+              WHERE evento_id=? AND ativo=1 AND COALESCE(encerrada_sem_fluxo,0)=0`,
+        args: [actor, id],
+      }),
+      turso.execute({
+        sql: `UPDATE material_movimentos
+              SET saida_confirmada=2,
+                  notas=TRIM(COALESCE(notas,'') || CASE WHEN COALESCE(notas,'')='' THEN '' ELSE ' · ' END || 'Reserva retirada sem fluxo' || CASE WHEN ?='' THEN '' ELSE ' por ' || ? END)
+              WHERE evento_id=? AND COALESCE(saida_confirmada,1)=0`,
+        args: [actor, actor, id],
+      }),
+      turso.execute({
+        sql: `UPDATE material_pack_reservas
+              SET encerrada_sem_fluxo=1, encerrada_por=?, encerrada_em=datetime('now')
+              WHERE evento_id=? AND COALESCE(encerrada_sem_fluxo,0)=0`,
+        args: [actor, id],
+      }),
+    ]);
+
+    const manual = Number((manualCountRes.rows[0] as any)?.total || 0);
+    const legacy = Number((legacyCountRes.rows[0] as any)?.total || 0);
+    const packs = Number((packCountRes.rows[0] as any)?.total || 0);
+    return { success: true, removed: manual + legacy + packs, manual, legacy, packs };
+  } catch (error) {
+    console.error('Erro retirarReservaOperacionalEvento:', error);
+    return { success: false, message: 'Não foi possível retirar a reserva.' };
+  }
+}
+
 export async function confirmarSaidaReservaEvento(data: {
   id: number; source: 'manual' | 'legacy'; quantidade?: number;
   origem?: string; origem_detalhe?: string; quem_levou?: string; responsavel?: string; notas?: string;
@@ -3158,7 +3209,7 @@ export async function confirmarSaidaReservaEvento(data: {
             FROM material_reservas mr
             LEFT JOIN materiais m ON m.id=mr.material_id
             LEFT JOIN agenda a ON a.id=mr.evento_id
-            WHERE mr.id=? AND mr.ativo=1 LIMIT 1`,
+            WHERE mr.id=? AND mr.ativo=1 AND COALESCE(mr.encerrada_sem_fluxo,0)=0 LIMIT 1`,
       args: [data.id],
     });
     if (res.rows.length === 0) return { success: false, message: 'Reserva não encontrada.' };
@@ -3197,7 +3248,7 @@ export async function getMateriaisReservadosResumoEvento(eventoId: number) {
           FROM material_pack_reservas r
           JOIN material_pack_items i ON i.pack_id = r.pack_id AND i.ativo = 1
           LEFT JOIN materiais m ON LOWER(TRIM(m.nome)) = LOWER(TRIM(i.material_nome)) AND m.ativo=1
-          WHERE r.evento_id = ?
+          WHERE r.evento_id = ? AND COALESCE(r.encerrada_sem_fluxo,0)=0
           GROUP BY i.material_nome
           ORDER BY i.material_nome ASC
         `,
@@ -3210,7 +3261,7 @@ export async function getMateriaisReservadosResumoEvento(eventoId: number) {
                      mr.custo_unitario, mr.valor_unitario, mr.valor_contexto, mr.contabilizar
               FROM material_reservas mr
               LEFT JOIN materiais m ON m.id=mr.material_id
-              WHERE mr.evento_id=? AND mr.ativo=1
+              WHERE mr.evento_id=? AND mr.ativo=1 AND COALESCE(mr.encerrada_sem_fluxo,0)=0
               ORDER BY mr.created_at ASC, mr.id ASC`,
         args: [eventoId],
       }),
@@ -3240,7 +3291,7 @@ export async function getMateriaisReservadosResumoEvento(eventoId: number) {
                   AND EXISTS (
                     SELECT 1 FROM material_pack_reservas r
                     JOIN material_pack_items i ON i.pack_id=r.pack_id AND i.ativo=1
-                    WHERE r.evento_id=mm.evento_id
+                    WHERE r.evento_id=mm.evento_id AND COALESCE(r.encerrada_sem_fluxo,0)=0
                       AND LOWER(TRIM(i.material_nome))=LOWER(TRIM(mm.material_nome))
                   )
                 )
@@ -3344,17 +3395,29 @@ export async function reservarMaterialPacksParaEvento(data: {
       if (packRes.rows.length === 0) continue;
       const pack = packRes.rows[0] as any;
       const exists = await turso.execute({
-        sql: "SELECT id FROM material_pack_reservas WHERE evento_id=? AND pack_id=? LIMIT 1",
+        sql: "SELECT id, COALESCE(encerrada_sem_fluxo,0) AS encerrada_sem_fluxo FROM material_pack_reservas WHERE evento_id=? AND pack_id=? LIMIT 1",
         args: [data.evento_id, packId],
       });
+
+      const valorReferencia = Number(pack.valor_referencia) || Number(pack.valor_cliente_final) || 0;
       if (exists.rows.length > 0) {
-        skippedPacks++;
+        const existing = exists.rows[0] as any;
+        if (Number(existing.encerrada_sem_fluxo || 0) === 1) {
+          await turso.execute({
+            sql: `UPDATE material_pack_reservas
+                  SET encerrada_sem_fluxo=0, encerrada_por='', encerrada_em='', pack_nome=?, servico=?, valor_referencia=?, valor_cobrado=0, desconto_oferta=?, reservado_por=?
+                  WHERE id=?`,
+            args: [pack.nome || '', data.servico || '', valorReferencia, valorReferencia, data.reservado_por || '', Number(existing.id)],
+          });
+          createdReservations++;
+        } else {
+          skippedPacks++;
+        }
         continue;
       }
 
-      const valorReferencia = Number(pack.valor_referencia) || Number(pack.valor_cliente_final) || 0;
       await turso.execute({
-        sql: "INSERT INTO material_pack_reservas (evento_id, pack_id, pack_nome, servico, valor_referencia, valor_cobrado, desconto_oferta, reservado_por) VALUES (?, ?, ?, ?, ?, 0, ?, ?)",
+        sql: "INSERT INTO material_pack_reservas (evento_id, pack_id, pack_nome, servico, valor_referencia, valor_cobrado, desconto_oferta, reservado_por, encerrada_sem_fluxo) VALUES (?, ?, ?, ?, ?, 0, ?, ?, 0)",
         args: [data.evento_id, packId, pack.nome || '', data.servico || '', valorReferencia, valorReferencia, data.reservado_por || ''],
       });
       createdReservations++;
@@ -3508,6 +3571,9 @@ export async function setupMateriais() {
         valor_contexto TEXT DEFAULT '',
         contabilizar INTEGER DEFAULT 0,
         ativo INTEGER DEFAULT 1,
+        encerrada_sem_fluxo INTEGER DEFAULT 0,
+        encerrada_por TEXT DEFAULT '',
+        encerrada_em TEXT DEFAULT '',
         created_at TEXT DEFAULT (datetime('now'))
       )
     `);
@@ -3516,6 +3582,9 @@ export async function setupMateriais() {
       "valor_unitario REAL NOT NULL DEFAULT 0",
       "valor_contexto TEXT DEFAULT ''",
       "contabilizar INTEGER DEFAULT 0",
+      "encerrada_sem_fluxo INTEGER DEFAULT 0",
+      "encerrada_por TEXT DEFAULT ''",
+      "encerrada_em TEXT DEFAULT ''",
     ];
     for (const col of reservaFinanceCols) {
       try { await turso.execute(`ALTER TABLE material_reservas ADD COLUMN ${col}`); } catch { }
@@ -3743,7 +3812,7 @@ export async function getMovimentosMateriais() {
           SELECT 1
           FROM material_pack_reservas r
           JOIN material_pack_items i ON i.pack_id = r.pack_id AND i.ativo = 1
-          WHERE r.evento_id = mm.evento_id
+          WHERE r.evento_id = mm.evento_id AND COALESCE(r.encerrada_sem_fluxo,0)=0
             AND LOWER(TRIM(i.material_nome)) = LOWER(TRIM(mm.material_nome))
         )
       )
@@ -3905,14 +3974,14 @@ async function getMaterialFinanceMapForEventIds(eventIds: number[]) {
         sql: `SELECT evento_id, 1 AS material_count
               FROM (
                 SELECT evento_id FROM material_reservas
-                WHERE ativo=1 AND evento_id IN (${placeholders})
+                WHERE ativo=1 AND COALESCE(encerrada_sem_fluxo,0)=0 AND evento_id IN (${placeholders})
                 UNION
                 SELECT r.evento_id FROM material_pack_reservas r
                 JOIN material_pack_items i ON i.pack_id=r.pack_id AND i.ativo=1
-                WHERE r.evento_id IN (${placeholders})
+                WHERE COALESCE(r.encerrada_sem_fluxo,0)=0 AND r.evento_id IN (${placeholders})
                 UNION
                 SELECT evento_id FROM material_movimentos
-                WHERE evento_id IN (${placeholders})
+                WHERE COALESCE(saida_confirmada,1)=1 AND evento_id IN (${placeholders})
               ) x
               GROUP BY evento_id`,
         args: [...ids, ...ids, ...ids],
@@ -4382,7 +4451,7 @@ async function cleanupFutureAutoReservationMovements() {
           SELECT 1
           FROM material_pack_reservas r
           JOIN material_pack_items i ON i.pack_id = r.pack_id AND i.ativo = 1
-          WHERE r.evento_id = material_movimentos.evento_id
+          WHERE r.evento_id = material_movimentos.evento_id AND COALESCE(r.encerrada_sem_fluxo,0)=0
             AND LOWER(TRIM(i.material_nome)) = LOWER(TRIM(material_movimentos.material_nome))
         )
     `);
@@ -4420,7 +4489,7 @@ async function queryMateriaisInitialBundleFast() {
           AND EXISTS (
             SELECT 1 FROM material_pack_reservas r
             JOIN material_pack_items i ON i.pack_id = r.pack_id AND i.ativo = 1
-            WHERE r.evento_id = mm.evento_id
+            WHERE r.evento_id = mm.evento_id AND COALESCE(r.encerrada_sem_fluxo,0)=0
               AND LOWER(TRIM(i.material_nome)) = LOWER(TRIM(mm.material_nome))
           )
         )
@@ -4437,7 +4506,8 @@ async function queryMateriaisInitialBundleFast() {
       JOIN material_pack_items i ON i.pack_id = r.pack_id AND i.ativo = 1
       LEFT JOIN agenda a ON a.id = r.evento_id
       LEFT JOIN materiais m ON LOWER(TRIM(m.nome)) = LOWER(TRIM(i.material_nome)) AND m.ativo = 1
-      WHERE (a.status IS NULL OR a.status != 'Cancelado')
+      WHERE COALESCE(r.encerrada_sem_fluxo,0)=0
+        AND (a.status IS NULL OR a.status != 'Cancelado')
         AND (a.event_date IS NULL OR date(a.event_date) >= date('now', '-1 day'))
       GROUP BY r.evento_id, evento_nome, evento_data, i.material_nome
       ORDER BY CASE WHEN evento_data = '' THEN 1 ELSE 0 END, evento_data ASC, evento_nome ASC, i.material_nome ASC
@@ -4451,7 +4521,7 @@ async function queryMateriaisInitialBundleFast() {
       FROM material_reservas mr
       LEFT JOIN agenda a ON a.id=mr.evento_id
       LEFT JOIN materiais m ON m.id=mr.material_id
-      WHERE mr.ativo=1 AND (a.status IS NULL OR a.status!='Cancelado')
+      WHERE mr.ativo=1 AND COALESCE(mr.encerrada_sem_fluxo,0)=0 AND (a.status IS NULL OR a.status!='Cancelado')
         AND (a.event_date IS NULL OR date(a.event_date) >= date('now','-1 day'))
       ORDER BY a.event_date ASC, mr.id ASC
     `),

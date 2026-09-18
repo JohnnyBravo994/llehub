@@ -11,7 +11,7 @@ import {
   createMaterial, updateMaterial, updateMaterialCompraStatus, toggleMaterialAtivo,
   registarSaidaMaterial, registarVoltaMaterial, deleteMovimentoMaterial,
   updateMaterialPackValues, getMateriaisInitialBundle, getMateriaisTabData, getMateriaisSaidaLookups, getMaterialById,
-  confirmarSaidaReservaEvento,
+  confirmarSaidaReservaEvento, retirarReservaOperacionalEvento,
 } from "../actions";
 
 interface Material {
@@ -224,6 +224,7 @@ export default function MateriaisPage() {
   const [tab, setTab] = useState<"fora" | "historico" | "catalogo" | "valores">("fora");
   const [toast, setToast] = useState("");
   const [saving, setSaving] = useState(false);
+  const [removingReservationEventId, setRemovingReservationEventId] = useState<number | null>(null);
 
   const [saidaModal, setSaidaModal] = useState(false);
   const [saidaForm, setSaidaForm] = useState(emptySaidaForm);
@@ -337,6 +338,23 @@ export default function MateriaisPage() {
       .filter(m => m.material_id === materialId)
       .reduce((s, m) => s + pendenteMovimento(m), 0);
   }
+
+  const handleRetirarReservaEvento = async (group: { label: string; items: ReservaMaterial[] }) => {
+    const eventoId = group.items[0]?.evento_id || 0;
+    if (!eventoId) return;
+    const total = group.items.reduce((sum, item) => sum + item.quantidade, 0);
+    const ok = window.confirm(`Retirar a reserva de materiais de “${group.label}” (${total} un.)?\n\nIsto limpa apenas a reserva operacional. Não apaga o evento nem altera a faturação já registada.`);
+    if (!ok) return;
+    setRemovingReservationEventId(eventoId);
+    const result = await retirarReservaOperacionalEvento(eventoId, userName);
+    if (result.success) {
+      showToast("Reserva retirada da operação");
+      await loadInitial(false);
+    } else {
+      showToast(result.message || "Não foi possível retirar a reserva");
+    }
+    setRemovingReservationEventId(null);
+  };
 
   // ── Saída ──────────────────────────────────────────────────────────────
   const ensureSaidaLookups = async () => {
@@ -679,7 +697,17 @@ export default function MateriaisPage() {
                         <span style={{ fontSize: "9px", letterSpacing: "0.2em", fontWeight: 700, color: C.blue, textTransform: "uppercase" }}>📌 {group.label}</span>
                         {group.date && <span style={{ fontSize: "9px", color: C.textMuted }}>{fmtDateShort(group.date)}</span>}
                       </div>
-                      <span style={{ fontSize: "9px", color: C.blue, background: "rgba(80,140,220,0.09)", padding: "2px 8px", borderRadius: "8px" }}>{group.items.reduce((sum, item) => sum + item.quantidade, 0)} un.</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                        <span style={{ fontSize: "9px", color: C.blue, background: "rgba(80,140,220,0.09)", padding: "2px 8px", borderRadius: "8px" }}>{group.items.reduce((sum, item) => sum + item.quantidade, 0)} un.</span>
+                        <button
+                          onClick={() => void handleRetirarReservaEvento(group)}
+                          disabled={removingReservationEventId === group.items[0]?.evento_id}
+                          title="Retira esta reserva operacional sem apagar o evento nem alterar a faturação"
+                          style={{ ...btnSecStyle, padding: "5px 9px", fontSize: "7px", color: C.red, borderColor: "rgba(220,80,80,0.28)", opacity: removingReservationEventId === group.items[0]?.evento_id ? 0.55 : 1 }}
+                        >
+                          {removingReservationEventId === group.items[0]?.evento_id ? "A retirar…" : "Retirar reserva"}
+                        </button>
+                      </div>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: "0.6rem", padding: "0.85rem" }}>
                       {group.items.map((reserva, index) => (
@@ -918,7 +946,16 @@ export default function MateriaisPage() {
                     <div style={{ fontSize: "9px", letterSpacing: "0.14em", color: "var(--theme-info)", textTransform: "uppercase", fontWeight: 700 }}>📌 {group.label}</div>
                     {group.date && <div style={{ fontSize: "9px", color: "var(--theme-text-faint)", marginTop: "2px" }}>{fmtDateShort(group.date)}</div>}
                   </div>
-                  <span style={{ fontSize: "9px", color: "var(--theme-info)" }}>{group.items.reduce((sum, item) => sum + item.quantidade, 0)} un.</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    <span style={{ fontSize: "9px", color: "var(--theme-info)" }}>{group.items.reduce((sum, item) => sum + item.quantidade, 0)} un.</span>
+                    <button
+                      onClick={() => void handleRetirarReservaEvento(group)}
+                      disabled={removingReservationEventId === group.items[0]?.evento_id}
+                      style={{ background: "transparent", border: "1px solid rgba(220,80,80,0.25)", color: "var(--theme-danger)", fontSize: "7px", letterSpacing: "0.08em", padding: "5px 7px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: removingReservationEventId === group.items[0]?.evento_id ? 0.55 : 1 }}
+                    >
+                      {removingReservationEventId === group.items[0]?.evento_id ? "A retirar…" : "Retirar"}
+                    </button>
+                  </div>
                 </div>
                 {group.items.map((reserva, index) => (
                   <div key={`${group.key}-${reserva.material_nome}-${index}`} style={{ padding: "0.9rem 1.1rem", borderTop: "1px solid rgba(var(--theme-contrast-rgb),0.03)", display: "flex", gap: "0.75rem" }}>
