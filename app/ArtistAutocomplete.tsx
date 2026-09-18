@@ -114,7 +114,7 @@ export function buildArtistSuggestions({
         const tipos = collaboratorTypes(colaborador, allTipos);
         return {
           nome: displayName(colaborador),
-          tipo: tipoValue || tipos[0] || '',
+          tipo: tipoValue || '',
           colaborador_id: colaborador.id ?? null,
         };
       });

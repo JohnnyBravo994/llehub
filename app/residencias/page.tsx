@@ -59,7 +59,9 @@ export default function ResidenciasPage() {
     const [rr, cr, colr] = await Promise.all([getAllResidenciasAtivas(), getAllClientes(), getAllColaboradores()]);
     if (rr.success) { const data = rr.data as ResidenciaAtiva[]; setRows(data); setDrafts(Object.fromEntries(data.map(v => [v.id, toDraft(v)]))); }
     if (cr.success) setClientes(cr.data as Cliente[]);
-    if (colr.success) setColaboradores((colr.data as Colaborador[]).filter(c => c.ativo === 1));
+    if (colr.success) setColaboradores((colr.data as Colaborador[])
+      .filter(c => c.ativo === 1)
+      .sort((a, b) => displayCol(a).localeCompare(displayCol(b), "pt-PT", { sensitivity: "base" })));
     setLoading(false);
   }, []);
 

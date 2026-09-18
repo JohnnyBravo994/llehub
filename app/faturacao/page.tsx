@@ -421,7 +421,7 @@ export default function FaturacaoPage() {
                                   <div style={{ display: "flex", alignItems: "center", gap: "4px", justifyContent: "flex-end" }}>
                                     <input
                                       autoFocus
-                                      value={editingRecebido.valor}
+                                      value={editingRecebido?.valor ?? ""}
                                       onChange={e => setEditingRecebido(r => r ? { ...r, valor: e.target.value } : r)}
                                       onKeyDown={e => { if (e.key === "Enter") handleSaveValorRecebido(); if (e.key === "Escape") setEditingRecebido(null); }}
                                       style={{ width: "86px", background: "rgba(var(--theme-contrast-rgb),0.06)", border: `1px solid ${C.green}44`, color: C.green, fontFamily: "inherit", fontSize: "12px", padding: "3px 6px", outline: "none", textAlign: "right" }}
@@ -632,7 +632,7 @@ export default function FaturacaoPage() {
                             <div onClick={e => e.stopPropagation()} style={{display:"flex",alignItems:"center",gap:"4px"}}>
                               <input
                                 autoFocus
-                                value={editingRecebido.valor}
+                                value={editingRecebido?.valor ?? ""}
                                 onChange={e => setEditingRecebido(r => r ? { ...r, valor: e.target.value } : r)}
                                 onKeyDown={e => { if (e.key === "Enter") handleSaveValorRecebido(); if (e.key === "Escape") setEditingRecebido(null); }}
                                 style={{width:"72px",background:"var(--theme-input-bg)",border:"1px solid var(--theme-input-border)",color:"var(--theme-success)",fontSize:"11px",padding:"3px 5px",textAlign:"right",outline:"none"}}

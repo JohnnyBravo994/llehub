@@ -401,7 +401,7 @@ export default function ColaboradoresPage() {
                     style={{ ...inputStyle, padding: "0.48rem 0.6rem" }}
                   >
                     <option value="">Associar a...</option>
-                    {colaboradores.filter(c => c.ativo === 1).map(c => <option key={c.id} value={c.id}>{c.nome_artistico || c.nome}{c.nome_pessoal ? ` — ${c.nome_pessoal}` : ""}</option>)}
+                    {colaboradores.filter(c => c.ativo === 1).sort((a, b) => (a.nome_artistico || a.nome).localeCompare(b.nome_artistico || b.nome, "pt-PT", { sensitivity: "base" })).map(c => <option key={c.id} value={c.id}>{c.nome_artistico || c.nome}{c.nome_pessoal ? ` — ${c.nome_pessoal}` : ""}</option>)}
                   </select>
                   <button onClick={() => handleAssociarNome(item.nome)} style={{ ...btnSecStyle, padding: "0.55rem 0.65rem", fontSize: "10px" }}>Associar</button>
                   <button onClick={() => handleCriarEAssociar(item)} style={{ ...btnPrimStyle, padding: "0.55rem 0.65rem", fontSize: "10px" }}>Criar + ligar</button>
@@ -536,7 +536,7 @@ export default function ColaboradoresPage() {
                 style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "13px", padding: "0.5rem 0.65rem", outline: "none", marginBottom: "0.45rem" }}
               >
                 <option value="">Ligar a colaborador existente...</option>
-                {colaboradores.filter(c => c.ativo === 1).map(c => <option key={c.id} value={c.id}>{c.nome_artistico || c.nome}{c.nome_pessoal ? ` — ${c.nome_pessoal}` : ""}</option>)}
+                {colaboradores.filter(c => c.ativo === 1).sort((a, b) => (a.nome_artistico || a.nome).localeCompare(b.nome_artistico || b.nome, "pt-PT", { sensitivity: "base" })).map(c => <option key={c.id} value={c.id}>{c.nome_artistico || c.nome}{c.nome_pessoal ? ` — ${c.nome_pessoal}` : ""}</option>)}
               </select>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem" }}>
                 <button onClick={() => handleAssociarNome(item.nome)} style={{ background: "var(--theme-input-bg)", border: "1px solid rgba(var(--theme-accent-rgb),0.2)", color: "var(--theme-accent)", fontSize: "11px", padding: "0.45rem 0.55rem", cursor: "pointer" }}>Ligar</button>
@@ -599,14 +599,14 @@ export default function ColaboradoresPage() {
               <label style={labelStyle}>Duplicado a fundir / retirar</label>
               <select value={mergeSourceId} onChange={e => { setMergeSourceId(e.target.value); if (e.target.value === mergeTargetId) setMergeTargetId(""); }} style={inputStyle}>
                 <option value="">Escolher colaborador...</option>
-                {colaboradores.map(c => <option key={`source-${c.id}`} value={c.id}>{c.nome_artistico || c.nome}{c.nome_pessoal ? ` — ${c.nome_pessoal}` : ""}</option>)}
+                {colaboradores.slice().sort((a, b) => (a.nome_artistico || a.nome).localeCompare(b.nome_artistico || b.nome, "pt-PT", { sensitivity: "base" })).map(c => <option key={`source-${c.id}`} value={c.id}>{c.nome_artistico || c.nome}{c.nome_pessoal ? ` — ${c.nome_pessoal}` : ""}</option>)}
               </select>
             </div>
             <div>
               <label style={labelStyle}>Colaborador que fica</label>
               <select value={mergeTargetId} onChange={e => setMergeTargetId(e.target.value)} style={inputStyle}>
                 <option value="">Escolher colaborador...</option>
-                {colaboradores.filter(c => String(c.id) !== mergeSourceId).map(c => <option key={`target-${c.id}`} value={c.id}>{c.nome_artistico || c.nome}{c.nome_pessoal ? ` — ${c.nome_pessoal}` : ""}</option>)}
+                {colaboradores.filter(c => String(c.id) !== mergeSourceId).sort((a, b) => (a.nome_artistico || a.nome).localeCompare(b.nome_artistico || b.nome, "pt-PT", { sensitivity: "base" })).map(c => <option key={`target-${c.id}`} value={c.id}>{c.nome_artistico || c.nome}{c.nome_pessoal ? ` — ${c.nome_pessoal}` : ""}</option>)}
               </select>
             </div>
           </div>

@@ -96,13 +96,13 @@ export default function PagamentosPage() {
   const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ nome: "", tipo: "DJ", fee: 0 });
+  const [editForm, setEditForm] = useState({ nome: "", tipo: "", fee: 0 });
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
   const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [addModal, setAddModal] = useState<{ open: boolean; evento_id: number; evento_nome: string; evento_data: string } | null>(null);
-  const [addForm, setAddForm] = useState({ nome: "", tipo: "DJ", fee: 0 });
+  const [addForm, setAddForm] = useState({ nome: "", tipo: "", fee: 0 });
   const [resumoOpen, setResumoOpen] = useState(false);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
 
@@ -209,7 +209,7 @@ export default function PagamentosPage() {
 
   const openAddModal = (p: Pagamento) => {
     setAddModal({ open: true, evento_id: p.evento_id, evento_nome: p.evento_nome, evento_data: p.evento_data });
-    setAddForm({ nome: "", tipo: "DJ", fee: 0 });
+    setAddForm({ nome: "", tipo: "", fee: 0 });
   };
 
   const handleAddPagamento = async () => {
@@ -384,7 +384,7 @@ export default function PagamentosPage() {
                             </td>
                             <td style={tds({ muted: true })}>
                               {isEditing
-                                ? <select value={editForm.tipo} onChange={e => setEditForm(f => ({ ...f, tipo: e.target.value }))} style={{ ...inlineInput, width: "110px", appearance: "none" as any }}>{ARTIST_TIPOS.map(t => <option key={t}>{t}</option>)}</select>
+                                ? <select value={editForm.tipo} onChange={e => setEditForm(f => ({ ...f, tipo: e.target.value }))} style={{ ...inlineInput, width: "110px", appearance: "none" as any }}>{[...ARTIST_TIPOS].sort((a, b) => a.localeCompare(b, "pt-PT", { sensitivity: "base" })).map(t => <option key={t}>{t}</option>)}</select>
                                 : <span style={{ fontSize: "11px", letterSpacing: "0.1em" }}>{p.tipo}</span>
                               }
                             </td>
@@ -514,7 +514,8 @@ export default function PagamentosPage() {
               <div>
                 <label style={labelStyle}>Tipo</label>
                 <select style={{ ...inputStyle, appearance: "none" as any }} value={addForm.tipo} onChange={e => setAddForm(f => ({ ...f, tipo: e.target.value }))}>
-                  {ARTIST_TIPOS.map(t => <option key={t}>{t}</option>)}
+                  <option value="">Escolher skill...</option>
+                  {[...ARTIST_TIPOS].sort((a, b) => a.localeCompare(b, "pt-PT", { sensitivity: "base" })).map(t => <option key={t}>{t}</option>)}
                 </select>
               </div>
               <div>

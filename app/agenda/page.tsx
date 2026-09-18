@@ -1293,14 +1293,14 @@ export default function AgendaPage() {
   const allMonthEvents = events.filter(e => monthKey(e.event_date) === selectedMonth);
   const dropdownArtistas = Array.from(new Set(
     allMonthEvents.flatMap(e => (artistasMap[e.id] || []).map(a => resolveColaboradorNome(a.nome))).filter(Boolean)
-  )).sort();
+  )).sort((a, b) => a.localeCompare(b, "pt-PT", { sensitivity: "base" }));
   const dropdownClientes = Array.from(new Set(
     allMonthEvents.map(e => {
       if (!e.cliente_nome) return '';
       const c = clientes.find(c => c.nome === e.cliente_nome || (c.alias?.trim() && c.alias.trim() === e.cliente_nome));
       return c?.alias?.trim() || e.cliente_nome;
     }).filter(Boolean)
-  )).sort();
+  )).sort((a, b) => a.localeCompare(b, "pt-PT", { sensitivity: "base" }));
   const dropdownEquipa = EQUIPA_NOMES.filter(n =>
     allMonthEvents.some(e => parseEquipa(e.tipo || "").includes(n))
   );

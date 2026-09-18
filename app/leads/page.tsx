@@ -157,7 +157,7 @@ function displayClienteNome(lead: { cliente_id?: number | null; cliente_nome?: s
 }
 interface ArtistRow { id?: number; colaborador_id?: number | null; nome: string; tipo: string; fee: string; fee_auto?: boolean; }
 
-const emptyArtist = (): ArtistRow => ({ colaborador_id: null, nome: "", tipo: "DJ", fee: "", fee_auto: true });
+const emptyArtist = (): ArtistRow => ({ colaborador_id: null, nome: "", tipo: "", fee: "", fee_auto: true });
 
 const C = {
   gold: "var(--theme-accent)", goldDim: "var(--theme-accent-muted)", surface: "var(--theme-surface)", pageBg: "var(--theme-bg)",
@@ -209,8 +209,8 @@ function tipoFromSkills(skills?: string) {
     "Produtor/Coordenador": "Produtor", "Makeup & Hair": "Make-up & Hair", "Assistente de Guarda-Roupa": "Guarda-Roupa",
     "Coreógrafo/a": "Coreógrafo(a)",
   };
-  const mapped = map[first] || first || "DJ";
-  return (ARTIST_TIPOS as readonly string[]).includes(mapped) ? mapped : "DJ";
+  const mapped = map[first] || first || "";
+  return mapped && (ARTIST_TIPOS as readonly string[]).includes(mapped) ? mapped : "";
 }
 
 function effectiveReceived(total: number | string | undefined, received: number | string | undefined, status?: string) {
@@ -333,7 +333,9 @@ export default function LeadsPage() {
     load(selectedMonth);
   }, [load, selectedMonth]);
 
-  const colaboradoresAtivos = colaboradores.filter(c => c.ativo === 1);
+  const colaboradoresAtivos = colaboradores
+    .filter(c => c.ativo === 1)
+    .sort((a, b) => colaboradorDisplayName(a).localeCompare(colaboradorDisplayName(b), "pt-PT", { sensitivity: "base" }));
   const autoBudgetStandaloneOptions = standaloneOptionsFromColaboradores(colaboradoresAtivos);
   const autoBudgetPackOptions = packsComerciais.filter(p => p.ativo === 1).map(p => p.nome).sort((a,b) => a.localeCompare(b, "pt-PT", { sensitivity: "base" }));
   const findCommercialPackByName = (name: string) => packsComerciais.find(p => normalizeText(p.nome) === normalizeText(name));
@@ -614,7 +616,7 @@ export default function LeadsPage() {
       id: a.id,
       colaborador_id: col?.id ?? a.colaborador_id ?? null,
       nome: col ? colaboradorDisplayName(col) : (a.nome || ""),
-      tipo: a.tipo || (col ? tipoFromSkills(col.skills) : "DJ"),
+      tipo: a.tipo || (col ? tipoFromSkills(col.skills) : ""),
       fee: String(a.fee ?? ""),
       fee_auto: false,
     };
@@ -1753,7 +1755,13 @@ export default function LeadsPage() {
                   <CustomSelect
                     value={a.tipo}
                     onChange={v => updateArtistTipo(i, v)}
-                    options={ARTIST_TIPOS.map(t => ({ value: t, label: t }))}
+                    options={[
+                      { value: "", label: "Escolher skill..." },
+                      ...[...ARTIST_TIPOS]
+                        .sort((a, b) => a.localeCompare(b, "pt-PT", { sensitivity: "base" }))
+                        .map(t => ({ value: t, label: t })),
+                    ]}
+                    placeholder="Escolher skill..."
                     style={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "12px" }}
                   />
                   <div>
