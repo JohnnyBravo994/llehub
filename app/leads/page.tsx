@@ -638,6 +638,9 @@ export default function LeadsPage() {
   const lucroVisivel = (valor: number | string | undefined, rows: ArtistRow[]) =>
     Number(valor || 0) - custoArtistasParaLucro(rows);
 
+  const temMovimentoFinanceiro = (valor: number | string | undefined, rows: ArtistRow[]) =>
+    Number(valor || 0) !== 0 || custoArtistasParaLucro(rows) !== 0;
+
   const conflictOverrideKeys = new Set(conflictOverrides.map(o => `${o.event_date}|${o.artist_key}`));
   const conflictItems = [
     ...agendaEvents.filter(e => !e.cancelled).map(e => ({ key: `event-${e.id}`, entityKey: e.event_id || `agenda-${e.id}`, date: toIsoDate(e.event_date), title: e.title || "Evento", artists: artistasMap[e.id] || [] })),
@@ -911,9 +914,9 @@ export default function LeadsPage() {
                           <StatusBadge color={statusColor(l.status)} label={l.status || "Pendente"} />
                         </td>
                         <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: C.gold, fontWeight: 600, fontSize: "11px" }}>
-                          {userRole === "limited_novalues" ? "—" : (Number(l.value) > 0 ? (
+                          {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(l.value, artistsForLead(l)) ? (
                             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
-                              <span>{Number(l.value).toLocaleString("pt-PT")}€</span>
+                              <span>{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
                               <span style={{ fontSize: "8px", color: lucroVisivel(l.value, artistsForLead(l)) >= 0 ? C.green : C.red, fontWeight: 600 }}>
                                 Lucro {lucroVisivel(l.value, artistsForLead(l)).toLocaleString("pt-PT")}€
                               </span>
@@ -1020,9 +1023,9 @@ export default function LeadsPage() {
                     </div>
                   </div>
                   <div className="mob-card-right">
-                    {userRole !== "limited_novalues" && Number(l.value) > 0
+                    {userRole !== "limited_novalues" && temMovimentoFinanceiro(l.value, artistsForLead(l))
                       ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
-                          <span className="mob-card-value">{Number(l.value).toLocaleString("pt-PT")}€</span>
+                          <span className="mob-card-value">{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
                           <span style={{fontSize:"8px",fontWeight:700,color:lucroVisivel(l.value, artistsForLead(l))>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(l.value, artistsForLead(l)).toLocaleString("pt-PT")}€</span>
                         </div>
                       : <span className="mob-card-value muted">—</span>

@@ -1013,6 +1013,9 @@ export default function AgendaPage() {
   const lucroVisivel = (valor: number | string | undefined, rows: ArtistRow[]) =>
     Number(valor || 0) - custoArtistasParaLucro(rows);
 
+  const temMovimentoFinanceiro = (valor: number | string | undefined, rows: ArtistRow[]) =>
+    Number(valor || 0) !== 0 || custoArtistasParaLucro(rows) !== 0;
+
   const artistsForAgendaLead = (l: Lead) =>
     l.agenda_event_id ? (artistasMap[l.agenda_event_id] || []) : (artistasMap[-l.id] || []);
 
@@ -1554,9 +1557,9 @@ export default function AgendaPage() {
                           <StatusBadge color={Colors.amber} label={l.status || "Confirmado"} />
                         </td>
                         <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "11px" }}>
-                          {userRole === "limited_novalues" ? "—" : (Number(l.value) > 0 ? (
+                          {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(l.value, artistsForAgendaLead(l)) ? (
                             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
-                              <span>{Number(l.value).toLocaleString("pt-PT")}€</span>
+                              <span>{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
                               <span style={{ fontSize: "8px", color: lucroVisivel(l.value, artistsForAgendaLead(l)) >= 0 ? Colors.green : Colors.red, fontWeight: 600 }}>
                                 Lucro {lucroVisivel(l.value, artistsForAgendaLead(l)).toLocaleString("pt-PT")}€
                               </span>
@@ -1644,9 +1647,9 @@ export default function AgendaPage() {
                       })()}
                     </td>
                     <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "11px" }}>
-                      {userRole === "limited_novalues" ? "—" : (Number(e.bill) > 0 ? (
+                      {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(e.bill, artistasMap[e.id] || []) ? (
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
-                          <span>{Number(e.bill).toLocaleString("pt-PT")}€</span>
+                          <span>{Number(e.bill || 0).toLocaleString("pt-PT")}€</span>
                           <span style={{ fontSize: "8px", color: lucroVisivel(e.bill, artistasMap[e.id] || []) >= 0 ? Colors.green : Colors.red, fontWeight: 600 }}>
                             Lucro {lucroVisivel(e.bill, artistasMap[e.id] || []).toLocaleString("pt-PT")}€
                           </span>
@@ -1827,9 +1830,9 @@ export default function AgendaPage() {
                   </div>
                 </div>
                 <div className="mob-card-right">
-                  {userRole !== "limited_novalues" && Number(l.value) > 0
+                  {userRole !== "limited_novalues" && temMovimentoFinanceiro(l.value, artistsForAgendaLead(l))
                     ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
-                        <span className="mob-card-value">{Number(l.value).toLocaleString("pt-PT")}€</span>
+                        <span className="mob-card-value">{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
                         <span style={{fontSize:"8px",fontWeight:700,color:lucroVisivel(l.value, artistsForAgendaLead(l))>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(l.value, artistsForAgendaLead(l)).toLocaleString("pt-PT")}€</span>
                       </div>
                     : <span className="mob-card-value muted">—</span>
@@ -1874,9 +1877,9 @@ export default function AgendaPage() {
                 </div>
               </div>
               <div className="mob-card-right">
-                {userRole !== "limited_novalues" && Number(e.bill) > 0
+                {userRole !== "limited_novalues" && temMovimentoFinanceiro(e.bill, artistasMap[e.id]||[])
                   ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
-                      <span className="mob-card-value">{Number(e.bill).toLocaleString("pt-PT")}€</span>
+                      <span className="mob-card-value">{Number(e.bill || 0).toLocaleString("pt-PT")}€</span>
                       <span style={{fontSize:"8px",fontWeight:700,color:lucroVisivel(e.bill, artistasMap[e.id]||[])>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(e.bill, artistasMap[e.id]||[]).toLocaleString("pt-PT")}€</span>
                     </div>
                   : <span className="mob-card-value muted">—</span>
