@@ -172,7 +172,7 @@ export default function Dashboard() {
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: C.pageBg, color: C.textPrimary, fontFamily: "'Montserrat', sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <Nav userName={userName} active="dashboard" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");  }} />
 
-      <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
+      <main style={{ padding: "2.75rem 3.25rem", maxWidth: "1500px", margin: "0 auto" }}>
 
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1.5rem" }}>
           <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
@@ -180,39 +180,39 @@ export default function Dashboard() {
         <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: "1.5rem", marginBottom: "1.5rem" }}>
 
           <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "2rem" }}>
-            <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim, marginBottom: "1rem" }}>HORA ACTUAL</p>
+            <p style={{ fontSize: "9px", letterSpacing: "0.5em", color: C.goldDim, marginBottom: "1.25rem" }}>HORA ACTUAL</p>
             <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "3.5rem", lineHeight: 1 }}>{currentTime}</p>
-            <p style={{ fontSize: "8px", color: C.textMuted, marginTop: "0.5rem", textTransform: "capitalize" }}>{currentDate}</p>
+            <p style={{ fontSize: "10px", color: C.textMuted, marginTop: "0.5rem", textTransform: "capitalize" }}>{currentDate}</p>
           </div>
 
           <div style={{ background: todayPanelBg, border: `1px solid ${C.border}`, padding: "2rem", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
-            <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim, marginBottom: "1.25rem" }}>EVENTOS DE HOJE</p>
+            <p style={{ fontSize: "9px", letterSpacing: "0.5em", color: C.goldDim, marginBottom: "1.25rem" }}>EVENTOS DE HOJE</p>
             {todayEvs.length > 0 ? (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "0.75rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "0.95rem" }}>
                 {todayEvs.map(e => (
                   <div key={e.id} style={{ background: todayItemBg, border: `1px solid ${C.border}`, padding: "1rem 1.25rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.35rem" }}>
-                      <span style={{ fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: "5px" }}>
-                        {artistIcons(e.artistas||[]) && <span style={{ fontSize: "13px", letterSpacing: "1px" }}>{artistIcons(e.artistas||[])}</span>}
+                      <span style={{ fontSize: "14px", fontWeight: 600, display: "flex", alignItems: "center", gap: "5px" }}>
+                        {artistIcons(e.artistas||[]) && <span style={{ fontSize: "14px", letterSpacing: "1px" }}>{artistIcons(e.artistas||[])}</span>}
                         {cleanTitle(e.title)}
                       </span>
-                      {e.hours && <span style={{ fontSize: "11px", color: C.gold, fontWeight: 700, marginLeft: "0.75rem", whiteSpace: "nowrap" }}>{e.hours}</span>}
+                      {e.hours && <span style={{ fontSize: "13px", color: C.gold, fontWeight: 700, marginLeft: "0.75rem", whiteSpace: "nowrap" }}>{e.hours}</span>}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                      {e.location && <span style={{ fontSize: "9px", color: C.textSec }}>📍 {e.location}</span>}
+                      {e.location && <span style={{ fontSize: "11px", color: C.textSec }}>📍 {e.location}</span>}
                       {(e.artistas && e.artistas.length > 0)
-                        ? <span style={{ fontSize: "9px", color: C.textSec }}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</span>
+                        ? <span style={{ fontSize: "11px", color: C.textSec }}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</span>
                         : parseArtists(e.artists)
-                          ? <span style={{ fontSize: "9px", color: C.textSec }}>🎵 {parseArtists(e.artists)}</span>
-                          : e.staff ? <span style={{ fontSize: "9px", color: C.textMuted }}>👥 {e.staff}</span> : null
+                          ? <span style={{ fontSize: "11px", color: C.textSec }}>🎵 {parseArtists(e.artists)}</span>
+                          : e.staff ? <span style={{ fontSize: "11px", color: C.textMuted }}>👥 {e.staff}</span> : null
                       }
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p style={{ fontSize: "11px", color: C.textMuted, fontStyle: "italic" }}>Nada agendado para hoje.</p>
+              <p style={{ fontSize: "13px", color: C.textMuted, fontStyle: "italic" }}>Nada agendado para hoje.</p>
             )}
           </div>
         </div>
@@ -221,29 +221,29 @@ export default function Dashboard() {
         <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "2rem", marginBottom: "1.5rem", position: "relative" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-            <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim }}>PRÓXIMOS 7 DIAS</p>
-            <a href="/agenda" style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.goldDim, textDecoration: "none", textTransform: "uppercase" }}>Ver agenda →</a>
+            <p style={{ fontSize: "9px", letterSpacing: "0.5em", color: C.goldDim }}>PRÓXIMOS 7 DIAS</p>
+            <a href="/agenda" style={{ fontSize: "9px", letterSpacing: "0.3em", color: C.goldDim, textDecoration: "none", textTransform: "uppercase" }}>Ver agenda →</a>
           </div>
           {next7Days.length > 0 ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "1rem" }}>
               {next7Days.map(day => (
-                <div key={day.dateStr} style={{ background: softItemBg, border: `1px solid ${C.borderDim}`, padding: "1rem" }}>
-                  <p style={{ fontSize: "8px", letterSpacing: "0.3em", color: C.gold, fontWeight: 600, marginBottom: "0.75rem", textTransform: "uppercase" }}>{day.label}</p>
+                <div key={day.dateStr} style={{ background: softItemBg, border: `1px solid ${C.borderDim}`, padding: "1.2rem" }}>
+                  <p style={{ fontSize: "10px", letterSpacing: "0.3em", color: C.gold, fontWeight: 600, marginBottom: "0.75rem", textTransform: "uppercase" }}>{day.label}</p>
                   {day.events.map((e, idx) => (
                     <div key={e.id} style={{ marginBottom: idx < day.events.length - 1 ? "0.6rem" : 0, paddingBottom: idx < day.events.length - 1 ? "0.6rem" : 0, borderBottom: idx < day.events.length - 1 ? `1px solid ${C.borderDim}` : "none" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                        <span style={{ fontSize: "11px", color: C.textPrimary, fontWeight: 500, display: "flex", alignItems: "center", gap: "5px" }}>
-                          {artistIcons(e.artistas||[]) && <span style={{ fontSize: "12px", letterSpacing: "1px" }}>{artistIcons(e.artistas||[])}</span>}
+                        <span style={{ fontSize: "13px", color: C.textPrimary, fontWeight: 500, display: "flex", alignItems: "center", gap: "5px" }}>
+                          {artistIcons(e.artistas||[]) && <span style={{ fontSize: "14px", letterSpacing: "1px" }}>{artistIcons(e.artistas||[])}</span>}
                           {cleanTitle(e.title)}
                         </span>
-                        {e.hours && <span style={{ fontSize: "9px", color: C.textSec, marginLeft: "0.5rem", whiteSpace: "nowrap" }}>{e.hours}</span>}
+                        {e.hours && <span style={{ fontSize: "11px", color: C.textSec, marginLeft: "0.5rem", whiteSpace: "nowrap" }}>{e.hours}</span>}
                       </div>
-                      {e.location && <p style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px" }}>📍 {e.location}</p>}
+                      {e.location && <p style={{ fontSize: "11px", color: C.textMuted, marginTop: "2px" }}>📍 {e.location}</p>}
                       {(e.artistas && e.artistas.length > 0)
-                        ? <p style={{ fontSize: "9px", color: C.textSec, marginTop: "2px" }}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</p>
+                        ? <p style={{ fontSize: "11px", color: C.textSec, marginTop: "2px" }}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</p>
                         : parseArtists(e.artists)
-                          ? <p style={{ fontSize: "9px", color: C.textSec, marginTop: "2px" }}>🎵 {parseArtists(e.artists)}</p>
-                          : e.staff ? <p style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px" }}>👥 {e.staff}</p> : null
+                          ? <p style={{ fontSize: "11px", color: C.textSec, marginTop: "2px" }}>🎵 {parseArtists(e.artists)}</p>
+                          : e.staff ? <p style={{ fontSize: "11px", color: C.textMuted, marginTop: "2px" }}>👥 {e.staff}</p> : null
                       }
                     </div>
                   ))}
@@ -251,31 +251,31 @@ export default function Dashboard() {
               ))}
             </div>
           ) : (
-            <p style={{ fontSize: "11px", color: C.textMuted, fontStyle: "italic" }}>Sem eventos nos próximos 7 dias.</p>
+            <p style={{ fontSize: "13px", color: C.textMuted, fontStyle: "italic" }}>Sem eventos nos próximos 7 dias.</p>
           )}
         </div>
 
         {/* ROW 3: LEADS */}
         <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "2rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-            <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim }}>LEADS ACTIVAS</p>
-            <a href="/leads" style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.goldDim, textDecoration: "none", textTransform: "uppercase" }}>Ver todas →</a>
+            <p style={{ fontSize: "9px", letterSpacing: "0.5em", color: C.goldDim }}>LEADS ACTIVAS</p>
+            <a href="/leads" style={{ fontSize: "9px", letterSpacing: "0.3em", color: C.goldDim, textDecoration: "none", textTransform: "uppercase" }}>Ver todas →</a>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem" }}>
             {activeLeads.slice(0, 6).map(l => (
-              <div key={l.id} style={{ background: softItemBg, padding: "1.25rem", border: `1px solid ${C.borderDim}` }}>
+              <div key={l.id} style={{ background: softItemBg, padding: "1.45rem", border: `1px solid ${C.borderDim}` }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 700, color: C.gold, flex: 1, marginRight: "0.5rem" }}>{l.title}</span>
-                  <span style={{ fontSize: "11px", color: C.textPrimary, whiteSpace: "nowrap" }}>{l.value > 0 ? `${l.value.toLocaleString("pt-PT")}€` : "—"}</span>
+                  <span style={{ fontSize: "13px", fontWeight: 700, color: C.gold, flex: 1, marginRight: "0.5rem" }}>{l.title}</span>
+                  <span style={{ fontSize: "13px", color: C.textPrimary, whiteSpace: "nowrap" }}>{l.value > 0 ? `${l.value.toLocaleString("pt-PT")}€` : "—"}</span>
                 </div>
-                <p style={{ fontSize: "9px", color: C.textSec, marginTop: "0.5rem" }}>📅 {new Date(l.event_date + "T00:00:00").toLocaleDateString("pt-PT")}</p>
-                {l.local && <p style={{ fontSize: "9px", color: C.textSec }}>📍 {l.local}</p>}
-                {l.notas && <p style={{ fontSize: "9px", color: C.textMuted, marginTop: "0.4rem", fontStyle: "italic" }}>"{l.notas}"</p>}
-                {l.contacto && <div style={{ marginTop: "0.6rem", fontSize: "8px", color: C.goldDim, letterSpacing: "0.1em" }}>📞 {l.contacto}</div>}
+                <p style={{ fontSize: "11px", color: C.textSec, marginTop: "0.5rem" }}>📅 {new Date(l.event_date + "T00:00:00").toLocaleDateString("pt-PT")}</p>
+                {l.local && <p style={{ fontSize: "11px", color: C.textSec }}>📍 {l.local}</p>}
+                {l.notas && <p style={{ fontSize: "11px", color: C.textMuted, marginTop: "0.4rem", fontStyle: "italic" }}>"{l.notas}"</p>}
+                {l.contacto && <div style={{ marginTop: "0.6rem", fontSize: "10px", color: C.goldDim, letterSpacing: "0.1em" }}>📞 {l.contacto}</div>}
               </div>
             ))}
             {activeLeads.length === 0 && (
-              <p style={{ fontSize: "11px", color: C.textMuted, gridColumn: "1/-1" }}>Sem leads activas.</p>
+              <p style={{ fontSize: "13px", color: C.textMuted, gridColumn: "1/-1" }}>Sem leads activas.</p>
             )}
           </div>
         </div>
@@ -288,15 +288,15 @@ export default function Dashboard() {
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(var(--theme-contrast-rgb),0.05)", background:"var(--theme-nav-bg)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
         <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"var(--theme-accent)", fontWeight:300 }}>LLE</span>
         <div style={{ display:"flex", gap:"0.6rem", alignItems:"center" }}>
-          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize:"10px", padding:"0.4rem 0.5rem" }} />
-          <button onClick={() => { localStorage.removeItem("lle_user"); window.location.href = "/"; }} style={{ background:"transparent", border:"1px solid rgba(var(--theme-contrast-rgb),0.06)", color:"var(--theme-text-faint)", fontSize:"8px", letterSpacing:"0.35em", padding:"0.4rem 0.75rem", cursor:"pointer", fontFamily:"inherit", textTransform:"uppercase", fontWeight:600 }}>SAIR</button>
+          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "12px", padding:"0.4rem 0.5rem" }} />
+          <button onClick={() => { localStorage.removeItem("lle_user"); window.location.href = "/"; }} style={{ background:"transparent", border:"1px solid rgba(var(--theme-contrast-rgb),0.06)", color:"var(--theme-text-faint)", fontSize: "10px", letterSpacing:"0.35em", padding:"0.4rem 0.75rem", cursor:"pointer", fontFamily:"inherit", textTransform:"uppercase", fontWeight:600 }}>SAIR</button>
         </div>
       </div>
 
       <div className="mob-dash-hero">
         <div className="mob-dash-time">{currentTime}</div>
         <div className="mob-dash-date">{currentDate}</div>
-        <div style={{ marginTop:"0.5rem", fontSize:"9px", letterSpacing:"0.35em", color:"var(--theme-text-faint)", textTransform:"uppercase" }}>{userName}</div>
+        <div style={{ marginTop:"0.5rem", fontSize: "11px", letterSpacing:"0.35em", color:"var(--theme-text-faint)", textTransform:"uppercase" }}>{userName}</div>
       </div>
 
       <div className="mob-dash-today">
@@ -305,50 +305,50 @@ export default function Dashboard() {
           <div key={e.id} className="mob-dash-today-item" style={{flexDirection:"column", alignItems:"flex-start", gap:"0.3rem", padding:"0.9rem 1.2rem"}}>
             <div style={{display:"flex", justifyContent:"space-between", alignItems:"baseline", width:"100%"}}>
               <span className="mob-dash-today-name" style={{display:"flex", alignItems:"center", gap:"5px"}}>
-                {artistIcons(e.artistas||[]) && <span style={{fontSize:"13px",letterSpacing:"1px"}}>{artistIcons(e.artistas||[])}</span>}
+                {artistIcons(e.artistas||[]) && <span style={{fontSize: "14px",letterSpacing:"1px"}}>{artistIcons(e.artistas||[])}</span>}
                 {cleanTitle(e.title)}
               </span>
               {e.hours && <span className="mob-dash-today-hour">{e.hours}</span>}
             </div>
             <div style={{display:"flex", flexDirection:"column", gap:"2px"}}>
-              {e.location && <span style={{fontSize:"10px", color:"var(--theme-text-muted)"}}>📍 {e.location}</span>}
+              {e.location && <span style={{fontSize: "12px", color:"var(--theme-text-muted)"}}>📍 {e.location}</span>}
               {(e.artistas && e.artistas.length > 0)
-                ? <span style={{fontSize:"10px", color:"var(--theme-text-muted)"}}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</span>
+                ? <span style={{fontSize: "12px", color:"var(--theme-text-muted)"}}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</span>
                 : parseArtists(e.artists)
-                  ? <span style={{fontSize:"10px", color:"var(--theme-text-muted)"}}>🎵 {parseArtists(e.artists)}</span>
-                  : e.staff ? <span style={{fontSize:"10px", color:"var(--theme-text-subtle)"}}>👥 {e.staff}</span> : null
+                  ? <span style={{fontSize: "12px", color:"var(--theme-text-muted)"}}>🎵 {parseArtists(e.artists)}</span>
+                  : e.staff ? <span style={{fontSize: "12px", color:"var(--theme-text-subtle)"}}>👥 {e.staff}</span> : null
               }
             </div>
           </div>
-        )) : <div style={{fontSize:"12px", color:"var(--theme-text-faint)", fontStyle:"italic", padding:"0.75rem 1.2rem"}}>Sem eventos hoje</div>}
+        )) : <div style={{fontSize: "14px", color:"var(--theme-text-faint)", fontStyle:"italic", padding:"0.75rem 1.2rem"}}>Sem eventos hoje</div>}
       </div>
 
       {next7Days.length > 0 && (
         <div style={{ borderBottom:"1px solid rgba(var(--theme-contrast-rgb),0.05)", flexShrink:0 }}>
           <div style={{ padding:"0.85rem 1.2rem 0.5rem", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div className="mob-dash-section-label" style={{marginBottom:0}}>Próximos dias</div>
-            <a href="/agenda" style={{ fontSize:"8px", letterSpacing:"0.25em", color:"var(--theme-accent)", textDecoration:"none", textTransform:"uppercase" }}>agenda →</a>
+            <a href="/agenda" style={{ fontSize: "10px", letterSpacing:"0.25em", color:"var(--theme-accent)", textDecoration:"none", textTransform:"uppercase" }}>agenda →</a>
           </div>
           <div style={{ paddingBottom:"0.5rem" }}>
             {next7Days.map(day => day.events.map((e, idx) => (
               <div key={e.id} style={{ padding:"0.65rem 1.2rem", borderTop: idx === 0 ? "1px solid rgba(var(--theme-contrast-rgb),0.03)" : "none" }}>
                 <div style={{ display:"flex", alignItems:"baseline", gap:"0.75rem", marginBottom:"0.2rem" }}>
-                  <span style={{ fontSize:"9px", color:"var(--theme-accent)", letterSpacing:"0.05em", whiteSpace:"nowrap", minWidth:"52px", flexShrink:0 }}>
+                  <span style={{ fontSize: "11px", color:"var(--theme-accent)", letterSpacing:"0.05em", whiteSpace:"nowrap", minWidth:"52px", flexShrink:0 }}>
                     {new Date(e.event_date+"T00:00:00").toLocaleDateString("pt-PT",{weekday:"short",day:"numeric",month:"short"})}
                   </span>
-                  <span style={{ fontSize:"12px", color:"var(--theme-text)", fontWeight:500, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:"4px" }}>
-                    {artistIcons(e.artistas||[]) && <span style={{fontSize:"12px",letterSpacing:"1px",flexShrink:0}}>{artistIcons(e.artistas||[])}</span>}
+                  <span style={{ fontSize: "14px", color:"var(--theme-text)", fontWeight:500, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:"4px" }}>
+                    {artistIcons(e.artistas||[]) && <span style={{fontSize: "14px",letterSpacing:"1px",flexShrink:0}}>{artistIcons(e.artistas||[])}</span>}
                     <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanTitle(e.title)}</span>
                   </span>
-                  {e.hours && <span style={{ fontSize:"10px", color:"var(--theme-text-subtle)", whiteSpace:"nowrap", flexShrink:0 }}>{e.hours}</span>}
+                  {e.hours && <span style={{ fontSize: "12px", color:"var(--theme-text-subtle)", whiteSpace:"nowrap", flexShrink:0 }}>{e.hours}</span>}
                 </div>
                 <div style={{ paddingLeft:"calc(52px + 0.75rem)", display:"flex", flexDirection:"column", gap:"2px" }}>
-                  {e.location && <span style={{fontSize:"10px", color:"var(--theme-text-muted)"}}>📍 {e.location}</span>}
+                  {e.location && <span style={{fontSize: "12px", color:"var(--theme-text-muted)"}}>📍 {e.location}</span>}
                   {(e.artistas && e.artistas.length > 0)
-                    ? <span style={{fontSize:"10px", color:"var(--theme-text-muted)"}}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</span>
+                    ? <span style={{fontSize: "12px", color:"var(--theme-text-muted)"}}>🎵 {e.artistas.map((a: any) => resolveColaboradorNome(a.nome)).join(" · ")}</span>
                     : parseArtists(e.artists)
-                      ? <span style={{fontSize:"10px", color:"var(--theme-text-muted)"}}>🎵 {parseArtists(e.artists)}</span>
-                      : e.staff ? <span style={{fontSize:"10px", color:"var(--theme-text-faint)"}}>👥 {e.staff}</span> : null
+                      ? <span style={{fontSize: "12px", color:"var(--theme-text-muted)"}}>🎵 {parseArtists(e.artists)}</span>
+                      : e.staff ? <span style={{fontSize: "12px", color:"var(--theme-text-faint)"}}>👥 {e.staff}</span> : null
                   }
                 </div>
               </div>
@@ -400,13 +400,13 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "var(--theme-accent)" : "var(--theme-text-muted)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
+            <a key={l.href} href={l.href} style={{ fontSize: "11px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "var(--theme-accent)" : "var(--theme-text-muted)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
-        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
+        <span style={{ fontSize: "11px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
+        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-faint)", fontSize: "10px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
       </div>
     </nav>
   );

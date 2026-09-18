@@ -555,13 +555,13 @@ export default function MateriaisPage() {
   // ── Styles ─────────────────────────────────────────────────────────────
   const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
   const overlayBottomStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)" };
-  const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: `1px solid ${C.border}`, padding: "2.5rem", width: "480px", maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", position: "relative" };
+  const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: `1px solid ${C.border}`, padding: "2.5rem", width: "480px", maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", position: "relative" };
   const modalMobStyle: React.CSSProperties = { background: "var(--theme-surface)", borderTop: `1px solid ${C.border}`, width: "100%", maxHeight: "92dvh", overflowY: "auto", padding: "1.5rem 1.25rem", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))", borderRadius: "12px 12px 0 0", position: "relative" };
   const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" };
-  const labelStyle: React.CSSProperties = { display: "block", fontSize: "7px", letterSpacing: "0.4em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.5rem" };
-  const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: `1px solid var(--theme-input-border)`, color: C.textPrimary, fontFamily: "'Montserrat',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
-  const btnPrimStyle: React.CSSProperties = { background: C.gold, border: "none", color: "var(--theme-accent-contrast)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-  const btnSecStyle: React.CSSProperties = { background: "transparent", border: `1px solid ${C.border}`, color: C.textSec, fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+  const labelStyle: React.CSSProperties = { display: "block", fontSize: "9px", letterSpacing: "0.4em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.5rem" };
+  const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: `1px solid var(--theme-input-border)`, color: C.textPrimary, fontFamily: "'Montserrat',sans-serif", fontSize: "13px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
+  const btnPrimStyle: React.CSSProperties = { background: C.gold, border: "none", color: "var(--theme-accent-contrast)", fontSize: "11px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+  const btnSecStyle: React.CSSProperties = { background: "transparent", border: `1px solid ${C.border}`, color: C.textSec, fontSize: "11px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 
   if (loading || mobileView === null) {
     return (
@@ -575,11 +575,11 @@ export default function MateriaisPage() {
     <button onClick={() => void handleTabChange(id)} style={{
       background: tab === id ? "rgba(var(--theme-accent-rgb),0.1)" : "transparent",
       border: "none", borderBottom: tab === id ? `2px solid ${C.gold}` : "2px solid transparent",
-      color: tab === id ? C.gold : C.textSec, fontSize: "9px", letterSpacing: "0.25em", fontWeight: 600,
+      color: tab === id ? C.gold : C.textSec, fontSize: "11px", letterSpacing: "0.25em", fontWeight: 600,
       padding: "0.85rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase",
       display: "flex", alignItems: "center", gap: "6px", flexShrink: 0,
     }}>
-      {label}{typeof count === "number" && <span style={{ background: tab === id ? "rgba(var(--theme-accent-rgb),0.2)" : "rgba(var(--theme-contrast-rgb),0.06)", color: tab === id ? C.gold : C.textMuted, fontSize: "9px", padding: "1px 6px", borderRadius: "8px" }}>{count}</span>}
+      {label}{typeof count === "number" && <span style={{ background: tab === id ? "rgba(var(--theme-accent-rgb),0.2)" : "rgba(var(--theme-contrast-rgb),0.06)", color: tab === id ? C.gold : C.textMuted, fontSize: "11px", padding: "1px 6px", borderRadius: "8px" }}>{count}</span>}
     </button>
   );
 
@@ -597,10 +597,10 @@ export default function MateriaisPage() {
     {mobileView === false && (
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: C.pageBg, color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <Nav userName={userName} active="materiais" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");   }} />
-      <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
+      <main style={{ padding: "2.75rem 3.25rem", maxWidth: "1500px", margin: "0 auto" }}>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
-          <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600 }}>Materiais</p>
+          <p style={{ fontSize: "11px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600 }}>Materiais</p>
           <div style={{ display: "flex", gap: "0.6rem" }}>
             <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
             <button onClick={openCreateMaterial} style={btnSecStyle}>+ Novo Material</button>
@@ -617,7 +617,7 @@ export default function MateriaisPage() {
           ].map(s => (
             <div key={s.label} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
               <span style={{ fontSize: "16px", fontWeight: 700, color: s.color || C.textPrimary }}>{s.value}</span>
-              <span style={{ fontSize: "8px", letterSpacing: "0.2em", color: C.textMuted, textTransform: "uppercase" }}>{s.label}</span>
+              <span style={{ fontSize: "10px", letterSpacing: "0.2em", color: C.textMuted, textTransform: "uppercase" }}>{s.label}</span>
             </div>
           ))}
         </div>
@@ -630,7 +630,7 @@ export default function MateriaisPage() {
         </div>
 
         {tabLoading && tab !== "fora" && (
-          <div style={{ padding: "3rem", textAlign: "center", color: C.textMuted, fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase" }}>A carregar apenas esta área...</div>
+          <div style={{ padding: "3rem", textAlign: "center", color: C.textMuted, fontSize: "12px", letterSpacing: "0.2em", textTransform: "uppercase" }}>A carregar apenas esta área...</div>
         )}
 
         {tab === "fora" && (
@@ -639,41 +639,41 @@ export default function MateriaisPage() {
               <div key={group.key} style={{ background: C.surface, border: `1px solid ${C.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1.1rem", borderBottom: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-accent-rgb),0.04)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span style={{ fontSize: "9px", letterSpacing: "0.2em", fontWeight: 700, color: group.isPessoal ? C.textSec : C.gold, textTransform: "uppercase" }}>
+                    <span style={{ fontSize: "11px", letterSpacing: "0.2em", fontWeight: 700, color: group.isPessoal ? C.textSec : C.gold, textTransform: "uppercase" }}>
                       {group.isPessoal ? "👤 Pessoal" : `🎪 ${group.label}`}
                     </span>
-                    {group.date && <span style={{ fontSize: "9px", color: C.textMuted, letterSpacing: "0.1em" }}>{fmtDateShort(group.date)}</span>}
+                    {group.date && <span style={{ fontSize: "11px", color: C.textMuted, letterSpacing: "0.1em" }}>{fmtDateShort(group.date)}</span>}
                   </div>
-                  <span style={{ fontSize: "9px", color: C.textMuted, background: "rgba(var(--theme-contrast-rgb),0.05)", padding: "2px 8px", borderRadius: "8px" }}>{group.items.length} {group.items.length === 1 ? "item" : "itens"}</span>
+                  <span style={{ fontSize: "11px", color: C.textMuted, background: "rgba(var(--theme-contrast-rgb),0.05)", padding: "2px 8px", borderRadius: "8px" }}>{group.items.length} {group.items.length === 1 ? "item" : "itens"}</span>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: "0.6rem", padding: "0.85rem" }}>
                   {group.items.map(mov => {
                     const pendente = pendenteMovimento(mov);
                     const dias = diasFora(mov.data_saida);
                     return (
-                      <div key={mov.id} style={{ background: "rgba(var(--theme-contrast-rgb),0.02)", border: `1px solid ${C.borderDim}`, padding: "0.85rem", display: "flex", gap: "0.75rem" }}>
+                      <div key={mov.id} style={{ background: "rgba(var(--theme-contrast-rgb),0.02)", border: `1px solid ${C.borderDim}`, padding: "0.85rem", display: "flex", gap: "0.95rem" }}>
                         <MaterialThumb src={mov.material_imagem} size={48} />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
-                            <span style={{ fontSize: "12px", fontWeight: 600 }}>{mov.material_nome}</span>
-                            <span style={{ fontSize: "12px", fontWeight: 700, color: C.amber, whiteSpace: "nowrap" }}>×{pendente}</span>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.7rem" }}>
+                            <span style={{ fontSize: "14px", fontWeight: 600 }}>{mov.material_nome}</span>
+                            <span style={{ fontSize: "14px", fontWeight: 700, color: C.amber, whiteSpace: "nowrap" }}>×{pendente}</span>
                           </div>
-                          <div style={{ fontSize: "10px", color: C.textSec, marginTop: "2px" }}>
+                          <div style={{ fontSize: "12px", color: C.textSec, marginTop: "2px" }}>
                             Com <span style={{ color: C.gold }}>{origemLabel(mov)}</span> · {dias === 0 ? "hoje" : dias === 1 ? "há 1 dia" : `há ${dias} dias`}
                           </div>
-                          <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px" }}>Saiu de {origemLabel(mov)} · Levou: {mov.quem_levou || mov.responsavel || "—"} · Dono: {mov.dono_material || "—"}</div>
-                          <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px" }}>Registo: {fmtDateTime(mov.data_saida)} · {mov.responsavel}</div>
+                          <div style={{ fontSize: "11px", color: C.textMuted, marginTop: "2px" }}>Saiu de {origemLabel(mov)} · Levou: {mov.quem_levou || mov.responsavel || "—"} · Dono: {mov.dono_material || "—"}</div>
+                          <div style={{ fontSize: "11px", color: C.textMuted, marginTop: "2px" }}>Registo: {fmtDateTime(mov.data_saida)} · {mov.responsavel}</div>
                           <div style={{ display: "flex", gap: "6px", marginTop: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
-                            <button onClick={() => openVolta(mov)} style={{ background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: C.green, fontSize: "9px", letterSpacing: "0.15em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
+                            <button onClick={() => openVolta(mov)} style={{ background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: C.green, fontSize: "11px", letterSpacing: "0.15em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
                             {pendente > 1 && (
                               <>
                                 <input type="number" min={1} max={pendente} value={voltaQty[mov.id] ?? 1}
                                   onChange={e => setVoltaQty(v => ({ ...v, [mov.id]: Math.max(1, Math.min(pendente, Number(e.target.value) || 1)) }))}
-                                  style={{ width: "44px", background: "rgba(var(--theme-contrast-rgb),0.05)", border: `1px solid ${C.border}`, color: C.textPrimary, fontSize: "10px", padding: "5px", textAlign: "center", outline: "none"   }} />
-                                <button onClick={() => openVolta(mov, voltaQty[mov.id] ?? 1)} style={{ ...btnSecStyle, padding: "5px 10px", fontSize: "8px" }}>Parcial</button>
+                                  style={{ width: "44px", background: "rgba(var(--theme-contrast-rgb),0.05)", border: `1px solid ${C.border}`, color: C.textPrimary, fontSize: "12px", padding: "5px", textAlign: "center", outline: "none"   }} />
+                                <button onClick={() => openVolta(mov, voltaQty[mov.id] ?? 1)} style={{ ...btnSecStyle, padding: "5px 10px", fontSize: "10px" }}>Parcial</button>
                               </>
                             )}
-                            <button onClick={() => handleDeleteMovimento(mov.id)} title="Apagar registo" style={{ marginLeft: "auto", background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: "13px" }}>×</button>
+                            <button onClick={() => handleDeleteMovimento(mov.id)} title="Apagar registo" style={{ marginLeft: "auto", background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: "14px" }}>×</button>
                           </div>
                         </div>
                       </div>
@@ -682,28 +682,28 @@ export default function MateriaisPage() {
                 </div>
               </div>
             ))}
-            {movimentosAbertos.length === 0 && <div style={{ textAlign: "center", padding: "1.6rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.16em", border: `1px solid ${C.borderDim}`, background: C.surface }}>Nada fora de momento — tudo continua no local</div>}
+            {movimentosAbertos.length === 0 && <div style={{ textAlign: "center", padding: "1.6rem", fontSize: "13px", color: C.textMuted, letterSpacing: "0.16em", border: `1px solid ${C.borderDim}`, background: C.surface }}>Nada fora de momento — tudo continua no local</div>}
 
             {reservasAgrupadas.length > 0 && (
               <section style={{ display: "flex", flexDirection: "column", gap: "0.8rem" }}>
                 <div>
-                  <div style={{ fontSize: "9px", letterSpacing: "0.28em", color: C.blue, textTransform: "uppercase", fontWeight: 700 }}>Reservado</div>
-                  <div style={{ fontSize: "10px", color: C.textMuted, marginTop: "0.25rem" }}>Bloqueado para a data do evento, mas ainda não saiu do local habitual.</div>
+                  <div style={{ fontSize: "11px", letterSpacing: "0.28em", color: C.blue, textTransform: "uppercase", fontWeight: 700 }}>Reservado</div>
+                  <div style={{ fontSize: "12px", color: C.textMuted, marginTop: "0.25rem" }}>Bloqueado para a data do evento, mas ainda não saiu do local habitual.</div>
                 </div>
                 {reservasAgrupadas.map(group => (
                   <div key={group.key} style={{ background: C.surface, border: `1px solid rgba(80,140,220,0.24)` }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1.1rem", borderBottom: `1px solid ${C.borderDim}`, background: "rgba(80,140,220,0.06)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span style={{ fontSize: "9px", letterSpacing: "0.2em", fontWeight: 700, color: C.blue, textTransform: "uppercase" }}>📌 {group.label}</span>
-                        {group.date && <span style={{ fontSize: "9px", color: C.textMuted }}>{fmtDateShort(group.date)}</span>}
+                        <span style={{ fontSize: "11px", letterSpacing: "0.2em", fontWeight: 700, color: C.blue, textTransform: "uppercase" }}>📌 {group.label}</span>
+                        {group.date && <span style={{ fontSize: "11px", color: C.textMuted }}>{fmtDateShort(group.date)}</span>}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                        <span style={{ fontSize: "9px", color: C.blue, background: "rgba(80,140,220,0.09)", padding: "2px 8px", borderRadius: "8px" }}>{group.items.reduce((sum, item) => sum + item.quantidade, 0)} un.</span>
+                        <span style={{ fontSize: "11px", color: C.blue, background: "rgba(80,140,220,0.09)", padding: "2px 8px", borderRadius: "8px" }}>{group.items.reduce((sum, item) => sum + item.quantidade, 0)} un.</span>
                         <button
                           onClick={() => void handleRetirarReservaEvento(group)}
                           disabled={removingReservationEventId === group.items[0]?.evento_id}
                           title="Retira esta reserva operacional sem apagar o evento nem alterar a faturação"
-                          style={{ ...btnSecStyle, padding: "5px 9px", fontSize: "7px", color: C.red, borderColor: "rgba(220,80,80,0.28)", opacity: removingReservationEventId === group.items[0]?.evento_id ? 0.55 : 1 }}
+                          style={{ ...btnSecStyle, padding: "5px 9px", fontSize: "9px", color: C.red, borderColor: "rgba(220,80,80,0.28)", opacity: removingReservationEventId === group.items[0]?.evento_id ? 0.55 : 1 }}
                         >
                           {removingReservationEventId === group.items[0]?.evento_id ? "A retirar…" : "Retirar reserva"}
                         </button>
@@ -711,16 +711,16 @@ export default function MateriaisPage() {
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: "0.6rem", padding: "0.85rem" }}>
                       {group.items.map((reserva, index) => (
-                        <div key={`${group.key}-${reserva.material_nome}-${index}`} style={{ background: "rgba(var(--theme-contrast-rgb),0.02)", border: `1px solid ${C.borderDim}`, padding: "0.85rem", display: "flex", gap: "0.75rem" }}>
+                        <div key={`${group.key}-${reserva.material_nome}-${index}`} style={{ background: "rgba(var(--theme-contrast-rgb),0.02)", border: `1px solid ${C.borderDim}`, padding: "0.85rem", display: "flex", gap: "0.95rem" }}>
                           <MaterialThumb src={reserva.material_imagem} size={44} />
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
-                              <span style={{ fontSize: "12px", fontWeight: 700 }}>{reserva.material_nome}</span>
-                              <span style={{ fontSize: "11px", fontWeight: 700, color: C.blue }}>×{reserva.quantidade}</span>
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: "0.7rem" }}>
+                              <span style={{ fontSize: "14px", fontWeight: 700 }}>{reserva.material_nome}</span>
+                              <span style={{ fontSize: "13px", fontWeight: 700, color: C.blue }}>×{reserva.quantidade}</span>
                             </div>
-                            <div style={{ fontSize: "10px", color: C.textSec, marginTop: "3px" }}>Permanece em <span style={{ color: C.gold }}>{reserva.local_habitual || "local habitual"}</span></div>
-                            <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px" }}>{reserva.pack_nome || "Reserva de material"}{reserva.reservado_por ? ` · por ${reserva.reservado_por}` : ""}</div>
-                            <button onClick={() => void openSaida(undefined, reserva)} style={{ ...btnSecStyle, marginTop: "0.6rem", padding: "6px 10px", fontSize: "8px", color: C.blue, borderColor: "rgba(80,140,220,0.3)" }}>Registar saída</button>
+                            <div style={{ fontSize: "12px", color: C.textSec, marginTop: "3px" }}>Permanece em <span style={{ color: C.gold }}>{reserva.local_habitual || "local habitual"}</span></div>
+                            <div style={{ fontSize: "11px", color: C.textMuted, marginTop: "2px" }}>{reserva.pack_nome || "Reserva de material"}{reserva.reservado_por ? ` · por ${reserva.reservado_por}` : ""}</div>
+                            <button onClick={() => void openSaida(undefined, reserva)} style={{ ...btnSecStyle, marginTop: "0.6rem", padding: "6px 10px", fontSize: "10px", color: C.blue, borderColor: "rgba(80,140,220,0.3)" }}>Registar saída</button>
                           </div>
                         </div>
                       ))}
@@ -738,24 +738,24 @@ export default function MateriaisPage() {
               <thead>
                 <tr>
                   {["Material", "Qtd", "Foi para", "Saiu em", "Voltou em", "Ações"].map((h, i) => (
-                    <th key={h} style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1rem", borderBottom: `1px solid ${C.border}`, textAlign: i === 5 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
+                    <th key={h} style={{ fontSize: "9px", letterSpacing: "0.3em", color: C.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1rem", borderBottom: `1px solid ${C.border}`, textAlign: i === 5 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {movimentosFechados.map(mov => (
                   <tr key={mov.id}>
-                    <td style={{ fontSize: "11px", padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}`, display: "flex", alignItems: "center", gap: "8px" }}>
+                    <td style={{ fontSize: "13px", padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}`, display: "flex", alignItems: "center", gap: "8px" }}>
                       <MaterialThumb src={mov.material_imagem} size={28} />{mov.material_nome}
                     </td>
-                    <td style={{ fontSize: "11px", color: C.textSec, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}` }}>
+                    <td style={{ fontSize: "13px", color: C.textSec, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}` }}>
                       {mov.quantidade_devolvida > 0 && <span>{mov.quantidade_devolvida} voltou</span>}
                       {mov.quantidade_consumida > 0 && <span>{mov.quantidade_devolvida > 0 ? " · " : ""}{mov.quantidade_consumida} consumido</span>}
                       {!mov.quantidade_devolvida && !mov.quantidade_consumida && <span>{mov.quantidade}</span>}
                     </td>
-                    <td style={{ fontSize: "11px", color: C.textSec, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}` }}>{origemLabel(mov)}</td>
-                    <td style={{ fontSize: "10px", color: C.textMuted, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}`, whiteSpace: "nowrap" }}>{fmtDateTime(mov.data_saida)}</td>
-                    <td style={{ fontSize: "10px", color: C.green, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}`, whiteSpace: "nowrap" }}>
+                    <td style={{ fontSize: "13px", color: C.textSec, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}` }}>{origemLabel(mov)}</td>
+                    <td style={{ fontSize: "12px", color: C.textMuted, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}`, whiteSpace: "nowrap" }}>{fmtDateTime(mov.data_saida)}</td>
+                    <td style={{ fontSize: "12px", color: C.green, padding: "0.7rem 1rem", borderBottom: `1px solid ${C.borderDim}`, whiteSpace: "nowrap" }}>
                       {mov.data_volta ? fmtDateTime(mov.data_volta) : "—"}
                       {mov.estado_regresso && <div style={{ color: mov.estado_regresso === "OK" ? C.green : C.amber }}>{mov.estado_regresso}</div>}
                       {mov.precisa_comprar === 1 && <div style={{ color: C.red }}>Comprar ×{mov.quantidade_comprar || "?"}</div>}
@@ -768,7 +768,7 @@ export default function MateriaisPage() {
                   </tr>
                 ))}
                 {movimentosFechados.length === 0 && (
-                  <tr><td colSpan={6} style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem histórico ainda</td></tr>
+                  <tr><td colSpan={6} style={{ textAlign: "center", padding: "3rem", fontSize: "13px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem histórico ainda</td></tr>
                 )}
               </tbody>
             </table>
@@ -787,20 +787,20 @@ export default function MateriaisPage() {
                       : <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={C.textMuted} strokeWidth="1.4"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>}
                   </div>
                   <div style={{ padding: "0.85rem" }}>
-                    <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "2px" }}>{m.nome}</div>
-                    {m.categoria && <div style={{ fontSize: "9px", color: C.gold, letterSpacing: "0.1em", marginBottom: "4px" }}>{m.categoria}</div>}
-                    <div style={{ fontSize: "10px", color: C.textSec }}>
+                    <div style={{ fontSize: "14px", fontWeight: 600, marginBottom: "2px" }}>{m.nome}</div>
+                    {m.categoria && <div style={{ fontSize: "11px", color: C.gold, letterSpacing: "0.1em", marginBottom: "4px" }}>{m.categoria}</div>}
+                    <div style={{ fontSize: "12px", color: C.textSec }}>
                       Total: <b style={{ color: C.textPrimary }}>{m.quantidade_total}</b>
                       {fora > 0 && <span style={{ color: C.amber }}> · {fora} fora</span>}
                     </div>
-                    <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "3px" }}>Dono: {m.dono || "—"} · Local: {m.local_habitual || "—"}</div>
+                    <div style={{ fontSize: "11px", color: C.textMuted, marginTop: "3px" }}>Dono: {m.dono || "—"} · Local: {m.local_habitual || "—"}</div>
                     <div style={{ display: "flex", gap: "4px", marginTop: "0.45rem", flexWrap: "wrap" }}>
-                      {m.consumivel === 1 && <span style={{ fontSize: "8px", color: C.amber, border: `1px solid ${C.border}`, padding: "2px 6px" }}>Consumível</span>}
-                      {m.precisa_comprar === 1 && <span style={{ fontSize: "8px", color: C.red, border: "1px solid rgba(226,75,74,0.35)", padding: "2px 6px" }}>Comprar ×{m.quantidade_comprar || "?"}</span>}
+                      {m.consumivel === 1 && <span style={{ fontSize: "10px", color: C.amber, border: `1px solid ${C.border}`, padding: "2px 6px" }}>Consumível</span>}
+                      {m.precisa_comprar === 1 && <span style={{ fontSize: "10px", color: C.red, border: "1px solid rgba(226,75,74,0.35)", padding: "2px 6px" }}>Comprar ×{m.quantidade_comprar || "?"}</span>}
                     </div>
                     <div style={{ display: "flex", gap: "6px", marginTop: "0.6rem" }}>
-                      <button onClick={() => openSaida(m.id)} style={{ ...btnSecStyle, flex: 1, padding: "6px 8px", fontSize: "8px" }}>Registar Saída</button>
-                      <button onClick={() => handleToggleCompraMaterial(m)} title={m.precisa_comprar === 1 ? "Compra resolvida" : "Marcar para comprar"} style={{ background: "transparent", border: "1px solid rgba(var(--theme-contrast-rgb),0.06)", color: m.precisa_comprar === 1 ? C.green : C.amber, padding: "6px 8px", cursor: "pointer", fontSize: "10px" }}>
+                      <button onClick={() => openSaida(m.id)} style={{ ...btnSecStyle, flex: 1, padding: "6px 8px", fontSize: "10px" }}>Registar Saída</button>
+                      <button onClick={() => handleToggleCompraMaterial(m)} title={m.precisa_comprar === 1 ? "Compra resolvida" : "Marcar para comprar"} style={{ background: "transparent", border: "1px solid rgba(var(--theme-contrast-rgb),0.06)", color: m.precisa_comprar === 1 ? C.green : C.amber, padding: "6px 8px", cursor: "pointer", fontSize: "12px" }}>
                         🛒
                       </button>
                       <button onClick={() => openEditMaterial(m)} title="Editar" style={{ background: "transparent", border: "1px solid rgba(var(--theme-contrast-rgb),0.06)", color: C.textMuted, padding: "6px 8px", cursor: "pointer" }}>
@@ -814,7 +814,7 @@ export default function MateriaisPage() {
                 </div>
               );
             })}
-            {materiaisAtivos.length === 0 && <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "3rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem material no catálogo — cria o primeiro</div>}
+            {materiaisAtivos.length === 0 && <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "3rem", fontSize: "13px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem material no catálogo — cria o primeiro</div>}
           </div>
         )}
 
@@ -822,19 +822,19 @@ export default function MateriaisPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
             <section>
               <div style={{ marginBottom: "0.75rem" }}>
-                <div style={{ fontSize: "9px", letterSpacing: "0.3em", color: C.gold, textTransform: "uppercase", fontWeight: 700 }}>Packs e sistemas</div>
-                <div style={{ fontSize: "10px", color: C.textMuted, marginTop: "0.3rem" }}>Som, AV e packs comerciais são geridos aqui e deixam de aparecer na Master de Valores.</div>
+                <div style={{ fontSize: "11px", letterSpacing: "0.3em", color: C.gold, textTransform: "uppercase", fontWeight: 700 }}>Packs e sistemas</div>
+                <div style={{ fontSize: "12px", color: C.textMuted, marginTop: "0.3rem" }}>Som, AV e packs comerciais são geridos aqui e deixam de aparecer na Master de Valores.</div>
               </div>
               <div style={{ background: C.surface, border: `1px solid ${C.borderDim}` }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1.2fr repeat(4, 110px) 90px", gap: "8px", padding: "0.7rem 0.9rem", borderBottom: `1px solid ${C.border}`, fontSize: "7px", letterSpacing: "0.18em", color: C.textMuted, textTransform: "uppercase" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1.2fr repeat(4, 110px) 90px", gap: "8px", padding: "0.7rem 0.9rem", borderBottom: `1px solid ${C.border}`, fontSize: "9px", letterSpacing: "0.18em", color: C.textMuted, textTransform: "uppercase" }}>
                   <span>Pack</span><span>Formato</span><span style={{ textAlign: "right" }}>Custo</span><span style={{ textAlign: "right" }}>Parceiro</span><span style={{ textAlign: "right" }}>SUD</span><span style={{ textAlign: "right" }}>Cliente</span><span />
                 </div>
                 {packs.map(pack => { const draft = packDrafts[pack.id]; return (
                   <div key={pack.id} style={{ display: "grid", gridTemplateColumns: "1.3fr 1.2fr repeat(4, 110px) 90px", gap: "8px", alignItems: "center", padding: "0.75rem 0.9rem", borderBottom: `1px solid ${C.borderDim}` }}>
-                    <div><div style={{ fontSize: "11px", fontWeight: 700 }}>{pack.nome}</div><div style={{ fontSize: "8px", color: C.textMuted, marginTop: "2px" }}>{pack.items?.length || 0} itens</div></div>
-                    <input value={draft?.duracao_formato || ""} onChange={e => updatePackDraft(pack.id, "duracao_formato", e.target.value)} style={{ ...inputStyle, fontSize: "10px", padding: "0.55rem" }} placeholder="Formato" />
-                    {(["custo_interno", "valor_parceiro", "valor_sud", "valor_cliente_final"] as const).map(field => <input key={field} value={draft?.[field] || ""} onChange={e => updatePackDraft(pack.id, field, e.target.value)} inputMode="decimal" style={{ ...inputStyle, fontSize: "10px", padding: "0.55rem", textAlign: "right" }} placeholder="0" />)}
-                    <button onClick={() => savePackValues(pack)} disabled={packSavingId === pack.id} style={{ ...btnSecStyle, padding: "0.55rem 0.6rem", fontSize: "8px" }}>{packSavingId === pack.id ? "..." : "Guardar"}</button>
+                    <div><div style={{ fontSize: "13px", fontWeight: 700 }}>{pack.nome}</div><div style={{ fontSize: "10px", color: C.textMuted, marginTop: "2px" }}>{pack.items?.length || 0} itens</div></div>
+                    <input value={draft?.duracao_formato || ""} onChange={e => updatePackDraft(pack.id, "duracao_formato", e.target.value)} style={{ ...inputStyle, fontSize: "12px", padding: "0.55rem" }} placeholder="Formato" />
+                    {(["custo_interno", "valor_parceiro", "valor_sud", "valor_cliente_final"] as const).map(field => <input key={field} value={draft?.[field] || ""} onChange={e => updatePackDraft(pack.id, field, e.target.value)} inputMode="decimal" style={{ ...inputStyle, fontSize: "12px", padding: "0.55rem", textAlign: "right" }} placeholder="0" />)}
+                    <button onClick={() => savePackValues(pack)} disabled={packSavingId === pack.id} style={{ ...btnSecStyle, padding: "0.55rem 0.6rem", fontSize: "10px" }}>{packSavingId === pack.id ? "..." : "Guardar"}</button>
                   </div>
                 ); })}
               </div>
@@ -842,15 +842,15 @@ export default function MateriaisPage() {
 
             <section>
               <div style={{ marginBottom: "0.75rem" }}>
-                <div style={{ fontSize: "9px", letterSpacing: "0.3em", color: C.gold, textTransform: "uppercase", fontWeight: 700 }}>Equipamento avulso</div>
-                <div style={{ fontSize: "10px", color: C.textMuted, marginTop: "0.3rem" }}>Os preços ficam na própria ficha do material.</div>
+                <div style={{ fontSize: "11px", letterSpacing: "0.3em", color: C.gold, textTransform: "uppercase", fontWeight: 700 }}>Equipamento avulso</div>
+                <div style={{ fontSize: "12px", color: C.textMuted, marginTop: "0.3rem" }}>Os preços ficam na própria ficha do material.</div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: "0.75rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: "0.95rem" }}>
                 {materiaisAtivos.map(material => (
                   <div key={material.id} style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "0.9rem" }}>
-                    <div style={{ display: "flex", gap: "0.7rem", alignItems: "center" }}><MaterialThumb src={material.imagem} size={38} /><div style={{ flex: 1 }}><div style={{ fontSize: "11px", fontWeight: 700 }}>{material.nome}</div><div style={{ fontSize: "9px", color: C.textMuted }}>{material.duracao_formato || material.categoria || "Equipamento"}</div></div><button onClick={() => openEditMaterial(material)} style={{ ...btnSecStyle, padding: "0.45rem 0.6rem", fontSize: "8px" }}>Editar</button></div>
+                    <div style={{ display: "flex", gap: "0.7rem", alignItems: "center" }}><MaterialThumb src={material.imagem} size={38} /><div style={{ flex: 1 }}><div style={{ fontSize: "13px", fontWeight: 700 }}>{material.nome}</div><div style={{ fontSize: "11px", color: C.textMuted }}>{material.duracao_formato || material.categoria || "Equipamento"}</div></div><button onClick={() => openEditMaterial(material)} style={{ ...btnSecStyle, padding: "0.45rem 0.6rem", fontSize: "10px" }}>Editar</button></div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "0.45rem", marginTop: "0.75rem" }}>
-                      {[ ["Custo", material.custo_interno], ["Parceiro", material.valor_parceiro], ["SUD", material.valor_sud], ["Cliente", material.valor_cliente_final] ].map(([label,value]) => <div key={String(label)}><div style={{ fontSize: "7px", color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>{label}</div><div style={{ fontSize: "11px", fontWeight: 700, marginTop: "2px" }}>{Number(value) ? `${Number(value).toLocaleString("pt-PT")}€` : "—"}</div></div>)}
+                      {[ ["Custo", material.custo_interno], ["Parceiro", material.valor_parceiro], ["SUD", material.valor_sud], ["Cliente", material.valor_cliente_final] ].map(([label,value]) => <div key={String(label)}><div style={{ fontSize: "9px", color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>{label}</div><div style={{ fontSize: "13px", fontWeight: 700, marginTop: "2px" }}>{Number(value) ? `${Number(value).toLocaleString("pt-PT")}€` : "—"}</div></div>)}
                     </div>
                   </div>
                 ))}
@@ -868,8 +868,8 @@ export default function MateriaisPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
-          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.4rem 0.5rem" }} />
-          <span style={{ fontSize: "8px", letterSpacing: "0.35em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
+          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "12px", padding: "0.4rem 0.5rem" }} />
+          <span style={{ fontSize: "10px", letterSpacing: "0.35em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
         </div>
       </div>
 
@@ -889,85 +889,85 @@ export default function MateriaisPage() {
             { label: "Reservado", value: stats.reservedUnits, color: stats.reservedUnits > 0 ? "var(--theme-info)" : undefined },
           ].map(s => (
             <div key={s.label} style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-              <span style={{ fontSize: "14px", fontWeight: 700, color: s.color || "var(--theme-text)" }}>{s.value}</span>
-              <span style={{ fontSize: "7px", letterSpacing: "0.15em", color: "var(--theme-text-subtle)", textTransform: "uppercase" }}>{s.label}</span>
+              <span style={{ fontSize: "15px", fontWeight: 700, color: s.color || "var(--theme-text)" }}>{s.value}</span>
+              <span style={{ fontSize: "9px", letterSpacing: "0.15em", color: "var(--theme-text-subtle)", textTransform: "uppercase" }}>{s.label}</span>
             </div>
           ))}
         </div>
       )}
 
       <div className="mob-list">
-        {tabLoading && tab !== "fora" && <div style={{ padding: "3rem 1.2rem", textAlign: "center", fontSize: "10px", color: "var(--theme-text-faint)", letterSpacing: "0.18em", textTransform: "uppercase" }}>A carregar esta área...</div>}
+        {tabLoading && tab !== "fora" && <div style={{ padding: "3rem 1.2rem", textAlign: "center", fontSize: "12px", color: "var(--theme-text-faint)", letterSpacing: "0.18em", textTransform: "uppercase" }}>A carregar esta área...</div>}
         {tab === "fora" && foraAgrupados.map(group => (
           <div key={group.key} style={{ borderBottom: "1px solid var(--theme-border)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.7rem 1.1rem", background: "rgba(var(--theme-accent-rgb),0.05)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "9px", letterSpacing: "0.15em", fontWeight: 700, color: group.isPessoal ? "var(--theme-text-muted)" : "var(--theme-accent)", textTransform: "uppercase" }}>
+                <span style={{ fontSize: "11px", letterSpacing: "0.15em", fontWeight: 700, color: group.isPessoal ? "var(--theme-text-muted)" : "var(--theme-accent)", textTransform: "uppercase" }}>
                   {group.isPessoal ? "👤 Pessoal" : `🎪 ${group.label}`}
                 </span>
-                {group.date && <span style={{ fontSize: "9px", color: "var(--theme-text-faint)" }}>{fmtDateShort(group.date)}</span>}
+                {group.date && <span style={{ fontSize: "11px", color: "var(--theme-text-faint)" }}>{fmtDateShort(group.date)}</span>}
               </div>
-              <span style={{ fontSize: "9px", color: "var(--theme-text-subtle)", background: "rgba(var(--theme-contrast-rgb),0.05)", padding: "2px 7px", borderRadius: "8px" }}>{group.items.length}</span>
+              <span style={{ fontSize: "11px", color: "var(--theme-text-subtle)", background: "rgba(var(--theme-contrast-rgb),0.05)", padding: "2px 7px", borderRadius: "8px" }}>{group.items.length}</span>
             </div>
             {group.items.map(mov => {
               const pendente = pendenteMovimento(mov);
               const dias = diasFora(mov.data_saida);
               return (
-                <div key={mov.id} style={{ padding: "0.9rem 1.1rem", borderTop: "1px solid rgba(var(--theme-contrast-rgb),0.03)", display: "flex", gap: "0.75rem" }}>
+                <div key={mov.id} style={{ padding: "0.9rem 1.1rem", borderTop: "1px solid rgba(var(--theme-contrast-rgb),0.03)", display: "flex", gap: "0.95rem" }}>
                   <MaterialThumb src={mov.material_imagem} size={48} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: "12px", fontWeight: 600 }}>{mov.material_nome}</span>
-                      <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--theme-warning)" }}>×{pendente}</span>
+                      <span style={{ fontSize: "14px", fontWeight: 600 }}>{mov.material_nome}</span>
+                      <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--theme-warning)" }}>×{pendente}</span>
                     </div>
-                    <div style={{ fontSize: "10px", color: "var(--theme-text-muted)", marginTop: "2px" }}>
+                    <div style={{ fontSize: "12px", color: "var(--theme-text-muted)", marginTop: "2px" }}>
                       Saiu de <span style={{ color: "var(--theme-accent)" }}>{origemLabel(mov)}</span> · levou {mov.quem_levou || mov.responsavel || "—"} · {dias === 0 ? "hoje" : `há ${dias}d`}
                     </div>
-                    <div style={{ fontSize: "9px", color: "var(--theme-text-subtle)", marginTop: "1px" }}>Dono: {mov.dono_material || "—"}</div>
-                    <button onClick={() => openVolta(mov)} style={{ marginTop: "0.5rem", background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: "var(--theme-success)", fontSize: "10px", letterSpacing: "0.1em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
+                    <div style={{ fontSize: "11px", color: "var(--theme-text-subtle)", marginTop: "1px" }}>Dono: {mov.dono_material || "—"}</div>
+                    <button onClick={() => openVolta(mov)} style={{ marginTop: "0.5rem", background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: "var(--theme-success)", fontSize: "12px", letterSpacing: "0.1em", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>✓ Voltou{pendente > 1 ? " tudo" : ""}</button>
                   </div>
                 </div>
               );
             })}
           </div>
         ))}
-        {tab === "fora" && movimentosAbertos.length === 0 && <div style={{ padding: "1.4rem 1.1rem", textAlign: "center", fontSize: "10px", color: "var(--theme-text-faint)", letterSpacing: "0.14em", borderBottom: "1px solid var(--theme-border)" }}>Nada fora — tudo continua no local</div>}
+        {tab === "fora" && movimentosAbertos.length === 0 && <div style={{ padding: "1.4rem 1.1rem", textAlign: "center", fontSize: "12px", color: "var(--theme-text-faint)", letterSpacing: "0.14em", borderBottom: "1px solid var(--theme-border)" }}>Nada fora — tudo continua no local</div>}
 
         {tab === "fora" && reservasAgrupadas.length > 0 && (
           <div>
             <div style={{ padding: "0.8rem 1.1rem", background: "rgba(80,140,220,0.07)", borderBottom: "1px solid rgba(80,140,220,0.2)" }}>
-              <div style={{ fontSize: "9px", letterSpacing: "0.2em", color: "var(--theme-info)", textTransform: "uppercase", fontWeight: 700 }}>Reservado · ainda no local</div>
-              <div style={{ fontSize: "9px", color: "var(--theme-text-faint)", marginTop: "3px" }}>Só passa para “Fora” quando a saída for registada.</div>
+              <div style={{ fontSize: "11px", letterSpacing: "0.2em", color: "var(--theme-info)", textTransform: "uppercase", fontWeight: 700 }}>Reservado · ainda no local</div>
+              <div style={{ fontSize: "11px", color: "var(--theme-text-faint)", marginTop: "3px" }}>Só passa para “Fora” quando a saída for registada.</div>
             </div>
             {reservasAgrupadas.map(group => (
               <div key={group.key} style={{ borderBottom: "1px solid var(--theme-border)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.7rem 1.1rem", background: "rgba(80,140,220,0.035)" }}>
                   <div>
-                    <div style={{ fontSize: "9px", letterSpacing: "0.14em", color: "var(--theme-info)", textTransform: "uppercase", fontWeight: 700 }}>📌 {group.label}</div>
-                    {group.date && <div style={{ fontSize: "9px", color: "var(--theme-text-faint)", marginTop: "2px" }}>{fmtDateShort(group.date)}</div>}
+                    <div style={{ fontSize: "11px", letterSpacing: "0.14em", color: "var(--theme-info)", textTransform: "uppercase", fontWeight: 700 }}>📌 {group.label}</div>
+                    {group.date && <div style={{ fontSize: "11px", color: "var(--theme-text-faint)", marginTop: "2px" }}>{fmtDateShort(group.date)}</div>}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                    <span style={{ fontSize: "9px", color: "var(--theme-info)" }}>{group.items.reduce((sum, item) => sum + item.quantidade, 0)} un.</span>
+                    <span style={{ fontSize: "11px", color: "var(--theme-info)" }}>{group.items.reduce((sum, item) => sum + item.quantidade, 0)} un.</span>
                     <button
                       onClick={() => void handleRetirarReservaEvento(group)}
                       disabled={removingReservationEventId === group.items[0]?.evento_id}
-                      style={{ background: "transparent", border: "1px solid rgba(220,80,80,0.25)", color: "var(--theme-danger)", fontSize: "7px", letterSpacing: "0.08em", padding: "5px 7px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: removingReservationEventId === group.items[0]?.evento_id ? 0.55 : 1 }}
+                      style={{ background: "transparent", border: "1px solid rgba(220,80,80,0.25)", color: "var(--theme-danger)", fontSize: "9px", letterSpacing: "0.08em", padding: "5px 7px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: removingReservationEventId === group.items[0]?.evento_id ? 0.55 : 1 }}
                     >
                       {removingReservationEventId === group.items[0]?.evento_id ? "A retirar…" : "Retirar"}
                     </button>
                   </div>
                 </div>
                 {group.items.map((reserva, index) => (
-                  <div key={`${group.key}-${reserva.material_nome}-${index}`} style={{ padding: "0.9rem 1.1rem", borderTop: "1px solid rgba(var(--theme-contrast-rgb),0.03)", display: "flex", gap: "0.75rem" }}>
+                  <div key={`${group.key}-${reserva.material_nome}-${index}`} style={{ padding: "0.9rem 1.1rem", borderTop: "1px solid rgba(var(--theme-contrast-rgb),0.03)", display: "flex", gap: "0.95rem" }}>
                     <MaterialThumb src={reserva.material_imagem} size={44} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: "0.6rem" }}>
-                        <span style={{ fontSize: "12px", fontWeight: 700 }}>{reserva.material_nome}</span>
-                        <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--theme-info)" }}>×{reserva.quantidade}</span>
+                        <span style={{ fontSize: "14px", fontWeight: 700 }}>{reserva.material_nome}</span>
+                        <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--theme-info)" }}>×{reserva.quantidade}</span>
                       </div>
-                      <div style={{ fontSize: "10px", color: "var(--theme-text-muted)", marginTop: "3px" }}>Permanece em {reserva.local_habitual || "local habitual"}</div>
-                      <div style={{ fontSize: "9px", color: "var(--theme-text-faint)", marginTop: "2px" }}>{reserva.pack_nome || "Reserva de material"}</div>
-                      <button onClick={() => void openSaida(undefined, reserva)} style={{ marginTop: "0.55rem", background: "rgba(80,140,220,0.1)", border: "1px solid rgba(80,140,220,0.28)", color: "var(--theme-info)", fontSize: "9px", letterSpacing: "0.08em", padding: "6px 10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>Registar saída</button>
+                      <div style={{ fontSize: "12px", color: "var(--theme-text-muted)", marginTop: "3px" }}>Permanece em {reserva.local_habitual || "local habitual"}</div>
+                      <div style={{ fontSize: "11px", color: "var(--theme-text-faint)", marginTop: "2px" }}>{reserva.pack_nome || "Reserva de material"}</div>
+                      <button onClick={() => void openSaida(undefined, reserva)} style={{ marginTop: "0.55rem", background: "rgba(80,140,220,0.1)", border: "1px solid rgba(80,140,220,0.28)", color: "var(--theme-info)", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, textTransform: "uppercase" }}>Registar saída</button>
                     </div>
                   </div>
                 ))}
@@ -977,55 +977,55 @@ export default function MateriaisPage() {
         )}
 
         {!tabLoading && tab === "historico" && movimentosFechados.map(mov => (
-          <div key={mov.id} style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", display: "flex", gap: "0.75rem" }}>
+          <div key={mov.id} style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", display: "flex", gap: "0.95rem" }}>
             <MaterialThumb src={mov.material_imagem} size={40} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: "12px", fontWeight: 600 }}>{mov.material_nome} <span style={{ color: "var(--theme-text-muted)", fontWeight: 400 }}>×{mov.quantidade}</span></div>
-              <div style={{ fontSize: "10px", color: "var(--theme-text-muted)" }}>Saiu de {origemLabel(mov)} · levou {mov.quem_levou || mov.responsavel || "—"}</div>
-              <div style={{ fontSize: "9px", color: "var(--theme-text-faint)" }}>{fmtDateTime(mov.data_saida)} → {mov.data_volta ? fmtDateTime(mov.data_volta) : "—"}</div>
-              {(mov.estado_regresso || mov.precisa_comprar === 1) && <div style={{ fontSize: "9px", color: mov.precisa_comprar === 1 ? "var(--theme-danger)" : "var(--theme-success)" }}>{mov.estado_regresso || ""}{mov.precisa_comprar === 1 ? ` · Comprar ×${mov.quantidade_comprar || "?"}` : ""}</div>}
+              <div style={{ fontSize: "14px", fontWeight: 600 }}>{mov.material_nome} <span style={{ color: "var(--theme-text-muted)", fontWeight: 400 }}>×{mov.quantidade}</span></div>
+              <div style={{ fontSize: "12px", color: "var(--theme-text-muted)" }}>Saiu de {origemLabel(mov)} · levou {mov.quem_levou || mov.responsavel || "—"}</div>
+              <div style={{ fontSize: "11px", color: "var(--theme-text-faint)" }}>{fmtDateTime(mov.data_saida)} → {mov.data_volta ? fmtDateTime(mov.data_volta) : "—"}</div>
+              {(mov.estado_regresso || mov.precisa_comprar === 1) && <div style={{ fontSize: "11px", color: mov.precisa_comprar === 1 ? "var(--theme-danger)" : "var(--theme-success)" }}>{mov.estado_regresso || ""}{mov.precisa_comprar === 1 ? ` · Comprar ×${mov.quantidade_comprar || "?"}` : ""}</div>}
             </div>
           </div>
         ))}
-        {!tabLoading && tab === "historico" && movimentosFechados.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "var(--theme-text-faint)", letterSpacing: "0.2em" }}>Sem histórico</div>}
+        {!tabLoading && tab === "historico" && movimentosFechados.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "13px", color: "var(--theme-text-faint)", letterSpacing: "0.2em" }}>Sem histórico</div>}
 
         {!tabLoading && tab === "catalogo" && materiaisAtivos.map(m => {
           const fora = pendenteAtualDoMaterial(m.id);
           return (
-            <div key={m.id} style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", display: "flex", gap: "0.75rem", alignItems: "center" }}>
+            <div key={m.id} style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", display: "flex", gap: "0.95rem", alignItems: "center" }}>
               <MaterialThumb src={m.imagem} size={44} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "12px", fontWeight: 600 }}>{m.nome}</div>
-                <div style={{ fontSize: "10px", color: "var(--theme-text-muted)" }}>Total {m.quantidade_total}{fora > 0 && <span style={{ color: "var(--theme-warning)" }}> · {fora} fora</span>}</div>
-                <div style={{ fontSize: "9px", color: "var(--theme-text-subtle)" }}>{m.dono || "—"} · {m.local_habitual || "—"}{m.consumivel === 1 ? " · Consumível" : ""}</div>
-                {m.precisa_comprar === 1 && <div style={{ fontSize: "9px", color: "var(--theme-danger)", marginTop: "2px" }}>🛒 Comprar ×{m.quantidade_comprar || "?"}</div>}
+                <div style={{ fontSize: "14px", fontWeight: 600 }}>{m.nome}</div>
+                <div style={{ fontSize: "12px", color: "var(--theme-text-muted)" }}>Total {m.quantidade_total}{fora > 0 && <span style={{ color: "var(--theme-warning)" }}> · {fora} fora</span>}</div>
+                <div style={{ fontSize: "11px", color: "var(--theme-text-subtle)" }}>{m.dono || "—"} · {m.local_habitual || "—"}{m.consumivel === 1 ? " · Consumível" : ""}</div>
+                {m.precisa_comprar === 1 && <div style={{ fontSize: "11px", color: "var(--theme-danger)", marginTop: "2px" }}>🛒 Comprar ×{m.quantidade_comprar || "?"}</div>}
               </div>
-              <button onClick={() => openSaida(m.id)} style={{ background: "rgba(var(--theme-accent-rgb),0.1)", border: "1px solid rgba(var(--theme-accent-rgb),0.25)", color: "var(--theme-accent)", fontSize: "9px", padding: "6px 10px", cursor: "pointer", fontFamily: "inherit" }}>Saída</button>
-              <button onClick={() => openEditMaterial(m)} style={{ background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-muted)", fontSize: "10px", padding: "6px 8px", cursor: "pointer" }}>✏️</button>
+              <button onClick={() => openSaida(m.id)} style={{ background: "rgba(var(--theme-accent-rgb),0.1)", border: "1px solid rgba(var(--theme-accent-rgb),0.25)", color: "var(--theme-accent)", fontSize: "11px", padding: "6px 10px", cursor: "pointer", fontFamily: "inherit" }}>Saída</button>
+              <button onClick={() => openEditMaterial(m)} style={{ background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-muted)", fontSize: "12px", padding: "6px 8px", cursor: "pointer" }}>✏️</button>
             </div>
           );
         })}
-        {!tabLoading && tab === "catalogo" && materiaisAtivos.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "11px", color: "var(--theme-text-faint)", letterSpacing: "0.2em" }}>Sem material — cria o primeiro</div>}
+        {!tabLoading && tab === "catalogo" && materiaisAtivos.length === 0 && <div style={{ padding: "3rem 1.5rem", textAlign: "center", fontSize: "13px", color: "var(--theme-text-faint)", letterSpacing: "0.2em" }}>Sem material — cria o primeiro</div>}
 
         {!tabLoading && tab === "valores" && (
           <div>
-            <div style={{ padding: "0.85rem 1.1rem", background: "rgba(var(--theme-accent-rgb),0.05)", borderBottom: "1px solid var(--theme-border)", fontSize: "9px", letterSpacing: "0.2em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 700 }}>Packs e sistemas</div>
+            <div style={{ padding: "0.85rem 1.1rem", background: "rgba(var(--theme-accent-rgb),0.05)", borderBottom: "1px solid var(--theme-border)", fontSize: "11px", letterSpacing: "0.2em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 700 }}>Packs e sistemas</div>
             {packs.map(pack => { const draft = packDrafts[pack.id]; return (
               <div key={pack.id} style={{ padding: "1rem 1.1rem", borderBottom: "1px solid var(--theme-border)" }}>
-                <div style={{ fontSize: "13px", fontWeight: 700 }}>{pack.nome}</div>
+                <div style={{ fontSize: "14px", fontWeight: 700 }}>{pack.nome}</div>
                 <input value={draft?.duracao_formato || ""} onChange={e => updatePackDraft(pack.id, "duracao_formato", e.target.value)} style={{ ...inputStyle, marginTop: "0.6rem" }} placeholder="Formato" />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.55rem", marginTop: "0.55rem" }}>
-                  {([ ["custo_interno", "Custo"], ["valor_parceiro", "Parceiro"], ["valor_sud", "SUD"], ["valor_cliente_final", "Cliente"] ] as const).map(([field,label]) => <label key={field}><span style={{ display: "block", fontSize: "7px", color: "var(--theme-text-faint)", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "3px" }}>{label}</span><input value={draft?.[field] || ""} onChange={e => updatePackDraft(pack.id, field, e.target.value)} inputMode="decimal" style={{ ...inputStyle, textAlign: "right" }} placeholder="0" /></label>)}
+                  {([ ["custo_interno", "Custo"], ["valor_parceiro", "Parceiro"], ["valor_sud", "SUD"], ["valor_cliente_final", "Cliente"] ] as const).map(([field,label]) => <label key={field}><span style={{ display: "block", fontSize: "9px", color: "var(--theme-text-faint)", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "3px" }}>{label}</span><input value={draft?.[field] || ""} onChange={e => updatePackDraft(pack.id, field, e.target.value)} inputMode="decimal" style={{ ...inputStyle, textAlign: "right" }} placeholder="0" /></label>)}
                 </div>
                 <button onClick={() => savePackValues(pack)} disabled={packSavingId === pack.id} style={{ ...btnPrimStyle, width: "100%", marginTop: "0.65rem", padding: "0.65rem" }}>{packSavingId === pack.id ? "A guardar..." : "Guardar valores"}</button>
               </div>
             ); })}
-            <div style={{ padding: "0.85rem 1.1rem", background: "rgba(var(--theme-accent-rgb),0.05)", borderBottom: "1px solid var(--theme-border)", fontSize: "9px", letterSpacing: "0.2em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 700 }}>Equipamento avulso</div>
+            <div style={{ padding: "0.85rem 1.1rem", background: "rgba(var(--theme-accent-rgb),0.05)", borderBottom: "1px solid var(--theme-border)", fontSize: "11px", letterSpacing: "0.2em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 700 }}>Equipamento avulso</div>
             {materiaisAtivos.map(material => (
               <div key={material.id} style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", display: "flex", gap: "0.7rem", alignItems: "center" }}>
                 <MaterialThumb src={material.imagem} size={40} />
-                <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: "12px", fontWeight: 700 }}>{material.nome}</div><div style={{ fontSize: "9px", color: "var(--theme-text-muted)", marginTop: "3px" }}>C {material.custo_interno || "—"}€ · P {material.valor_parceiro || "—"}€ · SUD {material.valor_sud || "—"}€ · Final {material.valor_cliente_final || "—"}€</div></div>
-                <button onClick={() => openEditMaterial(material)} style={{ background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-muted)", fontSize: "10px", padding: "7px 9px", cursor: "pointer" }}>✏️</button>
+                <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: "14px", fontWeight: 700 }}>{material.nome}</div><div style={{ fontSize: "11px", color: "var(--theme-text-muted)", marginTop: "3px" }}>C {material.custo_interno || "—"}€ · P {material.valor_parceiro || "—"}€ · SUD {material.valor_sud || "—"}€ · Final {material.valor_cliente_final || "—"}€</div></div>
+                <button onClick={() => openEditMaterial(material)} style={{ background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-muted)", fontSize: "12px", padding: "7px 9px", cursor: "pointer" }}>✏️</button>
               </div>
             ))}
           </div>
@@ -1033,7 +1033,7 @@ export default function MateriaisPage() {
       </div>
 
       {/* FABs mobile */}
-      <div style={{ position: "fixed", bottom: "calc(74px + env(safe-area-inset-bottom))", right: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem", zIndex: 50 }}>
+      <div style={{ position: "fixed", bottom: "calc(74px + env(safe-area-inset-bottom))", right: "1rem", display: "flex", flexDirection: "column", gap: "0.7rem", zIndex: 50 }}>
         {tab === "catalogo" && (
           <button onClick={openCreateMaterial} style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.3)", color: "var(--theme-accent)", width: "44px", height: "44px", borderRadius: "50%", fontSize: "20px", cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.5)" }}>+</button>
         )}
@@ -1092,7 +1092,7 @@ export default function MateriaisPage() {
       </>
     )}
 
-    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "var(--theme-toast-bg)", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
+    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "var(--theme-toast-bg)", border: `1px solid ${C.border}`, color: C.gold, fontSize: "12px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
       {toast}
     </div>
     </>
@@ -1103,9 +1103,9 @@ function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving
   const selected = materiais.find((m: Material) => m.id === saidaForm.material_id);
   return (
     <>
-      <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "1.5rem" }}>Registar Saída</p>
+      <p style={{ fontSize: "11px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "1.5rem" }}>Registar Saída</p>
 
-      <div style={{ marginBottom: "1rem" }}>
+      <div style={{ marginBottom: "1.25rem" }}>
         <label style={labelStyle}>Material *</label>
         <select style={{ ...inputStyle, cursor: "pointer" }} value={saidaForm.material_id} onChange={(e: any) => setSaidaForm((f: any) => ({ ...f, material_id: Number(e.target.value) }))}>
           <option value={0}>Selecionar material...</option>
@@ -1114,9 +1114,9 @@ function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving
       </div>
 
       {selected && (
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem", padding: "0.6rem", background: "rgba(var(--theme-contrast-rgb),0.02)", border: `1px solid ${C.borderDim}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1.25rem", padding: "0.6rem", background: "rgba(var(--theme-contrast-rgb),0.02)", border: `1px solid ${C.borderDim}` }}>
           <MaterialThumb src={selected.imagem} size={36} />
-          <span style={{ fontSize: "10px", color: C.textSec }}>
+          <span style={{ fontSize: "12px", color: C.textSec }}>
             Total no catálogo: <b style={{ color: C.textPrimary }}>{selected.quantidade_total}</b>
             <br />Dono: <b style={{ color: C.textPrimary }}>{selected.dono || "—"}</b> · Habitual: <b style={{ color: C.textPrimary }}>{selected.local_habitual || "—"}</b>
             {selected.consumivel === 1 && <><br /><span style={{ color: C.amber }}>Consumível</span></>}
@@ -1124,12 +1124,12 @@ function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving
         </div>
       )}
 
-      <div style={{ marginBottom: "1rem" }}>
+      <div style={{ marginBottom: "1.25rem" }}>
         <label style={labelStyle}>Quantidade *</label>
         <input type="number" min={1} style={inputStyle} value={saidaForm.quantidade} onChange={(e: any) => setSaidaForm((f: any) => ({ ...f, quantidade: Math.max(1, Number(e.target.value) || 1) }))} />
       </div>
 
-      <div style={{ marginBottom: "1rem" }}>
+      <div style={{ marginBottom: "1.25rem" }}>
         <label style={labelStyle}>Saiu de onde *</label>
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
           {ORIGENS.map((o: string) => (
@@ -1137,7 +1137,7 @@ function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving
               background: saidaForm.origem === o ? "rgba(var(--theme-accent-rgb),0.18)" : "rgba(var(--theme-contrast-rgb),0.04)",
               border: `1px solid ${saidaForm.origem === o ? "rgba(var(--theme-accent-rgb),0.4)" : "rgba(var(--theme-contrast-rgb),0.1)"}`,
               color: saidaForm.origem === o ? C.gold : C.textMuted,
-              fontSize: "10px", padding: "8px 14px", cursor: "pointer", fontFamily: "inherit",
+              fontSize: "12px", padding: "8px 14px", cursor: "pointer", fontFamily: "inherit",
             }}>{o}</button>
           ))}
         </div>
@@ -1146,12 +1146,12 @@ function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving
         )}
       </div>
 
-      <div style={{ marginBottom: "1rem" }}>
+      <div style={{ marginBottom: "1.25rem" }}>
         <label style={labelStyle}>Quem levou</label>
         <input style={inputStyle} placeholder="Ex: João, Tânia, técnico, artista..." value={saidaForm.quem_levou} onChange={(e: any) => setSaidaForm((f: any) => ({ ...f, quem_levou: e.target.value }))} />
       </div>
 
-      <div style={{ marginBottom: "1rem" }}>
+      <div style={{ marginBottom: "1.25rem" }}>
         <label style={labelStyle}>Para evento ou pessoal?</label>
         <select style={{ ...inputStyle, cursor: "pointer" }} value={saidaForm.evento_sel} onChange={(e: any) => setSaidaForm((f: any) => ({ ...f, evento_sel: e.target.value }))}>
           <option value="pessoal">👤 Pessoal (sem evento)</option>
@@ -1166,7 +1166,7 @@ function SaidaModalContent({ materiais, eventos, saidaForm, setSaidaForm, saving
         <textarea style={{ ...inputStyle, height: "60px", resize: "vertical" as any }} value={saidaForm.notas} onChange={(e: any) => setSaidaForm((f: any) => ({ ...f, notas: e.target.value }))} />
       </div>
 
-      <div style={{ display: "flex", gap: "0.75rem" }}>
+      <div style={{ display: "flex", gap: "0.95rem" }}>
         <button onClick={closeSaida} style={{ ...btnSecStyle, flex: 1 }}>Cancelar</button>
         <button onClick={handleRegistarSaida} disabled={saving || !saidaForm.material_id} style={{ ...btnPrimStyle, flex: 2, opacity: !saidaForm.material_id ? 0.5 : 1 }}>{saving ? "A registar..." : "Registar Saída"}</button>
       </div>
@@ -1178,13 +1178,13 @@ function VoltaModalContent({ voltaForm, setVoltaForm, movimento, pendente, savin
   const estados = ["OK", "Parcial", "Danificado", "Em falta", "Perdido", "Consumido"];
   return (
     <>
-      <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Regresso de Material</p>
-      <div style={{ background: "var(--theme-subtle-bg)", border: `1px solid ${C.borderDim}`, padding: "0.8rem", marginBottom: "1rem" }}>
-        <div style={{ fontSize: "12px", color: C.textPrimary, fontWeight: 700 }}>{movimento.material_nome}</div>
-        <div style={{ fontSize: "10px", color: C.textSec, marginTop: "3px" }}>Pendente: {pendente} · Levou: {movimento.quem_levou || movimento.responsavel || "—"} · Dono: {movimento.dono_material || "—"}</div>
+      <p style={{ fontSize: "11px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Regresso de Material</p>
+      <div style={{ background: "var(--theme-subtle-bg)", border: `1px solid ${C.borderDim}`, padding: "0.8rem", marginBottom: "1.25rem" }}>
+        <div style={{ fontSize: "14px", color: C.textPrimary, fontWeight: 700 }}>{movimento.material_nome}</div>
+        <div style={{ fontSize: "12px", color: C.textSec, marginTop: "3px" }}>Pendente: {pendente} · Levou: {movimento.quem_levou || movimento.responsavel || "—"} · Dono: {movimento.dono_material || "—"}</div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.25rem" }}>
         <div>
           <label style={labelStyle}>Quantidade que voltou</label>
           <input type="number" min={0} max={pendente} style={inputStyle} value={voltaForm.quantidade_devolvida} onChange={(e: any) => setVoltaForm((f: any) => ({ ...f, quantidade_devolvida: Math.max(0, Math.min(pendente, Number(e.target.value) || 0)) }))} />
@@ -1195,7 +1195,7 @@ function VoltaModalContent({ voltaForm, setVoltaForm, movimento, pendente, savin
         </div>
       </div>
 
-      <div style={{ marginBottom: "1rem" }}>
+      <div style={{ marginBottom: "1.25rem" }}>
         <label style={labelStyle}>Estado no regresso</label>
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
           {estados.map((estado: string) => (
@@ -1203,19 +1203,19 @@ function VoltaModalContent({ voltaForm, setVoltaForm, movimento, pendente, savin
               background: voltaForm.estado_regresso === estado ? "rgba(var(--theme-accent-rgb),0.18)" : "rgba(var(--theme-contrast-rgb),0.04)",
               border: `1px solid ${voltaForm.estado_regresso === estado ? "rgba(var(--theme-accent-rgb),0.4)" : "rgba(var(--theme-contrast-rgb),0.1)"}`,
               color: voltaForm.estado_regresso === estado ? C.gold : C.textMuted,
-              fontSize: "10px", padding: "8px 10px", cursor: "pointer", fontFamily: "inherit",
+              fontSize: "12px", padding: "8px 10px", cursor: "pointer", fontFamily: "inherit",
             }}>{estado}</button>
           ))}
         </div>
       </div>
 
-      <div style={{ marginBottom: "1rem", padding: "0.75rem", border: `1px solid ${voltaForm.precisa_comprar ? "rgba(226,75,74,0.35)" : C.borderDim}`, background: voltaForm.precisa_comprar ? "rgba(226,75,74,0.06)" : "rgba(var(--theme-contrast-rgb),0.02)" }}>
+      <div style={{ marginBottom: "1.25rem", padding: "0.75rem", border: `1px solid ${voltaForm.precisa_comprar ? "rgba(226,75,74,0.35)" : C.borderDim}`, background: voltaForm.precisa_comprar ? "rgba(226,75,74,0.06)" : "rgba(var(--theme-contrast-rgb),0.02)" }}>
         <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
           <input type="checkbox" checked={voltaForm.precisa_comprar === 1} onChange={(e: any) => setVoltaForm((f: any) => ({ ...f, precisa_comprar: e.target.checked ? 1 : 0 }))} />
           Precisa comprar / repor stock
         </label>
         {voltaForm.precisa_comprar === 1 && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.75rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.95rem", marginTop: "0.75rem" }}>
             <input style={inputStyle} placeholder="Motivo: acabou / precisa mais..." value={voltaForm.motivo_compra} onChange={(e: any) => setVoltaForm((f: any) => ({ ...f, motivo_compra: e.target.value }))} />
             <input type="number" min={0} style={inputStyle} placeholder="Qtd comprar" value={voltaForm.quantidade_comprar} onChange={(e: any) => setVoltaForm((f: any) => ({ ...f, quantidade_comprar: Math.max(0, Number(e.target.value) || 0) }))} />
           </div>
@@ -1227,7 +1227,7 @@ function VoltaModalContent({ voltaForm, setVoltaForm, movimento, pendente, savin
         <textarea style={{ ...inputStyle, height: "64px", resize: "vertical" as any }} value={voltaForm.notas_regresso} onChange={(e: any) => setVoltaForm((f: any) => ({ ...f, notas_regresso: e.target.value }))} placeholder="Ex: voltou riscado, falta cabo, consumido no evento..." />
       </div>
 
-      <div style={{ display: "flex", gap: "0.75rem" }}>
+      <div style={{ display: "flex", gap: "0.95rem" }}>
         <button onClick={closeVolta} style={{ ...btnSecStyle, flex: 1 }}>Cancelar</button>
         <button onClick={handleGuardarVolta} disabled={saving} style={{ ...btnPrimStyle, flex: 2 }}>{saving ? "A guardar..." : "Guardar Regresso"}</button>
       </div>
@@ -1238,35 +1238,35 @@ function VoltaModalContent({ voltaForm, setVoltaForm, movimento, pendente, savin
 function MaterialModalContent({ materialForm, setMaterialForm, materialModal, saving, imgUploading, closeMaterialModal, handleSaveMaterial, handleImageUpload, fileInputRef, labelStyle, inputStyle, btnPrimStyle, btnSecStyle, C }: any) {
   return (
     <>
-      <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "1.5rem" }}>
+      <p style={{ fontSize: "11px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "1.5rem" }}>
         {materialModal.editing ? "Editar Material" : "Novo Material"}
       </p>
 
-      <div style={{ marginBottom: "1rem" }}>
+      <div style={{ marginBottom: "1.25rem" }}>
         <label style={labelStyle}>Foto</label>
         <div onClick={() => fileInputRef.current?.click()} style={{
           width: "100%", height: "140px", background: "var(--theme-subtle-bg)", border: `1px dashed ${C.border}`,
           display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", overflow: "hidden",
         }}>
           {imgUploading
-            ? <span style={{ fontSize: "10px", color: C.textMuted, letterSpacing: "0.2em" }}>A processar...</span>
+            ? <span style={{ fontSize: "12px", color: C.textMuted, letterSpacing: "0.2em" }}>A processar...</span>
             : materialForm.imagem
               ? <img src={materialForm.imagem} alt="" style={{ width: "100%", height: "100%", objectFit: "cover"   }} />
               : <div style={{ textAlign: "center" }}>
                   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.textMuted} strokeWidth="1.4" style={{ marginBottom: "6px" }}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
-                  <div style={{ fontSize: "9px", color: C.textMuted, letterSpacing: "0.15em" }}>Toca para adicionar foto</div>
+                  <div style={{ fontSize: "11px", color: C.textMuted, letterSpacing: "0.15em" }}>Toca para adicionar foto</div>
                 </div>}
         </div>
         <input ref={fileInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
           onChange={(e: any) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f);   }} />
       </div>
 
-      <div style={{ marginBottom: "1rem" }}>
+      <div style={{ marginBottom: "1.25rem" }}>
         <label style={labelStyle}>Nome *</label>
         <input style={inputStyle} value={materialForm.nome} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, nome: e.target.value }))} placeholder="Ex: Coluna JBL, Microfone SM58..." />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.25rem" }}>
         <div>
           <label style={labelStyle}>Categoria</label>
           <select style={{ ...inputStyle, cursor: "pointer" }} value={materialForm.categoria} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, categoria: e.target.value }))}>
@@ -1280,7 +1280,7 @@ function MaterialModalContent({ materialForm, setMaterialForm, materialModal, sa
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.25rem" }}>
         <div>
           <label style={labelStyle}>Dono do material</label>
           <input style={inputStyle} value={materialForm.dono} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, dono: e.target.value }))} placeholder="LLE / João / Tânia / Alugado..." />
@@ -1291,7 +1291,7 @@ function MaterialModalContent({ materialForm, setMaterialForm, materialModal, sa
         </div>
       </div>
 
-      <div style={{ marginBottom: "1rem", padding: "0.75rem", border: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-contrast-rgb),0.02)" }}>
+      <div style={{ marginBottom: "1.25rem", padding: "0.75rem", border: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-contrast-rgb),0.02)" }}>
         <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", marginBottom: "0.75rem" }}>
           <input type="checkbox" checked={materialForm.consumivel === 1} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, consumivel: e.target.checked ? 1 : 0 }))} />
           Material consumível
@@ -1309,7 +1309,7 @@ function MaterialModalContent({ materialForm, setMaterialForm, materialModal, sa
           </div>
         </div>
         {materialForm.precisa_comprar === 1 && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.75rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.95rem", marginTop: "0.75rem" }}>
             <input style={inputStyle} placeholder="Motivo" value={materialForm.motivo_compra} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, motivo_compra: e.target.value }))} />
             <input type="number" min={0} style={inputStyle} placeholder="Qtd comprar" value={materialForm.quantidade_comprar} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, quantidade_comprar: Math.max(0, Number(e.target.value) || 0) }))} />
             <textarea style={{ ...inputStyle, gridColumn: "1 / -1", height: "54px", resize: "vertical" as any }} placeholder="Notas de compra" value={materialForm.notas_compra} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, notas_compra: e.target.value }))} />
@@ -1318,12 +1318,12 @@ function MaterialModalContent({ materialForm, setMaterialForm, materialModal, sa
       </div>
 
       <div style={{ marginBottom: "1.25rem", padding: "0.9rem", border: `1px solid ${C.borderDim}`, background: "rgba(var(--theme-contrast-rgb),0.02)" }}>
-        <p style={{ fontSize: "8px", letterSpacing: "0.3em", color: C.goldDim, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.85rem" }}>Valores do material</p>
+        <p style={{ fontSize: "10px", letterSpacing: "0.3em", color: C.goldDim, textTransform: "uppercase", fontWeight: 700, marginBottom: "0.85rem" }}>Valores do material</p>
         <div style={{ marginBottom: "0.8rem" }}>
           <label style={labelStyle}>Duração / formato</label>
           <input style={inputStyle} value={materialForm.duracao_formato} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, duracao_formato: e.target.value }))} placeholder="Ex: por evento, até 4h, unidade..." />
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.75rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.95rem" }}>
           {[
             ["Custo interno", "custo_interno"],
             ["Parceiro", "valor_parceiro"],
@@ -1343,7 +1343,7 @@ function MaterialModalContent({ materialForm, setMaterialForm, materialModal, sa
         <textarea style={{ ...inputStyle, height: "60px", resize: "vertical" as any }} value={materialForm.notas} onChange={(e: any) => setMaterialForm((f: any) => ({ ...f, notas: e.target.value }))} />
       </div>
 
-      <div style={{ display: "flex", gap: "0.75rem" }}>
+      <div style={{ display: "flex", gap: "0.95rem" }}>
         <button onClick={closeMaterialModal} style={{ ...btnSecStyle, flex: 1 }}>Cancelar</button>
         <button onClick={handleSaveMaterial} disabled={saving} style={{ ...btnPrimStyle, flex: 2 }}>{saving ? "A guardar..." : materialModal.editing ? "Guardar" : "Criar"}</button>
       </div>
@@ -1383,13 +1383,13 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "var(--theme-accent)" : "var(--theme-text-muted)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
+            <a key={l.href} href={l.href} style={{ fontSize: "11px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "var(--theme-accent)" : "var(--theme-text-muted)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
-        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
+        <span style={{ fontSize: "11px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
+        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-faint)", fontSize: "10px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
       </div>
     </nav>
   );

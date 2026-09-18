@@ -1410,9 +1410,9 @@ export default function AgendaPage() {
   const ConflictAlert = ({ conflicts }: { conflicts: { artist: string; date: string; others: string[] }[] }) => conflicts.length === 0 ? null : (
     <div style={{ marginTop: "5px", display: "flex", flexDirection: "column", gap: "4px" }}>
       {conflicts.map(c => (
-        <div key={`${c.date}-${c.artist}`} style={{ background: "rgba(226,75,74,0.10)", border: "1px solid rgba(226,75,74,0.35)", color: Colors.red, padding: "5px 7px", fontSize: "9px", lineHeight: 1.35, fontWeight: 700 }}>
+        <div key={`${c.date}-${c.artist}`} style={{ background: "rgba(226,75,74,0.10)", border: "1px solid rgba(226,75,74,0.35)", color: Colors.red, padding: "5px 7px", fontSize: "11px", lineHeight: 1.35, fontWeight: 700 }}>
           🚨🚨 {c.artist} também está em {c.others.join(" / ")} 🚨🚨
-          <button onClick={(ev) => { ev.stopPropagation(); handleDismissConflict(c.date, c.artist); }} style={{ marginLeft: "8px", background: "transparent", border: "none", color: Colors.red, textDecoration: "underline", cursor: "pointer", fontSize: "9px", fontFamily: "inherit" }}>retirar alerta</button>
+          <button onClick={(ev) => { ev.stopPropagation(); handleDismissConflict(c.date, c.artist); }} style={{ marginLeft: "8px", background: "transparent", border: "none", color: Colors.red, textDecoration: "underline", cursor: "pointer", fontSize: "11px", fontFamily: "inherit" }}>retirar alerta</button>
         </div>
       ))}
     </div>
@@ -1727,21 +1727,21 @@ export default function AgendaPage() {
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: lightTheme ? "#FFFBF7" : "var(--theme-bg)", color: lightTheme ? Colors.textPrimary : Colors.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <Nav userName={userName} active="agenda" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} lightTheme={lightTheme} />
 
-      <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
+      <main style={{ padding: "2.75rem 3.25rem", maxWidth: "1500px", margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-          <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.textSec, textTransform: "uppercase", fontWeight: 600 }}>Agenda 2026</p>
-          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          <p style={{ fontSize: "11px", letterSpacing: "0.4em", color: Colors.textSec, textTransform: "uppercase", fontWeight: 600 }}>Agenda 2026</p>
+          <div style={{ display: "flex", gap: "0.95rem", alignItems: "center" }}>
             <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
             <button
               onClick={openPdfPeriodModal}
-              style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.22)", color: "var(--theme-accent)", fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
+              style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.22)", color: "var(--theme-accent)", fontSize: "10px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
               PDF
             </button>
             <button
               onClick={openWaPeriodModal}
-              style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
+              style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "10px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
               WhatsApp
@@ -1759,7 +1759,7 @@ export default function AgendaPage() {
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
           <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${Colors.borderDim}`, overflowX: "auto" }}>
             {monthTabs.map(ym => (
-              <button key={ym} onClick={() => setSelectedMonth(ym)} style={{ background: selectedMonth === ym ? "rgba(var(--theme-accent-rgb),0.08)" : "transparent", border: "none", borderRight: `1px solid ${Colors.borderDim}`, borderBottom: selectedMonth === ym ? `1px solid ${Colors.gold}` : "none", color: selectedMonth === ym ? Colors.gold : Colors.textMuted, fontSize: "8px", letterSpacing: "0.3em", padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize", fontWeight: selectedMonth === ym ? 700 : 400, whiteSpace: "nowrap", transition: "all 0.2s" }}>
+              <button key={ym} onClick={() => setSelectedMonth(ym)} style={{ background: selectedMonth === ym ? "rgba(var(--theme-accent-rgb),0.08)" : "transparent", border: "none", borderRight: `1px solid ${Colors.borderDim}`, borderBottom: selectedMonth === ym ? `1px solid ${Colors.gold}` : "none", color: selectedMonth === ym ? Colors.gold : Colors.textMuted, fontSize: "10px", letterSpacing: "0.3em", padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize", fontWeight: selectedMonth === ym ? 700 : 400, whiteSpace: "nowrap", transition: "all 0.2s" }}>
                 {monthLabel(ym)}
               </button>
             ))}
@@ -1768,7 +1768,7 @@ export default function AgendaPage() {
             <input
               value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Pesquisar evento..."
-              style={{ flex: 1, background: "var(--theme-subtle-bg)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: Colors.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "0.9rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
+              style={{ flex: 1, background: "var(--theme-subtle-bg)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: Colors.textPrimary, fontFamily: "inherit", fontSize: "13px", padding: "0.9rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
             />
             {/* Artista dropdown */}
             <CustomSelect
@@ -1776,7 +1776,7 @@ export default function AgendaPage() {
               onChange={v => setFilterArtista(v)}
               placeholder="Artista"
               options={[{ value: "", label: "Artista" }, ...dropdownArtistas.map(a => ({ value: a, label: a }))]}
-              style={{ background: filterArtista ? "rgba(var(--theme-accent-rgb),0.08)" : "rgba(var(--theme-contrast-rgb),0.02)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: filterArtista ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
+              style={{ background: filterArtista ? "rgba(var(--theme-accent-rgb),0.08)" : "rgba(var(--theme-contrast-rgb),0.02)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: filterArtista ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "10px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
             />
             {/* Cliente dropdown */}
             <CustomSelect
@@ -1784,7 +1784,7 @@ export default function AgendaPage() {
               onChange={v => setFilterCliente(v)}
               placeholder="Cliente"
               options={[{ value: "", label: "Cliente" }, ...dropdownClientes.map(c => ({ value: c, label: c }))]}
-              style={{ background: filterCliente ? "rgba(var(--theme-accent-rgb),0.08)" : "rgba(var(--theme-contrast-rgb),0.02)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: filterCliente ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
+              style={{ background: filterCliente ? "rgba(var(--theme-accent-rgb),0.08)" : "rgba(var(--theme-contrast-rgb),0.02)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: filterCliente ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "10px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
             />
             {/* Equipa dropdown */}
             <CustomSelect
@@ -1792,13 +1792,13 @@ export default function AgendaPage() {
               onChange={v => setFilterEquipa(v)}
               placeholder="Equipa"
               options={[{ value: "", label: "Equipa" }, ...dropdownEquipa.map(n => ({ value: n, label: `${EQUIPA_SYMBOL[n]} ${n}` }))]}
-              style={{ background: filterEquipa ? "rgba(var(--theme-accent-rgb),0.08)" : "rgba(var(--theme-contrast-rgb),0.02)", border: "none", color: filterEquipa ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "120px", textTransform: "uppercase" as any }}
+              style={{ background: filterEquipa ? "rgba(var(--theme-accent-rgb),0.08)" : "rgba(var(--theme-contrast-rgb),0.02)", border: "none", color: filterEquipa ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "10px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "120px", textTransform: "uppercase" as any }}
             />
             {/* Clear filters — só aparece se houver algum filtro activo */}
             {(filterArtista || filterCliente || filterEquipa) && (
               <button
                 onClick={() => { setFilterArtista(""); setFilterCliente(""); setFilterEquipa(""); }}
-                style={{ background: "transparent", border: "none", borderLeft: `1px solid ${Colors.borderDim}`, color: Colors.textMuted, fontSize: "9px", padding: "0.9rem 1rem", cursor: "pointer", whiteSpace: "nowrap", letterSpacing: "0.2em" }}
+                style={{ background: "transparent", border: "none", borderLeft: `1px solid ${Colors.borderDim}`, color: Colors.textMuted, fontSize: "11px", padding: "0.9rem 1rem", cursor: "pointer", whiteSpace: "nowrap", letterSpacing: "0.2em" }}
                 title="Limpar filtros"
               >✕</button>
             )}
@@ -1808,7 +1808,7 @@ export default function AgendaPage() {
               <thead>
                 <tr>
                   {["Data", "Evento", "Hora", "Local", "Equipa", "Artistas", "Modalidade", "Estado", "Faturação", "Ações"].map((h, i) => (
-                    <th key={h} style={{ fontSize: "7px", letterSpacing: "0.4em", color: Colors.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${Colors.border}`, textAlign: i >= 8 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
+                    <th key={h} style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${Colors.border}`, textAlign: i >= 8 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -1819,7 +1819,7 @@ export default function AgendaPage() {
                     return (
                       <tr key={`folga-${row.date}`} style={{ opacity: 0.38, background: isFolgaToday ? "rgba(var(--theme-accent-rgb),0.04)" : undefined }}>
                         <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), color: isFolgaToday ? "var(--theme-accent)" : undefined, fontWeight: isFolgaToday ? 700 : undefined }}>{fmtDate(row.date)}</td>
-                        <td colSpan={8} style={{ ...createTdStyle(lightTheme, {}), fontSize: "10px", color: Colors.textMuted, letterSpacing: "0.2em", fontStyle: "italic" }}>
+                        <td colSpan={8} style={{ ...createTdStyle(lightTheme, {}), fontSize: "12px", color: Colors.textMuted, letterSpacing: "0.2em", fontStyle: "italic" }}>
                           ⛱️ Folga
                         </td>
                       </tr>
@@ -1834,26 +1834,26 @@ export default function AgendaPage() {
                         <td style={{ ...createTdStyle(lightTheme, {}), maxWidth: "280px" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                             <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                              <span style={{ fontSize: "11px" }}>{l.title}</span>
+                              <span style={{ fontSize: "13px" }}>{l.title}</span>
                             </span>
-                            {l.local && <span style={{ fontSize: "9px", color: Colors.gold, letterSpacing: "0.03em" }}>📍 {l.local}</span>}
-                            {displayCliente(l.cliente_nome) && <span style={{ fontSize: "9px", color: Colors.textSec, letterSpacing: "0.03em" }}>👤 {displayCliente(l.cliente_nome)}</span>}
-                            <span style={{ fontSize: "8px", color: Colors.goldDim, letterSpacing: "0.25em", textTransform: "uppercase" }}>Lead · {l.status}</span>
+                            {l.local && <span style={{ fontSize: "11px", color: Colors.gold, letterSpacing: "0.03em" }}>📍 {l.local}</span>}
+                            {displayCliente(l.cliente_nome) && <span style={{ fontSize: "11px", color: Colors.textSec, letterSpacing: "0.03em" }}>👤 {displayCliente(l.cliente_nome)}</span>}
+                            <span style={{ fontSize: "10px", color: Colors.goldDim, letterSpacing: "0.25em", textTransform: "uppercase" }}>Lead · {l.status}</span>
                             <ConflictAlert conflicts={conflictsForLead(l)} />
                           </div>
                         </td>
                         <td style={createTdStyle(lightTheme, { muted: true })} colSpan={3}>—</td>
                         <td style={createTdStyle(lightTheme, { muted: true })}>
-                          <span style={{ fontSize: "9px", color: Colors.textMuted }}>{l.modalidade || "Fatura"}</span>
+                          <span style={{ fontSize: "11px", color: Colors.textMuted }}>{l.modalidade || "Fatura"}</span>
                         </td>
                         <td style={createTdStyle(lightTheme, {})}>
                           <StatusBadge color={Colors.amber} label={l.status || "Confirmado"} />
                         </td>
-                        <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "11px" }}>
+                        <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "13px" }}>
                           {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(l.value, artistsForAgendaLead(l), l.material_cost || 0) ? (
                             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
                               <span>{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
-                              <span style={{ fontSize: "8px", color: lucroVisivel(l.value, artistsForAgendaLead(l), l.material_cost || 0) >= 0 ? Colors.green : Colors.red, fontWeight: 600 }}>
+                              <span style={{ fontSize: "10px", color: lucroVisivel(l.value, artistsForAgendaLead(l), l.material_cost || 0) >= 0 ? Colors.green : Colors.red, fontWeight: 600 }}>
                                 Lucro {lucroVisivel(l.value, artistsForAgendaLead(l), l.material_cost || 0).toLocaleString("pt-PT")}€
                               </span>
                             </div>
@@ -1864,7 +1864,7 @@ export default function AgendaPage() {
                             <button
                               title="Converter para evento"
                               onClick={() => handleLeadConvert(l)}
-                              style={{ background: "transparent", border: "none", cursor: "pointer", padding: "5px", color: Colors.green, fontSize: "9px", letterSpacing: "0.15em", fontFamily: "inherit", fontWeight: 600 }}
+                              style={{ background: "transparent", border: "none", cursor: "pointer", padding: "5px", color: Colors.green, fontSize: "11px", letterSpacing: "0.15em", fontFamily: "inherit", fontWeight: 600 }}
                             >→</button>
                             <IconBtn title="Ocultar da agenda" onClick={() => handleLeadRemove(l)} icon="cancel" danger />
                           </div>
@@ -1885,14 +1885,14 @@ export default function AgendaPage() {
                             const evArtists = artistasMap[e.id] || [];
                             const icons = artistIcons(evArtists);
                             return icons
-                              ? <span style={{ fontSize: "13px", letterSpacing: "1px", flexShrink: 0 }}>{icons}</span>
+                              ? <span style={{ fontSize: "14px", letterSpacing: "1px", flexShrink: 0 }}>{icons}</span>
                               : null;
                           })()}
-                          <span style={{ fontSize: "11px" }}>{e.title.replace(/^\p{Emoji}[\p{Emoji}\u200d\s]*/u, "")}</span>
+                          <span style={{ fontSize: "13px" }}>{e.title.replace(/^\p{Emoji}[\p{Emoji}\u200d\s]*/u, "")}</span>
                         </span>
-                        {e.venue && <span style={{ fontSize: "9px", color: Colors.gold, letterSpacing: "0.03em" }}>📍 {e.venue}</span>}
-                        {displayCliente(e.cliente_nome) && <span style={{ fontSize: "9px", color: Colors.textSec, letterSpacing: "0.03em" }}>👤 {displayCliente(e.cliente_nome)}</span>}
-                        {!!e.cancelled && <span style={{ fontSize: "8px", color: Colors.red, letterSpacing: "0.2em" }}>[CANCELADO]</span>}
+                        {e.venue && <span style={{ fontSize: "11px", color: Colors.gold, letterSpacing: "0.03em" }}>📍 {e.venue}</span>}
+                        {displayCliente(e.cliente_nome) && <span style={{ fontSize: "11px", color: Colors.textSec, letterSpacing: "0.03em" }}>👤 {displayCliente(e.cliente_nome)}</span>}
+                        {!!e.cancelled && <span style={{ fontSize: "10px", color: Colors.red, letterSpacing: "0.2em" }}>[CANCELADO]</span>}
                         <ConflictAlert conflicts={conflictsForEvent(e)} />
                       </div>
                     </td>
@@ -1904,7 +1904,7 @@ export default function AgendaPage() {
                           ? parseEquipa(e.tipo || "").map(n => (
                               <span key={n} title={n} style={{ fontSize: "16px", lineHeight: 1 }}>{EQUIPA_SYMBOL[n]}</span>
                             ))
-                          : <span style={{ fontSize: "10px", color: Colors.textMuted }}>—</span>
+                          : <span style={{ fontSize: "12px", color: Colors.textMuted }}>—</span>
                         }
                       </div>
                     </td>
@@ -1912,17 +1912,17 @@ export default function AgendaPage() {
                       {(() => {
                         const evArtists = (artistasMap[e.id] || []).filter(a => a.nome.trim());
                         return evArtists.length > 0
-                          ? <span style={{ fontSize: "10px", color: Colors.textSec, letterSpacing: "0.03em" }}>
+                          ? <span style={{ fontSize: "12px", color: Colors.textSec, letterSpacing: "0.03em" }}>
                               {evArtists.map(a => resolveColaboradorNome(a.nome)).join(" · ")}
                             </span>
-                          : <span style={{ fontSize: "10px", color: Colors.textMuted }}>—</span>;
+                          : <span style={{ fontSize: "12px", color: Colors.textMuted }}>—</span>;
                       })()}
                     </td>
                     <td style={createTdStyle(lightTheme, { muted: true })}>
                       {e.modalidade && e.modalidade !== "Fatura" ? (
-                        <span style={{ fontSize: "9px", color: Colors.amber, letterSpacing: "0.1em" }}>{e.modalidade}</span>
+                        <span style={{ fontSize: "11px", color: Colors.amber, letterSpacing: "0.1em" }}>{e.modalidade}</span>
                       ) : (
-                        <span style={{ fontSize: "9px", color: Colors.textMuted }}>Fatura</span>
+                        <span style={{ fontSize: "11px", color: Colors.textMuted }}>Fatura</span>
                       )}
                     </td>
                     <td style={createTdStyle(lightTheme, {})}>
@@ -1939,11 +1939,11 @@ export default function AgendaPage() {
                         return <StatusBadge color={colorMap[bs] || Colors.textSec} label={bs} />;
                       })()}
                     </td>
-                    <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "11px" }}>
+                    <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "13px" }}>
                       {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(e.bill, artistasMap[e.id] || [], e.material_cost || 0) ? (
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
                           <span>{Number(e.bill || 0).toLocaleString("pt-PT")}€</span>
-                          <span style={{ fontSize: "8px", color: lucroVisivel(e.bill, artistasMap[e.id] || [], e.material_cost || 0) >= 0 ? Colors.green : Colors.red, fontWeight: 600 }}>
+                          <span style={{ fontSize: "10px", color: lucroVisivel(e.bill, artistasMap[e.id] || [], e.material_cost || 0) >= 0 ? Colors.green : Colors.red, fontWeight: 600 }}>
                             Lucro {lucroVisivel(e.bill, artistasMap[e.id] || [], e.material_cost || 0).toLocaleString("pt-PT")}€
                           </span>
                         </div>
@@ -1973,7 +1973,7 @@ export default function AgendaPage() {
                   );
                 })}
                 {allRows.length === 0 && (
-                  <tr><td colSpan={9} style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: Colors.textMuted, letterSpacing: "0.2em" }}>Sem eventos encontrados</td></tr>
+                  <tr><td colSpan={9} style={{ textAlign: "center", padding: "3rem", fontSize: "13px", color: Colors.textMuted, letterSpacing: "0.2em" }}>Sem eventos encontrados</td></tr>
                 )}
               </tbody>
             </table>
@@ -1988,9 +1988,9 @@ export default function AgendaPage() {
       {/* Mobile top nav */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.4rem 0.5rem" }} />
-          <span style={{ fontSize: "8px", letterSpacing: "0.35em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
+        <div style={{ display: "flex", gap: "0.7rem", alignItems: "center" }}>
+          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "12px", padding: "0.4rem 0.5rem" }} />
+          <span style={{ fontSize: "10px", letterSpacing: "0.35em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
         </div>
       </div>
 
@@ -2011,17 +2011,17 @@ export default function AgendaPage() {
           </svg>
           <input className="mob-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar evento..." />
         </div>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div style={{ display: "flex", gap: "0.7rem" }}>
           <button
             onClick={openPdfPeriodModal}
-            style={{ background: "rgba(var(--theme-accent-rgb),0.08)", border: "1px solid rgba(var(--theme-accent-rgb),0.2)", color: "var(--theme-accent)", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px" }}
+            style={{ background: "rgba(var(--theme-accent-rgb),0.08)", border: "1px solid rgba(var(--theme-accent-rgb),0.2)", color: "var(--theme-accent)", fontSize: "12px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px" }}
             title="Imprimir agenda completa em PDF"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           </button>
           <button
             onClick={openWaPeriodModal}
-            style={{ background: "rgba(93,202,165,0.08)", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px" }}
+            style={{ background: "rgba(93,202,165,0.08)", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "12px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px" }}
             title="Copiar Agenda para WhatsApp"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
@@ -2029,11 +2029,11 @@ export default function AgendaPage() {
           {/* Mobile filter button */}
           <button
             onClick={() => { setMobFilterOpen(o => !o); setMobFilterCategory(""); }}
-            style={{ background: (filterArtista || filterCliente || filterEquipa) ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: `1px solid ${(filterArtista || filterCliente || filterEquipa) ? "var(--theme-accent)" : "var(--theme-input-border)"}`, color: (filterArtista || filterCliente || filterEquipa) ? "var(--theme-accent)" : "var(--theme-text-muted)", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px", display: "flex", alignItems: "center", gap: "4px" }}
+            style={{ background: (filterArtista || filterCliente || filterEquipa) ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: `1px solid ${(filterArtista || filterCliente || filterEquipa) ? "var(--theme-accent)" : "var(--theme-input-border)"}`, color: (filterArtista || filterCliente || filterEquipa) ? "var(--theme-accent)" : "var(--theme-text-muted)", fontSize: "12px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px", display: "flex", alignItems: "center", gap: "4px" }}
             title="Filtros"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-            {(filterArtista || filterCliente || filterEquipa) && <span style={{ fontSize: "8px", fontWeight: 700 }}>1</span>}
+            {(filterArtista || filterCliente || filterEquipa) && <span style={{ fontSize: "10px", fontWeight: 700 }}>1</span>}
           </button>
           {userRole !== "limited_novalues" && (
             <button className="mob-fab" onClick={openCreate}>
@@ -2047,34 +2047,34 @@ export default function AgendaPage() {
       {mobFilterOpen && (
         <div style={{ background: "var(--theme-surface)", borderBottom: "1px solid var(--theme-border)", padding: "0.75rem 1rem", flexShrink: 0 }}>
           {!mobFilterCategory ? (
-            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: "0.7rem", flexWrap: "wrap" }}>
               {(["equipa", "artista", "cliente"] as const).map(cat => (
-                <button key={cat} onClick={() => setMobFilterCategory(cat)} style={{ background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-secondary)", fontSize: "9px", letterSpacing: "0.2em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>
+                <button key={cat} onClick={() => setMobFilterCategory(cat)} style={{ background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-secondary)", fontSize: "11px", letterSpacing: "0.2em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>
                   {cat === "equipa" ? "Equipa" : cat === "artista" ? "Artistas" : "Clientes"}
                 </button>
               ))}
               {(filterArtista || filterCliente || filterEquipa) && (
-                <button onClick={() => { setFilterArtista(""); setFilterCliente(""); setFilterEquipa(""); setMobFilterOpen(false); }} style={{ background: "rgba(226,75,74,0.08)", border: "1px solid rgba(226,75,74,0.2)", color: "var(--theme-danger)", fontSize: "9px", letterSpacing: "0.2em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
+                <button onClick={() => { setFilterArtista(""); setFilterCliente(""); setFilterEquipa(""); setMobFilterOpen(false); }} style={{ background: "rgba(226,75,74,0.08)", border: "1px solid rgba(226,75,74,0.2)", color: "var(--theme-danger)", fontSize: "11px", letterSpacing: "0.2em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
                   Limpar filtros
                 </button>
               )}
             </div>
           ) : (
             <div>
-              <button onClick={() => setMobFilterCategory("")} style={{ background: "transparent", border: "none", color: "var(--theme-accent)", fontSize: "8px", letterSpacing: "0.3em", cursor: "pointer", fontFamily: "inherit", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "4px" }}>← Voltar</button>
+              <button onClick={() => setMobFilterCategory("")} style={{ background: "transparent", border: "none", color: "var(--theme-accent)", fontSize: "10px", letterSpacing: "0.3em", cursor: "pointer", fontFamily: "inherit", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "4px" }}>← Voltar</button>
               <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                 {mobFilterCategory === "equipa" && dropdownEquipa.map(n => (
-                  <button key={n} onClick={() => { setFilterEquipa(filterEquipa === n ? "" : n); setMobFilterOpen(false); }} style={{ background: filterEquipa === n ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: `1px solid ${filterEquipa === n ? "var(--theme-accent)" : "var(--theme-input-border)"}`, color: filterEquipa === n ? "var(--theme-accent)" : "var(--theme-text-secondary)", fontSize: "10px", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
+                  <button key={n} onClick={() => { setFilterEquipa(filterEquipa === n ? "" : n); setMobFilterOpen(false); }} style={{ background: filterEquipa === n ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: `1px solid ${filterEquipa === n ? "var(--theme-accent)" : "var(--theme-input-border)"}`, color: filterEquipa === n ? "var(--theme-accent)" : "var(--theme-text-secondary)", fontSize: "12px", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
                     {EQUIPA_SYMBOL[n]} {n}
                   </button>
                 ))}
                 {mobFilterCategory === "artista" && dropdownArtistas.map(a => (
-                  <button key={a} onClick={() => { setFilterArtista(filterArtista === a ? "" : a); setMobFilterOpen(false); }} style={{ background: filterArtista === a ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: `1px solid ${filterArtista === a ? "var(--theme-accent)" : "var(--theme-input-border)"}`, color: filterArtista === a ? "var(--theme-accent)" : "var(--theme-text-secondary)", fontSize: "10px", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
+                  <button key={a} onClick={() => { setFilterArtista(filterArtista === a ? "" : a); setMobFilterOpen(false); }} style={{ background: filterArtista === a ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: `1px solid ${filterArtista === a ? "var(--theme-accent)" : "var(--theme-input-border)"}`, color: filterArtista === a ? "var(--theme-accent)" : "var(--theme-text-secondary)", fontSize: "12px", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
                     {a}
                   </button>
                 ))}
                 {mobFilterCategory === "cliente" && dropdownClientes.map(c => (
-                  <button key={c} onClick={() => { setFilterCliente(filterCliente === c ? "" : c); setMobFilterOpen(false); }} style={{ background: filterCliente === c ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: `1px solid ${filterCliente === c ? "var(--theme-accent)" : "var(--theme-input-border)"}`, color: filterCliente === c ? "var(--theme-accent)" : "var(--theme-text-secondary)", fontSize: "10px", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
+                  <button key={c} onClick={() => { setFilterCliente(filterCliente === c ? "" : c); setMobFilterOpen(false); }} style={{ background: filterCliente === c ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: `1px solid ${filterCliente === c ? "var(--theme-accent)" : "var(--theme-input-border)"}`, color: filterCliente === c ? "var(--theme-accent)" : "var(--theme-text-secondary)", fontSize: "12px", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
                     {c}
                   </button>
                 ))}
@@ -2115,8 +2115,8 @@ export default function AgendaPage() {
                 <div className="mob-card-body">
                   <div className="mob-card-title">{l.title}</div>
                   <ConflictAlert conflicts={conflictsForLead(l)} />
-                  {l.local && <div style={{marginTop:"3px",fontSize:"10px",color:"var(--theme-accent)",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📍 {l.local}</div>}
-                  {displayCliente(l.cliente_nome) && <div style={{marginTop:"3px",fontSize:"10px",color:"var(--theme-text-muted)",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>👤 {displayCliente(l.cliente_nome)}</div>}
+                  {l.local && <div style={{marginTop:"3px",fontSize: "12px",color:"var(--theme-accent)",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📍 {l.local}</div>}
+                  {displayCliente(l.cliente_nome) && <div style={{marginTop:"3px",fontSize: "12px",color:"var(--theme-text-muted)",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>👤 {displayCliente(l.cliente_nome)}</div>}
                   <div className="mob-card-meta">
                     <span className="mob-badge" style={{background:"rgba(var(--theme-accent-rgb),0.08)",color:"var(--theme-accent)"}}>
                       <span className="mob-badge-dot" style={{background:"var(--theme-accent)"}}/>Lead
@@ -2128,7 +2128,7 @@ export default function AgendaPage() {
                   {userRole !== "limited_novalues" && temMovimentoFinanceiro(l.value, artistsForAgendaLead(l), l.material_cost || 0)
                     ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
                         <span className="mob-card-value">{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
-                        <span style={{fontSize:"8px",fontWeight:700,color:lucroVisivel(l.value, artistsForAgendaLead(l), l.material_cost || 0)>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(l.value, artistsForAgendaLead(l), l.material_cost || 0).toLocaleString("pt-PT")}€</span>
+                        <span style={{fontSize: "10px",fontWeight:700,color:lucroVisivel(l.value, artistsForAgendaLead(l), l.material_cost || 0)>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(l.value, artistsForAgendaLead(l), l.material_cost || 0).toLocaleString("pt-PT")}€</span>
                       </div>
                     : <span className="mob-card-value muted">—</span>
                   }
@@ -2157,8 +2157,8 @@ export default function AgendaPage() {
                   {e.title.replace(/^\p{Emoji}[\p{Emoji}‍\s]*/u,"")}
                 </div>
                 <ConflictAlert conflicts={conflictsForEvent(e)} />
-                {e.venue && <div style={{marginTop:"3px",fontSize:"10px",color:"var(--theme-accent)",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📍 {e.venue}</div>}
-                {displayCliente(e.cliente_nome) && <div style={{marginTop:"3px",fontSize:"10px",color:"var(--theme-text-muted)",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>👤 {displayCliente(e.cliente_nome)}</div>}
+                {e.venue && <div style={{marginTop:"3px",fontSize: "12px",color:"var(--theme-accent)",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📍 {e.venue}</div>}
+                {displayCliente(e.cliente_nome) && <div style={{marginTop:"3px",fontSize: "12px",color:"var(--theme-text-muted)",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>👤 {displayCliente(e.cliente_nome)}</div>}
                 <div className="mob-card-meta">
                   {e.time_range && <><span>{e.time_range}</span><span className="mob-card-meta-dot">·</span></>}
                   {parseEquipa(e.tipo||"").map(n=><span key={n}>{EQUIPA_SYMBOL[n]}</span>)}
@@ -2175,7 +2175,7 @@ export default function AgendaPage() {
                 {userRole !== "limited_novalues" && temMovimentoFinanceiro(e.bill, artistasMap[e.id]||[], e.material_cost || 0)
                   ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
                       <span className="mob-card-value">{Number(e.bill || 0).toLocaleString("pt-PT")}€</span>
-                      <span style={{fontSize:"8px",fontWeight:700,color:lucroVisivel(e.bill, artistasMap[e.id]||[], e.material_cost || 0)>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(e.bill, artistasMap[e.id]||[], e.material_cost || 0).toLocaleString("pt-PT")}€</span>
+                      <span style={{fontSize: "10px",fontWeight:700,color:lucroVisivel(e.bill, artistasMap[e.id]||[], e.material_cost || 0)>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(e.bill, artistasMap[e.id]||[], e.material_cost || 0).toLocaleString("pt-PT")}€</span>
                     </div>
                   : <span className="mob-card-value muted">—</span>
                 }
@@ -2225,43 +2225,43 @@ export default function AgendaPage() {
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
               <div>
-                <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Imprimir agenda completa</p>
-                <p style={{ fontSize: "9px", color: "var(--theme-text-subtle)", marginTop: "0.35rem", lineHeight: 1.5 }}>Inclui dados do evento, notas, materiais e artistas com valores.</p>
+                <p style={{ fontSize: "10px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Imprimir agenda completa</p>
+                <p style={{ fontSize: "11px", color: "var(--theme-text-subtle)", marginTop: "0.35rem", lineHeight: 1.5 }}>Inclui dados do evento, notas, materiais e artistas com valores.</p>
               </div>
               <button disabled={pdfGenerating} onClick={() => setPdfPeriodModal(false)} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: pdfGenerating ? "default" : "pointer", fontSize: "16px", opacity: pdfGenerating ? 0.4 : 1 }}>✕</button>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.25rem" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.7rem", marginBottom: "1.25rem" }}>
               {([
                 { id: "today" as const, label: "Eventos de hoje", sub: new Date().toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" }) },
                 { id: "week7" as const, label: "Próximos 7 dias", sub: (() => { const t = new Date(); const e2 = new Date(t); e2.setDate(t.getDate() + 6); const fmt = (d: Date) => `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`; return `${fmt(t)} → ${fmt(e2)}`; })() },
                 { id: "month" as const, label: "Mês selecionado", sub: monthLabel(selectedMonth) },
                 { id: "custom" as const, label: "Intervalo personalizado", sub: "" },
               ] as { id: "today" | "week7" | "month" | "custom"; label: string; sub: string }[]).map(opt => (
-                <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", cursor: pdfGenerating ? "default" : "pointer", padding: "0.65rem 0.75rem", background: pdfPeriodMode === opt.id ? "rgba(var(--theme-accent-rgb),0.06)" : "transparent", border: `1px solid ${pdfPeriodMode === opt.id ? "rgba(var(--theme-accent-rgb),0.22)" : "rgba(var(--theme-contrast-rgb),0.05)"}`, transition: "all 0.15s", opacity: pdfGenerating ? 0.6 : 1 }}>
+                <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: "0.95rem", cursor: pdfGenerating ? "default" : "pointer", padding: "0.65rem 0.75rem", background: pdfPeriodMode === opt.id ? "rgba(var(--theme-accent-rgb),0.06)" : "transparent", border: `1px solid ${pdfPeriodMode === opt.id ? "rgba(var(--theme-accent-rgb),0.22)" : "rgba(var(--theme-contrast-rgb),0.05)"}`, transition: "all 0.15s", opacity: pdfGenerating ? 0.6 : 1 }}>
                   <input disabled={pdfGenerating} type="radio" name="pdfPeriod" checked={pdfPeriodMode === opt.id} onChange={() => { setPdfPeriodMode(opt.id); setPdfPeriodError(""); }} style={{ accentColor: "var(--theme-accent)", flexShrink: 0 }} />
                   <div>
-                    <div style={{ fontSize: "11px", color: pdfPeriodMode === opt.id ? "var(--theme-text)" : "var(--theme-text-secondary)", letterSpacing: "0.04em" }}>{opt.label}</div>
-                    {opt.sub && <div style={{ fontSize: "9px", color: "var(--theme-text-subtle)", letterSpacing: "0.1em", marginTop: "2px", textTransform: "capitalize" }}>{opt.sub}</div>}
+                    <div style={{ fontSize: "13px", color: pdfPeriodMode === opt.id ? "var(--theme-text)" : "var(--theme-text-secondary)", letterSpacing: "0.04em" }}>{opt.label}</div>
+                    {opt.sub && <div style={{ fontSize: "11px", color: "var(--theme-text-subtle)", letterSpacing: "0.1em", marginTop: "2px", textTransform: "capitalize" }}>{opt.sub}</div>}
                   </div>
                 </label>
               ))}
             </div>
             {pdfPeriodMode === "custom" && (
-              <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
+              <div style={{ display: "flex", gap: "0.95rem", marginBottom: "1.25rem" }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.35em", color: "var(--theme-text-subtle)", textTransform: "uppercase", marginBottom: "0.4rem" }}>De</label>
-                  <input disabled={pdfGenerating} type="date" value={pdfCustomStart} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setPdfCustomStart(e.target.value); setPdfPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "11px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
+                  <label style={{ display: "block", fontSize: "9px", letterSpacing: "0.35em", color: "var(--theme-text-subtle)", textTransform: "uppercase", marginBottom: "0.4rem" }}>De</label>
+                  <input disabled={pdfGenerating} type="date" value={pdfCustomStart} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setPdfCustomStart(e.target.value); setPdfPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "13px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.35em", color: "var(--theme-text-subtle)", textTransform: "uppercase", marginBottom: "0.4rem" }}>Até</label>
-                  <input disabled={pdfGenerating} type="date" value={pdfCustomEnd} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setPdfCustomEnd(e.target.value); setPdfPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "11px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
+                  <label style={{ display: "block", fontSize: "9px", letterSpacing: "0.35em", color: "var(--theme-text-subtle)", textTransform: "uppercase", marginBottom: "0.4rem" }}>Até</label>
+                  <input disabled={pdfGenerating} type="date" value={pdfCustomEnd} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setPdfCustomEnd(e.target.value); setPdfPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "13px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
                 </div>
               </div>
             )}
-            {pdfPeriodError && <p style={{ fontSize: "9px", color: "var(--theme-danger)", letterSpacing: "0.08em", marginBottom: "0.85rem", lineHeight: 1.5 }}>{pdfPeriodError}</p>}
-            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
-              <button disabled={pdfGenerating} onClick={() => setPdfPeriodModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: pdfGenerating ? "default" : "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: pdfGenerating ? 0.5 : 1 }}>Cancelar</button>
-              <button disabled={pdfGenerating} onClick={handlePrintAgendaPdf} style={{ background: "var(--theme-accent)", border: "none", color: "var(--theme-bg)", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: pdfGenerating ? "wait" : "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: pdfGenerating ? 0.65 : 1 }}>{pdfGenerating ? "A preparar..." : "Imprimir PDF"}</button>
+            {pdfPeriodError && <p style={{ fontSize: "11px", color: "var(--theme-danger)", letterSpacing: "0.08em", marginBottom: "0.85rem", lineHeight: 1.5 }}>{pdfPeriodError}</p>}
+            <div style={{ display: "flex", gap: "0.95rem", justifyContent: "flex-end" }}>
+              <button disabled={pdfGenerating} onClick={() => setPdfPeriodModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "11px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: pdfGenerating ? "default" : "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: pdfGenerating ? 0.5 : 1 }}>Cancelar</button>
+              <button disabled={pdfGenerating} onClick={handlePrintAgendaPdf} style={{ background: "var(--theme-accent)", border: "none", color: "var(--theme-bg)", fontSize: "11px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: pdfGenerating ? "wait" : "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: pdfGenerating ? 0.65 : 1 }}>{pdfGenerating ? "A preparar..." : "Imprimir PDF"}</button>
             </div>
           </div>
         </div>
@@ -2273,40 +2273,40 @@ export default function AgendaPage() {
           <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "400px", maxWidth: "95vw", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-              <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Copiar Agenda para WhatsApp</p>
+              <p style={{ fontSize: "10px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Copiar Agenda para WhatsApp</p>
               <button onClick={() => setWaPeriodModal(false)} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: "pointer", fontSize: "16px" }}>✕</button>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.25rem" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.7rem", marginBottom: "1.25rem" }}>
               {([
                 { id: "month" as const, label: "Geral / Mês atual", sub: monthLabel(selectedMonth) },
                 { id: "week7" as const, label: "Hoje + 7 dias", sub: (() => { const t = new Date(); const e2 = new Date(t); e2.setDate(t.getDate()+7); const fmt = (d: Date) => `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`; return `${fmt(t)} → ${fmt(e2)}`; })() },
                 { id: "custom" as const, label: "Intervalo personalizado", sub: "" },
               ] as { id: "month" | "week7" | "custom"; label: string; sub: string }[]).map(opt => (
-                <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer", padding: "0.65rem 0.75rem", background: waPeriodMode === opt.id ? "rgba(var(--theme-accent-rgb),0.06)" : "transparent", border: `1px solid ${waPeriodMode === opt.id ? "rgba(var(--theme-accent-rgb),0.22)" : "rgba(var(--theme-contrast-rgb),0.05)"}`, transition: "all 0.15s" }}>
+                <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: "0.95rem", cursor: "pointer", padding: "0.65rem 0.75rem", background: waPeriodMode === opt.id ? "rgba(var(--theme-accent-rgb),0.06)" : "transparent", border: `1px solid ${waPeriodMode === opt.id ? "rgba(var(--theme-accent-rgb),0.22)" : "rgba(var(--theme-contrast-rgb),0.05)"}`, transition: "all 0.15s" }}>
                   <input type="radio" name="waPeriod" checked={waPeriodMode === opt.id} onChange={() => { setWaPeriodMode(opt.id); setWaPeriodError(""); }} style={{ accentColor: "var(--theme-accent)", flexShrink: 0 }} />
                   <div>
-                    <div style={{ fontSize: "11px", color: waPeriodMode === opt.id ? "var(--theme-text)" : "var(--theme-text-secondary)", letterSpacing: "0.04em" }}>{opt.label}</div>
-                    {opt.sub && <div style={{ fontSize: "9px", color: "var(--theme-text-subtle)", letterSpacing: "0.1em", marginTop: "2px", textTransform: "capitalize" }}>{opt.sub}</div>}
+                    <div style={{ fontSize: "13px", color: waPeriodMode === opt.id ? "var(--theme-text)" : "var(--theme-text-secondary)", letterSpacing: "0.04em" }}>{opt.label}</div>
+                    {opt.sub && <div style={{ fontSize: "11px", color: "var(--theme-text-subtle)", letterSpacing: "0.1em", marginTop: "2px", textTransform: "capitalize" }}>{opt.sub}</div>}
                   </div>
                 </label>
               ))}
             </div>
             {waPeriodMode === "custom" && (
-              <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
+              <div style={{ display: "flex", gap: "0.95rem", marginBottom: "1.25rem" }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.35em", color: "var(--theme-text-subtle)", textTransform: "uppercase", marginBottom: "0.4rem" }}>De</label>
-                  <input type="date" value={waCustomStart} onChange={e => { setWaCustomStart(e.target.value); setWaPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "11px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
+                  <label style={{ display: "block", fontSize: "9px", letterSpacing: "0.35em", color: "var(--theme-text-subtle)", textTransform: "uppercase", marginBottom: "0.4rem" }}>De</label>
+                  <input type="date" value={waCustomStart} onChange={e => { setWaCustomStart(e.target.value); setWaPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "13px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.35em", color: "var(--theme-text-subtle)", textTransform: "uppercase", marginBottom: "0.4rem" }}>Até</label>
-                  <input type="date" value={waCustomEnd} onChange={e => { setWaCustomEnd(e.target.value); setWaPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "11px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
+                  <label style={{ display: "block", fontSize: "9px", letterSpacing: "0.35em", color: "var(--theme-text-subtle)", textTransform: "uppercase", marginBottom: "0.4rem" }}>Até</label>
+                  <input type="date" value={waCustomEnd} onChange={e => { setWaCustomEnd(e.target.value); setWaPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "13px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
                 </div>
               </div>
             )}
-            {waPeriodError && <p style={{ fontSize: "9px", color: "var(--theme-danger)", letterSpacing: "0.2em", marginBottom: "0.85rem", textTransform: "uppercase" }}>{waPeriodError}</p>}
-            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
-              <button onClick={() => setWaPeriodModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Cancelar</button>
-              <button disabled={waGenerating} onClick={handleCopyAgenda} style={{ background: "var(--theme-success)", border: "none", color: "var(--theme-bg)", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: waGenerating ? "wait" : "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: waGenerating ? 0.65 : 1 }}>{waGenerating ? "A preparar..." : "Copiar Agenda"}</button>
+            {waPeriodError && <p style={{ fontSize: "11px", color: "var(--theme-danger)", letterSpacing: "0.2em", marginBottom: "0.85rem", textTransform: "uppercase" }}>{waPeriodError}</p>}
+            <div style={{ display: "flex", gap: "0.95rem", justifyContent: "flex-end" }}>
+              <button onClick={() => setWaPeriodModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "11px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Cancelar</button>
+              <button disabled={waGenerating} onClick={handleCopyAgenda} style={{ background: "var(--theme-success)", border: "none", color: "var(--theme-bg)", fontSize: "11px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: waGenerating ? "wait" : "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: waGenerating ? 0.65 : 1 }}>{waGenerating ? "A preparar..." : "Copiar Agenda"}</button>
             </div>
           </div>
         </div>
@@ -2317,21 +2317,21 @@ export default function AgendaPage() {
         <div onClick={e => e.target === e.currentTarget && setWaModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
           <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "500px", maxWidth: "95vw", maxHeight: "85vh", display: "flex", flexDirection: "column", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Copiar para WhatsApp</p>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+              <p style={{ fontSize: "10px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Copiar para WhatsApp</p>
               <button onClick={() => setWaModal(false)} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: "pointer", fontSize: "16px" }}>✕</button>
             </div>
             {waCopied && (
-              <div style={{ marginBottom: "0.75rem", fontSize: "9px", letterSpacing: "0.25em", color: "var(--theme-success)", textTransform: "uppercase" }}>✓ Copiado — pode colar no WhatsApp</div>
+              <div style={{ marginBottom: "0.75rem", fontSize: "11px", letterSpacing: "0.25em", color: "var(--theme-success)", textTransform: "uppercase" }}>✓ Copiado — pode colar no WhatsApp</div>
             )}
             <textarea
               readOnly
               value={waText}
-              style={{ flex: 1, minHeight: "300px", background: "var(--theme-subtle-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "monospace", fontSize: "11px", padding: "0.75rem", outline: "none", resize: "vertical", letterSpacing: "0.02em", lineHeight: "1.6" }}
+              style={{ flex: 1, minHeight: "300px", background: "var(--theme-subtle-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "monospace", fontSize: "13px", padding: "0.75rem", outline: "none", resize: "vertical", letterSpacing: "0.02em", lineHeight: "1.6" }}
               onClick={e => (e.target as HTMLTextAreaElement).select()}
             />
-            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1rem" }}>
-              <button onClick={() => setWaModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Fechar</button>
+            <div style={{ display: "flex", gap: "0.95rem", justifyContent: "flex-end", marginTop: "1rem" }}>
+              <button onClick={() => setWaModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "11px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Fechar</button>
               <button
                 onClick={() => {
                   if (navigator.clipboard) {
@@ -2341,7 +2341,7 @@ export default function AgendaPage() {
                     ta.value = waText; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); setWaCopied(true);
                   }
                 }}
-                style={{ background: "var(--theme-success)", border: "none", color: "var(--theme-bg)", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}
+                style={{ background: "var(--theme-success)", border: "none", color: "var(--theme-bg)", fontSize: "11px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}
               >Copiar novamente</button>
             </div>
           </div>
@@ -2354,7 +2354,7 @@ export default function AgendaPage() {
           <div style={{ ...modalStyle, width: "640px" }}>
             <div style={topLineStyle} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
-              <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.goldDim, textTransform: "uppercase", fontWeight: 600, margin: 0 }}>
+              <p style={{ fontSize: "11px", letterSpacing: "0.4em", color: Colors.goldDim, textTransform: "uppercase", fontWeight: 600, margin: 0 }}>
                 {modal.editing ? "Editar Evento" : "Novo Evento"}
               </p>
               {!modal.editing && (
@@ -2373,7 +2373,7 @@ export default function AgendaPage() {
                     background: isResidencia ? "rgba(var(--theme-accent-rgb),0.12)" : "transparent",
                     border: `1px solid ${isResidencia ? Colors.gold : "rgba(var(--theme-contrast-rgb),0.08)"}`,
                     color: isResidencia ? Colors.gold : Colors.textMuted,
-                    fontSize: "8px", letterSpacing: "0.3em", padding: "0.4rem 0.9rem",
+                    fontSize: "10px", letterSpacing: "0.3em", padding: "0.4rem 0.9rem",
                     cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600,
                     display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s",
                   }}
@@ -2413,7 +2413,7 @@ export default function AgendaPage() {
                           )}
                         </div>
                       ))}
-                      <button type="button" onClick={() => setResidenciaDates(prev => [...prev, prev[prev.length - 1] || new Date().toISOString().split("T")[0]])} style={{ ...btnSecStyle, fontSize: "8px", padding: "0.4rem 0.9rem", alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "5px" }}>
+                      <button type="button" onClick={() => setResidenciaDates(prev => [...prev, prev[prev.length - 1] || new Date().toISOString().split("T")[0]])} style={{ ...btnSecStyle, fontSize: "10px", padding: "0.4rem 0.9rem", alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "5px" }}>
                         <svg width="8" height="8" viewBox="0 0 10 10" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="5" y1="1" x2="5" y2="9" /><line x1="1" y1="5" x2="9" y2="5" /></svg>
                         Adicionar data
                       </button>
@@ -2451,12 +2451,12 @@ export default function AgendaPage() {
                           background: active ? `${EQUIPA_COLOR[n]}18` : "rgba(var(--theme-contrast-rgb),0.03)",
                           border: `1px solid ${active ? EQUIPA_COLOR[n] : "rgba(var(--theme-contrast-rgb),0.08)"}`,
                           color: active ? EQUIPA_COLOR[n] : "var(--theme-text-subtle)",
-                          fontSize: "10px", letterSpacing: "0.15em", padding: "0.5rem 1rem",
+                          fontSize: "12px", letterSpacing: "0.15em", padding: "0.5rem 1rem",
                           cursor: "pointer", fontFamily: "inherit", fontWeight: active ? 700 : 400,
                           display: "flex", alignItems: "center", gap: "6px", transition: "all 0.15s",
                         }}
                       >
-                        <span style={{ fontSize: "14px" }}>{EQUIPA_SYMBOL[n]}</span>
+                        <span style={{ fontSize: "15px" }}>{EQUIPA_SYMBOL[n]}</span>
                         {n}
                       </button>
                     );
@@ -2523,19 +2523,19 @@ export default function AgendaPage() {
                                 setClienteSearch((c as any).alias?.trim() || c.nome);
                                 setClienteDropOpen(false);
                               }}
-                              style={{ padding: "0.6rem 1rem", fontSize: "11px", color: "var(--theme-text-secondary)", cursor: "pointer", borderBottom: "1px solid var(--theme-border)" }}
+                              style={{ padding: "0.6rem 1rem", fontSize: "13px", color: "var(--theme-text-secondary)", cursor: "pointer", borderBottom: "1px solid var(--theme-border)" }}
                               onMouseEnter={e => (e.currentTarget.style.background = "var(--theme-dropdown-hover)")}
                               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                             >
                               {(c as any).alias?.trim() || c.nome}
-                              {(c as any).alias?.trim() && <span style={{ fontSize: "9px", color: Colors.textMuted, marginLeft: "8px" }}>{c.nome}</span>}
-                              {c.nif && !((c as any).alias?.trim()) && <span style={{ fontSize: "9px", color: Colors.textMuted, marginLeft: "8px" }}>{c.nif}</span>}
+                              {(c as any).alias?.trim() && <span style={{ fontSize: "11px", color: Colors.textMuted, marginLeft: "8px" }}>{c.nome}</span>}
+                              {c.nif && !((c as any).alias?.trim()) && <span style={{ fontSize: "11px", color: Colors.textMuted, marginLeft: "8px" }}>{c.nif}</span>}
                             </div>
                           ))
                         }
                         <div
                           onMouseDown={() => { setClienteCreating(true); setClienteDropOpen(false); }}
-                          style={{ padding: "0.6rem 1rem", fontSize: "10px", color: Colors.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(var(--theme-accent-rgb),0.12)", display: "flex", alignItems: "center", gap: "6px" }}
+                          style={{ padding: "0.6rem 1rem", fontSize: "12px", color: Colors.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(var(--theme-accent-rgb),0.12)", display: "flex", alignItems: "center", gap: "6px" }}
                           onMouseEnter={e => (e.currentTarget.style.background = "var(--theme-dropdown-hover)")}
                           onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                         >
@@ -2560,7 +2560,7 @@ export default function AgendaPage() {
                   options={TIPOS_COMERCIAIS.map(t => ({ value: t, label: t }))}
                   style={inputStyle}
                 />
-                <p style={{ marginTop: "0.4rem", fontSize: "8px", color: Colors.textMuted, lineHeight: 1.45 }}>
+                <p style={{ marginTop: "0.4rem", fontSize: "10px", color: Colors.textMuted, lineHeight: 1.45 }}>
                   Define o custo que a LLE prevê pagar aos artistas. A faturação ao cliente é independente e fica no Auto Budget / Faturação.
                 </p>
               </FormField>
@@ -2575,13 +2575,13 @@ export default function AgendaPage() {
                     ]}
                     style={inputStyle}
                   />
-                  <p style={{ marginTop: "0.4rem", fontSize: "8px", color: Colors.textMuted, lineHeight: 1.45 }}>
+                  <p style={{ marginTop: "0.4rem", fontSize: "10px", color: Colors.textMuted, lineHeight: 1.45 }}>
                     Se estiver definida, custo e faturação específicos desta residência têm prioridade quando aplicáveis; sem override usa Colaboradores.
                   </p>
                 </FormField>
               )}
 
-              <div style={{ gridColumn: "1 / -1", marginBottom: "1rem" }}>
+              <div style={{ gridColumn: "1 / -1", marginBottom: "1.25rem" }}>
                 <button
                   type="button"
                   onClick={() => setBudgetOpen(v => !v)}
@@ -2595,16 +2595,16 @@ export default function AgendaPage() {
                   }}
                 >
                   <span>
-                    <b style={{ display: "block", fontSize: "9px", letterSpacing: "0.28em", textTransform: "uppercase" }}>Auto Budget</b>
-                    <small style={{ display: "block", marginTop: "4px", fontSize: "8px", letterSpacing: "0.06em", color: Colors.textMuted }}>Serviços · perfil de valor · cálculo automático</small>
+                    <b style={{ display: "block", fontSize: "11px", letterSpacing: "0.28em", textTransform: "uppercase" }}>Auto Budget</b>
+                    <small style={{ display: "block", marginTop: "4px", fontSize: "10px", letterSpacing: "0.06em", color: Colors.textMuted }}>Serviços · perfil de valor · cálculo automático</small>
                   </span>
-                  <span style={{ fontSize: "12px" }}>{budgetOpen ? "−" : "+"}</span>
+                  <span style={{ fontSize: "14px" }}>{budgetOpen ? "−" : "+"}</span>
                 </button>
 
                 {budgetOpen && (
                   <div style={{
                     display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 1.5rem",
-                    padding: "1rem", border: "1px solid rgba(var(--theme-accent-rgb),0.14)", borderTop: "none",
+                    padding: "1.2rem", border: "1px solid rgba(var(--theme-accent-rgb),0.14)", borderTop: "none",
                     background: "rgba(var(--theme-accent-rgb),0.018)",
                   }}>
                     <FormField label="Serviços Contratados" style={{ gridColumn: "1 / -1" }}>
@@ -2637,7 +2637,7 @@ export default function AgendaPage() {
                       const totalValor = Number(suggestion?.valor || 0) + materiaisReceita;
                       const totalCusto = Number(suggestion?.custo || 0) + materiaisCusto;
                       return (
-                        <div style={{ gridColumn: "1 / -1", fontSize: "10px", color: Colors.textMuted, letterSpacing: "0.05em", marginTop: "-0.5rem", marginBottom: "0.2rem", lineHeight: 1.6 }}>
+                        <div style={{ gridColumn: "1 / -1", fontSize: "12px", color: Colors.textMuted, letterSpacing: "0.05em", marginTop: "-0.5rem", marginBottom: "0.2rem", lineHeight: 1.6 }}>
                           Faturação sugerida: <b style={{ color: Colors.gold }}>{totalValor}€</b> · Custo estimado LLE: {totalCusto}€ · {form.valor_contexto || "Cliente Final"}
                           {materiaisReceita > 0 || materiaisCusto > 0 ? <span> · Materiais {materiaisReceita}€ / custo {materiaisCusto}€</span> : null}
                           {suggestion && suggestion.total > 1 && <span> · {suggestion.encontrados}/{suggestion.total} serviços com valor automático</span>}
@@ -2647,7 +2647,7 @@ export default function AgendaPage() {
                                 <div key={item.servico} style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "baseline" }}>
                                   <span style={{ color: Colors.textSec }}>
                                     {item.servico}{item.quantidade > 1 ? ` ×${item.quantidade}` : ""}
-                                    <small style={{ display: "block", color: Colors.textMuted, fontSize: "8px", letterSpacing: "0.03em" }}>
+                                    <small style={{ display: "block", color: Colors.textMuted, fontSize: "10px", letterSpacing: "0.03em" }}>
                                       Faturação: {item.sourceName || ("noActiveProvider" in item && item.noActiveProvider ? "sem colaborador ativo / preço por definir" : "sem referência")}
                                       {item.costSourceName ? ` · Custo: ${item.costSourceName}` : ""}
                                       {item.skill && item.assignedCount !== null ? ` · Atribuídos: ${item.assignedCount}/${item.quantidade}` : ""}
@@ -2696,7 +2696,7 @@ export default function AgendaPage() {
               </FormField>
               <div style={{ gridColumn: "1 / -1", marginTop: "0.15rem" }}>
                 <label style={{
-                  minHeight: "48px", padding: "0 0.9rem", display: "flex", alignItems: "center", gap: "0.75rem",
+                  minHeight: "48px", padding: "0 0.9rem", display: "flex", alignItems: "center", gap: "0.95rem",
                   border: `1px solid ${useMaterials ? "rgba(var(--theme-accent-rgb),0.24)" : Colors.borderDim}`,
                   background: useMaterials ? "rgba(var(--theme-accent-rgb),0.045)" : "rgba(var(--theme-contrast-rgb),0.012)",
                   cursor: "pointer", color: useMaterials ? Colors.gold : Colors.textMuted,
@@ -2719,30 +2719,30 @@ export default function AgendaPage() {
                     style={{ width: "16px", height: "16px", accentColor: "var(--theme-accent)" }}
                   />
                   <span>
-                    <b style={{ display: "block", fontSize: "9px", letterSpacing: "0.22em", textTransform: "uppercase" }}>Usar materiais neste evento</b>
-                    <small style={{ display: "block", marginTop: "3px", fontSize: "8px", color: Colors.textMuted }}>Abre a gestão de equipamento apenas quando é necessária.</small>
+                    <b style={{ display: "block", fontSize: "11px", letterSpacing: "0.22em", textTransform: "uppercase" }}>Usar materiais neste evento</b>
+                    <small style={{ display: "block", marginTop: "3px", fontSize: "10px", color: Colors.textMuted }}>Abre a gestão de equipamento apenas quando é necessária.</small>
                   </span>
                 </label>
 
                 {useMaterials && (
                   <div style={{ border: `1px solid ${Colors.borderDim}`, borderTop: "none", padding: "0.9rem", background: "rgba(var(--theme-contrast-rgb),0.012)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", marginBottom: "0.75rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.95rem", marginBottom: "0.75rem" }}>
                       <div>
-                        <div style={{ fontSize: "7px", letterSpacing: "0.35em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 700 }}>Materiais do evento</div>
+                        <div style={{ fontSize: "9px", letterSpacing: "0.35em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 700 }}>Materiais do evento</div>
                         {(materiaisReceita > 0 || materiaisCusto > 0) && (
-                          <div style={{ marginTop: "5px", fontSize: "9px", color: Colors.textMuted }}>
+                          <div style={{ marginTop: "5px", fontSize: "11px", color: Colors.textMuted }}>
                             Faturação materiais <b style={{ color: Colors.gold }}>{materiaisReceita}€</b> · Custo <b style={{ color: materiaisCusto > 0 ? Colors.amber : Colors.green }}>{materiaisCusto}€</b>
                           </div>
                         )}
                       </div>
                       {modal.editing ? (
-                        <button type="button" onClick={() => openMaterialModal(modal.editing as AgendaEvent)} style={{ ...btnSecStyle, padding: "0.45rem 0.7rem", fontSize: "8px" }}>Gerir materiais</button>
+                        <button type="button" onClick={() => openMaterialModal(modal.editing as AgendaEvent)} style={{ ...btnSecStyle, padding: "0.45rem 0.7rem", fontSize: "10px" }}>Gerir materiais</button>
                       ) : (
-                        <span style={{ fontSize: "8px", color: Colors.textMuted }}>Guarda o evento primeiro</span>
+                        <span style={{ fontSize: "10px", color: Colors.textMuted }}>Guarda o evento primeiro</span>
                       )}
                     </div>
                     {loadingMateriaisResumo ? (
-                      <div style={{ color: Colors.textMuted, fontSize: "10px" }}>A carregar materiais...</div>
+                      <div style={{ color: Colors.textMuted, fontSize: "12px" }}>A carregar materiais...</div>
                     ) : materiaisReservadosResumo.length ? (
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: "8px" }}>
                         {materiaisReservadosResumo.map((m, idx) => {
@@ -2756,16 +2756,16 @@ export default function AgendaPage() {
                                 {m.material_imagem ? <img src={m.material_imagem} alt={m.material_nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: "18px", opacity: 0.45 }}>▣</span>}
                               </div>
                               <div style={{ minWidth: 0 }}>
-                                <div style={{ fontSize: "10px", color: Colors.textPrimary, fontWeight: 650, lineHeight: 1.25 }}>{m.material_nome} <span style={{ color: Colors.textMuted }}>×{m.quantidade}</span></div>
-                                <div style={{ fontSize: "8px", color: stateColor, marginTop: "3px" }}>{estado}{m.source === "pack" ? " · incluído no serviço" : ""}</div>
-                                {Number(m.contabilizar || 0) === 1 && <div style={{ fontSize: "8px", color: Colors.textMuted, marginTop: "3px" }}>+{valor}€ faturação · {custo}€ custo</div>}
+                                <div style={{ fontSize: "12px", color: Colors.textPrimary, fontWeight: 650, lineHeight: 1.25 }}>{m.material_nome} <span style={{ color: Colors.textMuted }}>×{m.quantidade}</span></div>
+                                <div style={{ fontSize: "10px", color: stateColor, marginTop: "3px" }}>{estado}{m.source === "pack" ? " · incluído no serviço" : ""}</div>
+                                {Number(m.contabilizar || 0) === 1 && <div style={{ fontSize: "10px", color: Colors.textMuted, marginTop: "3px" }}>+{valor}€ faturação · {custo}€ custo</div>}
                               </div>
                             </div>
                           );
                         })}
                       </div>
                     ) : (
-                      <div style={{ color: Colors.textMuted, fontSize: "10px" }}>Sem materiais associados.</div>
+                      <div style={{ color: Colors.textMuted, fontSize: "12px" }}>Sem materiais associados.</div>
                     )}
                   </div>
                 )}
@@ -2777,23 +2777,23 @@ export default function AgendaPage() {
 
             {/* ── Artistas ── */}
             <div style={{ marginTop: "1.75rem", borderTop: `1px solid ${Colors.borderDim}`, paddingTop: "1.5rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-                <span style={{ fontSize: "7px", letterSpacing: "0.4em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600 }}>Artistas & Pagamentos</span>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+                <span style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600 }}>Artistas & Pagamentos</span>
                 {totalArtistas > 0 && (
-                  <span style={{ fontSize: "9px", color: Colors.amber, letterSpacing: "0.15em", fontWeight: 600 }}>
+                  <span style={{ fontSize: "11px", color: Colors.amber, letterSpacing: "0.15em", fontWeight: 600 }}>
                     Total: {userRole === "limited_novalues" ? "—" : `${totalArtistas.toLocaleString("pt-PT")}€`}
                   </span>
                 )}
               </div>
 
               {loadingArtists ? (
-                <p style={{ fontSize: "10px", color: Colors.textMuted, textAlign: "center", padding: "1rem" }}>A carregar...</p>
+                <p style={{ fontSize: "12px", color: Colors.textMuted, textAlign: "center", padding: "1.2rem" }}>A carregar...</p>
               ) : (
                 <>
                   {/* Table header */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "6px" }}>
                     {["Nome", "Tipo", "Custo (€)", ""].map(h => (
-                      <span key={h} style={{ fontSize: "7px", letterSpacing: "0.3em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600, padding: "0 4px" }}>{h}</span>
+                      <span key={h} style={{ fontSize: "9px", letterSpacing: "0.3em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600, padding: "0 4px" }}>{h}</span>
                     ))}
                   </div>
                   <datalist id="agenda-colaboradores-list">
@@ -2818,7 +2818,7 @@ export default function AgendaPage() {
                             skills: c.skills,
                           }))}
                           placeholder="Escolher colaborador..."
-                          inputStyle={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
+                          inputStyle={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "13px" }}
                         />
                       </div>
                       <ArtistTypeAutocomplete
@@ -2826,7 +2826,7 @@ export default function AgendaPage() {
                         onChange={v => updateArtistTipo(i, v)}
                         options={tiposDisponiveisParaArtista(a)}
                         placeholder="s/ tipo"
-                        inputStyle={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "10px" }}
+                        inputStyle={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "12px" }}
                       />
                       <div>
                         <input
@@ -2837,10 +2837,10 @@ export default function AgendaPage() {
                           onFocus={e => { if (e.target.value === "0") updateArtistFee(i, ""); }}
                           onBlur={e => { if (e.target.value === "") updateArtistFee(i, "0"); }}
                           placeholder="0"
-                          style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
+                          style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "13px" }}
                         />
                         {a.nome && a.tipo && (
-                          <small style={{ display: "block", marginTop: "3px", color: Colors.textMuted, fontSize: "7px", lineHeight: 1.3 }}>
+                          <small style={{ display: "block", marginTop: "3px", color: Colors.textMuted, fontSize: "9px", lineHeight: 1.3 }}>
                             {a.fee_auto !== false
                               ? artistCostSuggestion(findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome), a.tipo).source
                               : "Custo guardado / editável"}
@@ -2856,7 +2856,7 @@ export default function AgendaPage() {
                       </button>
                     </div>
                   ))}
-                  <button onClick={addArtistRow} style={{ ...btnSecStyle, fontSize: "8px", padding: "0.4rem 0.9rem", marginTop: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
+                  <button onClick={addArtistRow} style={{ ...btnSecStyle, fontSize: "10px", padding: "0.4rem 0.9rem", marginTop: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
                     <svg width="8" height="8" viewBox="0 0 10 10" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="5" y1="1" x2="5" y2="9" /><line x1="1" y1="5" x2="9" y2="5" /></svg>
                     Adicionar artista
                   </button>
@@ -2866,15 +2866,15 @@ export default function AgendaPage() {
 
             {modal.editing && !modal.editing.cancelled && (
               <div style={{ marginTop: "1.5rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(var(--theme-contrast-rgb),0.06)" }}>
-                <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.4em", color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Troca de Dia</label>
+                <label style={{ display: "block", fontSize: "9px", letterSpacing: "0.4em", color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Troca de Dia</label>
                 {getTrocaNota(modal.editing.notas || "") ? (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", background: "rgba(var(--theme-accent-rgb),0.06)", border: "1px solid rgba(var(--theme-accent-rgb),0.18)", padding: "0.65rem 0.85rem" }}>
-                    <span style={{ fontSize: "10px", color: Colors.gold, letterSpacing: "0.03em" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.95rem", background: "rgba(var(--theme-accent-rgb),0.06)", border: "1px solid rgba(var(--theme-accent-rgb),0.18)", padding: "0.65rem 0.85rem" }}>
+                    <span style={{ fontSize: "12px", color: Colors.gold, letterSpacing: "0.03em" }}>
                       🔁 {getTrocaNota(modal.editing.notas || "")}
                     </span>
                     <button
                       onClick={() => handleRemoverNotaTroca(modal.editing as AgendaEvent)}
-                      style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", fontSize: "8px", letterSpacing: "0.2em", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", flexShrink: 0 }}
+                      style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", fontSize: "10px", letterSpacing: "0.2em", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", flexShrink: 0 }}
                     >Remover</button>
                   </div>
                 ) : (
@@ -2892,7 +2892,7 @@ export default function AgendaPage() {
                     >Registar troca</button>
                   </div>
                 )}
-                <p style={{ fontSize: "9px", color: "var(--theme-text-subtle)", letterSpacing: "0.02em", marginTop: "0.6rem", lineHeight: "1.5" }}>
+                <p style={{ fontSize: "11px", color: "var(--theme-text-subtle)", letterSpacing: "0.02em", marginTop: "0.6rem", lineHeight: "1.5" }}>
                   Usa isto quando o evento mudou de dia por troca com outra pessoa (ex: SUD). O evento passa para o novo dia e fica anotado o dia original.
                 </p>
               </div>
@@ -2912,22 +2912,22 @@ export default function AgendaPage() {
       {/* ── Gaveta: Materiais do Evento ── */}
       {materialModal.open && materialModal.event && (
         <div onClick={e => e.target === e.currentTarget && closeMaterialModal()} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1150, display: "flex", justifyContent: "flex-end", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "var(--theme-surface)", borderLeft: `1px solid ${Colors.border}`, padding: "1.6rem", width: "540px", maxWidth: "94vw", height: "100vh", overflowY: "auto", position: "relative", boxShadow: "-24px 0 60px rgba(0,0,0,.28)" }}>
+          <div style={{ background: "var(--theme-surface)", borderLeft: `1px solid ${Colors.border}`, padding: "1.6rem", width: "600px", maxWidth: "94vw", height: "100vh", overflowY: "auto", position: "relative", boxShadow: "-24px 0 60px rgba(0,0,0,.28)" }}>
             <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: "1px", background: "linear-gradient(180deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ position: "sticky", top: "-1.6rem", zIndex: 2, margin: "-1.6rem -1.6rem 1.15rem", padding: "1.35rem 1.6rem 1rem", background: "var(--theme-surface)", borderBottom: `1px solid ${Colors.borderDim}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
                 <div>
-                  <p style={{ fontSize: "9px", letterSpacing: "0.35em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.25rem" }}>Materiais do Evento</p>
-                  <p style={{ fontSize: "13px", color: Colors.textPrimary, margin: 0 }}>{materialModal.event.title}</p>
+                  <p style={{ fontSize: "11px", letterSpacing: "0.35em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.25rem" }}>Materiais do Evento</p>
+                  <p style={{ fontSize: "14px", color: Colors.textPrimary, margin: 0 }}>{materialModal.event.title}</p>
                 </div>
                 <button onClick={closeMaterialModal} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: "pointer", fontSize: "18px", padding: "6px" }}>✕</button>
               </div>
             </div>
 
             <div style={{ marginBottom: "1.25rem", display: "flex", flexDirection: "column", gap: "7px" }}>
-              {loadingMateriaisResumo && <div style={{ fontSize: "10px", color: Colors.textMuted }}>A carregar materiais...</div>}
+              {loadingMateriaisResumo && <div style={{ fontSize: "12px", color: Colors.textMuted }}>A carregar materiais...</div>}
               {!loadingMateriaisResumo && materiaisReservadosResumo.length === 0 && (
-                <div style={{ fontSize: "10px", color: Colors.textMuted, padding: "0.7rem", border: `1px solid ${Colors.borderDim}` }}>Sem materiais associados a este evento.</div>
+                <div style={{ fontSize: "12px", color: Colors.textMuted, padding: "0.7rem", border: `1px solid ${Colors.borderDim}` }}>Sem materiais associados a este evento.</div>
               )}
               {!loadingMateriaisResumo && materiaisReservadosResumo.map((item, idx) => {
                 const isReserva = item.status === "reservado";
@@ -2936,42 +2936,42 @@ export default function AgendaPage() {
                 const mov = item.source === "movement" ? movimentosMateriais.find(m => m.id === item.id) : undefined;
                 return (
                   <div key={`${key}-${item.material_nome}-${idx}`} style={{ padding: "0.7rem", background: "var(--theme-subtle-bg)", border: `1px solid ${isReserva ? "rgba(80,140,220,0.28)" : isFora ? "rgba(223,155,52,0.28)" : Colors.borderDim}` }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.95rem" }}>
                       <div style={{ display: "flex", gap: "9px", minWidth: 0 }}>
                         <div style={{ width: "64px", height: "64px", flexShrink: 0, overflow: "hidden", background: "rgba(var(--theme-contrast-rgb),0.04)", display: "grid", placeItems: "center", border: `1px solid ${Colors.borderDim}` }}>
                           {item.material_imagem ? <img src={item.material_imagem} alt={item.material_nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: "20px", opacity: 0.45 }}>▣</span>}
                         </div>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
-                            <div style={{ fontSize: "11px", color: Colors.textPrimary, fontWeight: 650 }}>{item.material_nome}</div>
-                            <span style={{ minWidth: "26px", textAlign: "center", fontSize: "8px", color: Colors.gold, border: `1px solid ${Colors.border}`, padding: "2px 6px" }}>×{item.quantidade}</span>
+                            <div style={{ fontSize: "13px", color: Colors.textPrimary, fontWeight: 650 }}>{item.material_nome}</div>
+                            <span style={{ minWidth: "26px", textAlign: "center", fontSize: "10px", color: Colors.gold, border: `1px solid ${Colors.border}`, padding: "2px 6px" }}>×{item.quantidade}</span>
                           </div>
-                          <div style={{ fontSize: "9px", marginTop: "2px", color: isReserva ? Colors.blue : isFora ? Colors.amber : Colors.green }}>
+                          <div style={{ fontSize: "11px", marginTop: "2px", color: isReserva ? Colors.blue : isFora ? Colors.amber : Colors.green }}>
                             {isReserva ? "Reservado · ainda no local" : isFora ? `Fora${item.quem_levou ? ` · levou ${item.quem_levou}` : ""}` : "Devolvido"}
                             {item.source === "pack" && item.pack_nome ? ` · ${item.pack_nome}` : ""}
                           </div>
-                          {Number(item.contabilizar || 0) === 1 && <div style={{ fontSize: "8px", color: Colors.textMuted, marginTop: "3px" }}>+{Number(item.valor_unitario || 0) * Math.max(1, Number(item.quantidade) || 1)}€ faturação · {Number(item.custo_unitario || 0) * Math.max(1, Number(item.quantidade) || 1)}€ custo</div>}
+                          {Number(item.contabilizar || 0) === 1 && <div style={{ fontSize: "10px", color: Colors.textMuted, marginTop: "3px" }}>+{Number(item.valor_unitario || 0) * Math.max(1, Number(item.quantidade) || 1)}€ faturação · {Number(item.custo_unitario || 0) * Math.max(1, Number(item.quantidade) || 1)}€ custo</div>}
                         </div>
                       </div>
                       {(item.source === "manual" || item.source === "legacy") && isReserva && (
                         <div style={{ display: "flex", gap: "4px", alignItems: "center", flexShrink: 0 }}>
                           <input type="number" min={1} value={reservaQtyDrafts[key] ?? item.quantidade} onChange={e => setReservaQtyDrafts(prev => ({ ...prev, [key]: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...inputStyle, width: "58px", padding: "0.4rem" }} />
-                          <button onClick={() => handleGuardarQuantidadeReserva(item)} style={{ ...btnSecStyle, padding: "0.42rem 0.55rem", fontSize: "8px" }}>Guardar</button>
+                          <button onClick={() => handleGuardarQuantidadeReserva(item)} style={{ ...btnSecStyle, padding: "0.42rem 0.55rem", fontSize: "10px" }}>Guardar</button>
                         </div>
                       )}
                     </div>
                     <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "0.55rem" }}>
-                      {isReserva && <button onClick={() => handleConfirmarSaidaReserva(item)} style={{ background: "rgba(223,155,52,0.1)", border: "1px solid rgba(223,155,52,0.28)", color: Colors.amber, fontSize: "8px", padding: "5px 8px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Registar saída</button>}
-                      {isFora && mov && <button onClick={() => handleMaterialVoltou(mov)} style={{ background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: Colors.green, fontSize: "8px", padding: "5px 8px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Voltou</button>}
-                      {item.source !== "pack" && <button onClick={() => handleRemoverItemMaterial(item)} style={{ background: "transparent", border: "1px solid rgba(210,80,80,0.22)", color: Colors.red, fontSize: "8px", padding: "5px 8px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Remover</button>}
-                      {item.source === "pack" && <span style={{ fontSize: "8px", color: Colors.textMuted, alignSelf: "center" }}>Gerido pelo pack do serviço</span>}
+                      {isReserva && <button onClick={() => handleConfirmarSaidaReserva(item)} style={{ background: "rgba(223,155,52,0.1)", border: "1px solid rgba(223,155,52,0.28)", color: Colors.amber, fontSize: "10px", padding: "5px 8px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Registar saída</button>}
+                      {isFora && mov && <button onClick={() => handleMaterialVoltou(mov)} style={{ background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: Colors.green, fontSize: "10px", padding: "5px 8px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Voltou</button>}
+                      {item.source !== "pack" && <button onClick={() => handleRemoverItemMaterial(item)} style={{ background: "transparent", border: "1px solid rgba(210,80,80,0.22)", color: Colors.red, fontSize: "10px", padding: "5px 8px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Remover</button>}
+                      {item.source === "pack" && <span style={{ fontSize: "10px", color: Colors.textMuted, alignSelf: "center" }}>Gerido pelo pack do serviço</span>}
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            <p style={{ fontSize: "8px", letterSpacing: "0.3em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Reservar novo material</p>
+            <p style={{ fontSize: "10px", letterSpacing: "0.3em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Reservar novo material</p>
 
             <div style={{ marginBottom: "0.85rem" }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: "7px", maxHeight: "310px", overflowY: "auto", paddingRight: "2px" }}>
@@ -2987,15 +2987,15 @@ export default function AgendaPage() {
                       <div style={{ aspectRatio: "1.25", overflow: "hidden", background: "rgba(var(--theme-contrast-rgb),0.04)", display: "grid", placeItems: "center", marginBottom: "5px" }}>
                         {m.imagem ? <img src={m.imagem} alt={m.nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: "22px", opacity: 0.38 }}>▣</span>}
                       </div>
-                      <div style={{ fontSize: "8.5px", fontWeight: 650, lineHeight: 1.25 }}>{m.nome}</div>
-                      <div style={{ fontSize: "7.5px", color: Colors.textMuted, marginTop: "3px" }}>{valor}€ · custo {m.custo_interno || 0}€</div>
+                      <div style={{ fontSize: "10px", fontWeight: 650, lineHeight: 1.25 }}>{m.nome}</div>
+                      <div style={{ fontSize: "9px", color: Colors.textMuted, marginTop: "3px" }}>{valor}€ · custo {m.custo_interno || 0}€</div>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "0.75rem", marginBottom: "0.85rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "0.95rem", marginBottom: "0.85rem" }}>
               <input type="number" min={1} style={inputStyle} value={reservaForm.quantidade} onChange={(e: any) => setReservaForm(f => ({ ...f, quantidade: Math.max(1, Number(e.target.value) || 1) }))} />
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                 {MATERIAL_ORIGENS.map(o => (
@@ -3003,7 +3003,7 @@ export default function AgendaPage() {
                     background: reservaForm.origem === o ? "rgba(var(--theme-accent-rgb),0.18)" : "rgba(var(--theme-contrast-rgb),0.04)",
                     border: `1px solid ${reservaForm.origem === o ? "rgba(var(--theme-accent-rgb),0.4)" : "rgba(var(--theme-contrast-rgb),0.1)"}`,
                     color: reservaForm.origem === o ? Colors.gold : Colors.textMuted,
-                    fontSize: "10px", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit",
+                    fontSize: "12px", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit",
                   }}>{o}</button>
                 ))}
               </div>
@@ -3012,7 +3012,7 @@ export default function AgendaPage() {
               <input style={{ ...inputStyle, marginBottom: "0.85rem" }} placeholder="Especificar..." value={reservaForm.origem_detalhe} onChange={(e: any) => setReservaForm(f => ({ ...f, origem_detalhe: e.target.value }))} />
             )}
 
-            <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
+            <div style={{ display: "flex", gap: "0.95rem", marginTop: "0.5rem" }}>
               <button onClick={closeMaterialModal} style={btnSecStyle}>Fechar</button>
               <button onClick={handleReservarMaterial} disabled={reservaSaving || !reservaForm.material_id} style={{ ...btnPrimStyle, opacity: !reservaForm.material_id ? 0.5 : 1 }}>{reservaSaving ? "A reservar..." : "Reservar"}</button>
             </div>
@@ -3020,10 +3020,10 @@ export default function AgendaPage() {
         </div>
       )}
 
-      <div style={{ position: "fixed", bottom: "2rem", right: "2rem", maxWidth: "420px", background: "var(--theme-toast-bg)", border: `1px solid ${Colors.border}`, color: Colors.gold, fontSize: "10px", letterSpacing: toast.length > 40 ? "0.02em" : "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: toast.length > 40 ? "none" : "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "1rem" }}>
+      <div style={{ position: "fixed", bottom: "2rem", right: "2rem", maxWidth: "420px", background: "var(--theme-toast-bg)", border: `1px solid ${Colors.border}`, color: Colors.gold, fontSize: "12px", letterSpacing: toast.length > 40 ? "0.02em" : "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: toast.length > 40 ? "none" : "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "1rem" }}>
         <span style={{ wordBreak: "break-word", userSelect: "text" }}>{toast}</span>
         {undoAction && (
-          <button onClick={undoAction.fn} style={{ background: "rgba(var(--theme-accent-rgb),0.15)", border: "1px solid rgba(var(--theme-accent-rgb),0.3)", color: Colors.gold, fontSize: "9px", letterSpacing: "0.3em", padding: "0.3rem 0.75rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, flexShrink: 0 }}>
+          <button onClick={undoAction.fn} style={{ background: "rgba(var(--theme-accent-rgb),0.15)", border: "1px solid rgba(var(--theme-accent-rgb),0.3)", color: Colors.gold, fontSize: "11px", letterSpacing: "0.3em", padding: "0.3rem 0.75rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, flexShrink: 0 }}>
             {undoAction.label}
           </button>
         )}
@@ -3072,13 +3072,13 @@ function Nav({ userName, active, onLogout, lightTheme }: { userName: string; act
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: goldColor, fontWeight: lightTheme ? 700 : 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: active === l.href.slice(1) ? (lightTheme ? 700 : 600) : (lightTheme ? 600 : 500), color: active === l.href.slice(1) ? goldColor : textMuted, textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
+            <a key={l.href} href={l.href} style={{ fontSize: "11px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: active === l.href.slice(1) ? (lightTheme ? 700 : 600) : (lightTheme ? 600 : 500), color: active === l.href.slice(1) ? goldColor : textMuted, textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: textVeryMuted, textTransform: "uppercase", fontWeight: lightTheme ? 600 : 400 }}>{userName}</span>
-        <button onClick={onLogout} style={{ background: "transparent", border: buttonBorder, color: textVeryMuted, fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: lightTheme ? 700 : 600 }}>SAIR</button>
+        <span style={{ fontSize: "11px", letterSpacing: "0.3em", color: textVeryMuted, textTransform: "uppercase", fontWeight: lightTheme ? 600 : 400 }}>{userName}</span>
+        <button onClick={onLogout} style={{ background: "transparent", border: buttonBorder, color: textVeryMuted, fontSize: "10px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: lightTheme ? 700 : 600 }}>SAIR</button>
       </div>
     </nav>
   );
@@ -3094,7 +3094,7 @@ function Loading() {
 
 function StatusBadge({ color, label }: { color: string; label: string }) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "9px", letterSpacing: "0.2em", padding: "3px 8px", fontWeight: 600, textTransform: "uppercase", background: `${color}18`, color }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "11px", letterSpacing: "0.2em", padding: "3px 8px", fontWeight: 600, textTransform: "uppercase", background: `${color}18`, color }}>
       <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: color }} />
       {label}
     </span>
@@ -3120,7 +3120,7 @@ function IconBtn({ title, onClick, icon, danger, success, disabled }: { title: s
 function FormField({ label, children, style }: { label: string; children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <div style={{ marginBottom: "1.25rem", ...style }}>
-      <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.4em", color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.6rem" }}>{label}</label>
+      <label style={{ display: "block", fontSize: "9px", letterSpacing: "0.4em", color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.6rem" }}>{label}</label>
       {children}
     </div>
   );
@@ -3132,7 +3132,7 @@ const createAddBtnStyle = (lightTheme: boolean): React.CSSProperties => {
     background: "transparent",
     border: isDark ? "1px solid rgba(var(--theme-accent-rgb),0.12)" : "1px solid rgba(0,0,0,0.2)",
     color: isDark ? "var(--theme-accent-muted)" : "#000000",
-    fontSize: "8px",
+    fontSize: "10px",
     letterSpacing: "0.35em",
     padding: "0.5rem 1.25rem",
     cursor: "pointer",
@@ -3150,7 +3150,7 @@ const createAddBtnStyle = (lightTheme: boolean): React.CSSProperties => {
 const createTdStyle = (lightTheme: boolean, { muted, nowrap, maxW }: { muted?: boolean; nowrap?: boolean; maxW?: string }): React.CSSProperties => {
   const isDark = !lightTheme;
   return {
-    fontSize: "12px",
+    fontSize: "14px",
     color: isDark
       ? (muted ? "var(--theme-text-muted)" : "var(--theme-text)")
       : (muted ? "rgba(0,0,0,0.75)" : "#000000"),
@@ -3166,8 +3166,8 @@ const createTdStyle = (lightTheme: boolean, { muted, nowrap, maxW }: { muted?: b
 const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(4px)" };
 const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "clamp(1.25rem, 4vw, 2.5rem)", width: "640px", maxWidth: "96vw", maxHeight: "92dvh", overflowY: "auto", position: "relative" };
 const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" };
-const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
-const btnPrimStyle: React.CSSProperties = { background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-const btnDangerStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(226,75,74,0.3)", color: "var(--theme-danger)", fontSize: "8px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "13px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
+const btnPrimStyle: React.CSSProperties = { background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", fontSize: "11px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-subtle)", fontSize: "11px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnDangerStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(226,75,74,0.3)", color: "var(--theme-danger)", fontSize: "10px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 

@@ -987,9 +987,9 @@ export default function LeadsPage() {
   const ConflictAlert = ({ conflicts }: { conflicts: { artist: string; date: string; others: string[] }[] }) => conflicts.length === 0 ? null : (
     <div style={{ marginTop: "5px", display: "flex", flexDirection: "column", gap: "4px" }}>
       {conflicts.map(c => (
-        <div key={`${c.date}-${c.artist}`} style={{ background: "rgba(226,75,74,0.10)", border: "1px solid rgba(226,75,74,0.35)", color: C.red, padding: "5px 7px", fontSize: "9px", lineHeight: 1.35, fontWeight: 700 }}>
+        <div key={`${c.date}-${c.artist}`} style={{ background: "rgba(226,75,74,0.10)", border: "1px solid rgba(226,75,74,0.35)", color: C.red, padding: "5px 7px", fontSize: "11px", lineHeight: 1.35, fontWeight: 700 }}>
           🚨🚨 {c.artist} também está em {c.others.join(" / ")} 🚨🚨
-          <button onClick={(ev) => { ev.stopPropagation(); handleDismissConflict(c.date, c.artist); }} style={{ marginLeft: "8px", background: "transparent", border: "none", color: C.red, textDecoration: "underline", cursor: "pointer", fontSize: "9px", fontFamily: "inherit" }}>retirar alerta</button>
+          <button onClick={(ev) => { ev.stopPropagation(); handleDismissConflict(c.date, c.artist); }} style={{ marginLeft: "8px", background: "transparent", border: "none", color: C.red, textDecoration: "underline", cursor: "pointer", fontSize: "11px", fontFamily: "inherit" }}>retirar alerta</button>
         </div>
       ))}
     </div>
@@ -1147,17 +1147,17 @@ export default function LeadsPage() {
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: C.pageBg, color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <Nav userName={userName} active="leads" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
 
-      <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
+      <main style={{ padding: "2.75rem 3.25rem", maxWidth: "1500px", margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-          <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600 }}>
+          <p style={{ fontSize: "11px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600 }}>
             Pipeline de Leads
             {leads.length > 0 && <span style={{ color: C.textMuted, marginLeft: "0.75rem" }}>({leads.length} total)</span>}
           </p>
-          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "0.95rem", alignItems: "center" }}>
             <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
             <button
               onClick={openWaMonthModal}
-              style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
+              style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "10px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
               WhatsApp
@@ -1175,7 +1175,7 @@ export default function LeadsPage() {
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
           <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.borderDim}`, overflowX: "auto" }}>
             {monthTabs.map(ym => (
-              <button key={ym} onClick={() => setSelectedMonth(ym)} style={{ background: selectedMonth === ym ? "rgba(var(--theme-accent-rgb),0.08)" : "transparent", border: "none", borderRight: `1px solid ${C.borderDim}`, borderBottom: selectedMonth === ym ? `1px solid ${C.gold}` : "none", color: selectedMonth === ym ? C.gold : C.textMuted, fontSize: "8px", letterSpacing: "0.3em", padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize", fontWeight: selectedMonth === ym ? 700 : 400, whiteSpace: "nowrap" }}>
+              <button key={ym} onClick={() => setSelectedMonth(ym)} style={{ background: selectedMonth === ym ? "rgba(var(--theme-accent-rgb),0.08)" : "transparent", border: "none", borderRight: `1px solid ${C.borderDim}`, borderBottom: selectedMonth === ym ? `1px solid ${C.gold}` : "none", color: selectedMonth === ym ? C.gold : C.textMuted, fontSize: "10px", letterSpacing: "0.3em", padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize", fontWeight: selectedMonth === ym ? 700 : 400, whiteSpace: "nowrap" }}>
                 {monthLabel(ym)}
               </button>
             ))}
@@ -1183,14 +1183,14 @@ export default function LeadsPage() {
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Pesquisar lead ou estado..."
-            style={{ width: "100%", background: "var(--theme-subtle-bg)", border: "none", borderBottom: `1px solid ${C.borderDim}`, color: C.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "1rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
+            style={{ width: "100%", background: "var(--theme-subtle-bg)", border: "none", borderBottom: `1px solid ${C.borderDim}`, color: C.textPrimary, fontFamily: "inherit", fontSize: "13px", padding: "1rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
           />
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
                   {["Data Evento", "Lead / Projecto", "Local", "Cliente", "Estado", "Valor", "Ações"].map((h, i) => (
-                    <th key={h} style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${C.border}`, textAlign: i >= 5 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
+                    <th key={h} style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${C.border}`, textAlign: i >= 5 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -1199,9 +1199,9 @@ export default function LeadsPage() {
                   <React.Fragment key={ym}>
                     <tr onClick={() => toggleMonth(ym)} style={{ cursor: "pointer" }}>
                       <td colSpan={7} style={{ padding: "0.75rem 1.25rem", background: "rgba(var(--theme-accent-rgb),0.05)", borderBottom: `1px solid ${C.border}` }}>
-                        <span style={{ fontSize: "8px", letterSpacing: "0.4em", color: C.gold, fontWeight: 700, textTransform: "capitalize" }}>{monthLabel(ym)}</span>
-                        <span style={{ fontSize: "8px", color: C.textMuted, marginLeft: "0.75rem" }}>({grouped[ym].length})</span>
-                        <span style={{ fontSize: "9px", color: C.goldDim, marginLeft: "0.5rem", opacity: 0.7 }}>{collapsedMonths.has(ym) ? "▸" : "▾"}</span>
+                        <span style={{ fontSize: "10px", letterSpacing: "0.4em", color: C.gold, fontWeight: 700, textTransform: "capitalize" }}>{monthLabel(ym)}</span>
+                        <span style={{ fontSize: "10px", color: C.textMuted, marginLeft: "0.75rem" }}>({grouped[ym].length})</span>
+                        <span style={{ fontSize: "11px", color: C.goldDim, marginLeft: "0.5rem", opacity: 0.7 }}>{collapsedMonths.has(ym) ? "▸" : "▾"}</span>
                       </td>
                     </tr>
                     {!collapsedMonths.has(ym) && grouped[ym].map(l => (
@@ -1209,19 +1209,19 @@ export default function LeadsPage() {
                         <td style={tdStyle({ nowrap: true })}>{fmtDate(l.event_date)}</td>
                         <td style={tdStyle({ maxW: "260px" })}>
                           <span style={{ textDecoration: l.cancelled ? "line-through" : "none" }}>{l.title}</span>
-                          {!!l.cancelled && <span style={{ fontSize: "8px", color: C.red, letterSpacing: "0.2em", marginLeft: "0.5rem" }}>[CANCELADO]</span>}
-                          {l.notas && <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px", fontStyle: "italic" }}>"{l.notas}"</div>}
+                          {!!l.cancelled && <span style={{ fontSize: "10px", color: C.red, letterSpacing: "0.2em", marginLeft: "0.5rem" }}>[CANCELADO]</span>}
+                          {l.notas && <div style={{ fontSize: "11px", color: C.textMuted, marginTop: "2px", fontStyle: "italic" }}>"{l.notas}"</div>}
                         </td>
                         <td style={tdStyle({ muted: true, maxW: "130px" })}>{l.local || <span style={{ color: C.textMuted }}>—</span>}</td>
                         <td style={tdStyle({ muted: true, maxW: "180px" })}>{displayClienteNome(l, clientes) ? `👤 ${displayClienteNome(l, clientes)}` : "—"}</td>
                         <td style={tdStyle({})}>
                           <StatusBadge color={statusColor(l.status)} label={l.status || "Pendente"} />
                         </td>
-                        <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: C.gold, fontWeight: 600, fontSize: "11px" }}>
+                        <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: C.gold, fontWeight: 600, fontSize: "13px" }}>
                           {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(l.value, artistsForLead(l), l.material_cost || 0) ? (
                             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
                               <span>{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
-                              <span style={{ fontSize: "8px", color: lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0) >= 0 ? C.green : C.red, fontWeight: 600 }}>
+                              <span style={{ fontSize: "10px", color: lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0) >= 0 ? C.green : C.red, fontWeight: 600 }}>
                                 Lucro {lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0).toLocaleString("pt-PT")}€
                               </span>
                             </div>
@@ -1244,7 +1244,7 @@ export default function LeadsPage() {
                   </React.Fragment>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={6} style={{ textAlign: "center", padding: "3rem", fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem leads encontradas</td></tr>
+                  <tr><td colSpan={6} style={{ textAlign: "center", padding: "3rem", fontSize: "13px", color: C.textMuted, letterSpacing: "0.2em" }}>Sem leads encontradas</td></tr>
                 )}
               </tbody>
             </table>
@@ -1259,8 +1259,8 @@ export default function LeadsPage() {
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(var(--theme-contrast-rgb),0.05)", background:"var(--theme-nav-bg)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
         <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"var(--theme-accent)", fontWeight:300 }}>LLE</span>
         <div style={{ display:"flex", gap:"0.5rem", alignItems:"center" }}>
-          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize:"10px", padding:"0.4rem 0.5rem" }} />
-          <span style={{ fontSize:"8px", letterSpacing:"0.35em", color:"var(--theme-text-faint)", textTransform:"uppercase" }}>{userName}</span>
+          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "12px", padding:"0.4rem 0.5rem" }} />
+          <span style={{ fontSize: "10px", letterSpacing:"0.35em", color:"var(--theme-text-faint)", textTransform:"uppercase" }}>{userName}</span>
         </div>
       </div>
 
@@ -1279,11 +1279,11 @@ export default function LeadsPage() {
           <svg className="mob-search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="7" cy="7" r="5"/><line x1="11" y1="11" x2="15" y2="15"/></svg>
           <input className="mob-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar lead..." />
         </div>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div style={{ display: "flex", gap: "0.7rem" }}>
           
           <button
             onClick={openWaMonthModal}
-            style={{ background: "rgba(93,202,165,0.08)", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "10px", padding: "0.5rem 0.7rem", cursor: "pointer" }}
+            style={{ background: "rgba(93,202,165,0.08)", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "12px", padding: "0.5rem 0.7rem", cursor: "pointer" }}
             title="Copiar Leads para WhatsApp"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
@@ -1330,7 +1330,7 @@ export default function LeadsPage() {
                     {userRole !== "limited_novalues" && temMovimentoFinanceiro(l.value, artistsForLead(l), l.material_cost || 0)
                       ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
                           <span className="mob-card-value">{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
-                          <span style={{fontSize:"8px",fontWeight:700,color:lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0)>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0).toLocaleString("pt-PT")}€</span>
+                          <span style={{fontSize: "10px",fontWeight:700,color:lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0)>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0).toLocaleString("pt-PT")}€</span>
                         </div>
                       : <span className="mob-card-value muted">—</span>
                     }
@@ -1353,13 +1353,13 @@ export default function LeadsPage() {
           <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "380px", maxWidth: "95vw", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-              <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Copiar Leads para WhatsApp</p>
+              <p style={{ fontSize: "10px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Copiar Leads para WhatsApp</p>
               <button onClick={() => setWaMonthModal(false)} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: "pointer", fontSize: "16px" }}>✕</button>
             </div>
-            <p style={{ fontSize: "9px", color: "var(--theme-text-subtle)", letterSpacing: "0.15em", marginBottom: "1rem" }}>Seleciona os meses a incluir:</p>
+            <p style={{ fontSize: "11px", color: "var(--theme-text-subtle)", letterSpacing: "0.15em", marginBottom: "1.25rem" }}>Seleciona os meses a incluir:</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "1.25rem", maxHeight: "280px", overflowY: "auto" }}>
               {availableWaMonths().length === 0 && (
-                <p style={{ fontSize: "11px", color: "var(--theme-text-subtle)", textAlign: "center", padding: "1rem" }}>Sem leads disponíveis.</p>
+                <p style={{ fontSize: "13px", color: "var(--theme-text-subtle)", textAlign: "center", padding: "1.2rem" }}>Sem leads disponíveis.</p>
               )}
               {availableWaMonths().map(ym => {
                 const [year, month] = ym.split("-");
@@ -1368,7 +1368,7 @@ export default function LeadsPage() {
                 const checked = selectedWaMonths.has(ym);
                 const count = leads.filter(l => !l.cancelled && l.status !== "Cancelado" && l.event_date?.startsWith(ym)).length;
                 return (
-                  <label key={ym} style={{ display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer", padding: "0.6rem 0.75rem", background: checked ? "rgba(var(--theme-accent-rgb),0.06)" : "transparent", border: `1px solid ${checked ? "rgba(var(--theme-accent-rgb),0.22)" : "rgba(var(--theme-contrast-rgb),0.05)"}`, transition: "all 0.15s" }}>
+                  <label key={ym} style={{ display: "flex", alignItems: "center", gap: "0.95rem", cursor: "pointer", padding: "0.6rem 0.75rem", background: checked ? "rgba(var(--theme-accent-rgb),0.06)" : "transparent", border: `1px solid ${checked ? "rgba(var(--theme-accent-rgb),0.22)" : "rgba(var(--theme-contrast-rgb),0.05)"}`, transition: "all 0.15s" }}>
                     <input type="checkbox" checked={checked} onChange={() => {
                       setWaMonthError(false);
                       setSelectedWaMonths(prev => {
@@ -1377,18 +1377,18 @@ export default function LeadsPage() {
                         return next;
                       });
                     }} style={{ accentColor: "var(--theme-accent)", width: "14px", height: "14px", flexShrink: 0 }} />
-                    <span style={{ fontSize: "11px", color: checked ? "var(--theme-text)" : "var(--theme-text-secondary)", letterSpacing: "0.04em", textTransform: "capitalize", flex: 1 }}>{mCap}</span>
-                    <span style={{ fontSize: "9px", color: "var(--theme-text-faint)", letterSpacing: "0.1em" }}>{count} leads</span>
+                    <span style={{ fontSize: "13px", color: checked ? "var(--theme-text)" : "var(--theme-text-secondary)", letterSpacing: "0.04em", textTransform: "capitalize", flex: 1 }}>{mCap}</span>
+                    <span style={{ fontSize: "11px", color: "var(--theme-text-faint)", letterSpacing: "0.1em" }}>{count} leads</span>
                   </label>
                 );
               })}
             </div>
             {waMonthError && (
-              <p style={{ fontSize: "9px", color: "var(--theme-danger)", letterSpacing: "0.2em", marginBottom: "0.85rem", textTransform: "uppercase" }}>Selecione pelo menos um mês.</p>
+              <p style={{ fontSize: "11px", color: "var(--theme-danger)", letterSpacing: "0.2em", marginBottom: "0.85rem", textTransform: "uppercase" }}>Selecione pelo menos um mês.</p>
             )}
-            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
-              <button onClick={() => setWaMonthModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Cancelar</button>
-              <button onClick={handleCopySelectedMonths} style={{ background: "var(--theme-success)", border: "none", color: "var(--theme-bg)", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Copiar Leads Selecionadas</button>
+            <div style={{ display: "flex", gap: "0.95rem", justifyContent: "flex-end" }}>
+              <button onClick={() => setWaMonthModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "11px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Cancelar</button>
+              <button onClick={handleCopySelectedMonths} style={{ background: "var(--theme-success)", border: "none", color: "var(--theme-bg)", fontSize: "11px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Copiar Leads Selecionadas</button>
             </div>
           </div>
         </div>
@@ -1399,21 +1399,21 @@ export default function LeadsPage() {
         <div onClick={e => e.target === e.currentTarget && setWaModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
           <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "500px", maxWidth: "95vw", maxHeight: "85vh", display: "flex", flexDirection: "column", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <p style={{ fontSize: "8px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Copiar Leads para WhatsApp</p>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+              <p style={{ fontSize: "10px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Copiar Leads para WhatsApp</p>
               <button onClick={() => setWaModal(false)} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: "pointer", fontSize: "16px" }}>✕</button>
             </div>
             {waCopied && (
-              <div style={{ marginBottom: "0.75rem", fontSize: "9px", letterSpacing: "0.25em", color: "var(--theme-success)", textTransform: "uppercase" }}>✓ Leads copiadas. Pode colar no WhatsApp.</div>
+              <div style={{ marginBottom: "0.75rem", fontSize: "11px", letterSpacing: "0.25em", color: "var(--theme-success)", textTransform: "uppercase" }}>✓ Leads copiadas. Pode colar no WhatsApp.</div>
             )}
             <textarea
               readOnly
               value={waText}
-              style={{ flex: 1, minHeight: "300px", background: "var(--theme-subtle-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "monospace", fontSize: "11px", padding: "0.75rem", outline: "none", resize: "vertical", letterSpacing: "0.02em", lineHeight: "1.6" }}
+              style={{ flex: 1, minHeight: "300px", background: "var(--theme-subtle-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "monospace", fontSize: "13px", padding: "0.75rem", outline: "none", resize: "vertical", letterSpacing: "0.02em", lineHeight: "1.6" }}
               onClick={e => (e.target as HTMLTextAreaElement).select()}
             />
-            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1rem" }}>
-              <button onClick={() => setWaModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Fechar</button>
+            <div style={{ display: "flex", gap: "0.95rem", justifyContent: "flex-end", marginTop: "1rem" }}>
+              <button onClick={() => setWaModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "11px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Fechar</button>
               <button
                 onClick={() => {
                   if (navigator.clipboard) {
@@ -1423,7 +1423,7 @@ export default function LeadsPage() {
                     ta.value = waText; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); setWaCopied(true);
                   }
                 }}
-                style={{ background: "var(--theme-success)", border: "none", color: "var(--theme-bg)", fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}
+                style={{ background: "var(--theme-success)", border: "none", color: "var(--theme-bg)", fontSize: "11px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}
               >Copiar novamente</button>
             </div>
           </div>
@@ -1434,7 +1434,7 @@ export default function LeadsPage() {
         <div onClick={e => e.target === e.currentTarget && closeModal()} style={overlayStyle}>
           <div style={modalStyle}>
             <div style={topLineStyle} />
-            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "2rem" }}>
+            <p style={{ fontSize: "11px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "2rem" }}>
               {modal.editing ? "Editar Lead" : "Nova Lead"}
             </p>
 
@@ -1501,18 +1501,18 @@ export default function LeadsPage() {
                               setClienteSearch(c.nome);
                               setClienteDropOpen(false);
                             }}
-                            style={{ padding: "0.6rem 1rem", fontSize: "11px", color: "var(--theme-text-secondary)", cursor: "pointer", borderBottom: "1px solid var(--theme-border)" }}
+                            style={{ padding: "0.6rem 1rem", fontSize: "13px", color: "var(--theme-text-secondary)", cursor: "pointer", borderBottom: "1px solid var(--theme-border)" }}
                             onMouseEnter={e => (e.currentTarget.style.background = "var(--theme-dropdown-hover)")}
                             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                           >
                             {c.nome}
-                            {c.nif && <span style={{ fontSize: "9px", color: C.textMuted, marginLeft: "8px" }}>{c.nif}</span>}
+                            {c.nif && <span style={{ fontSize: "11px", color: C.textMuted, marginLeft: "8px" }}>{c.nif}</span>}
                           </div>
                         ))
                       }
                       <div
                         onMouseDown={() => { setClienteCreating(true); setClienteDropOpen(false); }}
-                        style={{ padding: "0.6rem 1rem", fontSize: "10px", color: C.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(var(--theme-accent-rgb),0.12)", display: "flex", alignItems: "center", gap: "6px" }}
+                        style={{ padding: "0.6rem 1rem", fontSize: "12px", color: C.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(var(--theme-accent-rgb),0.12)", display: "flex", alignItems: "center", gap: "6px" }}
                         onMouseEnter={e => (e.currentTarget.style.background = "var(--theme-dropdown-hover)")}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                       >
@@ -1537,7 +1537,7 @@ export default function LeadsPage() {
                 options={TIPOS_COMERCIAIS.map(t => ({ value: t, label: t }))}
                 style={inputStyle}
               />
-              <p style={{ marginTop: "0.4rem", fontSize: "8px", color: C.textMuted, lineHeight: 1.45 }}>
+              <p style={{ marginTop: "0.4rem", fontSize: "10px", color: C.textMuted, lineHeight: 1.45 }}>
                 Define o custo que a LLE prevê pagar aos artistas. A faturação ao cliente é independente e fica no Auto Budget / Faturação.
               </p>
             </FormField>
@@ -1552,13 +1552,13 @@ export default function LeadsPage() {
                   ]}
                   style={inputStyle}
                 />
-                <p style={{ marginTop: "0.4rem", fontSize: "8px", color: C.textMuted, lineHeight: 1.45 }}>
+                <p style={{ marginTop: "0.4rem", fontSize: "10px", color: C.textMuted, lineHeight: 1.45 }}>
                   Se estiver definida, custo e faturação específicos desta residência têm prioridade quando aplicáveis; sem override usa Colaboradores.
                 </p>
               </FormField>
             )}
 
-            <div style={{ gridColumn: "1 / -1", marginBottom: "1rem" }}>
+            <div style={{ gridColumn: "1 / -1", marginBottom: "1.25rem" }}>
               <button
                 type="button"
                 onClick={() => setBudgetOpen(v => !v)}
@@ -1572,16 +1572,16 @@ export default function LeadsPage() {
                 }}
               >
                 <span>
-                  <b style={{ display: "block", fontSize: "9px", letterSpacing: "0.28em", textTransform: "uppercase" }}>Auto Budget</b>
-                  <small style={{ display: "block", marginTop: "4px", fontSize: "8px", letterSpacing: "0.06em", color: C.textMuted }}>Serviços · perfil de valor · cálculo automático</small>
+                  <b style={{ display: "block", fontSize: "11px", letterSpacing: "0.28em", textTransform: "uppercase" }}>Auto Budget</b>
+                  <small style={{ display: "block", marginTop: "4px", fontSize: "10px", letterSpacing: "0.06em", color: C.textMuted }}>Serviços · perfil de valor · cálculo automático</small>
                 </span>
-                <span style={{ fontSize: "12px" }}>{budgetOpen ? "−" : "+"}</span>
+                <span style={{ fontSize: "14px" }}>{budgetOpen ? "−" : "+"}</span>
               </button>
 
               {budgetOpen && (
                 <div style={{
                   display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 1.5rem",
-                  padding: "1rem", border: "1px solid rgba(var(--theme-accent-rgb),0.14)", borderTop: "none",
+                  padding: "1.2rem", border: "1px solid rgba(var(--theme-accent-rgb),0.14)", borderTop: "none",
                   background: "rgba(var(--theme-accent-rgb),0.018)",
                 }}>
                   <FormField label="Serviços Contratados" style={{ gridColumn: "1 / -1" }}>
@@ -1612,7 +1612,7 @@ export default function LeadsPage() {
                   {valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto) && (() => {
                     const suggestion = valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)!;
                     return (
-                      <div style={{ gridColumn: "1 / -1", fontSize: "10px", color: C.textMuted, letterSpacing: "0.05em", marginTop: "-0.5rem", marginBottom: "0.2rem", lineHeight: 1.6 }}>
+                      <div style={{ gridColumn: "1 / -1", fontSize: "12px", color: C.textMuted, letterSpacing: "0.05em", marginTop: "-0.5rem", marginBottom: "0.2rem", lineHeight: 1.6 }}>
                         Faturação sugerida: <b style={{ color: C.gold }}>{suggestion.valor || 0}€</b> · Custo estimado LLE: {suggestion.custo || 0}€ · {form.valor_contexto || "Cliente Final"}
                         {suggestion.total > 1 && <span> · {suggestion.encontrados}/{suggestion.total} serviços com valor automático</span>}
                         {suggestion.items.length > 0 && (
@@ -1621,7 +1621,7 @@ export default function LeadsPage() {
                               <div key={item.servico} style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "baseline" }}>
                                 <span style={{ color: C.textSec }}>
                                   {item.servico}{item.quantidade > 1 ? ` ×${item.quantidade}` : ""}
-                                  <small style={{ display: "block", color: C.textMuted, fontSize: "8px", letterSpacing: "0.03em" }}>
+                                  <small style={{ display: "block", color: C.textMuted, fontSize: "10px", letterSpacing: "0.03em" }}>
                                     Faturação: {item.sourceName || ("noActiveProvider" in item && item.noActiveProvider ? "sem colaborador ativo / preço por definir" : "sem referência")}
                                     {item.costSourceName ? ` · Custo: ${item.costSourceName}` : ""}
                                     {item.skill && item.assignedCount !== null ? ` · Atribuídos: ${item.assignedCount}/${item.quantidade}` : ""}
@@ -1678,17 +1678,17 @@ export default function LeadsPage() {
 
             {/* ── Artistas & Pagamentos ── */}
             <div style={{ marginTop: "1.75rem", borderTop: `1px solid ${C.borderDim}`, paddingTop: "1.5rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-                <span style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600 }}>Artistas & Pagamentos</span>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+                <span style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600 }}>Artistas & Pagamentos</span>
                 {artists.filter(a => a.nome.trim()).reduce((s, a) => s + (parseFloat(a.fee) || 0), 0) > 0 && (
-                  <span style={{ fontSize: "9px", color: C.amber, letterSpacing: "0.15em", fontWeight: 600 }}>
+                  <span style={{ fontSize: "11px", color: C.amber, letterSpacing: "0.15em", fontWeight: 600 }}>
                     Total: {artists.filter(a => a.nome.trim()).reduce((s, a) => s + (parseFloat(a.fee) || 0), 0).toLocaleString("pt-PT")}€
                   </span>
                 )}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "6px" }}>
                 {["Nome", "Tipo", "Custo (€)", ""].map(h => (
-                  <span key={h} style={{ fontSize: "7px", letterSpacing: "0.3em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600, padding: "0 4px" }}>{h}</span>
+                  <span key={h} style={{ fontSize: "9px", letterSpacing: "0.3em", color: C.textMuted, textTransform: "uppercase", fontWeight: 600, padding: "0 4px" }}>{h}</span>
                 ))}
               </div>
               <datalist id="leads-colaboradores-list">
@@ -1713,14 +1713,14 @@ export default function LeadsPage() {
                         skills: c.skills,
                       }))}
                       placeholder="Escolher colaborador..."
-                      inputStyle={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
+                      inputStyle={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "13px" }}
                     />
                   </div>
                   <CustomSelect
                     value={a.tipo}
                     onChange={v => updateArtistTipo(i, v)}
                     options={ARTIST_TIPOS.map(t => ({ value: t, label: t }))}
-                    style={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "10px" }}
+                    style={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "12px" }}
                   />
                   <div>
                     <input
@@ -1731,10 +1731,10 @@ export default function LeadsPage() {
                       onFocus={e => { if (e.target.value === "0") updateArtistFee(i, ""); }}
                       onBlur={e => { if (e.target.value === "") updateArtistFee(i, "0"); }}
                       placeholder="0"
-                      style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
+                      style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "13px" }}
                     />
                     {a.nome && a.tipo && (
-                      <small style={{ display: "block", marginTop: "3px", color: C.textMuted, fontSize: "7px", lineHeight: 1.3 }}>
+                      <small style={{ display: "block", marginTop: "3px", color: C.textMuted, fontSize: "9px", lineHeight: 1.3 }}>
                         {a.fee_auto !== false
                           ? artistCostSuggestion(findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome), a.tipo).source
                           : "Custo guardado / editável"}
@@ -1749,7 +1749,7 @@ export default function LeadsPage() {
                   </button>
                 </div>
               ))}
-              <button onClick={() => addArtistRow(setArtists)} style={{ ...btnSecStyle, fontSize: "8px", padding: "0.4rem 0.9rem", marginTop: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
+              <button onClick={() => addArtistRow(setArtists)} style={{ ...btnSecStyle, fontSize: "10px", padding: "0.4rem 0.9rem", marginTop: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
                 <svg width="8" height="8" viewBox="0 0 10 10" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="5" y1="1" x2="5" y2="9" /><line x1="1" y1="5" x2="9" y2="5" /></svg>
                 Adicionar artista
               </button>
@@ -1772,7 +1772,7 @@ export default function LeadsPage() {
       )}
 
     {/* Toast (partilhado desktop+mobile) */}
-    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "var(--theme-toast-bg)", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
+    <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "var(--theme-toast-bg)", border: `1px solid ${C.border}`, color: C.gold, fontSize: "12px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
       {toast}
     </div>
     </>
@@ -1802,13 +1802,13 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "var(--theme-accent)" : "var(--theme-text-muted)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
+            <a key={l.href} href={l.href} style={{ fontSize: "11px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "var(--theme-accent)" : "var(--theme-text-muted)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
-        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
+        <span style={{ fontSize: "11px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
+        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-faint)", fontSize: "10px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
       </div>
     </nav>
   );
@@ -1824,7 +1824,7 @@ function Loading() {
 
 function StatusBadge({ color, label }: { color: string; label: string }) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "9px", letterSpacing: "0.2em", padding: "3px 8px", fontWeight: 600, textTransform: "uppercase", background: `${color}18`, color }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "11px", letterSpacing: "0.2em", padding: "3px 8px", fontWeight: 600, textTransform: "uppercase", background: `${color}18`, color }}>
       <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: color }} />
       {label}
     </span>
@@ -1849,21 +1849,21 @@ function IconBtn({ title, onClick, icon, danger, success }: { title: string; onC
 function FormField({ label, children, style }: { label: string; children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <div style={{ marginBottom: "1.25rem", ...style }}>
-      <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.4em", color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.6rem" }}>{label}</label>
+      <label style={{ display: "block", fontSize: "9px", letterSpacing: "0.4em", color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.6rem" }}>{label}</label>
       {children}
     </div>
   );
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-const addBtnStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-accent-muted)", fontSize: "8px", letterSpacing: "0.35em", padding: "0.5rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s" };
-const tdStyle = ({ muted, nowrap, maxW }: { muted?: boolean; nowrap?: boolean; maxW?: string }): React.CSSProperties => ({ fontSize: "12px", color: muted ? "var(--theme-text-muted)" : "var(--theme-text)", padding: "0.85rem 1.25rem", borderBottom: "1px solid var(--theme-border)", whiteSpace: nowrap ? "nowrap" : undefined, maxWidth: maxW, overflow: maxW ? "hidden" : undefined, textOverflow: maxW ? "ellipsis" : undefined });
+const addBtnStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-accent-muted)", fontSize: "10px", letterSpacing: "0.35em", padding: "0.5rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s" };
+const tdStyle = ({ muted, nowrap, maxW }: { muted?: boolean; nowrap?: boolean; maxW?: string }): React.CSSProperties => ({ fontSize: "14px", color: muted ? "var(--theme-text-muted)" : "var(--theme-text)", padding: "0.85rem 1.25rem", borderBottom: "1px solid var(--theme-border)", whiteSpace: nowrap ? "nowrap" : undefined, maxWidth: maxW, overflow: maxW ? "hidden" : undefined, textOverflow: maxW ? "ellipsis" : undefined });
 const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
 const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2.5rem", width: "520px", maxWidth: "90vw", maxHeight: "90vh", overflowY: "auto", position: "relative" };
 const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" };
-const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
-const btnPrimStyle: React.CSSProperties = { background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-const btnDangerStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(226,75,74,0.3)", color: "var(--theme-danger)", fontSize: "8px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-const btnAgendaStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(93,202,165,0.3)", color: "var(--theme-success)", fontSize: "8px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "13px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
+const btnPrimStyle: React.CSSProperties = { background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", fontSize: "11px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-subtle)", fontSize: "11px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnDangerStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(226,75,74,0.3)", color: "var(--theme-danger)", fontSize: "10px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnAgendaStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(93,202,165,0.3)", color: "var(--theme-success)", fontSize: "10px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 

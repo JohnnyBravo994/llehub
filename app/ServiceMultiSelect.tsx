@@ -86,19 +86,19 @@ export function ServiceMultiSelect({
       >
         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", flex: 1 }}>
           {selected.length === 0 ? (
-            <span style={{ fontSize: "11px", letterSpacing: "0.04em" }}>{placeholder}</span>
+            <span style={{ fontSize: "13px", letterSpacing: "0.04em" }}>{placeholder}</span>
           ) : selected.map(item => (
             <span key={item.nome} style={{
               display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 8px",
               border: "1px solid rgba(var(--theme-accent-rgb),0.2)",
               background: "rgba(var(--theme-accent-rgb),0.07)", color: "var(--theme-accent)",
-              fontSize: "9px", letterSpacing: "0.04em",
+              fontSize: "11px", letterSpacing: "0.04em",
             }}>
               ✓ {item.nome}{item.quantidade > 1 ? ` ×${item.quantidade}` : ""}
             </span>
           ))}
         </div>
-        <span style={{ color: "var(--theme-text-faint)", fontSize: "12px", flexShrink: 0 }}>{open ? "▴" : "▾"}</span>
+        <span style={{ color: "var(--theme-text-faint)", fontSize: "14px", flexShrink: 0 }}>{open ? "▴" : "▾"}</span>
       </button>
 
       {open && (
@@ -117,14 +117,14 @@ export function ServiceMultiSelect({
               style={{
                 flex: 1, height: "38px", padding: "0 0.75rem", background: "var(--theme-input-bg)",
                 border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", outline: "none",
-                fontFamily: "inherit", fontSize: "10px",
+                fontFamily: "inherit", fontSize: "12px",
               }}
             />
             {normalizedSearch && !exactExists && (
               <button type="button" onClick={addCustom} style={{
                 border: "1px solid rgba(var(--theme-accent-rgb),0.25)", background: "rgba(var(--theme-accent-rgb),0.08)",
                 color: "var(--theme-accent)", padding: "0 0.8rem", cursor: "pointer", fontFamily: "inherit",
-                fontSize: "8px", letterSpacing: "0.12em", textTransform: "uppercase",
+                fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase",
               }}>Adicionar</button>
             )}
           </div>
@@ -138,7 +138,7 @@ export function ServiceMultiSelect({
                 <div style={{
                   position: "sticky", top: 0, zIndex: 2, padding: "0.55rem 0.65rem 0.4rem",
                   background: "var(--theme-surface-elevated)", color: "var(--theme-accent)",
-                  fontSize: "8px", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase",
+                  fontSize: "10px", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase",
                   borderBottom: "1px solid var(--theme-border)",
                 }}>
                   {group.label}
@@ -159,9 +159,9 @@ export function ServiceMultiSelect({
                         <span style={{
                           width: "15px", height: "15px", flexShrink: 0, display: "grid", placeItems: "center",
                           border: `1px solid ${active ? "var(--theme-accent)" : "var(--theme-input-border)"}`,
-                          background: active ? "rgba(var(--theme-accent-rgb),0.12)" : "transparent", fontSize: "9px",
+                          background: active ? "rgba(var(--theme-accent-rgb),0.12)" : "transparent", fontSize: "11px",
                         }}>{active ? "✓" : ""}</span>
-                        <span style={{ fontSize: "10px", overflow: "hidden", textOverflow: "ellipsis" }}>{service}</span>
+                        <span style={{ fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis" }}>{service}</span>
                       </button>
                       {active && !isPack(service) && (
                         <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
@@ -169,7 +169,7 @@ export function ServiceMultiSelect({
                             width: 24, height: 24, border: "1px solid var(--theme-input-border)", background: "transparent",
                             color: "var(--theme-text-secondary)", cursor: "pointer", fontFamily: "inherit",
                           }}>−</button>
-                          <span style={{ minWidth: 24, textAlign: "center", fontSize: "10px", color: "var(--theme-text)" }}>{item?.quantidade || 1}</span>
+                          <span style={{ minWidth: 24, textAlign: "center", fontSize: "12px", color: "var(--theme-text)" }}>{item?.quantidade || 1}</span>
                           <button type="button" onClick={() => setQty(service, (item?.quantidade || 1) + 1)} style={{
                             width: 24, height: 24, border: "1px solid var(--theme-input-border)", background: "transparent",
                             color: "var(--theme-text-secondary)", cursor: "pointer", fontFamily: "inherit",
@@ -182,14 +182,14 @@ export function ServiceMultiSelect({
               </div>
             ))}
             {filtered.length === 0 && (
-              <div style={{ padding: "1rem", color: "var(--theme-text-faint)", fontSize: "10px", textAlign: "center" }}>Sem resultados</div>
+              <div style={{ padding: "1rem", color: "var(--theme-text-faint)", fontSize: "12px", textAlign: "center" }}>Sem resultados</div>
             )}
           </div>
 
           {selected.length > 0 && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "0.55rem" }}>
-              <span style={{ color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.1em" }}>{selected.length} serviço{selected.length === 1 ? "" : "s"}</span>
-              <button type="button" onClick={() => setSelected([])} style={{ border: "none", background: "transparent", color: "var(--theme-danger)", cursor: "pointer", fontFamily: "inherit", fontSize: "8px", letterSpacing: "0.1em", textTransform: "uppercase" }}>Limpar</button>
+              <span style={{ color: "var(--theme-text-faint)", fontSize: "10px", letterSpacing: "0.1em" }}>{selected.length} serviço{selected.length === 1 ? "" : "s"}</span>
+              <button type="button" onClick={() => setSelected([])} style={{ border: "none", background: "transparent", color: "var(--theme-danger)", cursor: "pointer", fontFamily: "inherit", fontSize: "10px", letterSpacing: "0.1em", textTransform: "uppercase" }}>Limpar</button>
             </div>
           )}
         </div>

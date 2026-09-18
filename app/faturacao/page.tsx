@@ -242,16 +242,16 @@ export default function FaturacaoPage() {
     <div className="mob-page-desktop" style={{ minHeight: "100vh", background: C.pageBg, color: C.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
       <Nav userName={userName} active="faturacao" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/");  }} />
 
-      <main style={{ padding: "2rem 2.5rem", maxWidth: "1400px", margin: "0 auto" }}>
+      <main style={{ padding: "2.75rem 3.25rem", maxWidth: "1500px", margin: "0 auto" }}>
 
         {/* HEADER */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "2rem" }}>
           <div>
-            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600 }}>
+            <p style={{ fontSize: "11px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600 }}>
               Faturação
               {clientes_count > 0 && <span style={{ color: C.textMuted, marginLeft: "0.75rem" }}>({clientes_count} {clientes_count === 1 ? 'cliente' : 'clientes'})</span>}
             </p>
-            <p style={{ fontSize: "8px", color: C.textMuted, marginTop: "0.4rem", letterSpacing: "0.15em" }}>
+            <p style={{ fontSize: "10px", color: C.textMuted, marginTop: "0.4rem", letterSpacing: "0.15em" }}>
               Eventos e leads a partir do estado <span style={{ color: C.green }}>Confirmado</span>
             </p>
           </div>
@@ -271,7 +271,7 @@ export default function FaturacaoPage() {
           ].map(({ label, valor, color }) => (
             <div key={label} style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "1.5rem 2rem", position: "relative" }}>
               <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: `linear-gradient(90deg, transparent, ${color}44, transparent)`  }} />
-              <p style={{ fontSize: "7px", letterSpacing: "0.5em", color: C.goldDim, marginBottom: "0.75rem", textTransform: "uppercase" }}>{label}</p>
+              <p style={{ fontSize: "9px", letterSpacing: "0.5em", color: C.goldDim, marginBottom: "0.75rem", textTransform: "uppercase" }}>{label}</p>
               <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "2rem", color, lineHeight: 1, fontWeight: 300 }}>{fmtEuro(valor)}</p>
             </div>
           ))}
@@ -281,24 +281,24 @@ export default function FaturacaoPage() {
         {totalFaturado > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "2rem", padding: "0.7rem 1.25rem", background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.18)", borderTop: "none" }}>
             <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: C.purple, flexShrink: 0  }} />
-            <span style={{ fontSize: "8px", letterSpacing: "0.35em", color: C.purple, textTransform: "uppercase", fontWeight: 600 }}>Faturado · aguarda pagamento</span>
+            <span style={{ fontSize: "10px", letterSpacing: "0.35em", color: C.purple, textTransform: "uppercase", fontWeight: 600 }}>Faturado · aguarda pagamento</span>
             <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.1rem", color: C.purple, fontWeight: 300, marginLeft: "auto", letterSpacing: "0.05em" }}>{fmtEuro(totalFaturado)}</span>
           </div>
         )}
 
         {/* FILTROS */}
-        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "0.7rem", marginBottom: "1.5rem", flexWrap: "wrap", alignItems: "center" }}>
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Pesquisar cliente ou evento..."
-            style={{ background: "var(--theme-subtle-bg)", border: `1px solid ${C.borderDim}`, color: C.textPrimary, fontFamily: "inherit", fontSize: "11px", padding: "0.6rem 1rem", letterSpacing: "0.05em", outline: "none", flex: "1", minWidth: "200px" }}
+            style={{ background: "var(--theme-subtle-bg)", border: `1px solid ${C.borderDim}`, color: C.textPrimary, fontFamily: "inherit", fontSize: "13px", padding: "0.6rem 1rem", letterSpacing: "0.05em", outline: "none", flex: "1", minWidth: "200px" }}
           />
           {["Por Faturar", "Faturado", "Pagos", "Todos"].map(e => (
             <button key={e} onClick={() => setFiltroEstado(e)} style={{
               background: filtroEstado === e ? (e === "Pagos" ? "rgba(93,202,165,0.08)" : e === "Faturado" ? "rgba(167,139,250,0.08)" : "rgba(var(--theme-accent-rgb),0.08)") : "transparent",
               border: filtroEstado === e ? `1px solid ${e === "Pagos" ? C.green : e === "Faturado" ? C.purple : C.border}` : `1px solid ${C.borderDim}`,
               color: filtroEstado === e ? (e === "Pagos" ? C.green : e === "Faturado" ? C.purple : C.gold) : C.textMuted,
-              fontSize: "8px", letterSpacing: "0.3em", padding: "0.5rem 1rem", cursor: "pointer",
+              fontSize: "10px", letterSpacing: "0.3em", padding: "0.5rem 1rem", cursor: "pointer",
               fontFamily: "inherit", textTransform: "uppercase", fontWeight: filtroEstado === e ? 600 : 400,
               transition: "all 0.2s",
             }}>{e === "Pagos" ? `✓ Pagos (${clientesTotalmentePagos.size})` : e}</button>
@@ -307,27 +307,27 @@ export default function FaturacaoPage() {
 
         {/* BULK ACTION BAR */}
         {selectedItems.size > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem", padding: "0.75rem 1.25rem", background: "rgba(var(--theme-accent-rgb),0.06)", border: `1px solid ${C.border}` }}>
-            <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: C.gold, fontWeight: 600 }}>{selectedItems.size} {selectedItems.size === 1 ? "item seleccionado" : "itens seleccionados"}</span>
-            <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)} style={{ background: "var(--theme-input-bg)", border: `1px solid ${C.borderDim}`, color: bulkStatus ? C.textPrimary : C.textMuted, fontFamily: "inherit", fontSize: "9px", padding: "0.4rem 0.75rem", letterSpacing: "0.1em", outline: "none", cursor: "pointer", appearance: "none" as any }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.25rem", padding: "0.75rem 1.25rem", background: "rgba(var(--theme-accent-rgb),0.06)", border: `1px solid ${C.border}` }}>
+            <span style={{ fontSize: "11px", letterSpacing: "0.3em", color: C.gold, fontWeight: 600 }}>{selectedItems.size} {selectedItems.size === 1 ? "item seleccionado" : "itens seleccionados"}</span>
+            <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)} style={{ background: "var(--theme-input-bg)", border: `1px solid ${C.borderDim}`, color: bulkStatus ? C.textPrimary : C.textMuted, fontFamily: "inherit", fontSize: "11px", padding: "0.4rem 0.75rem", letterSpacing: "0.1em", outline: "none", cursor: "pointer", appearance: "none" as any }}>
               <option value="">Alterar estado para...</option>
               {TODOS_ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <button onClick={handleBulkStatus} disabled={!bulkStatus} style={{ background: bulkStatus ? C.gold : "rgba(var(--theme-contrast-rgb),0.04)", border: "none", color: bulkStatus ? "var(--theme-bg)" : C.textMuted, fontSize: "9px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.5rem 1.25rem", cursor: bulkStatus ? "pointer" : "default", fontFamily: "inherit", textTransform: "uppercase" }}>Aplicar</button>
-            <button onClick={() => setSelectedItems(new Set())} style={{ background: "transparent", border: "none", color: C.textMuted, fontSize: "9px", cursor: "pointer", marginLeft: "auto" }}>✕ Limpar seleção</button>
+            <button onClick={handleBulkStatus} disabled={!bulkStatus} style={{ background: bulkStatus ? C.gold : "rgba(var(--theme-contrast-rgb),0.04)", border: "none", color: bulkStatus ? "var(--theme-bg)" : C.textMuted, fontSize: "11px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.5rem 1.25rem", cursor: bulkStatus ? "pointer" : "default", fontFamily: "inherit", textTransform: "uppercase" }}>Aplicar</button>
+            <button onClick={() => setSelectedItems(new Set())} style={{ background: "transparent", border: "none", color: C.textMuted, fontSize: "11px", cursor: "pointer", marginLeft: "auto" }}>✕ Limpar seleção</button>
           </div>
         )}
 
         {/* CARDS POR CLIENTE */}
         {Object.keys(filteredGrouped).length === 0 ? (
           <div style={{ background: C.surface, border: `1px solid ${C.borderDim}`, padding: "4rem", textAlign: "center" }}>
-            <p style={{ fontSize: "11px", color: C.textMuted, letterSpacing: "0.2em" }}>
+            <p style={{ fontSize: "13px", color: C.textMuted, letterSpacing: "0.2em" }}>
               {Object.keys(grouped).length === 0
                 ? "Sem eventos ou leads com cliente associado a partir do estado Confirmado."
                 : "Nenhum resultado para os filtros seleccionados."}
             </p>
             {Object.keys(grouped).length === 0 && (
-              <p style={{ fontSize: "9px", color: C.textMuted, marginTop: "1rem", letterSpacing: "0.15em", opacity: 0.6 }}>
+              <p style={{ fontSize: "11px", color: C.textMuted, marginTop: "1rem", letterSpacing: "0.15em", opacity: 0.6 }}>
                 Edita um evento na Agenda ou uma Lead e associa um cliente + estado ≥ Confirmado.
               </p>
             )}
@@ -355,26 +355,26 @@ export default function FaturacaoPage() {
                       <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.35rem" }}>
                         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", color: C.textPrimary, fontWeight: 400, letterSpacing: "0.05em" }}>{displayClienteName(clienteNome, clienteInfo)}</span>
                         {clienteInfo?.alias?.trim() && clienteInfo.nome !== clienteNome && (
-                          <span style={{ fontSize: "9px", letterSpacing: "0.15em", color: C.textMuted }}>{clienteInfo.nome}</span>
+                          <span style={{ fontSize: "11px", letterSpacing: "0.15em", color: C.textMuted }}>{clienteInfo.nome}</span>
                         )}
                         {clienteInfo?.nif && (
-                          <span style={{ fontSize: "8px", letterSpacing: "0.2em", color: C.textMuted, background: "var(--theme-input-bg)", padding: "2px 8px", border: `1px solid ${C.borderDim}` }}>
+                          <span style={{ fontSize: "10px", letterSpacing: "0.2em", color: C.textMuted, background: "var(--theme-input-bg)", padding: "2px 8px", border: `1px solid ${C.borderDim}` }}>
                             NIF {clienteInfo.nif}
                           </span>
                         )}
-                        <span style={{ fontSize: "11px", color: C.goldDim, opacity: 0.6, marginLeft: "0.25rem" }}>{collapsedClientes.has(clienteNome) ? "▸" : "▾"}</span>
+                        <span style={{ fontSize: "13px", color: C.goldDim, opacity: 0.6, marginLeft: "0.25rem" }}>{collapsedClientes.has(clienteNome) ? "▸" : "▾"}</span>
                       </div>
                       <div style={{ display: "flex", gap: "1.5rem" }}>
-                        {clienteInfo?.email && <span style={{ fontSize: "9px", color: C.textSec }}>✉ {clienteInfo.email}</span>}
-                        {clienteInfo?.telefone && <span style={{ fontSize: "9px", color: C.textSec }}>📞 {clienteInfo.telefone}</span>}
-                        <span style={{ fontSize: "9px", color: C.textMuted }}>{items.length} {items.length === 1 ? 'evento' : 'eventos'}</span>
-                        {pendentes > 0 && <span style={{ fontSize: "9px", color: C.amber }}>{pendentes} por receber</span>}
+                        {clienteInfo?.email && <span style={{ fontSize: "11px", color: C.textSec }}>✉ {clienteInfo.email}</span>}
+                        {clienteInfo?.telefone && <span style={{ fontSize: "11px", color: C.textSec }}>📞 {clienteInfo.telefone}</span>}
+                        <span style={{ fontSize: "11px", color: C.textMuted }}>{items.length} {items.length === 1 ? 'evento' : 'eventos'}</span>
+                        {pendentes > 0 && <span style={{ fontSize: "11px", color: C.amber }}>{pendentes} por receber</span>}
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <p style={{ fontSize: "7px", letterSpacing: "0.4em", color: C.goldDim, marginBottom: "0.35rem" }}>TOTAL</p>
+                      <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, marginBottom: "0.35rem" }}>TOTAL</p>
                       <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.6rem", color: C.gold, fontWeight: 300 }}>{fmtEuro(totalCliente)}</p>
-                      {totalRecebidoCliente > 0 && <p style={{ fontSize: "9px", color: C.green, marginTop: "2px" }}>{fmtEuro(totalRecebidoCliente)} recebido</p>}
+                      {totalRecebidoCliente > 0 && <p style={{ fontSize: "11px", color: C.green, marginTop: "2px" }}>{fmtEuro(totalRecebidoCliente)} recebido</p>}
                     </div>
                   </div>
 
@@ -393,18 +393,18 @@ export default function FaturacaoPage() {
                           <input type="checkbox" checked={selectedItems.has(`${item.origem}-${item.id}`)} onChange={() => toggleItem(`${item.origem}-${item.id}`)} style={{ accentColor: C.gold, cursor: "pointer", width: "14px", height: "14px"  }} />
                           {/* Descrição + origem */}
                           <div>
-                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                              <span style={{ fontSize: "9px", color: item.origem === 'agenda' ? C.gold : C.purple, letterSpacing: "0.2em", opacity: 0.7, textTransform: "uppercase" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.7rem" }}>
+                              <span style={{ fontSize: "11px", color: item.origem === 'agenda' ? C.gold : C.purple, letterSpacing: "0.2em", opacity: 0.7, textTransform: "uppercase" }}>
                                 {item.origem === 'agenda' ? '📅' : '🎯'}
                               </span>
-                              <span style={{ fontSize: "12px", color: C.textPrimary, fontWeight: 500 }}>{item.descricao}</span>
+                              <span style={{ fontSize: "14px", color: C.textPrimary, fontWeight: 500 }}>{item.descricao}</span>
                             </div>
-                            <span style={{ fontSize: "9px", color: C.textMuted, marginLeft: "1.3rem" }}>{fmtDate(item.data)}</span>
+                            <span style={{ fontSize: "11px", color: C.textMuted, marginLeft: "1.3rem" }}>{fmtDate(item.data)}</span>
                           </div>
 
                           {/* Valor + recebido parcial */}
                           <div style={{ textAlign: "right" }}>
-                            <span style={{ fontSize: "12px", color: C.gold, fontWeight: 600, whiteSpace: "nowrap" }}>
+                            <span style={{ fontSize: "14px", color: C.gold, fontWeight: 600, whiteSpace: "nowrap" }}>
                               {item.valor > 0 ? fmtEuro(item.valor) : "—"}
                             </span>
                             {item.billing_status === 'Adjudicado' && (
@@ -416,10 +416,10 @@ export default function FaturacaoPage() {
                                       value={editingRecebido.valor}
                                       onChange={e => setEditingRecebido(r => r ? { ...r, valor: e.target.value } : r)}
                                       onKeyDown={e => { if (e.key === "Enter") handleSaveValorRecebido(); if (e.key === "Escape") setEditingRecebido(null); }}
-                                      style={{ width: "80px", background: "rgba(var(--theme-contrast-rgb),0.06)", border: `1px solid ${C.green}44`, color: C.green, fontFamily: "inherit", fontSize: "10px", padding: "2px 6px", outline: "none", textAlign: "right" }}
+                                      style={{ width: "80px", background: "rgba(var(--theme-contrast-rgb),0.06)", border: `1px solid ${C.green}44`, color: C.green, fontFamily: "inherit", fontSize: "12px", padding: "2px 6px", outline: "none", textAlign: "right" }}
                                     />
-                                    <button onClick={handleSaveValorRecebido} style={{ background: "transparent", border: "none", color: C.green, cursor: "pointer", fontSize: "11px", padding: "1px 4px" }}>✓</button>
-                                    <button onClick={() => setEditingRecebido(null)} style={{ background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: "11px", padding: "1px 4px" }}>✕</button>
+                                    <button onClick={handleSaveValorRecebido} style={{ background: "transparent", border: "none", color: C.green, cursor: "pointer", fontSize: "13px", padding: "1px 4px" }}>✓</button>
+                                    <button onClick={() => setEditingRecebido(null)} style={{ background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: "13px", padding: "1px 4px" }}>✕</button>
                                   </div>
                                 ) : (
                                   <button
@@ -427,8 +427,8 @@ export default function FaturacaoPage() {
                                     style={{ background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px", justifyContent: "flex-end", padding: 0, marginLeft: "auto" }}
                                   >
                                     {(item.valor_recebido || 0) > 0
-                                      ? <span style={{ fontSize: "9px", color: C.green }}>{fmtEuro(item.valor_recebido!)} recebido</span>
-                                      : <span style={{ fontSize: "8px", color: C.textMuted, letterSpacing: "0.15em" }}>+ recebido</span>
+                                      ? <span style={{ fontSize: "11px", color: C.green }}>{fmtEuro(item.valor_recebido!)} recebido</span>
+                                      : <span style={{ fontSize: "10px", color: C.textMuted, letterSpacing: "0.15em" }}>+ recebido</span>
                                     }
                                     <svg width="9" height="9" viewBox="0 0 16 16" stroke={C.textMuted} fill="none" strokeWidth="2"><path d="M11 2l3 3-9 9H2v-3l9-9z"/></svg>
                                   </button>
@@ -438,7 +438,7 @@ export default function FaturacaoPage() {
                           </div>
 
                           {/* Status badge */}
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "8px", letterSpacing: "0.2em", padding: "4px 10px", fontWeight: 600, textTransform: "uppercase", background: `${cfg.color}14`, color: cfg.color, whiteSpace: "nowrap" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "10px", letterSpacing: "0.2em", padding: "4px 10px", fontWeight: 600, textTransform: "uppercase", background: `${cfg.color}14`, color: cfg.color, whiteSpace: "nowrap" }}>
                             <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: cfg.dot, flexShrink: 0  }} />
                             {item.billing_status}
                           </span>
@@ -447,7 +447,7 @@ export default function FaturacaoPage() {
                           <select
                             value={item.billing_status}
                             onChange={e => handleStatusChange(item, e.target.value)}
-                            style={{ background: "var(--theme-input-bg)", border: `1px solid ${C.borderDim}`, color: C.textSec, fontFamily: "inherit", fontSize: "8px", padding: "0.4rem 0.6rem", letterSpacing: "0.1em", outline: "none", cursor: "pointer", appearance: "none" as any }}
+                            style={{ background: "var(--theme-input-bg)", border: `1px solid ${C.borderDim}`, color: C.textSec, fontFamily: "inherit", fontSize: "10px", padding: "0.4rem 0.6rem", letterSpacing: "0.1em", outline: "none", cursor: "pointer", appearance: "none" as any }}
                           >
                             {TODOS_ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
@@ -468,7 +468,7 @@ export default function FaturacaoPage() {
         <div onClick={e => e.target === e.currentTarget && setClienteModal(false)} style={overlayStyle}>
           <div style={modalStyle}>
             <div style={topLineStyle} />
-            <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "2rem" }}>Novo Cliente</p>
+            <p style={{ fontSize: "11px", letterSpacing: "0.4em", color: C.goldDim, textTransform: "uppercase", fontWeight: 600, marginBottom: "2rem" }}>Novo Cliente</p>
             <FormField label="Nome Oficial *"><input style={inputStyle} value={clienteForm.nome} onChange={e => setClienteForm(f => ({ ...f, nome: e.target.value }))} placeholder="Nome ou empresa..." /></FormField>
             <FormField label="Alias / Nome curto"><input style={inputStyle} value={clienteForm.alias} onChange={e => setClienteForm(f => ({ ...f, alias: e.target.value }))} placeholder="Ex: Hyatt, Marriott..." /></FormField>
             <FormField label="NIF"><input style={inputStyle} value={clienteForm.nif} onChange={e => setClienteForm(f => ({ ...f, nif: e.target.value }))} placeholder="Número de identificação fiscal..." /></FormField>
@@ -484,7 +484,7 @@ export default function FaturacaoPage() {
       )}
 
       {/* Toast */}
-      <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "var(--theme-toast-bg)", border: `1px solid ${C.border}`, color: C.gold, fontSize: "10px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
+      <div style={{ position: "fixed", bottom: "2rem", right: "2rem", background: "var(--theme-toast-bg)", border: `1px solid ${C.border}`, color: C.gold, fontSize: "12px", letterSpacing: "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: "uppercase", fontWeight: 600 }}>
         {toast}
       </div>
     </div>{/* end desktop */}
@@ -494,10 +494,10 @@ export default function FaturacaoPage() {
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1.1rem", borderBottom:"1px solid rgba(var(--theme-contrast-rgb),0.05)", background:"var(--theme-nav-bg)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
         <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.2rem", letterSpacing:"0.35em", color:"var(--theme-accent)", fontWeight:300 }}>LLE</span>
         <div style={{ display:"flex", gap:"0.6rem", alignItems:"center" }}>
-          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "10px", padding: "0.4rem 0.5rem" }} />
+          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "12px", padding: "0.4rem 0.5rem" }} />
           <button onClick={() => setClienteModal(true)} className="mob-fab" style={{width:"auto", padding:"0 0.9rem", gap:6, borderRadius:8}}>
             <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
-            <span style={{fontSize:"9px", letterSpacing:"0.2em", fontFamily:"'Montserrat',sans-serif", fontWeight:600}}>Cliente</span>
+            <span style={{fontSize: "11px", letterSpacing:"0.2em", fontFamily:"'Montserrat',sans-serif", fontWeight:600}}>Cliente</span>
           </button>
         </div>
       </div>
@@ -538,11 +538,11 @@ export default function FaturacaoPage() {
       {/* Mobile bulk action bar */}
       {selectedItems.size > 0 && (
         <div style={{ position: "sticky", top: "52px", zIndex: 9, margin: "0", padding: "0.65rem 1rem", background: "rgba(18,14,8,0.98)", borderBottom: `1px solid ${C.border}`, backdropFilter: "blur(12px)", display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
-          <span style={{ fontSize: "9px", letterSpacing: "0.25em", color: C.gold, fontWeight: 700, whiteSpace: "nowrap" }}>{selectedItems.size} {selectedItems.size === 1 ? "item" : "itens"}</span>
+          <span style={{ fontSize: "11px", letterSpacing: "0.25em", color: C.gold, fontWeight: 700, whiteSpace: "nowrap" }}>{selectedItems.size} {selectedItems.size === 1 ? "item" : "itens"}</span>
           <select
             value={bulkStatus}
             onChange={e => setBulkStatus(e.target.value)}
-            style={{ flex: 1, minWidth: 0, background: "var(--theme-input-bg)", border: `1px solid ${C.borderDim}`, color: bulkStatus ? C.textPrimary : C.textMuted, fontFamily: "inherit", fontSize: "10px", padding: "0.45rem 0.6rem", letterSpacing: "0.05em", outline: "none", appearance: "none" as any }}
+            style={{ flex: 1, minWidth: 0, background: "var(--theme-input-bg)", border: `1px solid ${C.borderDim}`, color: bulkStatus ? C.textPrimary : C.textMuted, fontFamily: "inherit", fontSize: "12px", padding: "0.45rem 0.6rem", letterSpacing: "0.05em", outline: "none", appearance: "none" as any }}
           >
             <option value="">Alterar estado...</option>
             {TODOS_ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -550,7 +550,7 @@ export default function FaturacaoPage() {
           <button
             onClick={handleBulkStatus}
             disabled={!bulkStatus}
-            style={{ background: bulkStatus ? C.gold : "rgba(var(--theme-contrast-rgb),0.04)", border: "none", color: bulkStatus ? "var(--theme-bg)" : C.textMuted, fontSize: "9px", letterSpacing: "0.25em", fontWeight: 700, padding: "0.5rem 0.9rem", cursor: bulkStatus ? "pointer" : "default", fontFamily: "inherit", textTransform: "uppercase", whiteSpace: "nowrap", borderRadius: "2px" }}
+            style={{ background: bulkStatus ? C.gold : "rgba(var(--theme-contrast-rgb),0.04)", border: "none", color: bulkStatus ? "var(--theme-bg)" : C.textMuted, fontSize: "11px", letterSpacing: "0.25em", fontWeight: 700, padding: "0.5rem 0.9rem", cursor: bulkStatus ? "pointer" : "default", fontFamily: "inherit", textTransform: "uppercase", whiteSpace: "nowrap", borderRadius: "2px" }}
           >Aplicar</button>
           <button onClick={() => setSelectedItems(new Set())} style={{ background: "transparent", border: "none", color: C.textMuted, fontSize: "16px", cursor: "pointer", padding: "0 4px", lineHeight: "1" }}>✕</button>
         </div>
@@ -571,9 +571,9 @@ export default function FaturacaoPage() {
             <div key={clienteNome}>
               <div className="mob-section-header" onClick={() => toggleCliente(clienteNome)} style={{ cursor: "pointer", userSelect: "none" }}>
                 <span style={{maxWidth:"60%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{displayNome}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <span style={{color: totalRecebidoCliente >= totalCliente ? "var(--theme-success)" : "var(--theme-accent)", fontSize:"11px", fontWeight:700, letterSpacing:0}}>{fmtEuro(totalCliente)}</span>
-                  <span style={{ color: "var(--theme-accent)", fontSize: "12px" }}>{collapsedClientes.has(clienteNome) ? "▸" : "▾"}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.7rem" }}>
+                  <span style={{color: totalRecebidoCliente >= totalCliente ? "var(--theme-success)" : "var(--theme-accent)", fontSize: "13px", fontWeight:700, letterSpacing:0}}>{fmtEuro(totalCliente)}</span>
+                  <span style={{ color: "var(--theme-accent)", fontSize: "14px" }}>{collapsedClientes.has(clienteNome) ? "▸" : "▾"}</span>
                 </div>
               </div>
               {!collapsedClientes.has(clienteNome) && items.map((item:any) => {
@@ -665,13 +665,13 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {links.map(l => (
-            <a key={l.href} href={l.href} style={{ fontSize: "9px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "var(--theme-accent)" : "var(--theme-text-muted)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
+            <a key={l.href} href={l.href} style={{ fontSize: "11px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: 500, color: active === l.href.slice(1) ? "var(--theme-accent)" : "var(--theme-text-muted)", textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
           ))}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-        <span style={{ fontSize: "9px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
-        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-faint)", fontSize: "8px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
+        <span style={{ fontSize: "11px", letterSpacing: "0.3em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
+        <button onClick={onLogout} style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-faint)", fontSize: "10px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: 600 }}>SAIR</button>
       </div>
     </nav>
   );
@@ -688,18 +688,18 @@ function Loading() {
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: "1.25rem" }}>
-      <label style={{ display: "block", fontSize: "7px", letterSpacing: "0.4em", color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.6rem" }}>{label}</label>
+      <label style={{ display: "block", fontSize: "9px", letterSpacing: "0.4em", color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.6rem" }}>{label}</label>
       {children}
     </div>
   );
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-const addBtnStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-accent-muted)", fontSize: "8px", letterSpacing: "0.35em", padding: "0.5rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s" };
+const addBtnStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-accent-muted)", fontSize: "10px", letterSpacing: "0.35em", padding: "0.5rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s" };
 const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" };
 const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2.5rem", width: "480px", maxWidth: "90vw", maxHeight: "90vh", overflowY: "auto", position: "relative" };
 const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" };
-const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "11px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
-const btnPrimStyle: React.CSSProperties = { background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
-const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-subtle)", fontSize: "9px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "13px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
+const btnPrimStyle: React.CSSProperties = { background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", fontSize: "11px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-subtle)", fontSize: "11px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
 

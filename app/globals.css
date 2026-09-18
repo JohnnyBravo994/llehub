@@ -17,11 +17,11 @@
   --theme-bg: #0C0B09;
   --theme-text: #F5F0E8;
   --theme-text-secondary: rgba(245,240,232,0.72);
-  --theme-text-muted: rgba(245,240,232,0.45);
-  --theme-text-subtle: rgba(245,240,232,0.35);
-  --theme-text-faint: rgba(245,240,232,0.22);
-  --theme-border: rgba(255,255,255,0.08);
-  --theme-input-border: rgba(255,255,255,0.10);
+  --theme-text-muted: rgba(245,240,232,0.58);
+  --theme-text-subtle: rgba(245,240,232,0.46);
+  --theme-text-faint: rgba(245,240,232,0.32);
+  --theme-border: rgba(255,255,255,0.065);
+  --theme-input-border: rgba(255,255,255,0.085);
   --theme-surface: #131108;
   --theme-surface-elevated: #1A1710;
   --theme-input-bg: rgba(255,255,255,0.04);
@@ -53,8 +53,8 @@ html.light-theme {
   --theme-text-muted: rgba(17,24,39,0.76);
   --theme-text-subtle: rgba(17,24,39,0.68);
   --theme-text-faint: rgba(17,24,39,0.60);
-  --theme-border: rgba(17,24,39,0.18);
-  --theme-input-border: rgba(17,24,39,0.22);
+  --theme-border: rgba(17,24,39,0.14);
+  --theme-input-border: rgba(17,24,39,0.18);
   --theme-surface: #FFFFFF;
   --theme-surface-elevated: #FFFFFF;
   --theme-input-bg: rgba(17,24,39,0.035);
@@ -162,7 +162,7 @@ html.light-theme .mob-tab-icon {
 }
 .mob-tab-label {
   font-family: 'Montserrat', sans-serif;
-  font-size: 8.5px;
+  font-size: 10px;
   letter-spacing: 0.08em;
   color: var(--theme-text-faint);
   font-weight: 500;
@@ -387,7 +387,7 @@ html.light-theme .mob-date-day {
   font-weight: 700;
 }
 .mob-date-weekday {
-  font-size: 8.5px;
+  font-size: 10px;
   letter-spacing: 0.1em;
   color: var(--theme-text-faint);
   text-transform: uppercase;
@@ -488,7 +488,7 @@ html.light-theme .mob-card-meta {
 /* ── Month section header ── */
 .mob-section-header {
   padding: 0.6rem 1rem 0.35rem;
-  font-size: 8px;
+  font-size: 9.5px;
   letter-spacing: 0.5em;
   color: var(--theme-accent);
   font-weight: 700;
@@ -589,7 +589,7 @@ html.light-theme .mob-card-meta {
   flex-shrink: 0;
 }
 .mob-dash-section-label {
-  font-size: 7px;
+  font-size: 9px;
   letter-spacing: 0.5em;
   color: var(--theme-accent);
   font-weight: 700;
@@ -1072,7 +1072,7 @@ html.light-theme svg {
 
 .mob-pages-title {
   font-family: 'Montserrat', sans-serif;
-  font-size: 7px;
+  font-size: 9px;
   letter-spacing: 0.4em;
   text-transform: uppercase;
   text-align: center;
@@ -1113,7 +1113,7 @@ html.light-theme svg {
   white-space: nowrap;
   text-align: center;
   font-family: 'Montserrat', sans-serif;
-  font-size: 8.5px;
+  font-size: 10px;
   line-height: 1.2;
   letter-spacing: 0.04em;
   font-weight: 500;
@@ -1122,7 +1122,7 @@ html.light-theme svg {
 @media (max-width: 360px) {
   .mob-pages-grid { gap: 0.2rem; }
   .mob-pages-item { padding-inline: 0.1rem; }
-  .mob-pages-label { font-size: 8px; letter-spacing: 0; }
+  .mob-pages-label { font-size: 9.5px; letter-spacing: 0; }
 }
 
 @media (min-width: 769px) {
@@ -1141,4 +1141,47 @@ html.light-theme svg {
     bottom: calc(76px + env(safe-area-inset-bottom)) !important;
     text-align: center;
   }
+}
+
+
+/* =========================================================
+   v20 · Global breathable UI pass
+   Preserva conteúdo e lógica; melhora leitura e espaçamento.
+   ========================================================= */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+body {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+button, input, select, textarea {
+  font-family: 'Montserrat', sans-serif;
+}
+input, select, textarea {
+  min-height: 40px;
+  line-height: 1.35;
+}
+textarea {
+  padding-top: 0.8rem;
+  padding-bottom: 0.8rem;
+}
+button {
+  line-height: 1.2;
+}
+@media (min-width: 769px) {
+  main {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+@media (max-width: 768px) {
+  body { font-size: 15px; }
+  .mob-topbar { padding: 0.85rem 1rem; }
+  .mob-tab-label { font-size: 10px; }
+  .mob-pages-title { font-size: 9px; }
+  .mob-pages-label { font-size: 10px; }
+  .mob-pages-item { min-height: 74px; padding: 0.7rem 0.35rem; }
 }
