@@ -629,6 +629,15 @@ export default function LeadsPage() {
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
   const artistsForLead = (l: Lead) => (l.agenda_event_id ? (artistasMap[l.agenda_event_id] || []) : (artistasMap[-l.id] || []));
+
+  // Mantém a mesma lógica do módulo Pagamentos: o fee da Annia não é tratado como custo externo.
+  const custoArtistasParaLucro = (rows: ArtistRow[]) => rows
+    .filter(a => !normalizeText(resolveColaboradorNome(a.nome || "")).includes("annia"))
+    .reduce((sum, a) => sum + (parseFloat(String(a.fee || 0)) || 0), 0);
+
+  const lucroVisivel = (valor: number | string | undefined, rows: ArtistRow[]) =>
+    Number(valor || 0) - custoArtistasParaLucro(rows);
+
   const conflictOverrideKeys = new Set(conflictOverrides.map(o => `${o.event_date}|${o.artist_key}`));
   const conflictItems = [
     ...agendaEvents.filter(e => !e.cancelled).map(e => ({ key: `event-${e.id}`, entityKey: e.event_id || `agenda-${e.id}`, date: toIsoDate(e.event_date), title: e.title || "Evento", artists: artistasMap[e.id] || [] })),
@@ -897,12 +906,19 @@ export default function LeadsPage() {
                           {l.notas && <div style={{ fontSize: "9px", color: C.textMuted, marginTop: "2px", fontStyle: "italic" }}>"{l.notas}"</div>}
                         </td>
                         <td style={tdStyle({ muted: true, maxW: "130px" })}>{l.local || <span style={{ color: C.textMuted }}>—</span>}</td>
-                        <td style={tdStyle({ muted: true, maxW: "180px" })}>{displayClienteNome(l, clientes) || "—"}</td>
+                        <td style={tdStyle({ muted: true, maxW: "180px" })}>{displayClienteNome(l, clientes) ? `👤 ${displayClienteNome(l, clientes)}` : "—"}</td>
                         <td style={tdStyle({})}>
                           <StatusBadge color={statusColor(l.status)} label={l.status || "Pendente"} />
                         </td>
                         <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: C.gold, fontWeight: 600, fontSize: "11px" }}>
-                          {userRole === "limited_novalues" ? "—" : (Number(l.value) > 0 ? `${Number(l.value).toLocaleString("pt-PT")}€` : "—")}
+                          {userRole === "limited_novalues" ? "—" : (Number(l.value) > 0 ? (
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
+                              <span>{Number(l.value).toLocaleString("pt-PT")}€</span>
+                              <span style={{ fontSize: "8px", color: lucroVisivel(l.value, artistsForLead(l)) >= 0 ? C.green : C.red, fontWeight: 600 }}>
+                                Lucro {lucroVisivel(l.value, artistsForLead(l)).toLocaleString("pt-PT")}€
+                              </span>
+                            </div>
+                          ) : "—")}
                         </td>
                         <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
                           {userRole !== "limited_novalues" && (
@@ -994,7 +1010,7 @@ export default function LeadsPage() {
                     <div className={`mob-card-title${l.cancelled?" cancelled":""}`}>{l.title}</div>
                     <ConflictAlert conflicts={conflictsForLead(l)} />
                     {l.local && <div className="mob-card-meta" style={{color:"var(--theme-accent)"}}>📍 {l.local}</div>}
-                    {l.cliente_nome && <div className="mob-card-meta">{displayClienteNome(l, clientes)}</div>}
+                    {l.cliente_nome && <div className="mob-card-meta">👤 {displayClienteNome(l, clientes)}</div>}
                     {l.notas && <div className="mob-card-meta" style={{fontStyle:"italic", marginTop:2}}>"{l.notas}"</div>}
                     <div className="mob-card-badges">
                       <span className="mob-badge" style={{background:`${sc}18`,color:sc}}>
@@ -1005,7 +1021,10 @@ export default function LeadsPage() {
                   </div>
                   <div className="mob-card-right">
                     {userRole !== "limited_novalues" && Number(l.value) > 0
-                      ? <span className="mob-card-value">{Number(l.value).toLocaleString("pt-PT")}€</span>
+                      ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
+                          <span className="mob-card-value">{Number(l.value).toLocaleString("pt-PT")}€</span>
+                          <span style={{fontSize:"8px",fontWeight:700,color:lucroVisivel(l.value, artistsForLead(l))>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(l.value, artistsForLead(l)).toLocaleString("pt-PT")}€</span>
+                        </div>
                       : <span className="mob-card-value muted">—</span>
                     }
                     <svg className="mob-card-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 4 10 8 6 12"/></svg>

@@ -105,6 +105,7 @@ interface Lead {
   status?: string; cancelled?: number; cliente_nome?: string; modalidade?: string; cliente_id?: number | null;
   agenda_event_id?: number | null; event_id?: string;
   tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string;
+  local?: string; contacto?: string; notas?: string;
 }
 
 const CONFIRMED_STATUSES = ["Confirmado", "Em Adjudicação", "Adjudicado", "Pago"];
@@ -890,7 +891,7 @@ export default function AgendaPage() {
       tipo_comercial: l.tipo_comercial || "Evento",
       servico_comercial: l.servico_comercial || "",
       valor_contexto: l.valor_contexto || inferValorContexto(l.cliente_nome || "", l.tipo_comercial || "Evento"),
-      contacto: (l as any).contacto || "", notas: (l as any).notas || "",
+      venue: l.local || "", contacto: l.contacto || "", notas: l.notas || "",
     });
     if (res.success) { showToast("Lead convertida em evento"); load(undefined, selectedMonth); }
     else showToast("Erro ao converter");
@@ -997,6 +998,23 @@ export default function AgendaPage() {
   const dropdownEquipa = EQUIPA_NOMES.filter(n =>
     allMonthEvents.some(e => parseEquipa(e.tipo || "").includes(n))
   );
+
+  const displayCliente = (nome?: string) => {
+    if (!nome) return "";
+    const c = clientes.find(c => c.nome === nome || (c.alias?.trim() && c.alias.trim() === nome));
+    return c?.alias?.trim() || nome;
+  };
+
+  // Mantém a mesma lógica do módulo Pagamentos: o fee da Annia não é tratado como custo externo.
+  const custoArtistasParaLucro = (rows: ArtistRow[]) => rows
+    .filter(a => !normalizeText(resolveColaboradorNome(a.nome || "")).includes("annia"))
+    .reduce((sum, a) => sum + (parseFloat(String(a.fee || 0)) || 0), 0);
+
+  const lucroVisivel = (valor: number | string | undefined, rows: ArtistRow[]) =>
+    Number(valor || 0) - custoArtistasParaLucro(rows);
+
+  const artistsForAgendaLead = (l: Lead) =>
+    l.agenda_event_id ? (artistasMap[l.agenda_event_id] || []) : (artistasMap[-l.id] || []);
 
   const filteredLeads = confirmedLeads.filter(l => monthKey(l.event_date) === selectedMonth);
 
@@ -1522,6 +1540,8 @@ export default function AgendaPage() {
                             <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                               <span style={{ fontSize: "11px" }}>{l.title}</span>
                             </span>
+                            {l.local && <span style={{ fontSize: "9px", color: Colors.gold, letterSpacing: "0.03em" }}>📍 {l.local}</span>}
+                            {displayCliente(l.cliente_nome) && <span style={{ fontSize: "9px", color: Colors.textSec, letterSpacing: "0.03em" }}>👤 {displayCliente(l.cliente_nome)}</span>}
                             <span style={{ fontSize: "8px", color: Colors.goldDim, letterSpacing: "0.25em", textTransform: "uppercase" }}>Lead · {l.status}</span>
                             <ConflictAlert conflicts={conflictsForLead(l)} />
                           </div>
@@ -1534,7 +1554,14 @@ export default function AgendaPage() {
                           <StatusBadge color={Colors.amber} label={l.status || "Confirmado"} />
                         </td>
                         <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "11px" }}>
-                          {userRole === "limited_novalues" ? "—" : (Number(l.value) > 0 ? `${Number(l.value).toLocaleString("pt-PT")}€` : "—")}
+                          {userRole === "limited_novalues" ? "—" : (Number(l.value) > 0 ? (
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
+                              <span>{Number(l.value).toLocaleString("pt-PT")}€</span>
+                              <span style={{ fontSize: "8px", color: lucroVisivel(l.value, artistsForAgendaLead(l)) >= 0 ? Colors.green : Colors.red, fontWeight: 600 }}>
+                                Lucro {lucroVisivel(l.value, artistsForAgendaLead(l)).toLocaleString("pt-PT")}€
+                              </span>
+                            </div>
+                          ) : "—")}
                         </td>
                         <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
                           <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end", alignItems: "center" }}>
@@ -1567,6 +1594,8 @@ export default function AgendaPage() {
                           })()}
                           <span style={{ fontSize: "11px" }}>{e.title.replace(/^\p{Emoji}[\p{Emoji}\u200d\s]*/u, "")}</span>
                         </span>
+                        {e.venue && <span style={{ fontSize: "9px", color: Colors.gold, letterSpacing: "0.03em" }}>📍 {e.venue}</span>}
+                        {displayCliente(e.cliente_nome) && <span style={{ fontSize: "9px", color: Colors.textSec, letterSpacing: "0.03em" }}>👤 {displayCliente(e.cliente_nome)}</span>}
                         {!!e.cancelled && <span style={{ fontSize: "8px", color: Colors.red, letterSpacing: "0.2em" }}>[CANCELADO]</span>}
                         <ConflictAlert conflicts={conflictsForEvent(e)} />
                       </div>
@@ -1615,7 +1644,14 @@ export default function AgendaPage() {
                       })()}
                     </td>
                     <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "11px" }}>
-                      {userRole === "limited_novalues" ? "—" : (Number(e.bill) > 0 ? `${Number(e.bill).toLocaleString("pt-PT")}€` : "—")}
+                      {userRole === "limited_novalues" ? "—" : (Number(e.bill) > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
+                          <span>{Number(e.bill).toLocaleString("pt-PT")}€</span>
+                          <span style={{ fontSize: "8px", color: lucroVisivel(e.bill, artistasMap[e.id] || []) >= 0 ? Colors.green : Colors.red, fontWeight: 600 }}>
+                            Lucro {lucroVisivel(e.bill, artistasMap[e.id] || []).toLocaleString("pt-PT")}€
+                          </span>
+                        </div>
+                      ) : "—")}
                     </td>
                     <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
                       {userRole !== "limited_novalues" && (
@@ -1781,6 +1817,8 @@ export default function AgendaPage() {
                 <div className="mob-card-body">
                   <div className="mob-card-title">{l.title}</div>
                   <ConflictAlert conflicts={conflictsForLead(l)} />
+                  {l.local && <div style={{marginTop:"3px",fontSize:"10px",color:"var(--theme-accent)",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📍 {l.local}</div>}
+                  {displayCliente(l.cliente_nome) && <div style={{marginTop:"3px",fontSize:"10px",color:"var(--theme-text-muted)",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>👤 {displayCliente(l.cliente_nome)}</div>}
                   <div className="mob-card-meta">
                     <span className="mob-badge" style={{background:"rgba(var(--theme-accent-rgb),0.08)",color:"var(--theme-accent)"}}>
                       <span className="mob-badge-dot" style={{background:"var(--theme-accent)"}}/>Lead
@@ -1790,7 +1828,10 @@ export default function AgendaPage() {
                 </div>
                 <div className="mob-card-right">
                   {userRole !== "limited_novalues" && Number(l.value) > 0
-                    ? <span className="mob-card-value">{Number(l.value).toLocaleString("pt-PT")}€</span>
+                    ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
+                        <span className="mob-card-value">{Number(l.value).toLocaleString("pt-PT")}€</span>
+                        <span style={{fontSize:"8px",fontWeight:700,color:lucroVisivel(l.value, artistsForAgendaLead(l))>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(l.value, artistsForAgendaLead(l)).toLocaleString("pt-PT")}€</span>
+                      </div>
                     : <span className="mob-card-value muted">—</span>
                   }
                   {userRole !== "limited_novalues" && (
@@ -1818,9 +1859,10 @@ export default function AgendaPage() {
                   {e.title.replace(/^\p{Emoji}[\p{Emoji}‍\s]*/u,"")}
                 </div>
                 <ConflictAlert conflicts={conflictsForEvent(e)} />
+                {e.venue && <div style={{marginTop:"3px",fontSize:"10px",color:"var(--theme-accent)",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📍 {e.venue}</div>}
+                {displayCliente(e.cliente_nome) && <div style={{marginTop:"3px",fontSize:"10px",color:"var(--theme-text-muted)",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>👤 {displayCliente(e.cliente_nome)}</div>}
                 <div className="mob-card-meta">
                   {e.time_range && <><span>{e.time_range}</span><span className="mob-card-meta-dot">·</span></>}
-                  {e.venue && <><span style={{color:"var(--theme-accent)"}}>📍 {e.venue}</span><span className="mob-card-meta-dot">·</span></>}
                   {parseEquipa(e.tipo||"").map(n=><span key={n}>{EQUIPA_SYMBOL[n]}</span>)}
                   {evArtists.length > 0 && <><span className="mob-card-meta-dot">·</span><span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"140px"}}>{evArtists.slice(0,2).map((a:any)=>resolveColaboradorNome(a.nome)).join(" · ")}{evArtists.length>2?` +${evArtists.length-2}`:""}</span></>}
                 </div>
@@ -1833,7 +1875,10 @@ export default function AgendaPage() {
               </div>
               <div className="mob-card-right">
                 {userRole !== "limited_novalues" && Number(e.bill) > 0
-                  ? <span className="mob-card-value">{Number(e.bill).toLocaleString("pt-PT")}€</span>
+                  ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
+                      <span className="mob-card-value">{Number(e.bill).toLocaleString("pt-PT")}€</span>
+                      <span style={{fontSize:"8px",fontWeight:700,color:lucroVisivel(e.bill, artistasMap[e.id]||[])>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(e.bill, artistasMap[e.id]||[]).toLocaleString("pt-PT")}€</span>
+                    </div>
                   : <span className="mob-card-value muted">—</span>
                 }
                 {userRole !== "limited_novalues" && (
