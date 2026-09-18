@@ -186,7 +186,6 @@ async function ensureColaboradoresExtendedColumns() {
   try { await turso.execute("UPDATE colaborador_skill_profiles SET custo_interno=valor WHERE COALESCE(custo_interno,0)=0 AND COALESCE(valor,0)>0"); } catch { }
   try { await turso.execute("UPDATE colaborador_skill_profiles SET custo_evento=custo_interno WHERE COALESCE(custo_evento,0)=0 AND COALESCE(custo_interno,0)>0"); } catch { }
   try { await turso.execute("UPDATE colaborador_skill_profiles SET valor_sud=custo_sud WHERE COALESCE(valor_sud,0)=0 AND COALESCE(custo_sud,0)>0"); } catch { }
-  try { await turso.execute("UPDATE colaborador_skill_profiles SET valor_residencia=custo_residencia WHERE COALESCE(valor_residencia,0)=0 AND COALESCE(custo_residencia,0)>0"); } catch { }
   try { await turso.execute("UPDATE colaborador_skill_profiles SET valor_evento_residencia=custo_evento_residencia WHERE COALESCE(valor_evento_residencia,0)=0 AND COALESCE(custo_evento_residencia,0)>0"); } catch { }
   try { await turso.execute("UPDATE colaborador_skill_profiles SET valor_parceria=custo_parceria WHERE COALESCE(valor_parceria,0)=0 AND COALESCE(custo_parceria,0)>0"); } catch { }
   try { await turso.execute("UPDATE colaborador_skill_profiles SET valor_cliente_final=custo_cliente_final WHERE COALESCE(valor_cliente_final,0)=0 AND COALESCE(custo_cliente_final,0)>0"); } catch { }
@@ -2130,14 +2129,14 @@ export async function getAllColaboradores() {
     await ensureColaboradoresExtendedColumns();
     const [res, profiles] = await Promise.all([
       turso.execute("SELECT * FROM colaboradores ORDER BY COALESCE(NULLIF(nome_artistico, ''), nome) ASC"),
-      turso.execute(`SELECT colaborador_id, skill, valor, custo_interno, custo_evento, custo_residencia,
-                            valor_sud, valor_residencia, valor_evento_residencia, valor_parceria, valor_cliente_final,
+      turso.execute(`SELECT colaborador_id, skill, valor, custo_interno, custo_evento,
+                            valor_sud, valor_evento_residencia, valor_parceria, valor_cliente_final,
                             custo_sud, custo_evento_residencia, custo_parceria, custo_cliente_final, rating
                      FROM colaborador_skill_profiles ORDER BY skill ASC`),
     ]);
     const profileMap: Record<number, Record<string, {
-      valor: number; custo_interno: number; custo_evento: number; custo_residencia: number;
-      valor_sud: number; valor_residencia: number; valor_evento_residencia: number;
+      valor: number; custo_interno: number; custo_evento: number;
+      valor_sud: number; valor_evento_residencia: number;
       valor_parceria: number; valor_cliente_final: number;
       custo_sud: number; custo_evento_residencia: number; custo_parceria: number; custo_cliente_final: number;
       rating: number;
@@ -2151,9 +2150,7 @@ export async function getAllColaboradores() {
         valor: legacyValor,
         custo_interno: custoEvento,
         custo_evento: custoEvento,
-        custo_residencia: Number(r.custo_residencia || 0),
         valor_sud: Number(r.valor_sud || r.custo_sud || 0),
-        valor_residencia: Number(r.valor_residencia || 0),
         valor_evento_residencia: Number(r.valor_evento_residencia || r.custo_evento_residencia || 0),
         valor_parceria: Number(r.valor_parceria || r.custo_parceria || 0),
         valor_cliente_final: Number(r.valor_cliente_final || r.custo_cliente_final || 0),
@@ -2193,8 +2190,8 @@ export async function getAllColaboradores() {
 
 type ColaboradorSkillProfileInput = Record<string, {
   valor?: number | string;
-  custo_interno?: number | string; custo_evento?: number | string; custo_residencia?: number | string;
-  valor_sud?: number | string; valor_residencia?: number | string; valor_evento_residencia?: number | string;
+  custo_interno?: number | string; custo_evento?: number | string;
+  valor_sud?: number | string; valor_evento_residencia?: number | string;
   valor_parceria?: number | string; valor_cliente_final?: number | string;
   // nomes legados aceites para não quebrar payloads antigos
   custo_sud?: number | string; custo_evento_residencia?: number | string;
@@ -2217,26 +2214,22 @@ async function saveColaboradorSkillProfiles(colaboradorId: number, skills: strin
   for (const skill of selected) {
     const p = profiles?.[skill] || {};
     const custoEvento = Math.max(0, Number(p.custo_evento ?? p.custo_interno ?? p.valor ?? 0) || 0);
-    const custoResidencia = Math.max(0, Number(p.custo_residencia || 0) || 0);
     const valorSud = Math.max(0, Number(p.valor_sud ?? p.custo_sud ?? 0) || 0);
-    const valorResidencia = Math.max(0, Number(p.valor_residencia || 0) || 0);
     const valorEventoResidencia = Math.max(0, Number(p.valor_evento_residencia ?? p.custo_evento_residencia ?? 0) || 0);
     const valorParceria = Math.max(0, Number(p.valor_parceria ?? p.custo_parceria ?? 0) || 0);
     const valorClienteFinal = Math.max(0, Number(p.valor_cliente_final ?? p.custo_cliente_final ?? 0) || 0);
     const rating = Math.max(0, Math.min(5, Math.round(Number(p.rating || 0) || 0)));
     await turso.execute({
       sql: `INSERT INTO colaborador_skill_profiles
-            (colaborador_id, skill, valor, custo_interno, custo_evento, custo_residencia,
-             valor_sud, valor_residencia, valor_evento_residencia, valor_parceria, valor_cliente_final,
+            (colaborador_id, skill, valor, custo_interno, custo_evento,
+             valor_sud, valor_evento_residencia, valor_parceria, valor_cliente_final,
              custo_sud, custo_evento_residencia, custo_parceria, custo_cliente_final, rating, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
             ON CONFLICT(colaborador_id, skill) DO UPDATE SET
               valor=excluded.valor,
               custo_interno=excluded.custo_interno,
               custo_evento=excluded.custo_evento,
-              custo_residencia=excluded.custo_residencia,
               valor_sud=excluded.valor_sud,
-              valor_residencia=excluded.valor_residencia,
               valor_evento_residencia=excluded.valor_evento_residencia,
               valor_parceria=excluded.valor_parceria,
               valor_cliente_final=excluded.valor_cliente_final,
@@ -2247,8 +2240,8 @@ async function saveColaboradorSkillProfiles(colaboradorId: number, skills: strin
               rating=excluded.rating, updated_at=datetime('now')`,
       args: [
         colaboradorId, skill,
-        custoEvento, custoEvento, custoEvento, custoResidencia,
-        valorSud, valorResidencia, valorEventoResidencia, valorParceria, valorClienteFinal,
+        custoEvento, custoEvento, custoEvento,
+        valorSud, valorEventoResidencia, valorParceria, valorClienteFinal,
         valorSud, valorEventoResidencia, valorParceria, valorClienteFinal,
         rating,
       ],

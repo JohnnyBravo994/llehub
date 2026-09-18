@@ -4,11 +4,9 @@ export interface AutoBudgetSkillProfile {
   valor?: number; // legado
   custo_interno?: number; // legado = custo de evento
   custo_evento?: number;
-  custo_residencia?: number;
 
   // Valores de faturação / venda ao cliente
   valor_sud?: number;
-  valor_residencia?: number;
   valor_evento_residencia?: number;
   valor_parceria?: number;
   valor_cliente_final?: number;
@@ -72,7 +70,7 @@ export function profileBillingValue(profile: AutoBudgetSkillProfile | undefined,
   if (!profile) return 0;
   switch (contexto || "Cliente Final") {
     case "SUD": return Number(profile.valor_sud ?? profile.custo_sud ?? 0);
-    case "Residência": return Number(profile.valor_residencia ?? 0);
+    case "Residência": return 0; // faturação de residência vem exclusivamente da página Residências
     case "Evento Residência": return Number(profile.valor_evento_residencia ?? profile.custo_evento_residencia ?? 0);
     case "Parceiro": return Number(profile.valor_parceria ?? profile.custo_parceria ?? 0);
     case "Cliente Final": return Number(profile.valor_cliente_final ?? profile.custo_cliente_final ?? 0);
@@ -86,7 +84,7 @@ export function profileBillingValue(profile: AutoBudgetSkillProfile | undefined,
 export function profileArtistCost(profile: AutoBudgetSkillProfile | undefined, tipoComercial?: string): number {
   if (!profile) return 0;
   const custoEvento = Number(profile.custo_evento ?? profile.custo_interno ?? profile.valor ?? 0);
-  if (tipoComercial === "Residência") return Number(profile.custo_residencia || custoEvento || 0);
+  if (tipoComercial === "Residência") return 0; // custo de residência vem exclusivamente da página Residências
   // Evento de Residência é um evento extraordinário: usa custo de evento salvo override específico da residência.
   return custoEvento;
 }

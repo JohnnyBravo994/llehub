@@ -18,36 +18,32 @@ interface SkillProfile {
   valor: number; // legado
   custo_interno: number; // alias legado de custo_evento
   custo_evento: number;
-  custo_residencia: number;
   valor_sud: number;
-  valor_residencia: number;
   valor_evento_residencia: number;
   valor_parceria: number;
   valor_cliente_final: number;
   rating: number;
 }
 
-type PriceKey = "custo_evento" | "custo_residencia" | "valor_sud" | "valor_residencia" | "valor_evento_residencia" | "valor_parceria" | "valor_cliente_final";
+type PriceKey = "custo_evento" | "valor_sud" | "valor_evento_residencia" | "valor_parceria" | "valor_cliente_final";
 type ArtistSort = "rating" | "abc" | PriceKey;
 
 const PRICE_FIELDS: { key: PriceKey; label: string; short: string; kind: "cost" | "billing" }[] = [
   { key: "custo_evento", label: "Custo Evento", short: "Custo Evento", kind: "cost" },
-  { key: "custo_residencia", label: "Custo Residência", short: "Custo Resid.", kind: "cost" },
   { key: "valor_sud", label: "Faturação SUD", short: "Fat. SUD", kind: "billing" },
-  { key: "valor_residencia", label: "Faturação Residência", short: "Fat. Resid.", kind: "billing" },
   { key: "valor_evento_residencia", label: "Faturação Evento Residência", short: "Fat. Evento Resid.", kind: "billing" },
   { key: "valor_parceria", label: "Faturação Parceria", short: "Fat. Parceria", kind: "billing" },
   { key: "valor_cliente_final", label: "Faturação Cliente Final", short: "Fat. Cliente Final", kind: "billing" },
 ];
 
 const emptySkillProfileForm = () => ({
-  custo_evento: "", custo_residencia: "", valor_sud: "", valor_residencia: "",
+  custo_evento: "", valor_sud: "",
   valor_evento_residencia: "", valor_parceria: "", valor_cliente_final: "", rating: 0,
 });
 
 const emptySkillProfile: SkillProfile = {
-  valor: 0, custo_interno: 0, custo_evento: 0, custo_residencia: 0,
-  valor_sud: 0, valor_residencia: 0, valor_evento_residencia: 0,
+  valor: 0, custo_interno: 0, custo_evento: 0,
+  valor_sud: 0, valor_evento_residencia: 0,
   valor_parceria: 0, valor_cliente_final: 0, rating: 0,
 };
 
@@ -156,9 +152,7 @@ export default function ColaboradoresPage() {
         const p = c.skill_profiles?.[skill] || emptySkillProfile;
         return [skill, {
           custo_evento: p.custo_evento ? String(p.custo_evento) : (p.custo_interno ? String(p.custo_interno) : ""),
-          custo_residencia: p.custo_residencia ? String(p.custo_residencia) : "",
           valor_sud: p.valor_sud ? String(p.valor_sud) : "",
-          valor_residencia: p.valor_residencia ? String(p.valor_residencia) : "",
           valor_evento_residencia: p.valor_evento_residencia ? String(p.valor_evento_residencia) : "",
           valor_parceria: p.valor_parceria ? String(p.valor_parceria) : "",
           valor_cliente_final: p.valor_cliente_final ? String(p.valor_cliente_final) : "",
@@ -618,7 +612,7 @@ function ColabModalContent({ form, setForm, modal, saving, closeModal, handleSav
                   </div>
                 </div>
                 <div style={{ marginBottom: "0.55rem", fontSize: "7px", color: C.textMuted, lineHeight: 1.45 }}>
-                  <b style={{ color: C.textSec }}>Custos LLE:</b> Custo Evento + Custo Residência · <b style={{ color: C.textSec }}>Faturação ao cliente:</b> restantes valores.
+                  <b style={{ color: C.textSec }}>Custo LLE:</b> Custo Evento · <b style={{ color: C.textSec }}>Faturação ao cliente:</b> SUD, Evento Residência, Parceria e Cliente Final. <b style={{ color: C.textSec }}>Residências:</b> custo e faturação são definidos exclusivamente na página Residências.
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(3,minmax(0,1fr))", gap: "0.55rem" }}>
                   {PRICE_FIELDS.map(field => (
@@ -875,7 +869,7 @@ function SkillDrawers({ colaboradores, filterSkill, sortBy, ratingFilter, onEdit
                 {hasPricing && <div style={{ marginTop: "3px", fontSize: "6px", letterSpacing: "0.11em", color: C.textMuted, textTransform: "uppercase" }}>Referência = valor mais alto entre ativos</div>}
               </div>
               {hasPricing && !compact && (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(7,minmax(0,1fr))", gap: "0.35rem", minWidth: 0 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5,minmax(0,1fr))", gap: "0.35rem", minWidth: 0 }}>
                   {PRICE_FIELDS.map(field => (
                     <div key={field.key} style={{ minWidth: 0 }}>
                       <div style={{ fontSize: "5.5px", letterSpacing: "0.06em", textTransform: "uppercase", color: field.kind === "cost" ? C.amber : C.textMuted, marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{field.short}</div>

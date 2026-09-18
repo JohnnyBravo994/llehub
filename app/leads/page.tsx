@@ -109,8 +109,8 @@ interface Colaborador {
   id: number; nome: string; nome_artistico?: string; nome_pessoal?: string; contacto?: string; email?: string; iban?: string;
   skills?: string; notas?: string; ativo: number;
   skill_profiles?: Record<string, {
-    valor?: number; custo_interno?: number; custo_evento?: number; custo_residencia?: number;
-    valor_sud?: number; valor_residencia?: number; valor_evento_residencia?: number;
+    valor?: number; custo_interno?: number; custo_evento?: number;
+    valor_sud?: number; valor_evento_residencia?: number;
     valor_parceria?: number; valor_cliente_final?: number;
     custo_sud?: number; custo_evento_residencia?: number; custo_parceria?: number; custo_cliente_final?: number; rating?: number;
   }>;
@@ -386,9 +386,7 @@ export default function LeadsPage() {
       if (canUseResidencia && Number(residencia?.custo_interno || 0) > 0) {
         return { value: Number(residencia!.custo_interno), source: `Residência · ${residencia!.nome} · custo residência` };
       }
-      const own = Number(p.custo_residencia || 0);
-      if (own > 0) return { value: own, source: "Colaborador · custo residência" };
-      return { value: custoEvento, source: custoEvento ? "Colaborador · custo evento (fallback)" : "Sem custo definido" };
+      return { value: 0, source: residencia ? `Residência · ${residencia.nome} · custo por definir` : "Escolhe uma Residência para obter o custo" };
     }
 
     if (tipoComercial === "Evento de Residência") {
