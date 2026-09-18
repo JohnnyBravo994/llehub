@@ -94,7 +94,7 @@ interface Lead {
   id: number; title: string; event_date: string; value: number;
   status?: string; cancelled?: number;
   local?: string; contacto?: string; notas?: string;
-  cliente_nome?: string; cliente_id?: number | null; modalidade?: string;
+  cliente_nome?: string; cliente_id?: number | null; modalidade?: string; valor_recebido?: number;
   agenda_event_id?: number | null; event_id?: string;
   tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string; autobudget_snapshot?: string; residencia_id?: number | null;
   material_revenue?: number; material_cost?: number;
@@ -213,8 +213,20 @@ function tipoFromSkills(skills?: string) {
   return (ARTIST_TIPOS as readonly string[]).includes(mapped) ? mapped : "DJ";
 }
 
+function effectiveReceived(total: number | string | undefined, received: number | string | undefined, status?: string) {
+  const t = Math.max(0, Number(total || 0));
+  const r = Math.max(0, Number(received || 0));
+  return status === "Pago" && t > 0 ? Math.max(t, r) : r;
+}
+
+function paymentPercent(total: number | string | undefined, received: number | string | undefined, status?: string) {
+  const t = Number(total || 0);
+  if (t <= 0) return 0;
+  return Math.max(0, Math.min(100, (effectiveReceived(total, received, status) / t) * 100));
+}
+
 const STATUS_OPTIONS = ["Contacto", "Proposta Enviada", "Em Negociação", "Confirmado", "Em Adjudicação", "Adjudicado", "Faturado", "Pago", "Cancelado"];
-const emptyForm = { title: "", event_date: "", value: "0", status: "Contacto", local: "", contacto: "", notas: "", cliente_nome: "", cliente_id: null as number | null, modalidade: "Fatura", tipo_comercial: "Evento", servico_comercial: "", valor_contexto: "Cliente Final", residencia_id: null as number | null, autobudget_snapshot: "" };
+const emptyForm = { title: "", event_date: "", value: "0", valor_recebido: "0", status: "Contacto", local: "", contacto: "", notas: "", cliente_nome: "", cliente_id: null as number | null, modalidade: "Fatura", tipo_comercial: "Evento", servico_comercial: "", valor_contexto: "Cliente Final", residencia_id: null as number | null, autobudget_snapshot: "" };
 
 const addArtistRow = (setArtists: React.Dispatch<React.SetStateAction<ArtistRow[]>>) => 
   setArtists(prev => [...prev, emptyArtist()]);
@@ -695,7 +707,7 @@ export default function LeadsPage() {
     loadLookups();
     setBudgetOpen(false);
     setForm({
-      title: l.title, event_date: l.event_date, value: String(l.value || 0),
+      title: l.title, event_date: l.event_date, value: String(l.value || 0), valor_recebido: String(l.valor_recebido || 0),
       status: l.status || "Contacto", local: l.local || "", contacto: l.contacto || "",
       notas: l.notas || "", cliente_nome: l.cliente_nome || "",
       cliente_id: l.cliente_id ?? null, modalidade: l.modalidade || "Fatura",
@@ -743,7 +755,7 @@ export default function LeadsPage() {
     setSaving(true);
     const data = {
       title: form.title.trim(), event_date: form.event_date,
-      value: parseFloat(form.value) || 0, status: form.status,
+      value: parseFloat(form.value) || 0, valor_recebido: parseFloat(form.valor_recebido) || 0, status: form.status,
       cliente_id: form.cliente_id ?? null,
       cliente_nome: form.cliente_nome, modalidade: form.modalidade,
       tipo_comercial: form.tipo_comercial,
@@ -789,6 +801,7 @@ export default function LeadsPage() {
           tipo: "Evento",
           venue: form.local || "",
           bill: parseFloat(form.value) || 0,
+          valor_recebido: parseFloat(form.valor_recebido) || 0,
           billing_status: form.status,
           cliente_id: form.cliente_id ?? null,
           cliente_nome: form.cliente_nome,
@@ -825,6 +838,7 @@ export default function LeadsPage() {
           time: "",
           tipo: "Evento",
           bill: parseFloat(form.value) || 0,
+          valor_recebido: parseFloat(form.valor_recebido) || 0,
           billing_status: form.status,
           cliente_id: form.cliente_id ?? null,
           cliente_nome: form.cliente_nome,
@@ -862,6 +876,7 @@ export default function LeadsPage() {
       time: "",
       tipo: "Evento",
       bill: parseFloat(form.value) || 0,
+      valor_recebido: parseFloat(form.valor_recebido) || 0,
       billing_status: "Contacto",
       cliente_id: form.cliente_id ?? null,
       cliente_nome: form.cliente_nome,
@@ -1222,6 +1237,9 @@ export default function LeadsPage() {
                           {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(l.value, artistsForLead(l), l.material_cost || 0) ? (
                             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
                               <span>{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
+                              {Number(l.value || 0) > 0 && <span style={{ fontSize: "10px", color: C.green, fontWeight: 600, whiteSpace: "nowrap" }}>
+                                Pago {effectiveReceived(l.value, l.valor_recebido, l.status).toLocaleString("pt-PT")}€ · {paymentPercent(l.value, l.valor_recebido, l.status).toFixed(0)}%
+                              </span>}
                               <span style={{ fontSize: "10px", color: lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0) >= 0 ? C.green : C.red, fontWeight: 600 }}>
                                 Lucro {lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0).toLocaleString("pt-PT")}€
                               </span>
@@ -1331,6 +1349,7 @@ export default function LeadsPage() {
                     {userRole !== "limited_novalues" && temMovimentoFinanceiro(l.value, artistsForLead(l), l.material_cost || 0)
                       ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
                           <span className="mob-card-value">{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
+                          {Number(l.value || 0) > 0 && <span style={{fontSize: "10px",fontWeight:700,color:"var(--theme-success)",whiteSpace:"nowrap"}}>Pago {paymentPercent(l.value, l.valor_recebido, l.status).toFixed(0)}%</span>}
                           <span style={{fontSize: "10px",fontWeight:700,color:lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0)>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0).toLocaleString("pt-PT")}€</span>
                         </div>
                       : <span className="mob-card-value muted">—</span>
@@ -1646,13 +1665,27 @@ export default function LeadsPage() {
             </FormField>
             {userRole !== "limited_novalues" && (
             <FormField label="Faturação estimada (€)">
-              <input style={inputStyle} type="number" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value, autobudget_snapshot: "" }))} />
+              <input style={inputStyle} type="number" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value, valor_recebido: f.status === "Pago" ? e.target.value : f.valor_recebido, autobudget_snapshot: "" }))} />
+            </FormField>
+            )}
+            {userRole !== "limited_novalues" && (
+            <FormField label="Valor pago até agora (€)">
+              <div>
+                <input style={inputStyle} type="number" min="0" value={form.valor_recebido} onChange={e => setForm(f => ({ ...f, valor_recebido: e.target.value }))} />
+                <div style={{ marginTop: "6px", fontSize: "11px", color: C.textMuted, display: "flex", justifyContent: "space-between", gap: "0.75rem" }}>
+                  <span>{paymentPercent(form.value, form.valor_recebido, form.status).toFixed(0)}% pago</span>
+                  <span>{Math.max(0, Number(form.value || 0) - effectiveReceived(form.value, form.valor_recebido, form.status)).toLocaleString("pt-PT")}€ por receber</span>
+                </div>
+                <div style={{ height: "4px", background: "rgba(var(--theme-contrast-rgb),0.08)", marginTop: "6px", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${paymentPercent(form.value, form.valor_recebido, form.status)}%`, background: "var(--theme-success)", transition: "width .2s ease" }} />
+                </div>
+              </div>
             </FormField>
             )}
             <FormField label="Estado">
               <CustomSelect
                 value={form.status}
-                onChange={v => setForm(f => ({ ...f, status: v }))}
+                onChange={v => setForm(f => ({ ...f, status: v, valor_recebido: v === "Pago" ? String(Number(f.value || 0)) : f.valor_recebido }))}
                 options={STATUS_OPTIONS.map(s => ({ value: s, label: s }))}
                 style={inputStyle}
               />

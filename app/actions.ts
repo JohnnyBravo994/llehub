@@ -1425,6 +1425,7 @@ export async function getAllAgenda(userName: string = 'Admin', limit: number = 5
           servico_comercial: r.servico_comercial || '',
           valor_contexto: r.valor_contexto || 'Cliente Final',
           autobudget_snapshot: r.autobudget_snapshot || '',
+          valor_recebido: Number(r.valor_recebido || 0),
           origem_lead_id: r.origem_lead_id ? Number(r.origem_lead_id) : null,
           contacto: r.contacto || '', notas: r.notas || '',
           event_id: (r.event_id as string) || '',
@@ -1442,6 +1443,7 @@ export async function createAgendaEvent(data: {
   title: string; date: string; time: string; tipo: string; bill: number;
   billing_status?: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string;
   tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string; autobudget_snapshot?: string;
+  valor_recebido?: number;
   origem_lead_id?: number | null; venue?: string; contacto?: string; notas?: string; residencia_id?: number | null;
 }) {
   try {
@@ -1455,8 +1457,8 @@ export async function createAgendaEvent(data: {
     }
 
     await turso.execute({
-      sql: "INSERT INTO agenda (event_name, event_date, location, staff_needed, client_cachet, status, visibility, billing_status, cliente_id, cliente_nome, modalidade, tipo_comercial, servico_comercial, valor_contexto, autobudget_snapshot, origem_lead_id, venue, contacto, notas, event_id, residencia_id) VALUES (?, ?, ?, ?, ?, 'Confirmado', 'Public', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', data.origem_lead_id ?? null, data.venue || '', data.contacto || '', data.notas || '', eventId, data.residencia_id ?? null],
+      sql: "INSERT INTO agenda (event_name, event_date, location, staff_needed, client_cachet, status, visibility, billing_status, cliente_id, cliente_nome, modalidade, tipo_comercial, servico_comercial, valor_contexto, autobudget_snapshot, valor_recebido, origem_lead_id, venue, contacto, notas, event_id, residencia_id) VALUES (?, ?, ?, ?, ?, 'Confirmado', 'Public', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', Number(data.valor_recebido || 0), data.origem_lead_id ?? null, data.venue || '', data.contacto || '', data.notas || '', eventId, data.residencia_id ?? null],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
     const newId = Number(last.rows[0].id);
@@ -1486,13 +1488,13 @@ export async function createAgendaEvent(data: {
 
 export async function updateAgendaEvent(
   id: number,
-  data: { title: string; date: string; time: string; tipo: string; bill: number; billing_status?: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string; tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string; autobudget_snapshot?: string; venue?: string; contacto?: string; notas?: string; residencia_id?: number | null; }
+  data: { title: string; date: string; time: string; tipo: string; bill: number; billing_status?: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string; tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string; autobudget_snapshot?: string; valor_recebido?: number; venue?: string; contacto?: string; notas?: string; residencia_id?: number | null; }
 ) {
   try {
     await ensureCommercialColumns();
     await turso.execute({
-      sql: "UPDATE agenda SET event_name=?, event_date=?, location=?, staff_needed=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, autobudget_snapshot=?, venue=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
-      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', data.venue || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, id],
+      sql: "UPDATE agenda SET event_name=?, event_date=?, location=?, staff_needed=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, autobudget_snapshot=?, valor_recebido=?, venue=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
+      args: [data.title, data.date, data.time, data.tipo, data.bill, data.billing_status || 'Contacto', data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', Number(data.valor_recebido || 0), data.venue || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, id],
     });
 
     // Obter event_id e origem_lead_id actuais
@@ -1539,6 +1541,7 @@ export async function updateAgendaEvent(
       servico_comercial: data.servico_comercial || '',
       valor_contexto: data.valor_contexto || 'Cliente Final',
       autobudget_snapshot: data.autobudget_snapshot || '',
+      valor_recebido: Number(data.valor_recebido || 0),
       local: data.venue || '', contacto: data.contacto || '', notas: data.notas || '',
       residencia_id: data.residencia_id ?? null,
     });
@@ -1794,6 +1797,7 @@ export async function getAllLeads(limit: number = 500) {
         servico_comercial: r.servico_comercial || '',
         valor_contexto: r.valor_contexto || 'Cliente Final',
         autobudget_snapshot: r.autobudget_snapshot || '',
+        valor_recebido: Number(r.valor_recebido || 0),
         agenda_event_id: r.agenda_event_id ? Number(r.agenda_event_id) : null,
         event_id: (r.event_id as string) || '',
         residencia_id: r.residencia_id == null ? null : Number(r.residencia_id),
@@ -1810,13 +1814,14 @@ export async function createLead(data: {
   cliente_id?: number | null; cliente_nome?: string; modalidade?: string;
   tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string; autobudget_snapshot?: string;
   local?: string; contacto?: string; notas?: string; residencia_id?: number | null;
+  valor_recebido?: number;
 }) {
   try {
     await ensureCommercialColumns();
     const eventId = uuidv4();
     await turso.execute({
-      sql: "INSERT INTO leads (title, event_date, value, status, cliente_id, client_name, modalidade, tipo_comercial, servico_comercial, valor_contexto, autobudget_snapshot, local, contacto, notas, event_id, residencia_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', data.local || '', data.contacto || '', data.notas || '', eventId, data.residencia_id ?? null],
+      sql: "INSERT INTO leads (title, event_date, value, status, cliente_id, client_name, modalidade, tipo_comercial, servico_comercial, valor_contexto, autobudget_snapshot, valor_recebido, local, contacto, notas, event_id, residencia_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', Number(data.valor_recebido || 0), data.local || '', data.contacto || '', data.notas || '', eventId, data.residencia_id ?? null],
     });
     const last = await turso.execute("SELECT last_insert_rowid() as id");
     return { success: true, id: Number(last.rows[0].id), event_id: eventId };
@@ -1828,13 +1833,13 @@ export async function createLead(data: {
 
 export async function updateLead(
   id: number,
-  data: { title: string; event_date: string; value: number; status: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string; tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string; autobudget_snapshot?: string; local?: string; contacto?: string; notas?: string; residencia_id?: number | null; }
+  data: { title: string; event_date: string; value: number; status: string; cliente_id?: number | null; cliente_nome?: string; modalidade?: string; tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string; autobudget_snapshot?: string; valor_recebido?: number; local?: string; contacto?: string; notas?: string; residencia_id?: number | null; }
 ) {
   try {
     await ensureCommercialColumns();
     await turso.execute({
-      sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, autobudget_snapshot=?, local=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
-      args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', data.local || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, id],
+      sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, autobudget_snapshot=?, valor_recebido=?, local=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
+      args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', Number(data.valor_recebido || 0), data.local || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, id],
     });
 
     // Garantir que esta lead tem event_id
@@ -1854,6 +1859,7 @@ export async function updateLead(
       servico_comercial: data.servico_comercial || '',
       valor_contexto: data.valor_contexto || 'Cliente Final',
       autobudget_snapshot: data.autobudget_snapshot || '',
+      valor_recebido: Number(data.valor_recebido || 0),
       local: data.local || '', contacto: data.contacto || '', notas: data.notas || '',
       residencia_id: data.residencia_id ?? null,
     });
@@ -1999,7 +2005,7 @@ export async function getFaturacaoData() {
             FROM agenda
             WHERE billing_status IN (${placeholders})
               AND COALESCE(cliente_nome, '') != ''
-              AND (event_date <= ? OR billing_status IN ('Faturado', 'Pago', 'Cancelado'))
+              AND (event_date <= ? OR billing_status IN ('Faturado', 'Pago', 'Cancelado') OR COALESCE(valor_recebido, 0) > 0)
             ORDER BY event_date ASC`,
       args: [...ESTADOS_FATURACAO, today],
     });
@@ -2009,7 +2015,7 @@ export async function getFaturacaoData() {
             FROM leads
             WHERE status IN (${placeholders})
               AND COALESCE(client_name, '') != ''
-              AND (event_date <= ? OR event_date IS NULL OR event_date = '' OR status IN ('Faturado', 'Pago', 'Cancelado'))
+              AND (event_date <= ? OR event_date IS NULL OR event_date = '' OR status IN ('Faturado', 'Pago', 'Cancelado') OR COALESCE(valor_recebido, 0) > 0)
             ORDER BY event_date ASC`,
       args: [...ESTADOS_FATURACAO, today],
     });
@@ -2136,15 +2142,19 @@ async function resolveLinkedLeadId(agendaId: number): Promise<number | null> {
 export async function updateItemBillingStatus(origem: 'agenda' | 'lead', id: number, billing_status: string) {
   try {
     if (origem === 'agenda') {
-      await turso.execute({ sql: "UPDATE agenda SET billing_status=? WHERE id=?", args: [billing_status, id] });
-      const row = await turso.execute({ sql: "SELECT event_id FROM agenda WHERE id=?", args: [id] });
-      const eid = (row.rows[0] as any)?.event_id;
-      if (eid) await propagateByEventId(eid, { status: billing_status });
+      const current = await turso.execute({ sql: "SELECT event_id, client_cachet, COALESCE(valor_recebido,0) AS valor_recebido FROM agenda WHERE id=?", args: [id] });
+      const row = current.rows[0] as any;
+      const valorRecebido = billing_status === 'Pago' ? Number(row?.client_cachet || 0) : Number(row?.valor_recebido || 0);
+      await turso.execute({ sql: "UPDATE agenda SET billing_status=?, valor_recebido=? WHERE id=?", args: [billing_status, valorRecebido, id] });
+      const eid = row?.event_id;
+      if (eid) await propagateByEventId(eid, { status: billing_status, valor_recebido: valorRecebido });
     } else {
-      await turso.execute({ sql: "UPDATE leads SET status=? WHERE id=?", args: [billing_status, id] });
-      const row = await turso.execute({ sql: "SELECT event_id FROM leads WHERE id=?", args: [id] });
-      const eid = (row.rows[0] as any)?.event_id;
-      if (eid) await propagateByEventId(eid, { status: billing_status });
+      const current = await turso.execute({ sql: "SELECT event_id, value, COALESCE(valor_recebido,0) AS valor_recebido FROM leads WHERE id=?", args: [id] });
+      const row = current.rows[0] as any;
+      const valorRecebido = billing_status === 'Pago' ? Number(row?.value || 0) : Number(row?.valor_recebido || 0);
+      await turso.execute({ sql: "UPDATE leads SET status=?, valor_recebido=? WHERE id=?", args: [billing_status, valorRecebido, id] });
+      const eid = row?.event_id;
+      if (eid) await propagateByEventId(eid, { status: billing_status, valor_recebido: valorRecebido });
     }
     return { success: true };
   } catch (error) {

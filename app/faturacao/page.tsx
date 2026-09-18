@@ -68,6 +68,16 @@ function fmtEuro(v: number) {
   return v.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 }
 
+function valorRecebidoEfetivo(item: FatItem) {
+  const recebido = Math.max(0, Number(item.valor_recebido || 0));
+  return item.billing_status === "Pago" && item.valor > 0 ? Math.max(item.valor, recebido) : recebido;
+}
+
+function percentagemPaga(item: FatItem) {
+  if (item.valor <= 0) return 0;
+  return Math.max(0, Math.min(100, (valorRecebidoEfetivo(item) / item.valor) * 100));
+}
+
 // Display alias if available, otherwise official name
 function displayClienteName(nome: string, clienteInfo?: { alias?: string }) {
   return clienteInfo?.alias?.trim() || nome;
@@ -227,10 +237,8 @@ export default function FaturacaoPage() {
   // Totais globais
   const allItems = Object.values(grouped).flat();
   const totalGeral = allItems.reduce((s, i) => s + i.valor, 0);
-  const totalPago = allItems.filter(i => i.billing_status === 'Pago').reduce((s, i) => s + i.valor, 0);
-  const totalRecebidoParcial = allItems.filter(i => i.billing_status === 'Adjudicado').reduce((s, i) => s + (i.valor_recebido || 0), 0);
-  const totalRecebido = totalPago + totalRecebidoParcial;
-  const totalPendente = allItems.filter(i => ['Confirmado', 'Em Adjudicação', 'Adjudicado'].includes(i.billing_status)).reduce((s, i) => s + i.valor - (i.billing_status === 'Adjudicado' ? (i.valor_recebido || 0) : 0), 0);
+  const totalRecebido = allItems.filter(i => i.billing_status !== 'Cancelado').reduce((s, i) => s + valorRecebidoEfetivo(i), 0);
+  const totalPendente = allItems.filter(i => i.billing_status !== 'Cancelado').reduce((s, i) => s + Math.max(0, i.valor - valorRecebidoEfetivo(i)), 0);
   const totalFaturado = allItems.filter(i => i.billing_status === 'Faturado').reduce((s, i) => s + i.valor, 0);
 
   const clientes_count = Object.keys(grouped).length;
@@ -337,9 +345,8 @@ export default function FaturacaoPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
             {Object.entries(filteredGrouped).map(([clienteNome, items]) => {
               const totalCliente = items.reduce((s, i) => s + i.valor, 0);
-              const pagos = items.filter(i => i.billing_status === 'Pago').reduce((s, i) => s + i.valor, 0);
-              const recebidoParcial = items.filter(i => i.billing_status === 'Adjudicado').reduce((s, i) => s + (i.valor_recebido || 0), 0);
-              const totalRecebidoCliente = pagos + recebidoParcial;
+              const totalRecebidoCliente = items.filter(i => i.billing_status !== 'Cancelado').reduce((s, i) => s + valorRecebidoEfetivo(i), 0);
+              const percentagemCliente = totalCliente > 0 ? Math.max(0, Math.min(100, (totalRecebidoCliente / totalCliente) * 100)) : 0;
               const pendentes = items.filter(i => ['Confirmado', 'Em Adjudicação', 'Adjudicado', 'Faturado'].includes(i.billing_status)).length;
               const clienteInfo = clientes.find(c => c.nome === clienteNome || (c.alias?.trim() && c.alias.trim() === clienteNome));
 
@@ -375,7 +382,7 @@ export default function FaturacaoPage() {
                     <div style={{ textAlign: "right" }}>
                       <p style={{ fontSize: "9px", letterSpacing: "0.4em", color: C.goldDim, marginBottom: "0.35rem" }}>TOTAL</p>
                       <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.6rem", color: C.gold, fontWeight: 300 }}>{fmtEuro(totalCliente)}</p>
-                      {totalRecebidoCliente > 0 && <p style={{ fontSize: "11px", color: C.green, marginTop: "2px" }}>{fmtEuro(totalRecebidoCliente)} recebido</p>}
+                      {totalCliente > 0 && <p style={{ fontSize: "11px", color: C.green, marginTop: "2px" }}>{fmtEuro(totalRecebidoCliente)} recebido · {percentagemCliente.toFixed(0)}%</p>}
                     </div>
                   </div>
 
@@ -408,32 +415,30 @@ export default function FaturacaoPage() {
                             <span style={{ fontSize: "14px", color: C.gold, fontWeight: 600, whiteSpace: "nowrap" }}>
                               {item.valor > 0 ? fmtEuro(item.valor) : "—"}
                             </span>
-                            {item.billing_status === 'Adjudicado' && (
-                              <div style={{ marginTop: "4px" }}>
-                                {editingRecebido?.origem === item.origem && editingRecebido?.id === item.id ? (
+                            {item.billing_status !== 'Cancelado' && (
+                              <div style={{ marginTop: "5px", minWidth: "150px" }}>
+                                {editingRecebido?.origem === item.origem && editingRecebido?.id === item.id && item.billing_status !== 'Pago' ? (
                                   <div style={{ display: "flex", alignItems: "center", gap: "4px", justifyContent: "flex-end" }}>
                                     <input
                                       autoFocus
                                       value={editingRecebido.valor}
                                       onChange={e => setEditingRecebido(r => r ? { ...r, valor: e.target.value } : r)}
                                       onKeyDown={e => { if (e.key === "Enter") handleSaveValorRecebido(); if (e.key === "Escape") setEditingRecebido(null); }}
-                                      style={{ width: "80px", background: "rgba(var(--theme-contrast-rgb),0.06)", border: `1px solid ${C.green}44`, color: C.green, fontFamily: "inherit", fontSize: "12px", padding: "2px 6px", outline: "none", textAlign: "right" }}
+                                      style={{ width: "86px", background: "rgba(var(--theme-contrast-rgb),0.06)", border: `1px solid ${C.green}44`, color: C.green, fontFamily: "inherit", fontSize: "12px", padding: "3px 6px", outline: "none", textAlign: "right" }}
                                     />
                                     <button onClick={handleSaveValorRecebido} style={{ background: "transparent", border: "none", color: C.green, cursor: "pointer", fontSize: "13px", padding: "1px 4px" }}>✓</button>
                                     <button onClick={() => setEditingRecebido(null)} style={{ background: "transparent", border: "none", color: C.textMuted, cursor: "pointer", fontSize: "13px", padding: "1px 4px" }}>✕</button>
                                   </div>
                                 ) : (
                                   <button
-                                    onClick={() => setEditingRecebido({ origem: item.origem, id: item.id, valor: String(item.valor_recebido || "") })}
-                                    style={{ background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px", justifyContent: "flex-end", padding: 0, marginLeft: "auto" }}
+                                    onClick={() => item.billing_status !== 'Pago' && setEditingRecebido({ origem: item.origem, id: item.id, valor: String(item.valor_recebido || "") })}
+                                    style={{ background: "transparent", border: "none", cursor: item.billing_status === 'Pago' ? "default" : "pointer", display: "flex", alignItems: "center", gap: "4px", justifyContent: "flex-end", padding: 0, marginLeft: "auto" }}
                                   >
-                                    {(item.valor_recebido || 0) > 0
-                                      ? <span style={{ fontSize: "11px", color: C.green }}>{fmtEuro(item.valor_recebido!)} recebido</span>
-                                      : <span style={{ fontSize: "10px", color: C.textMuted, letterSpacing: "0.15em" }}>+ recebido</span>
-                                    }
-                                    <svg width="9" height="9" viewBox="0 0 16 16" stroke={C.textMuted} fill="none" strokeWidth="2"><path d="M11 2l3 3-9 9H2v-3l9-9z"/></svg>
+                                    <span style={{ fontSize: "11px", color: C.green }}>{fmtEuro(valorRecebidoEfetivo(item))} recebido · {percentagemPaga(item).toFixed(0)}%</span>
+                                    {item.billing_status !== 'Pago' && <svg width="9" height="9" viewBox="0 0 16 16" stroke={C.textMuted} fill="none" strokeWidth="2"><path d="M11 2l3 3-9 9H2v-3l9-9z"/></svg>}
                                   </button>
                                 )}
+                                {item.valor > 0 && <div style={{ height: "3px", background: "rgba(var(--theme-contrast-rgb),0.08)", marginTop: "4px", overflow: "hidden" }}><div style={{ height: "100%", width: `${percentagemPaga(item)}%`, background: C.green }} /></div>}
                               </div>
                             )}
                           </div>
@@ -562,9 +567,8 @@ export default function FaturacaoPage() {
         {Object.keys(filteredGrouped).length === 0 && <div className="mob-empty">Sem resultados</div>}
         {Object.entries(filteredGrouped).map(([clienteNome, items]: [string, any[]]) => {
           const totalCliente = items.reduce((s:number, i:any) => s + i.valor, 0);
-          const pagos = items.filter((i:any) => i.billing_status === "Pago").reduce((s:number, i:any) => s + i.valor, 0);
-          const recebidoParcial = items.filter((i:any) => i.billing_status === "Adjudicado").reduce((s:number, i:any) => s + (i.valor_recebido || 0), 0);
-          const totalRecebidoCliente = pagos + recebidoParcial;
+          const totalRecebidoCliente = items.filter((i:any) => i.billing_status !== "Cancelado").reduce((s:number, i:any) => s + valorRecebidoEfetivo(i), 0);
+          const percentagemCliente = totalCliente > 0 ? Math.max(0, Math.min(100, (totalRecebidoCliente / totalCliente) * 100)) : 0;
           const pendentes = items.filter((i:any) => ["Confirmado","Em Adjudicação","Adjudicado","Faturado"].includes(i.billing_status)).length;
           const clienteInfo2 = clientes.find(c => c.nome === clienteNome || (c.alias?.trim() && c.alias.trim() === clienteNome));
           const displayNome = displayClienteName(clienteNome, clienteInfo2);
@@ -573,7 +577,10 @@ export default function FaturacaoPage() {
               <div className="mob-section-header" onClick={() => toggleCliente(clienteNome)} style={{ cursor: "pointer", userSelect: "none" }}>
                 <span style={{maxWidth:"60%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{displayNome}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.7rem" }}>
-                  <span style={{color: totalRecebidoCliente >= totalCliente ? "var(--theme-success)" : "var(--theme-accent)", fontSize: "13px", fontWeight:700, letterSpacing:0}}>{fmtEuro(totalCliente)}</span>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"1px"}}>
+                    <span style={{color: totalRecebidoCliente >= totalCliente ? "var(--theme-success)" : "var(--theme-accent)", fontSize: "13px", fontWeight:700, letterSpacing:0}}>{fmtEuro(totalCliente)}</span>
+                    {totalCliente > 0 && <span style={{fontSize:"9px",color:"var(--theme-success)",fontWeight:700,letterSpacing:"0.04em"}}>Pago {percentagemCliente.toFixed(0)}%</span>}
+                  </div>
                   <span style={{ color: "var(--theme-accent)", fontSize: "14px" }}>{collapsedClientes.has(clienteNome) ? "▸" : "▾"}</span>
                 </div>
               </div>
@@ -618,7 +625,28 @@ export default function FaturacaoPage() {
                       </div>
                     </div>
                     <div className="mob-card-right">
-                      <span className="mob-card-value">{fmtEuro(item.valor)}</span>
+                      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"3px"}}>
+                        <span className="mob-card-value">{fmtEuro(item.valor)}</span>
+                        {item.billing_status !== "Cancelado" && item.valor > 0 && (
+                          editingRecebido?.origem === item.origem && editingRecebido?.id === item.id && item.billing_status !== "Pago" ? (
+                            <div onClick={e => e.stopPropagation()} style={{display:"flex",alignItems:"center",gap:"4px"}}>
+                              <input
+                                autoFocus
+                                value={editingRecebido.valor}
+                                onChange={e => setEditingRecebido(r => r ? { ...r, valor: e.target.value } : r)}
+                                onKeyDown={e => { if (e.key === "Enter") handleSaveValorRecebido(); if (e.key === "Escape") setEditingRecebido(null); }}
+                                style={{width:"72px",background:"var(--theme-input-bg)",border:"1px solid var(--theme-input-border)",color:"var(--theme-success)",fontSize:"11px",padding:"3px 5px",textAlign:"right",outline:"none"}}
+                              />
+                              <button onClick={e => { e.stopPropagation(); handleSaveValorRecebido(); }} style={{background:"transparent",border:0,color:"var(--theme-success)",fontSize:"12px",padding:"2px"}}>✓</button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={e => { e.stopPropagation(); if (item.billing_status !== "Pago") setEditingRecebido({ origem: item.origem, id: item.id, valor: String(item.valor_recebido || "") }); }}
+                              style={{background:"transparent",border:0,padding:0,fontSize:"10px",fontWeight:700,color:"var(--theme-success)",whiteSpace:"nowrap",cursor:item.billing_status === "Pago" ? "default" : "pointer"}}
+                            >Pago {percentagemPaga(item).toFixed(0)}%</button>
+                          )
+                        )}
+                      </div>
                     </div>
                   </div>
                 );

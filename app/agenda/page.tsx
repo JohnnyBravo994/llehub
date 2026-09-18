@@ -97,7 +97,7 @@ import {
 interface AgendaEvent {
   id: number; title: string; event_date: string; time_range?: string;
   tipo?: string; bill?: number; status?: string; cancelled?: number;
-  billing_status?: string; cliente_nome?: string; modalidade?: string;
+  billing_status?: string; cliente_nome?: string; modalidade?: string; valor_recebido?: number;
   origem_lead_id?: number | null; venue?: string;
   contacto?: string; notas?: string; residencia_id?: number | null; event_id?: string;
   tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string; autobudget_snapshot?: string;
@@ -106,7 +106,7 @@ interface AgendaEvent {
 
 interface Lead {
   id: number; title: string; event_date: string; value: number;
-  status?: string; cancelled?: number; cliente_nome?: string; modalidade?: string; cliente_id?: number | null;
+  status?: string; cancelled?: number; cliente_nome?: string; modalidade?: string; cliente_id?: number | null; valor_recebido?: number;
   agenda_event_id?: number | null; event_id?: string;
   tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string; autobudget_snapshot?: string;
   material_revenue?: number; material_cost?: number; material_count?: number;
@@ -268,12 +268,24 @@ function fmtDate(s: string) {
   return `${date} · ${weekday.charAt(0).toUpperCase() + weekday.slice(1)}`;
 }
 
+function effectiveReceived(total: number | string | undefined, received: number | string | undefined, status?: string) {
+  const t = Math.max(0, Number(total || 0));
+  const r = Math.max(0, Number(received || 0));
+  return status === "Pago" && t > 0 ? Math.max(t, r) : r;
+}
+
+function paymentPercent(total: number | string | undefined, received: number | string | undefined, status?: string) {
+  const t = Number(total || 0);
+  if (t <= 0) return 0;
+  return Math.max(0, Math.min(100, (effectiveReceived(total, received, status) / t) * 100));
+}
+
 function artistsSummary(artists: ArtistRow[]) {
   if (!artists.length) return "—";
   return artists.filter(a => a.nome.trim()).map(a => a.nome).join(" · ");
 }
 
-const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura", tipo_comercial: "Evento", servico_comercial: "", valor_contexto: "Cliente Final", venue: "", contacto: "", notas: "", residencia_id: null as number | null, autobudget_snapshot: "" };
+const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", valor_recebido: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura", tipo_comercial: "Evento", servico_comercial: "", valor_contexto: "Cliente Final", venue: "", contacto: "", notas: "", residencia_id: null as number | null, autobudget_snapshot: "" };
 const emptyArtist = (): ArtistRow => ({ colaborador_id: null, nome: "", tipo: "", fee: "", fee_auto: true });
 
 function normalizeText(v: string) {
@@ -994,7 +1006,7 @@ export default function AgendaPage() {
     setUseMaterials(false);
     setForm({
       title: e.title, date: e.event_date, time: e.time_range || "",
-      tipo: e.tipo || "", bill: String(e.bill || 0),
+      tipo: e.tipo || "", bill: String(e.bill || 0), valor_recebido: String(e.valor_recebido || 0),
       billing_status: e.billing_status || "Contacto",
       cliente_nome: e.cliente_nome || "",
       modalidade: e.modalidade || "Fatura",
@@ -1055,7 +1067,7 @@ export default function AgendaPage() {
     const cleanTitle = form.title.trim().replace(/^\p{Emoji}+\s*/u, "");
     const data = {
       title: cleanTitle, date: form.date, time: form.time, tipo: form.tipo,
-      bill: parseFloat(form.bill) || 0, billing_status: form.billing_status,
+      bill: parseFloat(form.bill) || 0, valor_recebido: parseFloat(form.valor_recebido) || 0, billing_status: form.billing_status,
       cliente_nome: form.cliente_nome, modalidade: form.modalidade,
       tipo_comercial: form.tipo_comercial,
       servico_comercial: form.servico_comercial,
@@ -1178,7 +1190,7 @@ export default function AgendaPage() {
   const handleLeadConvert = async (l: Lead) => {
     const res = await createAgendaEvent({
       title: l.title, date: l.event_date, time: "", tipo: "Evento",
-      bill: l.value || 0, billing_status: l.status,
+      bill: l.value || 0, valor_recebido: Number(l.valor_recebido || 0), billing_status: l.status,
       cliente_id: (l as any).cliente_id ?? null,
       cliente_nome: l.cliente_nome, modalidade: l.modalidade,
       origem_lead_id: l.id,
@@ -1220,7 +1232,7 @@ export default function AgendaPage() {
     const notasBase = stripTrocaTag(ev.notas || "");
     const res = await updateAgendaEvent(ev.id, {
       title: ev.title, date: novaData, time: ev.time_range || "",
-      tipo: ev.tipo || "", bill: Number(ev.bill) || 0,
+      tipo: ev.tipo || "", bill: Number(ev.bill) || 0, valor_recebido: Number(ev.valor_recebido || 0),
       billing_status: ev.billing_status, cliente_nome: ev.cliente_nome,
       modalidade: ev.modalidade, venue: ev.venue || "",
       contacto: ev.contacto || "",
@@ -1239,7 +1251,7 @@ export default function AgendaPage() {
     const novasNotas = stripTrocaTag(ev.notas || "");
     const res = await updateAgendaEvent(ev.id, {
       title: ev.title, date: ev.event_date, time: ev.time_range || "",
-      tipo: ev.tipo || "", bill: Number(ev.bill) || 0,
+      tipo: ev.tipo || "", bill: Number(ev.bill) || 0, valor_recebido: Number(ev.valor_recebido || 0),
       billing_status: ev.billing_status, cliente_nome: ev.cliente_nome,
       modalidade: ev.modalidade, venue: ev.venue || "",
       contacto: ev.contacto || "",
@@ -1944,6 +1956,9 @@ export default function AgendaPage() {
                       {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(e.bill, artistasMap[e.id] || [], e.material_cost || 0) ? (
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
                           <span>{Number(e.bill || 0).toLocaleString("pt-PT")}€</span>
+                          {Number(e.bill || 0) > 0 && <span style={{ fontSize: "10px", color: Colors.green, fontWeight: 600, whiteSpace: "nowrap" }}>
+                            Pago {effectiveReceived(e.bill, e.valor_recebido, e.billing_status).toLocaleString("pt-PT")}€ · {paymentPercent(e.bill, e.valor_recebido, e.billing_status).toFixed(0)}%
+                          </span>}
                           <span style={{ fontSize: "10px", color: lucroVisivel(e.bill, artistasMap[e.id] || [], e.material_cost || 0) >= 0 ? Colors.green : Colors.red, fontWeight: 600 }}>
                             Lucro {lucroVisivel(e.bill, artistasMap[e.id] || [], e.material_cost || 0).toLocaleString("pt-PT")}€
                           </span>
@@ -2176,6 +2191,7 @@ export default function AgendaPage() {
                 {userRole !== "limited_novalues" && temMovimentoFinanceiro(e.bill, artistasMap[e.id]||[], e.material_cost || 0)
                   ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
                       <span className="mob-card-value">{Number(e.bill || 0).toLocaleString("pt-PT")}€</span>
+                      {Number(e.bill || 0) > 0 && <span style={{fontSize: "10px",fontWeight:700,color:"var(--theme-success)",whiteSpace:"nowrap"}}>Pago {paymentPercent(e.bill, e.valor_recebido, e.billing_status).toFixed(0)}%</span>}
                       <span style={{fontSize: "10px",fontWeight:700,color:lucroVisivel(e.bill, artistasMap[e.id]||[], e.material_cost || 0)>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(e.bill, artistasMap[e.id]||[], e.material_cost || 0).toLocaleString("pt-PT")}€</span>
                     </div>
                   : <span className="mob-card-value muted">—</span>
@@ -2673,10 +2689,32 @@ export default function AgendaPage() {
                   type="text"
                   inputMode="decimal"
                   value={form.bill}
-                  onChange={e => setForm(f => ({ ...f, bill: e.target.value, autobudget_snapshot: "" }))}
+                  onChange={e => setForm(f => ({ ...f, bill: e.target.value, valor_recebido: f.billing_status === "Pago" ? e.target.value : f.valor_recebido, autobudget_snapshot: "" }))}
                   onFocus={e => { if (e.target.value === "0") setForm(f => ({ ...f, bill: "" })); }}
                   onBlur={e => { if (e.target.value === "") setForm(f => ({ ...f, bill: "0" })); }}
                 />
+              </FormField>
+              )}
+              {userRole !== "limited_novalues" && (
+              <FormField label="Valor pago até agora (€)">
+                <div>
+                  <input
+                    style={inputStyle}
+                    type="text"
+                    inputMode="decimal"
+                    value={form.valor_recebido}
+                    onChange={e => setForm(f => ({ ...f, valor_recebido: e.target.value }))}
+                    onFocus={e => { if (e.target.value === "0") setForm(f => ({ ...f, valor_recebido: "" })); }}
+                    onBlur={e => { if (e.target.value === "") setForm(f => ({ ...f, valor_recebido: "0" })); }}
+                  />
+                  <div style={{ marginTop: "6px", fontSize: "11px", color: Colors.textMuted, display: "flex", justifyContent: "space-between", gap: "0.75rem" }}>
+                    <span>{paymentPercent(form.bill, form.valor_recebido, form.billing_status).toFixed(0)}% pago</span>
+                    <span>{Math.max(0, Number(form.bill || 0) - effectiveReceived(form.bill, form.valor_recebido, form.billing_status)).toLocaleString("pt-PT")}€ por receber</span>
+                  </div>
+                  <div style={{ height: "4px", background: "rgba(var(--theme-contrast-rgb),0.08)", marginTop: "6px", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${paymentPercent(form.bill, form.valor_recebido, form.billing_status)}%`, background: "var(--theme-success)", transition: "width .2s ease" }} />
+                  </div>
+                </div>
               </FormField>
               )}
               <FormField label="Modalidade">
@@ -2690,7 +2728,7 @@ export default function AgendaPage() {
               <FormField label="Estado" style={{ gridColumn: "1 / -1" }}>
                 <CustomSelect
                   value={form.billing_status}
-                  onChange={v => setForm(f => ({ ...f, billing_status: v }))}
+                  onChange={v => setForm(f => ({ ...f, billing_status: v, valor_recebido: v === "Pago" ? String(Number(f.bill || 0)) : f.valor_recebido }))}
                   options={BILLING_ESTADOS.map(s => ({ value: s, label: s }))}
                   style={inputStyle}
                 />
