@@ -2,10 +2,11 @@
 
 import MobTabBar from "../MobTabBar";
 
-import { ARTIST_TIPOS, MODALIDADES, SERVICOS_VENDIDOS, TIPOS_COMERCIAIS, VALOR_CONTEXTOS, resolveColaboradorNome, parseServicosContratados } from "../constants";
+import { ARTIST_TIPOS, MODALIDADES, SERVICOS_VENDIDOS, TIPOS_COMERCIAIS, VALOR_CONTEXTOS, resolveColaboradorNome, parseServicosContratados, parseServicosContratadosDetalhes, isAutoBudgetPackService, standaloneSkillForService } from "../constants";
 import { ArtistAutocomplete, type ArtistOption } from "../ArtistAutocomplete";
 import { ArtistTypeAutocomplete } from "../ArtistTypeAutocomplete";
 import { ServiceMultiSelect } from "../ServiceMultiSelect";
+import { standaloneOptionsFromColaboradores, standaloneReferenceFromColaboradores } from "../autoBudgetPricing";
 import { useEffect, useState, useCallback, useRef } from "react";
 import React from "react";
 import { useRouter } from "next/navigation";
@@ -89,7 +90,7 @@ import {
   registarVoltaMaterial, deleteMovimentoMaterial,
   getAllMaterialPacks, reservarMaterialPacksParaEvento, getMaterialPackReservasEvento, getMateriaisReservadosResumoEvento,
   reservarMaterialEvento, updateReservaMaterialEvento, deleteReservaMaterialEvento, confirmarSaidaReservaEvento,
-  getArtistConflictOverrides, dismissArtistConflict, getAgendaPageBundle, getAgendaFormLookups, getMaterialPackIdsForServico, getAgendaPdfBundle, getAgendaWhatsAppBundle,
+  getArtistConflictOverrides, dismissArtistConflict, getAgendaPageBundle, getAgendaFormLookups, getMaterialPackIdsForServico, getAgendaPdfBundle, getAgendaWhatsAppBundle, syncPacksComerciaisMateriaisEvento,
 } from "../actions";
 
 interface AgendaEvent {
@@ -98,7 +99,7 @@ interface AgendaEvent {
   billing_status?: string; cliente_nome?: string; modalidade?: string;
   origem_lead_id?: number | null; venue?: string;
   contacto?: string; notas?: string; residencia_id?: number | null; event_id?: string;
-  tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string;
+  tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string; autobudget_snapshot?: string;
   material_revenue?: number; material_cost?: number; material_count?: number;
 }
 
@@ -106,7 +107,7 @@ interface Lead {
   id: number; title: string; event_date: string; value: number;
   status?: string; cancelled?: number; cliente_nome?: string; modalidade?: string; cliente_id?: number | null;
   agenda_event_id?: number | null; event_id?: string;
-  tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string;
+  tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string; autobudget_snapshot?: string;
   material_revenue?: number; material_cost?: number; material_count?: number;
   local?: string; contacto?: string; notas?: string;
 }
@@ -127,8 +128,10 @@ interface Colaborador {
   id: number; nome: string; nome_artistico?: string; nome_pessoal?: string; contacto?: string; email?: string; iban?: string;
   skills?: string; notas?: string; ativo: number;
   skill_profiles?: Record<string, {
-    valor?: number; custo_interno?: number; custo_sud?: number; custo_residencia?: number;
-    custo_evento_residencia?: number; custo_parceria?: number; custo_cliente_final?: number; rating?: number;
+    valor?: number; custo_interno?: number; custo_evento?: number; custo_residencia?: number;
+    valor_sud?: number; valor_residencia?: number; valor_evento_residencia?: number;
+    valor_parceria?: number; valor_cliente_final?: number;
+    custo_sud?: number; custo_evento_residencia?: number; custo_parceria?: number; custo_cliente_final?: number; rating?: number;
   }>;
 }
 
@@ -143,7 +146,16 @@ interface ValorMaster {
 
 interface ResidenciaAtiva {
   id: number; nome: string; cliente_id?: number | null; cliente_nome: string; local: string; servico: string; duracao_formato: string;
-  custo_interno: number; valor_cliente: number; performer_padrao_id?: number | null; performer_padrao_nome?: string; notas?: string; ativo: number;
+  custo_interno: number; custo_evento?: number; valor_cliente: number; valor_evento?: number; performer_padrao_id?: number | null; performer_padrao_nome?: string; notas?: string; ativo: number;
+}
+
+interface PackComercialComponente {
+  id: number; pack_id: number; tipo: "skill" | "material"; referencia: string; material_id?: number | null;
+  quantidade: number; notas?: string; material_nome?: string; material_imagem?: string; material_custo_interno?: number;
+}
+interface PackComercial {
+  id: number; nome: string; descricao?: string; valor_sud: number; valor_residencia: number; valor_evento_residencia: number;
+  valor_parceria: number; valor_cliente_final: number; notas?: string; ativo: number; componentes: PackComercialComponente[];
 }
 
 interface MaterialItem {
@@ -260,7 +272,7 @@ function artistsSummary(artists: ArtistRow[]) {
   return artists.filter(a => a.nome.trim()).map(a => a.nome).join(" · ");
 }
 
-const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura", tipo_comercial: "Evento", servico_comercial: "", valor_contexto: "Cliente Final", venue: "", contacto: "", notas: "", residencia_id: null as number | null };
+const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura", tipo_comercial: "Evento", servico_comercial: "", valor_contexto: "Cliente Final", venue: "", contacto: "", notas: "", residencia_id: null as number | null, autobudget_snapshot: "" };
 const emptyArtist = (): ArtistRow => ({ colaborador_id: null, nome: "", tipo: "", fee: "", fee_auto: true });
 
 function normalizeText(v: string) {
@@ -346,6 +358,7 @@ export default function AgendaPage() {
   const [valoresFuncoes, setValoresFuncoes] = useState<ValorFuncao[]>([]);
   const [valoresMaster, setValoresMaster] = useState<ValorMaster[]>([]);
   const [residenciasAtivas, setResidenciasAtivas] = useState<ResidenciaAtiva[]>([]);
+  const [packsComerciais, setPacksComerciais] = useState<PackComercial[]>([]);
   const [clienteSearch, setClienteSearch] = useState("");
   const [clienteDropOpen, setClienteDropOpen] = useState(false);
   const [clienteCreating, setClienteCreating] = useState(false);
@@ -383,6 +396,7 @@ export default function AgendaPage() {
       if (r.valoresFuncoes?.success) setValoresFuncoes(r.valoresFuncoes.data as ValorFuncao[]);
       if (r.valoresMaster?.success) setValoresMaster(r.valoresMaster.data as ValorMaster[]);
       if (r.residencias?.success) setResidenciasAtivas((r.residencias.data as ResidenciaAtiva[]).filter(r => r.ativo === 1));
+      if (r.packsComerciais?.success) setPacksComerciais((r.packsComerciais.data as PackComercial[]).filter(x => x.ativo === 1));
       setLookupsLoaded(true);
     }
     setLookupsLoading(false);
@@ -572,6 +586,22 @@ export default function AgendaPage() {
   const colaboradoresAtivos = colaboradores
     .filter(c => c.ativo === 1)
     .sort((a, b) => colaboradorDisplayName(a).localeCompare(colaboradorDisplayName(b), "pt", { sensitivity: "base" }));
+  const autoBudgetStandaloneOptions = standaloneOptionsFromColaboradores(colaboradoresAtivos);
+  const autoBudgetPackOptions = packsComerciais.filter(p => p.ativo === 1).map(p => p.nome).sort((a,b) => a.localeCompare(b, "pt-PT", { sensitivity: "base" }));
+  const findCommercialPackByName = (name: string) => packsComerciais.find(p => normalizeText(p.nome) === normalizeText(name));
+  const commercialPackBillingValue = (pack: PackComercial, contexto: string) => {
+    if (contexto === "SUD") return Number(pack.valor_sud || pack.valor_cliente_final || 0);
+    if (contexto === "Residência") return Number(pack.valor_residencia || 0);
+    if (contexto === "Evento Residência") return Number(pack.valor_evento_residencia || 0);
+    if (contexto === "Parceiro") return Number(pack.valor_parceria || 0);
+    return Number(pack.valor_cliente_final || 0);
+  };
+  const commercialPackEstimatedCost = (pack: PackComercial, contexto: string) => (pack.componentes || []).reduce((sum, component) => {
+    const qty = Math.max(1, Number(component.quantidade || 1));
+    if (component.tipo === "material") return sum + Number(component.material_custo_interno || 0) * qty;
+    const ref = standaloneReferenceFromColaboradores(component.referencia, contexto, colaboradoresAtivos, form.tipo_comercial);
+    return sum + Number(ref?.custo || 0) * qty;
+  }, 0);
   const findColaboradorByNome = (nome: string) => colaboradoresAtivos.find(c => {
     const q = normalizeText(nome);
     return [c.nome, c.nome_artistico || "", c.nome_pessoal || ""].some(v => normalizeText(v) === q);
@@ -596,37 +626,60 @@ export default function AgendaPage() {
     const key = Object.keys(col.skill_profiles).find(k => normalizeText(k) === normalizeText(tipo));
     return key ? col.skill_profiles[key] : undefined;
   };
+  const residenciaAppliesToArtist = (residencia: ResidenciaAtiva | undefined, col: Colaborador | undefined, tipo: string) => {
+    if (!residencia || !col || !tipo) return false;
+    const performerMatches = residencia.performer_padrao_id === col.id || (
+      !!residencia.performer_padrao_nome && normalizeText(residencia.performer_padrao_nome) === normalizeText(col.nome_artistico || col.nome)
+    );
+    const performerIsVariable = !residencia.performer_padrao_id && !residencia.performer_padrao_nome;
+    const residenceSkill = standaloneSkillForService(residencia.servico || "");
+    if (!residenceSkill) return performerMatches;
+    return normalizeText(residenceSkill) === normalizeText(tipo) && (performerIsVariable || performerMatches);
+  };
+
+  const artistCostSuggestion = (
+    col: Colaborador | undefined,
+    tipo: string,
+    tipoComercial: string = form.tipo_comercial,
+    _valorContexto: string = form.valor_contexto,
+    residenciaId: number | null = form.residencia_id,
+  ) => {
+    const fallback = suggestedFeeForTipo(tipo);
+    if (!col || !tipo) return { value: fallback, source: fallback ? "Tabela antiga · custo padrão" : "Sem custo definido" };
+    const p = skillProfileFor(col, tipo);
+    if (!p) return { value: fallback, source: fallback ? "Tabela antiga · custo padrão" : "Sem custo definido" };
+
+    const custoEvento = Number(p.custo_evento ?? p.custo_interno ?? p.valor ?? fallback ?? 0);
+    const residencia = residenciaId ? residenciasAtivas.find(r => r.id === residenciaId) : undefined;
+    const canUseResidencia = residenciaAppliesToArtist(residencia, col, tipo);
+
+    if (tipoComercial === "Residência") {
+      if (canUseResidencia && Number(residencia?.custo_interno || 0) > 0) {
+        return { value: Number(residencia!.custo_interno), source: `Residência · ${residencia!.nome} · custo residência` };
+      }
+      const own = Number(p.custo_residencia || 0);
+      if (own > 0) return { value: own, source: "Colaborador · custo residência" };
+      return { value: custoEvento, source: custoEvento ? "Colaborador · custo evento (fallback)" : "Sem custo definido" };
+    }
+
+    if (tipoComercial === "Evento de Residência") {
+      if (canUseResidencia && Number(residencia?.custo_evento || 0) > 0) {
+        return { value: Number(residencia!.custo_evento), source: `Residência · ${residencia!.nome} · custo evento` };
+      }
+      return { value: custoEvento, source: custoEvento ? "Colaborador · custo evento" : "Sem custo definido" };
+    }
+
+    return { value: custoEvento, source: custoEvento ? "Colaborador · custo evento" : "Sem custo definido" };
+  };
+
   const suggestedFeeForArtist = (
     col: Colaborador | undefined,
     tipo: string,
     tipoComercial: string = form.tipo_comercial,
     valorContexto: string = form.valor_contexto,
     residenciaId: number | null = form.residencia_id,
-  ) => {
-    const fallback = suggestedFeeForTipo(tipo);
-    if (!col || !tipo) return fallback;
-    const p = skillProfileFor(col, tipo);
-    if (!p) return fallback;
+  ) => artistCostSuggestion(col, tipo, tipoComercial, valorContexto, residenciaId).value;
 
-    if (tipoComercial === "Residência") {
-      const residencia = residenciaId ? residenciasAtivas.find(r => r.id === residenciaId) : undefined;
-      const performerMatches = !!residencia && (
-        residencia.performer_padrao_id === col.id ||
-        (!!residencia.performer_padrao_nome && normalizeText(residencia.performer_padrao_nome) === normalizeText(col.nome_artistico || col.nome))
-      );
-      if (residencia && performerMatches && Number(residencia.custo_interno || 0) > 0) return Number(residencia.custo_interno);
-      return Number(p.custo_residencia || p.custo_interno || fallback || 0);
-    }
-    if (tipoComercial === "Evento de Residência") {
-      return Number(p.custo_evento_residencia || p.custo_residencia || p.custo_interno || fallback || 0);
-    }
-    if (valorContexto === "SUD") return Number(p.custo_sud || p.custo_interno || fallback || 0);
-    if (valorContexto === "Parceiro") return Number(p.custo_parceria || p.custo_interno || fallback || 0);
-    if (valorContexto === "Residência") return Number(p.custo_residencia || p.custo_interno || fallback || 0);
-    if (valorContexto === "Evento Residência") return Number(p.custo_evento_residencia || p.custo_residencia || p.custo_interno || fallback || 0);
-    if (valorContexto === "Cliente Final") return Number(p.custo_cliente_final || p.custo_interno || fallback || 0);
-    return Number(p.custo_interno || fallback || 0);
-  };
   const repriceAutoArtists = (tipoComercial: string, valorContexto: string, residenciaId: number | null) => {
     setArtists(prev => prev.map(a => {
       if (!(a.fee_auto || isEmptyFee(a.fee))) return a;
@@ -651,7 +704,7 @@ export default function AgendaPage() {
     return "Cliente Final";
   };
 
-  const valorMasterSuggestionSingle = (servico: string, contexto?: string) => {
+  const legacyValorMasterSuggestionSingle = (servico: string, contexto?: string) => {
     const svc = normalizeText(servico || "");
     if (!svc) return null;
     const ctx = contexto || "Cliente Final";
@@ -663,36 +716,160 @@ export default function AgendaPage() {
     if (!row && (ctx === "Residência" || ctx === "Evento Residência")) row = byContext("Residência");
     if (!row && ctx === "Parceiro") row = byContext("Parceiro") || byContext("Normal") || byContext("Priceless Band") || rows[0];
     if (!row) row = byContext("Normal") || byContext("Cliente Final") || byContext("Priceless Band") || rows[0];
+    const resolvedRow = row || rows[0];
     const valor = ctx === "SUD"
-      ? Number(row.valor_sud || row.valor_cliente_final || 0)
+      ? Number(resolvedRow.valor_sud || resolvedRow.valor_cliente_final || 0)
       : (ctx === "Parceiro" || ctx === "Residência")
-        ? Number(row.valor_parceiro || 0)
-        : Number(row.valor_cliente_final || 0);
-    return { row, valor, custo: Number(row.custo_interno || 0), servico };
+        ? Number(resolvedRow.valor_parceiro || 0)
+        : Number(resolvedRow.valor_cliente_final || 0);
+    return {
+      row: resolvedRow,
+      valor,
+      custo: Number(resolvedRow.custo_interno || 0),
+      servico,
+      sourceType: "legacy" as const,
+      sourceName: isAutoBudgetPackService(servico) ? "Pack / tabela atual" : "Tabela atual",
+      costSourceName: "Tabela atual",
+      skill: "",
+    };
+  };
+
+  const residenciaAppliesToService = (residencia: ResidenciaAtiva | undefined, servico: string) => {
+    if (!residencia || !servico) return false;
+    if (normalizeText(residencia.servico || "") === normalizeText(servico)) return true;
+    const residenceSkill = standaloneSkillForService(residencia.servico || "");
+    const serviceSkill = standaloneSkillForService(servico);
+    return !!residenceSkill && !!serviceSkill && normalizeText(residenceSkill) === normalizeText(serviceSkill);
+  };
+
+  const valorMasterSuggestionSingle = (servico: string, contexto?: string) => {
+    const ctx = contexto || form.valor_contexto || "Cliente Final";
+    const commercialPack = findCommercialPackByName(servico);
+    if (commercialPack) {
+      return {
+        row: undefined as ValorMaster | undefined,
+        valor: commercialPackBillingValue(commercialPack, ctx),
+        custo: commercialPackEstimatedCost(commercialPack, ctx),
+        servico,
+        sourceType: "pack" as const,
+        sourceName: `Pack · ${commercialPack.nome}`,
+        costSourceName: commercialPack.componentes?.length ? "Componentes do pack" : "Composição por definir",
+        skill: "",
+        candidateCount: 0,
+      };
+    }
+    if (!isAutoBudgetPackService(servico)) {
+      const ref = standaloneReferenceFromColaboradores(servico, ctx, colaboradoresAtivos, form.tipo_comercial);
+      if (ref) {
+        const residencia = form.residencia_id ? residenciasAtivas.find(r => r.id === form.residencia_id) : undefined;
+        const residenceMatches = residenciaAppliesToService(residencia, servico);
+        let valor = Number(ref.valor || 0);
+        let custo = Number(ref.custo || 0);
+        let sourceName = ref.sourceName;
+        let costSourceName = ref.costSourceName;
+
+        if (residenceMatches && form.tipo_comercial === "Residência") {
+          if (Number(residencia?.valor_cliente || 0) > 0) {
+            valor = Number(residencia!.valor_cliente);
+            sourceName = `Residência · ${residencia!.nome} · faturação residência`;
+          }
+          if (Number(residencia?.custo_interno || 0) > 0) {
+            custo = Number(residencia!.custo_interno);
+            costSourceName = `Residência · ${residencia!.nome} · custo residência`;
+          }
+        } else if (residenceMatches && form.tipo_comercial === "Evento de Residência") {
+          if (Number(residencia?.valor_evento || 0) > 0) {
+            valor = Number(residencia!.valor_evento);
+            sourceName = `Residência · ${residencia!.nome} · faturação evento residência`;
+          }
+          if (Number(residencia?.custo_evento || 0) > 0) {
+            custo = Number(residencia!.custo_evento);
+            costSourceName = `Residência · ${residencia!.nome} · custo evento`;
+          }
+        }
+
+        return {
+          row: undefined as ValorMaster | undefined,
+          valor,
+          custo,
+          servico,
+          sourceType: "colaboradores" as const,
+          sourceName,
+          costSourceName,
+          skill: ref.skill,
+          candidateCount: ref.candidateCount,
+          noActiveProvider: ref.candidateCount === 0,
+        };
+      }
+    }
+    return legacyValorMasterSuggestionSingle(servico, contexto);
   };
 
   const valorMasterSuggestion = (servicoValue?: string, contexto?: string) => {
-    const selected = parseServicosContratados(servicoValue);
-    const servicos = selected.length > 0 ? selected : ((servicoValue || "").trim() ? [String(servicoValue).trim()] : []);
+    const selected = parseServicosContratadosDetalhes(servicoValue);
+    const servicos = selected.length > 0
+      ? selected
+      : ((servicoValue || "").trim() ? [{ nome: String(servicoValue).trim(), quantidade: 1 }] : []);
     if (servicos.length === 0) return null;
-    const found = servicos.map(s => valorMasterSuggestionSingle(s, contexto)).filter(Boolean) as NonNullable<ReturnType<typeof valorMasterSuggestionSingle>>[];
+    const found = servicos.map(item => {
+      const base = valorMasterSuggestionSingle(item.nome, contexto);
+      if (!base) return null;
+      const quantidade = Math.max(1, Number(item.quantidade || 1) || 1);
+      const assignedCount = base.skill
+        ? artists.filter(a => normalizeText(a.tipo || "") === normalizeText(base.skill)).length
+        : null;
+      return {
+        ...base,
+        quantidade,
+        assignedCount,
+        valorUnitario: Number(base.valor || 0),
+        custoUnitario: Number(base.custo || 0),
+        valorTotal: Number(base.valor || 0) * quantidade,
+        custoTotal: Number(base.custo || 0) * quantidade,
+      };
+    }).filter(Boolean) as Array<NonNullable<ReturnType<typeof valorMasterSuggestionSingle>> & {
+      quantidade: number; assignedCount: number | null; valorUnitario: number; custoUnitario: number; valorTotal: number; custoTotal: number;
+    }>;
     if (found.length === 0) return null;
     const foundNames = new Set(found.map(x => x.servico));
+    const semValor = servicos.filter(s => !foundNames.has(s.nome)).map(s => s.nome);
+    for (const item of found) if (item.valorUnitario <= 0 && !semValor.includes(item.servico)) semValor.push(item.servico);
     return {
       row: found[0].row,
-      valor: found.reduce((sum, x) => sum + x.valor, 0),
-      custo: found.reduce((sum, x) => sum + x.custo, 0),
+      valor: found.reduce((sum, x) => sum + x.valorTotal, 0),
+      custo: found.reduce((sum, x) => sum + x.custoTotal, 0),
       encontrados: found.length,
       total: servicos.length,
-      semValor: servicos.filter(s => !foundNames.has(s)),
+      semValor,
+      items: found,
     };
   };
 
   const aplicarValorSugerido = () => {
     const suggestion = valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto);
     const total = Number(suggestion?.valor || 0) + materiaisReceita;
-    if (!total && !suggestion) { showToast("Sem valor sugerido para esta combinação"); return; }
-    setForm(f => ({ ...f, bill: String(total) }));
+    if (!suggestion && !total) { showToast("Sem valor sugerido para esta combinação"); return; }
+    const snapshot = suggestion ? {
+      version: 1,
+      applied_at: new Date().toISOString(),
+      tipo_comercial: form.tipo_comercial,
+      valor_contexto: form.valor_contexto,
+      residencia_id: form.residencia_id,
+      faturacao_sugerida: total,
+      custo_estimado: Number(suggestion.custo || 0) + materiaisCusto,
+      items: suggestion.items.map(item => ({
+        servico: item.servico,
+        quantidade: item.quantidade,
+        skill: item.skill || "",
+        valor_unitario: item.valorUnitario,
+        valor_total: item.valorTotal,
+        custo_unitario: item.custoUnitario,
+        custo_total: item.custoTotal,
+        fonte_faturacao: item.sourceName || "",
+        fonte_custo: item.costSourceName || "",
+      })),
+    } : null;
+    setForm(f => ({ ...f, bill: String(total), autobudget_snapshot: snapshot ? JSON.stringify(snapshot) : f.autobudget_snapshot }));
     showToast(`Auto Budget aplicado: ${total}€`);
   };
   const normalizeArtistRow = (a: any): ArtistRow => {
@@ -765,6 +942,7 @@ export default function AgendaPage() {
     const nextValorContexto = r ? (nextTipoComercial === "Evento de Residência" ? "Evento Residência" : "Residência") : form.valor_contexto;
     setForm(f => ({
       ...f,
+      autobudget_snapshot: "",
       residencia_id: id,
       tipo_comercial: nextTipoComercial,
       servico_comercial: r?.servico || f.servico_comercial,
@@ -773,7 +951,7 @@ export default function AgendaPage() {
       venue: r?.local || f.venue,
       time: r?.duracao_formato || f.time,
       tipo: r?.servico || f.tipo,
-      bill: r?.valor_cliente ? String(r.valor_cliente) : f.bill,
+      bill: r ? String(nextTipoComercial === "Evento de Residência" ? (r.valor_evento || r.valor_cliente || 0) : (r.valor_cliente || 0)) : f.bill,
       cliente_nome: r?.cliente_nome || f.cliente_nome,
     }));
     if (r?.cliente_nome) setClienteSearch(r.cliente_nome);
@@ -781,8 +959,10 @@ export default function AgendaPage() {
       setArtists([{
         colaborador_id: r.performer_padrao_id ?? null,
         nome: r.performer_padrao_nome || "",
-        tipo: r.servico || "DJ",
-        fee: r.custo_interno ? String(r.custo_interno) : "",
+        tipo: standaloneSkillForService(r.servico || "") || r.servico || "DJ",
+        fee: nextTipoComercial === "Evento de Residência"
+          ? (r.custo_evento ? String(r.custo_evento) : "")
+          : (r.custo_interno ? String(r.custo_interno) : ""),
         fee_auto: true,
       }]);
     } else if (r) {
@@ -825,6 +1005,7 @@ export default function AgendaPage() {
       venue: e.venue || "",
       contacto: e.contacto || "", notas: e.notas || "",
       residencia_id: e.residencia_id ?? null,
+      autobudget_snapshot: e.autobudget_snapshot || "",
     });
     setClienteSearch(e.cliente_nome || "");
     setSelectedPackIds([]);
@@ -883,6 +1064,7 @@ export default function AgendaPage() {
       venue: form.venue || "",
       contacto: form.contacto || "", notas: form.notas || "",
       residencia_id: form.residencia_id,
+      autobudget_snapshot: form.autobudget_snapshot || "",
     };
     const validArtists = artists.filter(a => a.nome.trim()).map(a => ({
       colaborador_id: a.colaborador_id ?? findColaboradorByNome(a.nome)?.id ?? null,
@@ -899,6 +1081,7 @@ export default function AgendaPage() {
         const auto = await getMaterialPackIdsForServico(service, form.valor_contexto || "Normal");
         if (auto.success) autoIds.push(...((auto.data || []) as number[]));
       }
+      await syncPacksComerciaisMateriaisEvento(eventoId, selectedServices, userName);
       const packIds = Array.from(new Set([...(manualIds || []), ...autoIds]));
       if (packIds.length === 0) return;
       await reservarMaterialPacksParaEvento({
@@ -2373,14 +2556,14 @@ export default function AgendaPage() {
                   onChange={v => {
                     const nextContext = inferValorContexto(form.cliente_nome, v);
                     const nextResidenciaId = v === "Residência" || v === "Evento de Residência" ? form.residencia_id : null;
-                    setForm(f => ({ ...f, tipo_comercial: v, valor_contexto: nextContext, residencia_id: nextResidenciaId }));
+                    setForm(f => ({ ...f, tipo_comercial: v, valor_contexto: nextContext, residencia_id: nextResidenciaId, autobudget_snapshot: "" }));
                     repriceAutoArtists(v, nextContext, nextResidenciaId);
                   }}
                   options={TIPOS_COMERCIAIS.map(t => ({ value: t, label: t }))}
                   style={inputStyle}
                 />
                 <p style={{ marginTop: "0.4rem", fontSize: "8px", color: Colors.textMuted, lineHeight: 1.45 }}>
-                  Define o custo sugerido dos artistas mesmo sem usar o Auto Budget.
+                  Define o custo que a LLE prevê pagar aos artistas. A faturação ao cliente é independente e fica no Auto Budget / Faturação.
                 </p>
               </FormField>
               {(form.tipo_comercial === "Residência" || form.tipo_comercial === "Evento de Residência") && (
@@ -2395,7 +2578,7 @@ export default function AgendaPage() {
                     style={inputStyle}
                   />
                   <p style={{ marginTop: "0.4rem", fontSize: "8px", color: Colors.textMuted, lineHeight: 1.45 }}>
-                    Se estiver definida, o custo dessa residência tem prioridade; caso contrário usa a tabela do colaborador.
+                    Se estiver definida, custo e faturação específicos desta residência têm prioridade quando aplicáveis; sem override usa Colaboradores.
                   </p>
                 </FormField>
               )}
@@ -2429,15 +2612,17 @@ export default function AgendaPage() {
                     <FormField label="Serviços Contratados" style={{ gridColumn: "1 / -1" }}>
                       <ServiceMultiSelect
                         value={form.servico_comercial}
-                        onChange={v => setForm(f => ({ ...f, servico_comercial: v }))}
-                        placeholder="DJ todo o dia + Banda + Acrobata + Produtor..."
+                        onChange={v => setForm(f => ({ ...f, servico_comercial: v, autobudget_snapshot: "" }))}
+                        standaloneOptions={autoBudgetStandaloneOptions}
+                        packOptions={autoBudgetPackOptions}
+                        placeholder="DJ + Bailarino(a) + Produtor..."
                       />
                     </FormField>
                     <FormField label="Perfil de Valor">
                       <CustomSelect
                         value={form.valor_contexto}
                         onChange={v => {
-                          setForm(f => ({ ...f, valor_contexto: v }));
+                          setForm(f => ({ ...f, valor_contexto: v, autobudget_snapshot: "" }));
                           repriceAutoArtists(form.tipo_comercial, v, form.residencia_id);
                         }}
                         options={VALOR_CONTEXTOS.map(c => ({ value: c, label: c }))}
@@ -2446,7 +2631,7 @@ export default function AgendaPage() {
                     </FormField>
                     <FormField label="Sugestão" style={{ gridColumn: "1 / -1" }}>
                       <button type="button" onClick={aplicarValorSugerido} style={{ ...btnSecStyle, width: "100%" }}>
-                        Calcular valor dos serviços selecionados
+                        Calcular faturação dos serviços selecionados
                       </button>
                     </FormField>
                     {(valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto) || materiaisReceita > 0 || materiaisCusto > 0) && (() => {
@@ -2455,10 +2640,27 @@ export default function AgendaPage() {
                       const totalCusto = Number(suggestion?.custo || 0) + materiaisCusto;
                       return (
                         <div style={{ gridColumn: "1 / -1", fontSize: "10px", color: Colors.textMuted, letterSpacing: "0.05em", marginTop: "-0.5rem", marginBottom: "0.2rem", lineHeight: 1.6 }}>
-                          Sugestão total: <b style={{ color: Colors.gold }}>{totalValor}€</b> · Custo interno: {totalCusto}€ · {form.valor_contexto || "Cliente Final"}
+                          Faturação sugerida: <b style={{ color: Colors.gold }}>{totalValor}€</b> · Custo estimado LLE: {totalCusto}€ · {form.valor_contexto || "Cliente Final"}
                           {materiaisReceita > 0 || materiaisCusto > 0 ? <span> · Materiais {materiaisReceita}€ / custo {materiaisCusto}€</span> : null}
-                          {suggestion && suggestion.total > 1 && <span> · {suggestion.encontrados}/{suggestion.total} serviços com tabela</span>}
-                          {suggestion && suggestion.semValor.length > 0 && <div style={{ marginTop: "3px", color: "var(--theme-warning)" }}>Sem valor automático: {suggestion.semValor.join(" · ")}</div>}
+                          {suggestion && suggestion.total > 1 && <span> · {suggestion.encontrados}/{suggestion.total} serviços com valor automático</span>}
+                          {suggestion && suggestion.items.length > 0 && (
+                            <div style={{ marginTop: "7px", paddingTop: "7px", borderTop: "1px solid var(--theme-border)", display: "grid", gap: "4px" }}>
+                              {suggestion.items.map(item => (
+                                <div key={item.servico} style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "baseline" }}>
+                                  <span style={{ color: Colors.textSec }}>
+                                    {item.servico}{item.quantidade > 1 ? ` ×${item.quantidade}` : ""}
+                                    <small style={{ display: "block", color: Colors.textMuted, fontSize: "8px", letterSpacing: "0.03em" }}>
+                                      Faturação: {item.sourceName || ("noActiveProvider" in item && item.noActiveProvider ? "sem colaborador ativo / preço por definir" : "sem referência")}
+                                      {item.costSourceName ? ` · Custo: ${item.costSourceName}` : ""}
+                                      {item.skill && item.assignedCount !== null ? ` · Atribuídos: ${item.assignedCount}/${item.quantidade}` : ""}
+                                    </small>
+                                  </span>
+                                  <b style={{ color: Colors.textPrimary, whiteSpace: "nowrap" }}>{item.valorTotal}€</b>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {suggestion && suggestion.semValor.length > 0 && <div style={{ marginTop: "5px", color: "var(--theme-warning)" }}>Sem valor automático: {suggestion.semValor.join(" · ")}</div>}
                         </div>
                       );
                     })()}
@@ -2472,7 +2674,7 @@ export default function AgendaPage() {
                   type="text"
                   inputMode="decimal"
                   value={form.bill}
-                  onChange={e => setForm(f => ({ ...f, bill: e.target.value }))}
+                  onChange={e => setForm(f => ({ ...f, bill: e.target.value, autobudget_snapshot: "" }))}
                   onFocus={e => { if (e.target.value === "0") setForm(f => ({ ...f, bill: "" })); }}
                   onBlur={e => { if (e.target.value === "") setForm(f => ({ ...f, bill: "0" })); }}
                 />
@@ -2628,16 +2830,25 @@ export default function AgendaPage() {
                         placeholder="s/ tipo"
                         inputStyle={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "10px" }}
                       />
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={a.fee}
-                        onChange={e => updateArtistFee(i, e.target.value)}
-                        onFocus={e => { if (e.target.value === "0") updateArtistFee(i, ""); }}
-                        onBlur={e => { if (e.target.value === "") updateArtistFee(i, "0"); }}
-                        placeholder="0"
-                        style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
-                      />
+                      <div>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={a.fee}
+                          onChange={e => updateArtistFee(i, e.target.value)}
+                          onFocus={e => { if (e.target.value === "0") updateArtistFee(i, ""); }}
+                          onBlur={e => { if (e.target.value === "") updateArtistFee(i, "0"); }}
+                          placeholder="0"
+                          style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "11px" }}
+                        />
+                        {a.nome && a.tipo && (
+                          <small style={{ display: "block", marginTop: "3px", color: Colors.textMuted, fontSize: "7px", lineHeight: 1.3 }}>
+                            {a.fee_auto !== false
+                              ? artistCostSuggestion(findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome), a.tipo).source
+                              : "Custo guardado / editável"}
+                          </small>
+                        )}
+                      </div>
                       <button
                         onClick={() => removeArtistRow(i)}
                         style={{ background: "transparent", border: "none", color: Colors.textMuted, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -2836,10 +3047,10 @@ function Nav({ userName, active, onLogout, lightTheme }: { userName: string; act
     { href: "/faturacao", label: "Faturação" },
     { href: "/pagamentos", label: "Pagamentos" },
     { href: "/colaboradores", label: "Colaboradores" },
-    { href: "/valores", label: "Valores" }, { href: "/residencias", label: "Residências" },
+    { href: "/valores", label: "Valores" }, { href: "/packs", label: "Packs" }, { href: "/residencias", label: "Residências" },
     { href: "/clientes", label: "Clientes" },
   ];
-  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/residencias", "/clientes"];
+  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/packs", "/residencias", "/clientes"];
   const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes"];
   const financeLinks = [
     ...allLinks.filter(l => financeHrefs.includes(l.href)),

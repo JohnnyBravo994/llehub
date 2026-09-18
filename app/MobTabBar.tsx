@@ -83,6 +83,14 @@ const icons = {
       <path d="M8 15l3-3 3 2 5-7" />
     </svg>
   ),
+  packs: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M4 7h16v12H4z" />
+      <path d="M8 7V5h8v2" />
+      <path d="M4 11h16" />
+      <path d="M9 14h6" />
+    </svg>
+  ),
   residencias: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
       <path d="M3 10.5 12 3l9 7.5" />
@@ -118,6 +126,7 @@ const adminTabs: Tab[] = [
   { href: "/pagamentos", label: "Pagamentos", id: "pagamentos", icon: icons.pagamentos },
   { href: "/dashboard", label: "Dashboard", id: "dashboard", icon: icons.dashboard },
   { href: "/valores", label: "Valores", id: "valores", icon: icons.valores },
+  { href: "/packs", label: "Packs", id: "packs", icon: icons.packs },
   { href: "/residencias", label: "Residências", id: "residencias", icon: icons.residencias },
 ];
 

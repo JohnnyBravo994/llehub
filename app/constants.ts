@@ -245,25 +245,77 @@ export function resolveColaboradorNome(nome: string): string {
 // separador que não colide com os nomes do catálogo.
 export const SERVICOS_CONTRATADOS_SEPARATOR = " || ";
 
-export function parseServicosContratados(value?: string | null): string[] {
+export interface ServicoContratadoDetalhe {
+  nome: string;
+  quantidade: number;
+}
+
+const SERVICO_QTY_RE = /\s+×\s*(\d+)\s*$/u;
+
+export function parseServicosContratadosDetalhes(value?: string | null): ServicoContratadoDetalhe[] {
   const raw = (value || "").trim();
   if (!raw) return [];
   if (raw.startsWith("[")) {
     try {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return Array.from(new Set(parsed.map(String).map(s => s.trim()).filter(Boolean)));
+      if (Array.isArray(parsed)) {
+        const details = parsed.map((item: any) => {
+          if (item && typeof item === "object") {
+            return { nome: String(item.nome || item.name || "").trim(), quantidade: Math.max(1, Number(item.quantidade || item.qty || 1) || 1) };
+          }
+          const text = String(item || "").trim();
+          const m = text.match(SERVICO_QTY_RE);
+          return { nome: text.replace(SERVICO_QTY_RE, "").trim(), quantidade: Math.max(1, Number(m?.[1] || 1) || 1) };
+        }).filter((x: ServicoContratadoDetalhe) => x.nome);
+        const merged = new Map<string, ServicoContratadoDetalhe>();
+        for (const item of details) merged.set(item.nome, { nome: item.nome, quantidade: item.quantidade });
+        return Array.from(merged.values());
+      }
     } catch {}
   }
-  return Array.from(new Set(raw.split(/\s*\|\|\s*/g).map(s => s.trim()).filter(Boolean)));
+  const merged = new Map<string, ServicoContratadoDetalhe>();
+  for (const token of raw.split(/\s*\|\|\s*/g).map(s => s.trim()).filter(Boolean)) {
+    const m = token.match(SERVICO_QTY_RE);
+    const nome = token.replace(SERVICO_QTY_RE, "").trim();
+    if (!nome) continue;
+    merged.set(nome, { nome, quantidade: Math.max(1, Number(m?.[1] || 1) || 1) });
+  }
+  return Array.from(merged.values());
+}
+
+export function parseServicosContratados(value?: string | null): string[] {
+  return parseServicosContratadosDetalhes(value).map(item => item.nome);
+}
+
+export function serializeServicosContratadosDetalhes(items: ServicoContratadoDetalhe[]): string {
+  const merged = new Map<string, ServicoContratadoDetalhe>();
+  for (const item of items) {
+    const nome = String(item.nome || "").trim();
+    if (!nome) continue;
+    merged.set(nome, { nome, quantidade: Math.max(1, Number(item.quantidade || 1) || 1) });
+  }
+  return Array.from(merged.values())
+    .map(item => `${item.nome}${item.quantidade > 1 ? ` ×${item.quantidade}` : ""}`)
+    .join(SERVICOS_CONTRATADOS_SEPARATOR);
 }
 
 export function serializeServicosContratados(items: string[]): string {
-  return Array.from(new Set(items.map(s => s.trim()).filter(Boolean))).join(SERVICOS_CONTRATADOS_SEPARATOR);
+  return serializeServicosContratadosDetalhes(items.map(nome => ({ nome, quantidade: 1 })));
 }
 
 // Fundação para ligar o catálogo comercial às capacidades dos colaboradores.
 // Não fundimos as duas listas: um serviço vendido pode exigir várias skills e
 // alguns serviços (AV, material, packs) não correspondem a uma pessoa.
+export function standaloneSkillForService(service: string): string | null {
+  const normalized = normalizeServiceKey(service);
+  if (!normalized || isAutoBudgetPackService(service)) return null;
+  const direct = (COLABORADOR_SKILLS as readonly string[]).find(skill => normalizeServiceKey(skill) === normalized);
+  if (direct) return direct;
+  const linkedEntry = Object.entries(SERVICO_SKILL_LINKS).find(([name]) => normalizeServiceKey(name) === normalized);
+  const linked = linkedEntry?.[1] || [];
+  return linked.length === 1 ? linked[0] : null;
+}
+
 export const SERVICO_SKILL_LINKS: Record<string, readonly string[]> = {
   "DJ": ["DJ"],
   "DJ s/ AV": ["DJ"],

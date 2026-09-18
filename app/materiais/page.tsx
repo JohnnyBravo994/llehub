@@ -1363,12 +1363,12 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     { href: "/faturacao", label: "Faturação" },
     { href: "/pagamentos", label: "Pagamentos" },
     { href: "/colaboradores", label: "Colaboradores" },
-    { href: "/valores", label: "Valores" }, { href: "/residencias", label: "Residências" },
+    { href: "/valores", label: "Valores" }, { href: "/packs", label: "Packs" }, { href: "/residencias", label: "Residências" },
     { href: "/clientes", label: "Clientes" },
     { href: "/materiais", label: "Materiais" },
   ];
   const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes"];
-  const adminOnlyHrefs = ["/dashboard", "/colaboradores", "/valores", "/residencias", "/materiais"];
+  const adminOnlyHrefs = ["/dashboard", "/colaboradores", "/valores", "/packs", "/residencias", "/materiais"];
   const novaluesBlockedHrefs = ["/materiais"];
   const links = role === "finance"
     ? allLinks.filter(l => financeHrefs.includes(l.href))
