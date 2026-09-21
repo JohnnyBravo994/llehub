@@ -1713,8 +1713,13 @@ export default function LeadsPage() {
             <FormField label="Contacto">
               <input style={inputStyle} value={form.contacto} onChange={e => setForm(f => ({ ...f, contacto: e.target.value }))} placeholder="Nome ou telefone..." />
             </FormField>
-            <FormField label="Materiais / Notas">
-              <input style={inputStyle} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Ex: dual mic, 2 colunas... / observações" />
+            <FormField label="Notas / Observações" style={{ gridColumn: "1 / -1" }}>
+              <textarea
+                style={{ ...inputStyle, minHeight: "72px", resize: "vertical" }}
+                value={form.notas}
+                onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
+                placeholder="Notas internas, pedidos do cliente, detalhes importantes..."
+              />
             </FormField>
 
 

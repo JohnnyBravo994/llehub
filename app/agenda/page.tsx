@@ -2738,6 +2738,14 @@ export default function AgendaPage() {
                   style={inputStyle}
                 />
               </FormField>
+              <FormField label="Notas / Observações" style={{ gridColumn: "1 / -1" }}>
+                <textarea
+                  style={{ ...inputStyle, minHeight: "72px", resize: "vertical" }}
+                  value={form.notas}
+                  onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
+                  placeholder="Notas internas, pedidos do cliente, detalhes importantes..."
+                />
+              </FormField>
               <div style={{ gridColumn: "1 / -1", marginTop: "0.15rem" }}>
                 <label style={{
                   minHeight: "48px", padding: "0 0.9rem", display: "flex", alignItems: "center", gap: "0.95rem",
@@ -2814,9 +2822,6 @@ export default function AgendaPage() {
                   </div>
                 )}
               </div>
-              {useMaterials && <FormField label="Notas de materiais / observações" style={{ gridColumn: "1 / -1" }}>
-                <textarea style={{ ...inputStyle, minHeight: "72px", resize: "vertical" }} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Ex: dual mic extra, 2 colunas, cabos XLR... / observações" />
-              </FormField>}
             </div>
 
             {/* ── Artistas ── */}
