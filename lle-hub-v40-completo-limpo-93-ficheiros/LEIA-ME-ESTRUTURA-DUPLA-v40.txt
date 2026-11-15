@@ -1,0 +1,30 @@
+LLE HUB v40 — PACOTE COMPLETO COM DUPLA ESTRUTURA
+
+Este ZIP tem o projeto pronto para extrair na RAIZ do repositório GitHub, sem pasta exterior.
+
+As páginas estão duplicadas, com conteúdo IDÊNTICO:
+  app/agenda/page.tsx    e    agenda/page.tsx
+  app/leads/page.tsx     e    leads/page.tsx
+  app/clientes/page.tsx  e    clientes/page.tsx
+  ... o mesmo acontece aos restantes módulos e componentes de suporte.
+
+IMPORTANTE: na configuração Next.js atual, as páginas ativas são as de app/.
+Os duplicados fora de app/ destinam-se a manter as duas estruturas do repositório
+conforme pedido. Nunca basta atualizar apenas as pastas fora de app/.
+
+Como usar:
+1. Fazer backup do repositório e da base de dados antes de publicar.
+2. Extrair este ZIP. Copiar TODOS os ficheiros e pastas extraídos para a raiz
+   do repositório (onde se encontram package.json e next.config.ts).
+3. Confirmar que o GitHub ficou com app/agenda/page.tsx atualizado.
+4. Confirmar no painel Vercel que o deployment em Production aponta para o
+   commit atualizado e compilou sem erros.
+5. Na Agenda verificar a marca «CRM v40», o botão de relatório mensal
+   e o check «Equipa de Marketing» no formulário de edição do evento.
+
+Atenção:
+- Não altera a base de dados durante a extração; instalar a aplicação e
+  executá-la pode usar/criar tabelas conforme as ações do código.
+- O email de Marketing não funciona sem configurar RESEND_API_KEY e domínio.
+- O modelo de permissões do servidor necessita de reforço antes da produção.
+- Esta versão mantém o código v40, sem alterações funcionais adicionais.

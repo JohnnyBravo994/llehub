@@ -1,0 +1,37 @@
+LLE HUB v40 — PUBLICACAO CORRETA NO GITHUB / VERCEL
+
+1. ESTE ZIP JA ESTA PREPARADO PARA A RAIZ DO REPOSITORIO.
+   Ao extrair, deves ver app/, public/, package.json, next.config.ts, etc.
+   NAO deve existir outra pasta lle-hub/ a envolver esses ficheiros.
+
+2. Faz um backup do repositório e da base de dados antes de atualizar.
+
+3. Atualiza os ficheiros e pastas na RAIZ do repositório JohnnyBravo994/llehub.
+   A rota https://project-15wa1.vercel.app/agenda corresponde a:
+      app/agenda/page.tsx
+   NAO corresponde a:
+      agenda/page.tsx
+      lle-hub/app/agenda/page.tsx (se criada como pasta aninhada).
+
+4. Nao basta carregar o ficheiro ZIP para o GitHub: extrai e publica o
+   conteudo completo na raiz, usando Git/GitHub ou o teu metodo de deploy.
+   A nova versao tambem inclui ficheiros novos em app/ e alteracoes em app/actions.ts.
+
+5. Confirma na Vercel: Project Settings > Build and Deployment > Root Directory
+   deve apontar para a raiz onde esta package.json e app/.
+   Depois confirma que o ultimo Deployment e de Production e ficou Ready.
+
+6. Abre /agenda e procura CRM v40 junto do titulo, o botao Relatorio Mensal
+   e o check Equipa de Marketing na ficha de edicao.
+
+7. As pastas agenda/, leads/, clientes/, etc na RAIZ do GitHub sao copias
+   antigas fora de app/ e nao definem essas rotas no Next.js App Router.
+   Nao as apagues sem confirmar backup, dependencias e deploy correto.
+
+8. ATENCAO: local.db nao foi incluido neste ZIP de publicacao por razoes
+   de seguranca, dado que o repositorio GitHub e publico. Confirma se o
+   ficheiro ja publicado no GitHub contem dados reais e, em caso afirmativo,
+   trata da sua remocao do repositorio/historico e revê credenciais expostas.
+
+9. A v40 ainda precisa de validacao de funcionamento e autenticacao no
+   servidor. O envio de emails requer a configuracao RESEND_API_KEY.
