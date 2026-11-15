@@ -1,0 +1,23 @@
+LLE HUB v41 — PACOTE COMPLETO COM PAGINAS DUPLICADAS SINCRONIZADAS
+
+As paginas em app/ e as copias fora de app/ TEM CONTEUDO IDENTICO.
+Ex.: app/agenda/page.tsx = agenda/page.tsx; app/leads/page.tsx = leads/page.tsx; app/clientes/page.tsx = clientes/page.tsx.
+Ficheiros de suporte de app/ foram igualmente copiados, para preservar os imports relativos nas duas estruturas.
+
+IMPORTANTE
+- O Next.js, com esta configuracao, utiliza normalmente app/agenda/page.tsx, app/leads/page.tsx e app/clientes/page.tsx.
+- As copias na raiz foram incluidas APENAS por pedido, para manter ambas as estruturas identicas; elas nao sao um segundo conjunto de rotas.
+- Duplicar ficheiros nao corrige por si uma falha de publicacao na Vercel e pode aumentar o trabalho de compilacao.
+- Nao foram alterados os componentes, funcionalidades ou bases de dados: sao copias do codigo da v41.
+- O antigo GET /api/setup destrutivo esta desativado nesta base.
+
+PUBLICACAO SEGURA
+1. Faz backup do repositorio e da base de dados antes de qualquer alteracao.
+2. EXTRAI o ZIP; nao carregues o ficheiro ZIP como unico ficheiro no GitHub.
+3. Copia os FICHEIROS E PASTAS EXTRAIDOS para a raiz do projeto (junto a package.json), substituindo os anteriores.
+4. Confirma que app/agenda/page.tsx e agenda/page.tsx tem o mesmo conteudo no GitHub (idem Leads e Clientes).
+5. Confirma no Vercel Deployments que a versao correta foi publicada. Testa primeiro num deployment Preview.
+6. Na Agenda, procura CRM v41, Relatorio mensal e o check Solicitar equipa de Marketing.
+
+NOTA: As configuracoes do envio de email ainda exigem RESEND_API_KEY e verificacao do dominio.
+A compilacao integral e o teste de ponta a ponta nao foram realizados nesta preparacao.
