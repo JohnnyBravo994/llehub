@@ -1,0 +1,23 @@
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  // ─ Production optimizations
+  productionBrowserSourceMaps: false, // Disable source maps in production for smaller bundle
+  
+  // ─ Compression & Performance
+  compress: true, // Enable gzip compression for all responses
+  
+  // ─ Experimental features for better performance
+  experimental: {
+    optimizePackageImports: ["@libsql/client"], // Tree-shake unused exports
+  },
+  
+  // ─ Image optimization (in case added later)
+  images: {
+    unoptimized: false, // Use Next.js Image Optimization
+    formats: ["image/avif", "image/webp"], // Modern formats
+  },
+  
+};
+
+export default nextConfig;
