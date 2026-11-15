@@ -1,0 +1,31 @@
+LLE HUB v41 — AGENDA / CRM / MARKETING / RELATÓRIOS
+
+ESTRUTURA
+- A pasta app/ é a única localização das páginas Next.js.
+- app/agenda/page.tsx, app/leads/page.tsx, app/clientes/page.tsx são as rotas ativas.
+- Não existem cópias adicionais agenda/, leads/, clientes/ fora de app/.
+- Colocar os ficheiros do ZIP na raiz do repositório, ao lado de package.json.
+- Ficheiros antigos existentes no GitHub não são eliminados por um upload: remover duplicados obsoletos de forma controlada.
+
+COMO VERIFICAR
+1. /agenda: deve mostrar CRM v41, Relatório mensal e PDF (são botões diferentes).
+2. Editar qualquer evento: check «Solicitar equipa de Marketing» antes dos separadores; para eventos já guardados, botão «Guardar opção Marketing».
+3. /leads: clicar no nome de uma lead ou «Abrir CRM» para ver ficha com histórico e tarefas.
+4. /clientes: clicar no nome de um cliente ou «Abrir CRM» para ver ficha com histórico e tarefas.
+5. Em telemóvel, abrir os mesmos menus e confirmar o acesso às fichas.
+
+PERMISSÕES
+- Os cinco utilizadores existentes (João, Tânia, Inês, Soraya e Larissa) têm acesso a CRM e à opção de Marketing.
+- O relatório mensal da Agenda também fica disponível a todos esses utilizadores e expõe dados financeiros.
+- As limitações operacionais dos formulários antigos são mantidas.
+- O controlo de acesso continua dependente de autenticação no browser. Antes de produção sensível, implementar autorização no servidor.
+
+EMAIL
+- O pedido é guardado; o envio real exige RESEND_API_KEY e domínio verificado no Resend.
+- O email contém nome, data, horário, local e pessoas atribuídas. Sem valores.
+
+VALIDAÇÃO
+- Sintaxe dos 33 ficheiros TS/TSX: aprovada.
+- Auditoria estática de ordem de execução: aprovada.
+- O teste end-to-end, o build Next.js e o envio real de emails NÃO foram executados neste ambiente.
+- Fazer backup da base de dados e testar numa publicação Preview da Vercel antes de colocar em produção.
