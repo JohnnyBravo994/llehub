@@ -1,0 +1,3241 @@
+"use client";
+
+import MobTabBar from "../MobTabBar";
+import DesktopNav from "../DesktopNav";
+
+import { ARTIST_TIPOS, MODALIDADES, SERVICOS_VENDIDOS, TIPOS_COMERCIAIS, VALOR_CONTEXTOS, resolveColaboradorNome, parseServicosContratados, parseServicosContratadosDetalhes, isAutoBudgetPackService, standaloneSkillForService } from "../constants";
+import { ArtistAutocomplete, type ArtistOption } from "../ArtistAutocomplete";
+import { ArtistTypeAutocomplete } from "../ArtistTypeAutocomplete";
+import { ServiceMultiSelect } from "../ServiceMultiSelect";
+import { standaloneOptionsFromColaboradores, standaloneReferenceFromColaboradores } from "../autoBudgetPricing";
+import { useEffect, useState, useCallback, useRef } from "react";
+import React from "react";
+import { useRouter } from "next/navigation";
+import { ThemeSwitcher } from "../ThemeSwitcher";
+import { buildAgendaPdfHtml, formatAgendaPdfDate, type AgendaPdfEvent } from "./pdf";
+
+// ── CustomSelect — cross-browser dropdown (substitui <select> nativo) ─────────
+function CustomSelect({
+  value, onChange, options, style, placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  style?: React.CSSProperties;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  const label = options.find(o => o.value === value)?.label ?? placeholder ?? value;
+  return (
+    <div ref={ref} style={{ position: "relative", width: "100%" }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          ...style,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          cursor: "pointer", userSelect: "none", boxSizing: "border-box",
+        }}
+      >
+        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+        <svg width="8" height="5" viewBox="0 0 8 5" fill="none" style={{ marginLeft: 6, flexShrink: 0, opacity: 0.5, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+          <path d="M1 1l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      </div>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0,
+          background: "var(--theme-surface-elevated)", border: "1px solid var(--theme-input-border)",
+          color: "var(--theme-text)",
+          zIndex: 9999, maxHeight: 240, overflowY: "auto",
+          boxShadow: "var(--theme-dropdown-shadow)",
+        }}>
+          {options.map(o => (
+            <div
+              key={o.value}
+              onMouseDown={e => { e.preventDefault(); onChange(o.value); setOpen(false); }}
+              style={{
+                padding: "0.6rem 1rem",
+                fontSize: style?.fontSize ?? "11px",
+                fontFamily: style?.fontFamily ?? "inherit",
+                letterSpacing: style?.letterSpacing ?? "0.05em",
+                color: o.value === value ? "var(--theme-accent)" : "var(--theme-text)",
+                background: o.value === value ? "var(--theme-dropdown-selected)" : "transparent",
+                cursor: "pointer",
+                borderBottom: "1px solid var(--theme-border)",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--theme-dropdown-hover)")}
+              onMouseLeave={e => (e.currentTarget.style.background = o.value === value ? "var(--theme-dropdown-selected)" : "transparent")}
+            >
+              {o.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+import {
+  getAllAgenda, createAgendaEvent, updateAgendaEvent,
+  cancelAgendaEvent, restoreAgendaEvent, deleteAgendaEvent,
+  getArtistasEvento, syncArtistasEvento, getAllArtistasAgenda, syncArtistasParaLead,
+  getAllClientes, createCliente, getAllLeads, getAllColaboradores, getAllValoresFuncoes, getAllValoresMaster, getAllResidenciasAtivas, syncAllExistingData,
+  setupMateriais, getAllMateriais, getMovimentosMateriais, registarSaidaMaterial,
+  registarVoltaMaterial, deleteMovimentoMaterial,
+  getAllMaterialPacks, reservarMaterialPacksParaEvento, getMaterialPackReservasEvento, getMateriaisReservadosResumoEvento,
+  reservarMaterialEvento, updateReservaMaterialEvento, deleteReservaMaterialEvento, confirmarSaidaReservaEvento,
+  getArtistConflictOverrides, dismissArtistConflict, getAgendaPageBundle, getAgendaFormLookups, getMaterialPackIdsForServico, getAgendaPdfBundle, getAgendaWhatsAppBundle, syncPacksComerciaisMateriaisEvento, getMarketingPresence, saveMarketingPresence,
+} from "../actions";
+
+interface AgendaEvent {
+  id: number; title: string; event_date: string; time_range?: string;
+  tipo?: string; bill?: number; status?: string; cancelled?: number;
+  billing_status?: string; cliente_nome?: string; modalidade?: string; valor_recebido?: number;
+  origem_lead_id?: number | null; venue?: string;
+  contacto?: string; notas?: string; residencia_id?: number | null; event_id?: string;
+  tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string; autobudget_snapshot?: string;
+  material_revenue?: number; material_cost?: number; material_count?: number;
+}
+
+interface Lead {
+  id: number; title: string; event_date: string; value: number;
+  status?: string; cancelled?: number; cliente_nome?: string; modalidade?: string; cliente_id?: number | null; valor_recebido?: number;
+  agenda_event_id?: number | null; event_id?: string;
+  tipo_comercial?: string; servico_comercial?: string; valor_contexto?: string; autobudget_snapshot?: string;
+  material_revenue?: number; material_cost?: number; material_count?: number;
+  local?: string; contacto?: string; notas?: string;
+}
+
+const CONFIRMED_STATUSES = ["Confirmado", "Em Adjudicação", "Adjudicado", "Pago"];
+
+interface ArtistRow {
+  id?: number; colaborador_id?: number | null; nome: string; tipo: string; fee: string; fee_auto?: boolean;
+}
+
+interface ConflictOverride { event_date: string; artist_key: string; artist_name: string; note?: string; }
+
+interface Cliente {
+  id: number; nome: string; nif?: string; alias?: string;
+}
+
+interface Colaborador {
+  id: number; nome: string; nome_artistico?: string; nome_pessoal?: string; contacto?: string; email?: string; iban?: string;
+  skills?: string; notas?: string; ativo: number;
+  skill_profiles?: Record<string, {
+    valor?: number; custo_interno?: number; custo_evento?: number;
+    valor_sud?: number; valor_evento_residencia?: number;
+    valor_parceria?: number; valor_cliente_final?: number;
+    custo_sud?: number; custo_evento_residencia?: number; custo_parceria?: number; custo_cliente_final?: number; rating?: number;
+  }>;
+}
+
+interface ValorFuncao {
+  id: number; funcao: string; custo_padrao: number; valor_cliente_padrao: number; notas?: string; ativo: number;
+}
+
+interface ValorMaster {
+  id: number; servico: string; duracao_formato: string; contexto: string; cliente_nome?: string;
+  custo_interno: number; valor_parceiro: number; valor_sud: number; valor_cliente_final: number; notas?: string; ativo: number;
+}
+
+interface ResidenciaAtiva {
+  id: number; nome: string; cliente_id?: number | null; cliente_nome: string; local: string; servico: string; duracao_formato: string;
+  custo_interno: number; custo_evento?: number; valor_cliente: number; valor_evento?: number; performer_padrao_id?: number | null; performer_padrao_nome?: string; notas?: string; ativo: number;
+}
+
+interface PackComercialComponente {
+  id: number; pack_id: number; tipo: "skill" | "material"; referencia: string; material_id?: number | null;
+  quantidade: number; notas?: string; material_nome?: string; material_imagem?: string; material_custo_interno?: number;
+}
+interface PackComercial {
+  id: number; nome: string; descricao?: string; valor_sud: number; valor_residencia: number; valor_evento_residencia: number;
+  valor_parceria: number; valor_cliente_final: number; notas?: string; ativo: number; componentes: PackComercialComponente[];
+}
+
+interface MaterialItem {
+  id: number; nome: string; categoria: string; imagem: string;
+  quantidade_total: number; notas: string; ativo: number;
+  custo_interno: number; valor_parceiro: number; valor_sud: number; valor_cliente_final: number;
+}
+
+interface MaterialMovimento {
+  id: number; material_id: number; material_nome: string; material_imagem: string;
+  quantidade: number; quantidade_devolvida: number; quantidade_consumida?: number;
+  origem: string; origem_detalhe: string; evento: string; evento_id: number | null;
+  responsavel: string; notas: string; data_saida: string; data_volta: string | null;
+}
+
+interface MaterialPackItem { id: number; pack_id: number; material_nome: string; categoria: string; quantidade: number; notas?: string; }
+interface MaterialPack {
+  id: number; nome: string; descricao: string; valor_referencia: number; ativo: number;
+  items: MaterialPackItem[];
+  links?: { id: number; servico: string; duracao_formato: string; contexto: string; notas?: string }[];
+}
+interface MaterialPackReserva { id: number; evento_id: number; pack_id: number; pack_nome: string; valor_referencia: number; valor_cobrado: number; desconto_oferta: number; }
+interface MaterialReservadoResumo {
+  id: number; source: "manual" | "legacy" | "pack" | "movement"; status: "reservado" | "fora" | "devolvido";
+  material_id: number; material_nome: string; material_imagem?: string; quantidade: number;
+  quantidade_devolvida: number; quantidade_consumida: number; estado_regresso: string; data_volta: string; notas: string;
+  origem?: string; origem_detalhe?: string; reservado_por?: string; quem_levou?: string; pack_nome?: string;
+  custo_unitario?: number; valor_unitario?: number; valor_contexto?: string; contabilizar?: number;
+}
+
+const MATERIAL_ORIGENS = ["Loja", "João", "Annia", "Outro"];
+
+const BILLING_ESTADOS = ["Contacto", "Proposta Enviada", "Em Negociação", "Confirmado", "Em Adjudicação", "Adjudicado", "Faturado", "Pago", "Cancelado"];
+
+// Mapeamento tipo artista → emoji
+const TIPO_ICON: Record<string, string> = {
+  "DJ": "🎧", "Karaoke Host": "🎤", "Técnico de Som": "🔊", "Técnico AV": "🎚️", "Técnico de Luz": "💡",
+  "Saxofonista": "🎷", "Sax": "🎷", "Violinista": "🎻", "Violino": "🎻", "Acordionista": "🪗", "Acordeão": "🪗",
+  "Cantor(a)": "🎤", "Singer": "🎤", "Cantor(a) Fado": "🎙️", "Guitarra Portuguesa": "🪕", "Viola/Guitarra Fado": "🎸",
+  "Guitarrista": "🎸", "Guitar": "🎸", "Baixista": "🎸", "Bass": "🎸", "Baterista": "🥁", "Drums": "🥁",
+  "Percussionista": "🥁", "Percussão": "🥁", "Trompetista": "🎺", "Trompete": "🎺",
+  "Bailarino(a)": "💃", "Dancer": "💃", "Bailarino(a) Asas Isis": "🪽",
+  "Artista de Fogo": "🔥", "Fire": "🔥", "Malabarista": "🤹", "Performer Bolas de Sabão": "🫧",
+  "Mágico(a)": "🪄", "Mágico": "🪄", "Performer Cubo": "⬛",
+  "Acrobata": "🤸", "Acrobata Aéreo(a)": "🎪", "Performer Lyra": "⭕", "Performer Straps": "🎪", "Performer Plataforma": "💎",
+  "Técnico de Rigging": "🧰", "Animador(a)": "🎪", "Host": "🎙️", "MC": "🎤", "Ator(a)": "🎭", "Actor": "🎭",
+  "Animador Infantil": "🎈", "Make-up & Hair": "💄", "Guarda-Roupa": "🥻", "Produtor": "🧑🏽‍💻",
+  "Assistente de Produção": "📋", "Coreógrafo(a)": "🩰", "Coreógrafa": "🩰", "Fotógrafo/Videógrafo": "📷",
+  "Animador": "🎪", "Comediante": "😂", "Ginasta": "🤸",
+};
+
+// Equipa: João=azul 🔵, Annia=flor 🌸, Empresa=castanho 🟤
+const EQUIPA_NOMES = ["João", "Annia", "Empresa"] as const;
+const EQUIPA_SYMBOL: Record<string, string> = { "João": "🔵", "Annia": "🌸", "Empresa": "🟤" };
+const EQUIPA_COLOR: Record<string, string> = { "João": "var(--theme-info)", "Annia": "#F4A7C0", "Empresa": "#A07850" };
+
+function parseEquipa(tipo: string): string[] {
+  if (!tipo) return [];
+  return EQUIPA_NOMES.filter(n => tipo.toLowerCase().includes(n.toLowerCase()));
+}
+
+function artistIcons(artistas: ArtistRow[]): string {
+  const seen = new Set<string>();
+  return artistas
+    .filter(a => a.nome.trim())
+    .map(a => TIPO_ICON[a.tipo] || "🎵")
+    .filter(ic => { if (seen.has(ic)) return false; seen.add(ic); return true; })
+    .join("");
+}
+
+// Color constants - will be adapted for light theme by JS
+const C = {
+  gold: "var(--theme-accent)", goldDim: "var(--theme-accent-muted)", surface: "var(--theme-surface)", pageBg: "var(--theme-bg)",
+  border: "rgba(var(--theme-accent-rgb),0.12)", borderDim: "rgba(var(--theme-contrast-rgb),0.05)",
+  textPrimary: "var(--theme-text)", textSec: "var(--theme-text-muted)", textMuted: "var(--theme-text-faint)",
+  green: "var(--theme-success)", amber: "var(--theme-warning)", blue: "var(--theme-info)", red: "var(--theme-danger)",
+};
+
+// Light theme colors - 100% contrast, document-style
+const C_Light = {
+  gold: "#8B4513", goldDim: "#6F3A18", surface: "#FFFFFF", pageBg: "#FFFBF7",
+  border: "rgba(0,0,0,0.15)", borderDim: "rgba(0,0,0,0.12)",
+  textPrimary: "#111827", textSec: "rgba(17,24,39,0.82)", textMuted: "rgba(17,24,39,0.62)",
+  green: "#2E7D32", amber: "#A65300", blue: "#1565C0", red: "#C62828",
+};
+
+// Helper to get colors based on theme
+const getColors = (lightTheme: boolean) => lightTheme ? C_Light : C;
+
+function toIsoDate(s: string) {
+  if (!s) return "";
+  const v = s.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  const m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return v;
+}
+function monthKey(s: string) {
+  const iso = toIsoDate(s);
+  return /^\d{4}-\d{2}/.test(iso) ? iso.slice(0, 7) : "";
+}
+function fmtDate(s: string) {
+  if (!s) return "—";
+  const iso = toIsoDate(s);
+  const d = new Date(iso + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return s;
+  const weekday = d.toLocaleDateString("pt-PT", { weekday: "short" });
+  const date = d.toLocaleDateString("pt-PT", { day: "2-digit", month: "short", year: "numeric" });
+  return `${date} · ${weekday.charAt(0).toUpperCase() + weekday.slice(1)}`;
+}
+
+function safeNumber(value: number | string | undefined | null) {
+  const n = typeof value === "string" ? Number(value.replace(",", ".")) : Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function effectiveReceived(total: number | string | undefined, received: number | string | undefined, status?: string) {
+  const t = Math.max(0, safeNumber(total));
+  const r = Math.max(0, safeNumber(received));
+  return status === "Pago" && t > 0 ? Math.max(t, r) : r;
+}
+
+function paymentPercent(total: number | string | undefined, received: number | string | undefined, status?: string) {
+  const t = safeNumber(total);
+  if (t <= 0) return 0;
+  return Math.max(0, Math.min(100, (effectiveReceived(total, received, status) / t) * 100));
+}
+
+function artistsSummary(artists: ArtistRow[]) {
+  if (!artists.length) return "—";
+  return artists.filter(a => a.nome.trim()).map(a => a.nome).join(" · ");
+}
+
+const emptyForm = { title: "", date: "", time: "", tipo: "", bill: "0", valor_recebido: "0", billing_status: "Contacto", cliente_nome: "", modalidade: "Fatura", tipo_comercial: "Evento", servico_comercial: "", valor_contexto: "Cliente Final", venue: "", contacto: "", notas: "", residencia_id: null as number | null, autobudget_snapshot: "" };
+const emptyArtist = (): ArtistRow => ({ colaborador_id: null, nome: "", tipo: "", fee: "", fee_auto: true });
+
+function normalizeText(v: string) {
+  return v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+}
+
+function tiposFromSkills(skills?: string): string[] {
+  const aliases: Record<string, string> = {
+    "Cantor/a": "Cantor(a)", "Cantor(a)": "Cantor(a)", "DJ": "DJ", "Saxofonista": "Saxofonista", "Violinista": "Violinista",
+    "Pianista": "Pianista", "Guitarrista": "Guitarrista", "Baterista": "Baterista", "Percussionista": "Percussionista",
+    "Bailarino/a": "Bailarino(a)", "Ator/Host": "Host", "Animador/a": "Animador(a)", "Animador": "Animador(a)", "Animadora": "Animador(a)",
+    "Produtor/Coordenador": "Produtor", "Makeup & Hair": "Make-up & Hair", "Assistente de Guarda-Roupa": "Guarda-Roupa",
+    "Coreógrafo/a": "Coreógrafo(a)", "Coreografo/a": "Coreógrafo(a)",
+  };
+  const allowed = ARTIST_TIPOS as readonly string[];
+  return Array.from(new Set((skills || "")
+    .split(/[,;\n]+/)
+    .map(skill => skill.trim())
+    .filter(Boolean)
+    .map(skill => Object.entries(aliases).find(([alias]) => normalizeText(alias) === normalizeText(skill))?.[1]
+      || allowed.find(tipo => normalizeText(tipo) === normalizeText(skill))
+      || skill)
+    .filter(tipo => allowed.includes(tipo))))
+    .sort((a, b) => a.localeCompare(b, "pt", { sensitivity: "base" }));
+}
+
+export default function AgendaPage() {
+  const router = useRouter();
+  const [userName, setUserName] = useState("");
+  const [events, setEvents] = useState<AgendaEvent[]>([]);
+  const [artistasMap, setArtistasMap] = useState<Record<number, ArtistRow[]>>({});
+  const [conflictOverrides, setConflictOverrides] = useState<ConflictOverride[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filterArtista, setFilterArtista] = useState("");
+  const [filterCliente, setFilterCliente] = useState("");
+  const [filterEquipa, setFilterEquipa] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+  const [lookupsLoaded, setLookupsLoaded] = useState(false);
+  const [lookupsLoading, setLookupsLoading] = useState(false);
+  const [modal, setModal] = useState<{ open: boolean; editing: AgendaEvent | null }>({ open: false, editing: null });
+  const [budgetOpen, setBudgetOpen] = useState(false);
+  const [useMaterials, setUseMaterials] = useState(false);
+  const [marketingRequested, setMarketingRequested] = useState(false);
+  const [waModal, setWaModal] = useState(false);
+  const [waText, setWaText] = useState("");
+  const [waCopied, setWaCopied] = useState(false);
+  const [waPeriodModal, setWaPeriodModal] = useState(false);
+  const [waPeriodMode, setWaPeriodMode] = useState<"month" | "week7" | "custom">("month");
+  const [waCustomStart, setWaCustomStart] = useState("");
+  const [waCustomEnd, setWaCustomEnd] = useState("");
+  const [waPeriodError, setWaPeriodError] = useState("");
+  const [waGenerating, setWaGenerating] = useState(false);
+  const [pdfPeriodModal, setPdfPeriodModal] = useState(false);
+  const [pdfPeriodMode, setPdfPeriodMode] = useState<"today" | "week7" | "month" | "custom">("today");
+  const [pdfCustomStart, setPdfCustomStart] = useState("");
+  const [pdfCustomEnd, setPdfCustomEnd] = useState("");
+  const [pdfPeriodError, setPdfPeriodError] = useState("");
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [artists, setArtists] = useState<ArtistRow[]>([emptyArtist()]);
+  const [loadingArtists, setLoadingArtists] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState("");
+  const [undoAction, setUndoAction] = useState<{ label: string; fn: () => void } | null>(null);
+  const [toastTimer, setToastTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  // Mobile filter panel state
+  const [mobFilterOpen, setMobFilterOpen] = useState(false);
+  const [mobFilterCategory, setMobFilterCategory] = useState<"" | "equipa" | "artista" | "cliente">("");
+  const [mounted, setMounted] = useState(false);
+  const [lightTheme, setLightTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('lle_light_theme') === 'true';
+    }
+    return false;
+  });
+  const Colors = getColors(lightTheme);
+  const [confirmedLeads, setConfirmedLeads] = useState<Lead[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+  const [valoresFuncoes, setValoresFuncoes] = useState<ValorFuncao[]>([]);
+  const [valoresMaster, setValoresMaster] = useState<ValorMaster[]>([]);
+  const [residenciasAtivas, setResidenciasAtivas] = useState<ResidenciaAtiva[]>([]);
+  const [packsComerciais, setPacksComerciais] = useState<PackComercial[]>([]);
+  const [clienteSearch, setClienteSearch] = useState("");
+  const [clienteDropOpen, setClienteDropOpen] = useState(false);
+  const [clienteCreating, setClienteCreating] = useState(false);
+  const [isResidencia, setIsResidencia] = useState(false);
+  const [residenciaDates, setResidenciaDates] = useState<string[]>([]);
+  const [trocaNovaData, setTrocaNovaData] = useState("");
+  const [materiais, setMateriais] = useState<MaterialItem[]>([]);
+  const [movimentosMateriais, setMovimentosMateriais] = useState<MaterialMovimento[]>([]);
+  const [materialPacks, setMaterialPacks] = useState<MaterialPack[]>([]);
+  const [materiaisLoaded, setMateriaisLoaded] = useState(false);
+  const [selectedPackIds, setSelectedPackIds] = useState<number[]>([]);
+  const [materiaisReservadosResumo, setMateriaisReservadosResumo] = useState<MaterialReservadoResumo[]>([]);
+  const [reservaQtyDrafts, setReservaQtyDrafts] = useState<Record<string, number>>({});
+  const [loadingMateriaisResumo, setLoadingMateriaisResumo] = useState(false);
+  const [materialModal, setMaterialModal] = useState<{ open: boolean; event: AgendaEvent | null }>({ open: false, event: null });
+  const emptyReservaForm = { material_id: 0, quantidade: 1, origem: "Loja", origem_detalhe: "", notas: "" };
+  const [reservaForm, setReservaForm] = useState(emptyReservaForm);
+  const [reservaSaving, setReservaSaving] = useState(false);
+
+  const showToast = (msg: string, undo?: { label: string; fn: () => void }, durationMs: number = 4000) => {
+    if (toastTimer) clearTimeout(toastTimer);
+    setToast(msg);
+    setUndoAction(undo || null);
+    const t = setTimeout(() => { setToast(""); setUndoAction(null); }, durationMs);
+    setToastTimer(t);
+  };
+
+  const loadLookups = useCallback(async () => {
+    if (lookupsLoaded || lookupsLoading) return;
+    setLookupsLoading(true);
+    const r = await getAgendaFormLookups();
+    if (r.success) {
+      if (r.clientes?.success) setClientes(r.clientes.data as Cliente[]);
+      if (r.colaboradores?.success) setColaboradores(r.colaboradores.data as Colaborador[]);
+      if (r.valoresFuncoes?.success) setValoresFuncoes(r.valoresFuncoes.data as ValorFuncao[]);
+      if (r.valoresMaster?.success) setValoresMaster(r.valoresMaster.data as ValorMaster[]);
+      if (r.residencias?.success) setResidenciasAtivas((r.residencias.data as ResidenciaAtiva[]).filter(r => r.ativo === 1));
+      if (r.packsComerciais?.success) setPacksComerciais((r.packsComerciais.data as PackComercial[]).filter(x => x.ativo === 1));
+      setLookupsLoaded(true);
+    }
+    setLookupsLoading(false);
+  }, [lookupsLoaded, lookupsLoading]);
+
+  const load = useCallback(async (nameOverride?: string, monthOverride?: string) => {
+    setLoading(true);
+    const targetMonth = monthOverride || selectedMonth;
+    const bundle = await getAgendaPageBundle(nameOverride || userName || 'Admin', targetMonth);
+    if (!bundle.success) { setLoading(false); return; }
+    const r = bundle.agenda;
+    const ar = bundle.artistas;
+    const lr = bundle.leads;
+    const cor = bundle.conflicts;
+    const mr = bundle.months;
+    if (mr?.success) {
+      const months = (mr.data as string[]).filter(Boolean);
+      setAvailableMonths(months.includes(targetMonth) ? months : [...months, targetMonth].sort());
+    }
+    if (r?.success) setEvents(r.data as AgendaEvent[]);
+    if (ar?.success) setArtistasMap(Object.fromEntries(Object.entries(ar.data as Record<number, any[]>).map(([k, v]) => [k, v.map((a: any) => ({ ...a, colaborador_id: a.colaborador_id ?? null, fee: String(a.fee ?? "") }))])));
+    if (cor?.success) setConflictOverrides(cor.data as ConflictOverride[]);
+    if (lr?.success) {
+      const stripEmoji = (s: string) => s.replace(/[\p{Emoji}‍️]+/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
+      const agendaEvents = r?.success ? (r.data as AgendaEvent[]) : [];
+      const confirmed = (lr.data as Lead[]).filter(l => {
+        if (!CONFIRMED_STATUSES.includes(l.status || "") || !l.event_date) return false;
+        const leadTitle = stripEmoji(l.title);
+        const leadValue = l.value || 0;
+        const hasLinkedEvent = agendaEvents.some(e => e.origem_lead_id === l.id);
+        if (hasLinkedEvent) return false;
+        const isDuplicate = agendaEvents.some(e => {
+          if (e.event_date !== l.event_date) return false;
+          const agendaTitle = stripEmoji(e.title || "");
+          const titleMatch = agendaTitle.includes(leadTitle.slice(0, 12)) || leadTitle.includes(agendaTitle.slice(0, 12));
+          const valueMatch = leadValue > 0 && Number(e.bill) === leadValue;
+          return titleMatch || valueMatch;
+        });
+        return !isDuplicate;
+      });
+      setConfirmedLeads(confirmed);
+    }
+    setLoading(false);
+  }, [userName, selectedMonth]);
+
+  const loadMateriais = useCallback(async (force = false) => {
+    if (materiaisLoaded && !force) return;
+    await setupMateriais();
+    const [mr, movr, pr] = await Promise.all([getAllMateriais(), getMovimentosMateriais(), getAllMaterialPacks()]);
+    if (mr.success) setMateriais(mr.data as MaterialItem[]);
+    if (movr.success) setMovimentosMateriais(movr.data as MaterialMovimento[]);
+    if (pr.success) setMaterialPacks(pr.data as MaterialPack[]);
+    setMateriaisLoaded(true);
+  }, [materiaisLoaded]);
+
+  const [userRole, setUserRole] = useState("");
+
+  useEffect(() => {
+    const u = localStorage.getItem("lle_user");
+    if (!u) { router.push("/"); return; }
+    const parsed = JSON.parse(u);
+    setUserName(parsed.name);
+    setUserRole(parsed.role || "admin");
+    load(parsed.name, selectedMonth);
+    setTimeout(() => setMounted(true), 100);
+  }, [load, router, selectedMonth]);
+
+  // Apply light theme to html element
+  useEffect(() => {
+    const html = document.documentElement;
+    if (lightTheme) {
+      html.classList.add('light-theme');
+    } else {
+      html.classList.remove('light-theme');
+    }
+    localStorage.setItem('lle_light_theme', lightTheme ? 'true' : 'false');
+  }, [lightTheme]);
+
+  const materiaisAtivos = materiais.filter(m => m.ativo === 1);
+
+  const refreshMateriaisResumo = useCallback(async (eventoId: number) => {
+    setLoadingMateriaisResumo(true);
+    const r = await getMateriaisReservadosResumoEvento(eventoId);
+    const rows = r.success ? (r.data as MaterialReservadoResumo[]) : [];
+    if (r.success) {
+      setMateriaisReservadosResumo(rows);
+      setReservaQtyDrafts(Object.fromEntries(rows
+        .filter(item => item.status === "reservado" && item.source !== "pack")
+        .map(item => [`${item.source}-${item.id}`, item.quantidade])));
+    }
+    setLoadingMateriaisResumo(false);
+    return rows;
+  }, []);
+
+  const openMaterialModal = (e: AgendaEvent) => {
+    setReservaForm(emptyReservaForm);
+    setMaterialModal({ open: true, event: e });
+    loadMateriais();
+    refreshMateriaisResumo(e.id);
+  };
+  const closeMaterialModal = () => setMaterialModal({ open: false, event: null });
+
+  const materiaisDoEvento = (eventoId: number) => movimentosMateriais.filter(m => m.evento_id === eventoId);
+  const materiaisPendentesDoEvento = (eventoId: number) => materiaisDoEvento(eventoId).filter(m => (m.quantidade_devolvida + (m.quantidade_consumida || 0)) < m.quantidade);
+  const selectedPacks = materialPacks.filter(p => selectedPackIds.includes(p.id));
+  const togglePackSelecionado = (packId: number) => setSelectedPackIds(prev => prev.includes(packId) ? prev.filter(id => id !== packId) : [...prev, packId]);
+
+  const handleReservarMaterial = async () => {
+    if (!materialModal.event) return;
+    const mat = materiais.find(m => m.id === reservaForm.material_id);
+    if (!mat) { showToast("Escolhe um material"); return; }
+    if (reservaForm.quantidade < 1) { showToast("Quantidade inválida"); return; }
+    if (reservaForm.origem === "Outro" && !reservaForm.origem_detalhe.trim()) { showToast("Especifica para onde vai"); return; }
+    setReservaSaving(true);
+    const res = await reservarMaterialEvento({
+      evento_id: materialModal.event.id, material_id: mat.id, material_nome: mat.nome, material_imagem: mat.imagem,
+      quantidade: reservaForm.quantidade, origem: reservaForm.origem, origem_detalhe: reservaForm.origem_detalhe,
+      reservado_por: userName, notas: reservaForm.notas,
+    });
+    if (res.success && typeof res.new_bill === "number") setForm(f => ({ ...f, bill: String(res.new_bill) }));
+    setReservaForm(emptyReservaForm);
+    await Promise.all([loadMateriais(true), refreshMateriaisResumo(materialModal.event.id)]);
+    await load();
+    setReservaSaving(false);
+    showToast(res.success ? `Material reservado: ${mat.nome}` : "Não foi possível reservar o material");
+  };
+
+  const handleRemoverReservaMaterial = async (id: number) => {
+    await deleteMovimentoMaterial(id);
+    await loadMateriais(true);
+    await load();
+  };
+
+  const handleMaterialVoltou = async (mov: MaterialMovimento) => {
+    await registarVoltaMaterial(mov.id, mov.quantidade, mov.quantidade);
+    await loadMateriais(true);
+    if (materialModal.event) await refreshMateriaisResumo(materialModal.event.id);
+    await load();
+  };
+
+  const handleGuardarQuantidadeReserva = async (item: MaterialReservadoResumo) => {
+    if (!materialModal.event || item.source === "pack" || item.source === "movement") return;
+    const key = `${item.source}-${item.id}`;
+    const qty = Math.max(1, Number(reservaQtyDrafts[key]) || 1);
+    const res = await updateReservaMaterialEvento(item.id, qty, item.source);
+    if (res.success && typeof res.new_bill === "number") setForm(f => ({ ...f, bill: String(res.new_bill) }));
+    await refreshMateriaisResumo(materialModal.event.id);
+    await load();
+    showToast("Quantidade da reserva atualizada");
+  };
+
+  const handleRemoverItemMaterial = async (item: MaterialReservadoResumo) => {
+    if (!materialModal.event) return;
+    let res: any;
+    if (item.source === "movement") res = await deleteMovimentoMaterial(item.id);
+    else if (item.source === "manual" || item.source === "legacy") res = await deleteReservaMaterialEvento(item.id, item.source);
+    else { showToast("Este material vem de um pack; altera o pack associado ao serviço"); return; }
+    if (res?.success && typeof res.new_bill === "number") setForm(f => ({ ...f, bill: String(res.new_bill) }));
+    await Promise.all([loadMateriais(true), refreshMateriaisResumo(materialModal.event.id)]);
+    await load();
+    showToast(item.source === "movement" ? "Saída removida" : "Reserva removida");
+  };
+
+  const handleConfirmarSaidaReserva = async (item: MaterialReservadoResumo) => {
+    if (!materialModal.event || item.status !== "reservado") return;
+    if (item.source === "manual" || item.source === "legacy") {
+      await confirmarSaidaReservaEvento({
+        id: item.id, source: item.source, quantidade: item.quantidade, origem: item.origem || "Loja", origem_detalhe: item.origem_detalhe || "",
+        quem_levou: userName, responsavel: userName, notas: item.notas || "",
+      });
+    } else {
+      const mat = materiais.find(m => m.id === item.material_id) || materiais.find(m => normalizeText(m.nome) === normalizeText(item.material_nome));
+      if (!mat) { showToast("Não foi possível encontrar este material no catálogo"); return; }
+      await registarSaidaMaterial({
+        material_id: mat.id, material_nome: mat.nome, material_imagem: mat.imagem,
+        quantidade: item.quantidade, origem: item.origem || "Loja", origem_detalhe: item.origem_detalhe || "",
+        quem_levou: userName, evento: materialModal.event.title, evento_id: materialModal.event.id,
+        responsavel: userName, notas: item.pack_nome ? `Saída de material reservado · ${item.pack_nome}` : "Saída de material reservado",
+      });
+    }
+    await Promise.all([loadMateriais(true), refreshMateriaisResumo(materialModal.event.id)]);
+    await load();
+    showToast(`Saída registada: ${item.material_nome}`);
+  };
+
+  const colaboradorDisplayName = (c: Colaborador) => c.nome_artistico || c.nome;
+  const colaboradoresAtivos = colaboradores
+    .filter(c => c.ativo === 1)
+    .sort((a, b) => colaboradorDisplayName(a).localeCompare(colaboradorDisplayName(b), "pt", { sensitivity: "base" }));
+  const autoBudgetStandaloneOptions = standaloneOptionsFromColaboradores(colaboradoresAtivos);
+  const autoBudgetPackOptions = packsComerciais.filter(p => p.ativo === 1).map(p => p.nome).sort((a,b) => a.localeCompare(b, "pt-PT", { sensitivity: "base" }));
+  const findCommercialPackByName = (name: string) => packsComerciais.find(p => normalizeText(p.nome) === normalizeText(name));
+  const commercialPackBillingValue = (pack: PackComercial, contexto: string) => {
+    if (contexto === "SUD") return Number(pack.valor_sud || pack.valor_cliente_final || 0);
+    if (contexto === "Residência") return Number(pack.valor_residencia || 0);
+    if (contexto === "Evento Residência") return Number(pack.valor_evento_residencia || 0);
+    if (contexto === "Parceiro") return Number(pack.valor_parceria || 0);
+    return Number(pack.valor_cliente_final || 0);
+  };
+  const commercialPackEstimatedCost = (pack: PackComercial, contexto: string) => (pack.componentes || []).reduce((sum, component) => {
+    const qty = Math.max(1, Number(component.quantidade || 1));
+    if (component.tipo === "material") return sum + Number(component.material_custo_interno || 0) * qty;
+    const ref = standaloneReferenceFromColaboradores(component.referencia, contexto, colaboradoresAtivos, form.tipo_comercial);
+    return sum + Number(ref?.custo || 0) * qty;
+  }, 0);
+  const findColaboradorByNome = (nome: string) => colaboradoresAtivos.find(c => {
+    const q = normalizeText(nome);
+    return [c.nome, c.nome_artistico || "", c.nome_pessoal || ""].some(v => normalizeText(v) === q);
+  });
+  const findColaboradorById = (id?: number | null) => id ? colaboradores.find(c => c.id === id) : undefined;
+  const tiposDisponiveisParaArtista = (artista: ArtistRow) => {
+    const colaborador = findColaboradorById(artista.colaborador_id) || findColaboradorByNome(artista.nome);
+    const tiposDoColaborador = colaborador ? tiposFromSkills(colaborador.skills) : [];
+    return tiposDoColaborador.length > 0
+      ? tiposDoColaborador
+      : [...ARTIST_TIPOS].sort((a, b) => a.localeCompare(b, "pt", { sensitivity: "base" }));
+  };
+  const isEmptyFee = (fee: string) => fee.trim() === "" || Number(fee.replace(",", ".")) === 0;
+  const suggestedFeeForTipo = (tipo: string) => {
+    const row = valoresFuncoes.find(v => v.ativo === 1 && normalizeText(v.funcao) === normalizeText(tipo));
+    return row?.custo_padrao || 0;
+  };
+  const skillProfileFor = (col: Colaborador | undefined, tipo: string) => {
+    if (!col?.skill_profiles || !tipo) return undefined;
+    const exact = col.skill_profiles[tipo];
+    if (exact) return exact;
+    const key = Object.keys(col.skill_profiles).find(k => normalizeText(k) === normalizeText(tipo));
+    return key ? col.skill_profiles[key] : undefined;
+  };
+  const residenciaAppliesToArtist = (residencia: ResidenciaAtiva | undefined, col: Colaborador | undefined, tipo: string) => {
+    if (!residencia || !col || !tipo) return false;
+    const performerMatches = residencia.performer_padrao_id === col.id || (
+      !!residencia.performer_padrao_nome && normalizeText(residencia.performer_padrao_nome) === normalizeText(col.nome_artistico || col.nome)
+    );
+    const performerIsVariable = !residencia.performer_padrao_id && !residencia.performer_padrao_nome;
+    const residenceSkill = standaloneSkillForService(residencia.servico || "");
+    if (!residenceSkill) return performerMatches;
+    return normalizeText(residenceSkill) === normalizeText(tipo) && (performerIsVariable || performerMatches);
+  };
+
+  const artistCostSuggestion = (
+    col: Colaborador | undefined,
+    tipo: string,
+    tipoComercial: string = form.tipo_comercial,
+    _valorContexto: string = form.valor_contexto,
+    residenciaId: number | null = form.residencia_id,
+  ) => {
+    const fallback = suggestedFeeForTipo(tipo);
+    if (!col || !tipo) return { value: fallback, source: fallback ? "Tabela antiga · custo padrão" : "Sem custo definido" };
+    const p = skillProfileFor(col, tipo);
+    if (!p) return { value: fallback, source: fallback ? "Tabela antiga · custo padrão" : "Sem custo definido" };
+
+    const custoEvento = Number(p.custo_evento ?? p.custo_interno ?? p.valor ?? fallback ?? 0);
+    const residencia = residenciaId ? residenciasAtivas.find(r => r.id === residenciaId) : undefined;
+    const canUseResidencia = residenciaAppliesToArtist(residencia, col, tipo);
+
+    if (tipoComercial === "Residência") {
+      if (canUseResidencia && Number(residencia?.custo_interno || 0) > 0) {
+        return { value: Number(residencia!.custo_interno), source: `Residência · ${residencia!.nome} · custo residência` };
+      }
+      return { value: 0, source: residencia ? `Residência · ${residencia.nome} · custo por definir` : "Escolhe uma Residência para obter o custo" };
+    }
+
+    if (tipoComercial === "Evento de Residência") {
+      if (canUseResidencia && Number(residencia?.custo_evento || 0) > 0) {
+        return { value: Number(residencia!.custo_evento), source: `Residência · ${residencia!.nome} · custo evento` };
+      }
+      return { value: custoEvento, source: custoEvento ? "Colaborador · custo evento" : "Sem custo definido" };
+    }
+
+    return { value: custoEvento, source: custoEvento ? "Colaborador · custo evento" : "Sem custo definido" };
+  };
+
+  const suggestedFeeForArtist = (
+    col: Colaborador | undefined,
+    tipo: string,
+    tipoComercial: string = form.tipo_comercial,
+    valorContexto: string = form.valor_contexto,
+    residenciaId: number | null = form.residencia_id,
+  ) => artistCostSuggestion(col, tipo, tipoComercial, valorContexto, residenciaId).value;
+
+  const repriceAutoArtists = (tipoComercial: string, valorContexto: string, residenciaId: number | null) => {
+    setArtists(prev => prev.map(a => {
+      if (!(a.fee_auto || isEmptyFee(a.fee))) return a;
+      const col = findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome);
+      if (!col || !a.tipo) return a;
+      const fee = suggestedFeeForArtist(col, a.tipo, tipoComercial, valorContexto, residenciaId);
+      return { ...a, fee: fee ? String(fee) : "", fee_auto: true };
+    }));
+  };
+
+  const materiaisFinanceiros = materiaisReservadosResumo.filter(m => Number(m.contabilizar || 0) === 1);
+  const materiaisReceita = materiaisFinanceiros.reduce((sum, m) => sum + (Number(m.valor_unitario || 0) * Math.max(1, Number(m.quantidade) || 1)), 0);
+  const materiaisCusto = materiaisFinanceiros.reduce((sum, m) => sum + (Number(m.custo_unitario || 0) * Math.max(1, Number(m.quantidade) || 1)), 0);
+
+  const inferValorContexto = (clienteNome: string, tipoComercial: string) => {
+    if (tipoComercial === "Residência") return "Residência";
+    if (tipoComercial === "Evento de Residência") return "Evento Residência";
+    const q = normalizeText(clienteNome || "");
+    if (q.includes("sud") || q.includes("du tage")) return "SUD";
+    if (q.includes("sana") || q.includes("epic") || q.includes("azimar")) return "SANA";
+    if (q.includes("hyatt") || q.includes("icon") || q.includes("odyssey")) return "Hyatt";
+    return "Cliente Final";
+  };
+
+  const legacyValorMasterSuggestionSingle = (servico: string, contexto?: string) => {
+    const svc = normalizeText(servico || "");
+    if (!svc) return null;
+    const ctx = contexto || "Cliente Final";
+    const rows = valoresMaster.filter(v => v.ativo === 1 && normalizeText(v.servico) === svc);
+    if (rows.length === 0) return null;
+    const byContext = (wanted: string) => rows.find(v => normalizeText(v.contexto) === normalizeText(wanted) || normalizeText(v.cliente_nome || "") === normalizeText(wanted));
+    let row: ValorMaster | undefined;
+    if (["SUD", "SANA", "Hyatt", "Conta Especial"].includes(ctx)) row = byContext(ctx);
+    if (!row && (ctx === "Residência" || ctx === "Evento Residência")) row = byContext("Residência");
+    if (!row && ctx === "Parceiro") row = byContext("Parceiro") || byContext("Normal") || byContext("Priceless Band") || rows[0];
+    if (!row) row = byContext("Normal") || byContext("Cliente Final") || byContext("Priceless Band") || rows[0];
+    const resolvedRow = row || rows[0];
+    const valor = ctx === "SUD"
+      ? Number(resolvedRow.valor_sud || resolvedRow.valor_cliente_final || 0)
+      : (ctx === "Parceiro" || ctx === "Residência")
+        ? Number(resolvedRow.valor_parceiro || 0)
+        : Number(resolvedRow.valor_cliente_final || 0);
+    return {
+      row: resolvedRow,
+      valor,
+      custo: Number(resolvedRow.custo_interno || 0),
+      servico,
+      sourceType: "legacy" as const,
+      sourceName: isAutoBudgetPackService(servico) ? "Pack / tabela atual" : "Tabela atual",
+      costSourceName: "Tabela atual",
+      skill: "",
+    };
+  };
+
+  const residenciaAppliesToService = (residencia: ResidenciaAtiva | undefined, servico: string) => {
+    if (!residencia || !servico) return false;
+    if (normalizeText(residencia.servico || "") === normalizeText(servico)) return true;
+    const residenceSkill = standaloneSkillForService(residencia.servico || "");
+    const serviceSkill = standaloneSkillForService(servico);
+    return !!residenceSkill && !!serviceSkill && normalizeText(residenceSkill) === normalizeText(serviceSkill);
+  };
+
+  const valorMasterSuggestionSingle = (servico: string, contexto?: string) => {
+    const ctx = contexto || form.valor_contexto || "Cliente Final";
+    const commercialPack = findCommercialPackByName(servico);
+    if (commercialPack) {
+      return {
+        row: undefined as ValorMaster | undefined,
+        valor: commercialPackBillingValue(commercialPack, ctx),
+        custo: commercialPackEstimatedCost(commercialPack, ctx),
+        servico,
+        sourceType: "pack" as const,
+        sourceName: `Pack · ${commercialPack.nome}`,
+        costSourceName: commercialPack.componentes?.length ? "Componentes do pack" : "Composição por definir",
+        skill: "",
+        candidateCount: 0,
+      };
+    }
+    if (!isAutoBudgetPackService(servico)) {
+      const ref = standaloneReferenceFromColaboradores(servico, ctx, colaboradoresAtivos, form.tipo_comercial);
+      if (ref) {
+        const residencia = form.residencia_id ? residenciasAtivas.find(r => r.id === form.residencia_id) : undefined;
+        const residenceMatches = residenciaAppliesToService(residencia, servico);
+        let valor = Number(ref.valor || 0);
+        let custo = Number(ref.custo || 0);
+        let sourceName = ref.sourceName;
+        let costSourceName = ref.costSourceName;
+
+        if (residenceMatches && form.tipo_comercial === "Residência") {
+          if (Number(residencia?.valor_cliente || 0) > 0) {
+            valor = Number(residencia!.valor_cliente);
+            sourceName = `Residência · ${residencia!.nome} · faturação residência`;
+          }
+          if (Number(residencia?.custo_interno || 0) > 0) {
+            custo = Number(residencia!.custo_interno);
+            costSourceName = `Residência · ${residencia!.nome} · custo residência`;
+          }
+        } else if (residenceMatches && form.tipo_comercial === "Evento de Residência") {
+          if (Number(residencia?.valor_evento || 0) > 0) {
+            valor = Number(residencia!.valor_evento);
+            sourceName = `Residência · ${residencia!.nome} · faturação evento residência`;
+          }
+          if (Number(residencia?.custo_evento || 0) > 0) {
+            custo = Number(residencia!.custo_evento);
+            costSourceName = `Residência · ${residencia!.nome} · custo evento`;
+          }
+        }
+
+        return {
+          row: undefined as ValorMaster | undefined,
+          valor,
+          custo,
+          servico,
+          sourceType: "colaboradores" as const,
+          sourceName,
+          costSourceName,
+          skill: ref.skill,
+          candidateCount: ref.candidateCount,
+          noActiveProvider: ref.candidateCount === 0,
+        };
+      }
+    }
+    return legacyValorMasterSuggestionSingle(servico, contexto);
+  };
+
+  const valorMasterSuggestion = (servicoValue?: string, contexto?: string) => {
+    const selected = parseServicosContratadosDetalhes(servicoValue);
+    const servicos = selected.length > 0
+      ? selected
+      : ((servicoValue || "").trim() ? [{ nome: String(servicoValue).trim(), quantidade: 1 }] : []);
+    if (servicos.length === 0) return null;
+    const found = servicos.map(item => {
+      const base = valorMasterSuggestionSingle(item.nome, contexto);
+      if (!base) return null;
+      const quantidade = Math.max(1, Number(item.quantidade || 1) || 1);
+      const assignedCount = base.skill
+        ? artists.filter(a => normalizeText(a.tipo || "") === normalizeText(base.skill)).length
+        : null;
+      return {
+        ...base,
+        quantidade,
+        assignedCount,
+        valorUnitario: Number(base.valor || 0),
+        custoUnitario: Number(base.custo || 0),
+        valorTotal: Number(base.valor || 0) * quantidade,
+        custoTotal: Number(base.custo || 0) * quantidade,
+      };
+    }).filter(Boolean) as Array<NonNullable<ReturnType<typeof valorMasterSuggestionSingle>> & {
+      quantidade: number; assignedCount: number | null; valorUnitario: number; custoUnitario: number; valorTotal: number; custoTotal: number;
+    }>;
+    if (found.length === 0) return null;
+    const foundNames = new Set(found.map(x => x.servico));
+    const semValor = servicos.filter(s => !foundNames.has(s.nome)).map(s => s.nome);
+    for (const item of found) if (item.valorUnitario <= 0 && !semValor.includes(item.servico)) semValor.push(item.servico);
+    return {
+      row: found[0].row,
+      valor: found.reduce((sum, x) => sum + x.valorTotal, 0),
+      custo: found.reduce((sum, x) => sum + x.custoTotal, 0),
+      encontrados: found.length,
+      total: servicos.length,
+      semValor,
+      items: found,
+    };
+  };
+
+  const aplicarValorSugerido = () => {
+    const suggestion = valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto);
+    const total = Number(suggestion?.valor || 0) + materiaisReceita;
+    if (!suggestion && !total) { showToast("Sem valor sugerido para esta combinação"); return; }
+    const snapshot = suggestion ? {
+      version: 1,
+      applied_at: new Date().toISOString(),
+      tipo_comercial: form.tipo_comercial,
+      valor_contexto: form.valor_contexto,
+      residencia_id: form.residencia_id,
+      faturacao_sugerida: total,
+      custo_estimado: Number(suggestion.custo || 0) + materiaisCusto,
+      items: suggestion.items.map(item => ({
+        servico: item.servico,
+        quantidade: item.quantidade,
+        skill: item.skill || "",
+        valor_unitario: item.valorUnitario,
+        valor_total: item.valorTotal,
+        custo_unitario: item.custoUnitario,
+        custo_total: item.custoTotal,
+        fonte_faturacao: item.sourceName || "",
+        fonte_custo: item.costSourceName || "",
+      })),
+    } : null;
+    setForm(f => ({ ...f, bill: String(total), autobudget_snapshot: snapshot ? JSON.stringify(snapshot) : f.autobudget_snapshot }));
+    showToast(`Auto Budget aplicado: ${total}€`);
+  };
+  const normalizeArtistRow = (a: any): ArtistRow => {
+    const col = findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome || "");
+    const currentTipo = a.tipo || "";
+    const tiposPermitidos = col ? tiposFromSkills(col.skills) : [];
+    return {
+      id: a.id,
+      colaborador_id: col?.id ?? a.colaborador_id ?? null,
+      nome: col ? colaboradorDisplayName(col) : (a.nome || ""),
+      tipo: col && tiposPermitidos.length > 0 && currentTipo && !tiposPermitidos.includes(currentTipo) ? "" : currentTipo,
+      fee: String(a.fee ?? ""),
+      fee_auto: false,
+    };
+  };
+
+  // Escrever/apagar no campo nunca deve selecionar automaticamente um colaborador.
+  // A associação só acontece quando a pessoa clica numa sugestão.
+  const updateArtistNome = (i: number, nome: string) => {
+    const exactColaborador = findColaboradorByNome(nome);
+    const tiposPermitidos = exactColaborador ? tiposFromSkills(exactColaborador.skills) : [];
+    setArtists(prev => prev.map((a, idx) => idx === i ? {
+      ...a,
+      colaborador_id: null,
+      nome,
+      tipo: exactColaborador && tiposPermitidos.length > 0 && !tiposPermitidos.includes(a.tipo) ? "" : a.tipo,
+    } : a));
+  };
+
+  const selectArtistSuggestion = (i: number, suggestion: ArtistOption) => {
+    const col = suggestion.colaborador_id
+      ? findColaboradorById(suggestion.colaborador_id)
+      : findColaboradorByNome(suggestion.nome);
+    const tiposPermitidos = col ? tiposFromSkills(col.skills) : [];
+    setArtists(prev => prev.map((a, idx) => {
+      if (idx !== i) return a;
+      const suggestionTipo = suggestion.tipo || "";
+      const nextTipo = suggestionTipo && tiposPermitidos.includes(suggestionTipo)
+        ? suggestionTipo
+        : (tiposPermitidos.length > 0 && tiposPermitidos.includes(a.tipo)
+          ? a.tipo
+          : (tiposPermitidos.length === 1 ? tiposPermitidos[0] : ""));
+      const fee = col && nextTipo ? suggestedFeeForArtist(col, nextTipo) : (nextTipo ? suggestedFeeForTipo(nextTipo) : 0);
+      return {
+        ...a,
+        colaborador_id: col?.id ?? suggestion.colaborador_id ?? null,
+        nome: col ? colaboradorDisplayName(col) : suggestion.nome,
+        tipo: nextTipo,
+        fee: fee ? String(fee) : "",
+        fee_auto: true,
+      };
+    }));
+  };
+
+  const updateArtistTipo = (i: number, tipo: string) => {
+    setArtists(prev => prev.map((a, idx) => {
+      if (idx !== i) return a;
+      const col = findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome);
+      const fee = col ? suggestedFeeForArtist(col, tipo) : suggestedFeeForTipo(tipo);
+      return { ...a, tipo, fee: fee ? String(fee) : "", fee_auto: true };
+    }));
+  };
+
+  const updateArtistFee = (i: number, value: string) =>
+    setArtists(prev => prev.map((a, idx) => idx === i ? { ...a, fee: value, fee_auto: false } : a));
+
+  const applyResidenciaAtiva = (id: number | null) => {
+    const r = id ? residenciasAtivas.find(x => x.id === id) : undefined;
+    const nextTipoComercial = r ? (form.tipo_comercial === "Evento de Residência" ? "Evento de Residência" : "Residência") : form.tipo_comercial;
+    const nextValorContexto = r ? (nextTipoComercial === "Evento de Residência" ? "Evento Residência" : "Residência") : form.valor_contexto;
+    setForm(f => ({
+      ...f,
+      autobudget_snapshot: "",
+      residencia_id: id,
+      tipo_comercial: nextTipoComercial,
+      servico_comercial: r?.servico || f.servico_comercial,
+      valor_contexto: nextValorContexto,
+      title: r?.nome || f.title,
+      venue: r?.local || f.venue,
+      time: r?.duracao_formato || f.time,
+      tipo: r?.servico || f.tipo,
+      bill: r ? String(nextTipoComercial === "Evento de Residência" ? (r.valor_evento || r.valor_cliente || 0) : (r.valor_cliente || 0)) : f.bill,
+      cliente_nome: r?.cliente_nome || f.cliente_nome,
+    }));
+    if (r?.cliente_nome) setClienteSearch(r.cliente_nome);
+    if (r?.performer_padrao_id || r?.performer_padrao_nome) {
+      setArtists([{
+        colaborador_id: r.performer_padrao_id ?? null,
+        nome: r.performer_padrao_nome || "",
+        tipo: standaloneSkillForService(r.servico || "") || r.servico || "DJ",
+        fee: nextTipoComercial === "Evento de Residência"
+          ? (r.custo_evento ? String(r.custo_evento) : "")
+          : (r.custo_interno ? String(r.custo_interno) : ""),
+        fee_auto: true,
+      }]);
+    } else if (r) {
+      repriceAutoArtists(nextTipoComercial, nextValorContexto, id);
+    } else {
+      repriceAutoArtists(form.tipo_comercial, form.valor_contexto, null);
+    }
+  };
+
+  const openCreate = () => {
+    loadLookups();
+    setBudgetOpen(false);
+    setUseMaterials(false);
+    setMarketingRequested(false);
+    setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
+    setArtists([emptyArtist()]);
+    setClienteSearch("");
+    setClienteDropOpen(false);
+    setClienteCreating(false);
+    setIsResidencia(false);
+    setResidenciaDates([new Date().toISOString().split("T")[0]]);
+    setSelectedPackIds([]);
+    setMateriaisReservadosResumo([]);
+    setLoadingMateriaisResumo(false);
+    setModal({ open: true, editing: null });
+  };
+
+  const openEdit = (e: AgendaEvent) => {
+    loadLookups();
+    setBudgetOpen(false);
+    setUseMaterials(false);
+    setMarketingRequested(false);
+    getMarketingPresence(e.id).then(r => { if (r.success) setMarketingRequested(r.requested); });
+    setForm({
+      title: e.title, date: e.event_date, time: e.time_range || "",
+      tipo: e.tipo || "", bill: String(e.bill || 0), valor_recebido: String(e.valor_recebido || 0),
+      billing_status: e.billing_status || "Contacto",
+      cliente_nome: e.cliente_nome || "",
+      modalidade: e.modalidade || "Fatura",
+      tipo_comercial: e.tipo_comercial || "Evento",
+      servico_comercial: e.servico_comercial || "",
+      valor_contexto: e.valor_contexto || inferValorContexto(e.cliente_nome || "", e.tipo_comercial || "Evento"),
+      venue: e.venue || "",
+      contacto: e.contacto || "", notas: e.notas || "",
+      residencia_id: e.residencia_id ?? null,
+      autobudget_snapshot: e.autobudget_snapshot || "",
+    });
+    setClienteSearch(e.cliente_nome || "");
+    setSelectedPackIds([]);
+    setClienteDropOpen(false);
+    setClienteCreating(false);
+    setIsResidencia(false);
+    setResidenciaDates([]);
+    setModal({ open: true, editing: e });
+    setMateriaisReservadosResumo([]);
+    refreshMateriaisResumo(e.id).then(rows => { if (rows.length > 0) setUseMaterials(true); });
+    const cachedArtists = (artistasMap[e.id] || []).map(normalizeArtistRow);
+    if (cachedArtists.length > 0) {
+      setArtists(cachedArtists);
+      setLoadingArtists(false);
+      return;
+    }
+    setArtists([emptyArtist()]);
+    setLoadingArtists(true);
+    getArtistasEvento(e.id).then(r => {
+      if (r.success && r.data.length > 0) setArtists(r.data.map(normalizeArtistRow));
+      else setArtists([emptyArtist()]);
+      setLoadingArtists(false);
+    });
+  };
+
+  const closeModal = () => {
+    setModal({ open: false, editing: null });
+    setBudgetOpen(false);
+    setUseMaterials(false);
+    setMarketingRequested(false);
+    setForm(emptyForm);
+    setArtists([emptyArtist()]);
+    setIsResidencia(false);
+    setResidenciaDates([]);
+    setTrocaNovaData("");
+  };
+
+  // Artist table helpers
+  const addArtistRow = () => setArtists(prev => [...prev, emptyArtist()]);
+  const removeArtistRow = (i: number) => setArtists(prev => prev.filter((_, idx) => idx !== i));
+  const updateArtist = (i: number, field: keyof ArtistRow, value: string | number) =>
+    setArtists(prev => prev.map((a, idx) => idx === i ? { ...a, [field]: value } : a));
+
+  const totalArtistas = artists.filter(a => a.nome.trim()).reduce((s, a) => s + (parseFloat(a.fee) || 0), 0);
+
+  const handleSave = async () => {
+    if (!form.title.trim()) { showToast("Título obrigatório"); return; }
+    setSaving(true);
+    const cleanTitle = form.title.trim().replace(/^\p{Emoji}+\s*/u, "");
+    const data = {
+      title: cleanTitle, date: form.date, time: form.time, tipo: form.tipo,
+      bill: parseFloat(form.bill) || 0, valor_recebido: parseFloat(form.valor_recebido) || 0, billing_status: form.billing_status,
+      cliente_nome: form.cliente_nome, modalidade: form.modalidade,
+      tipo_comercial: form.tipo_comercial,
+      servico_comercial: form.servico_comercial,
+      valor_contexto: form.valor_contexto,
+      venue: form.venue || "",
+      contacto: form.contacto || "", notas: form.notas || "",
+      residencia_id: form.residencia_id,
+      autobudget_snapshot: form.autobudget_snapshot || "",
+    };
+    const validArtists = artists.filter(a => a.nome.trim()).map(a => ({
+      colaborador_id: a.colaborador_id ?? findColaboradorByNome(a.nome)?.id ?? null,
+      nome: a.nome.trim(),
+      tipo: a.tipo,
+      fee: parseFloat(a.fee) || 0,
+    }));
+    const reservarPacksEvento = async (eventoId: number, eventoNome: string) => {
+      const manualIds = selectedPackIds;
+      const selectedServices = parseServicosContratados(form.servico_comercial);
+      const servicesForPacks = selectedServices.length > 0 ? selectedServices : [form.servico_comercial || form.title || cleanTitle];
+      const autoIds: number[] = [];
+      for (const service of servicesForPacks.filter(Boolean)) {
+        const auto = await getMaterialPackIdsForServico(service, form.valor_contexto || "Normal");
+        if (auto.success) autoIds.push(...((auto.data || []) as number[]));
+      }
+      await syncPacksComerciaisMateriaisEvento(eventoId, selectedServices, userName);
+      const packIds = Array.from(new Set([...(manualIds || []), ...autoIds]));
+      if (packIds.length === 0) return;
+      await reservarMaterialPacksParaEvento({
+        evento_id: eventoId,
+        evento_nome: eventoNome,
+        pack_ids: packIds,
+        servico: servicesForPacks.filter(Boolean).join(" + ") || form.title || cleanTitle,
+        reservado_por: userName,
+      });
+    };
+
+    try {
+      let feedback = "Evento guardado";
+      if (modal.editing) {
+        const updateRes = await updateAgendaEvent(modal.editing.id, data);
+        if (!updateRes.success) throw new Error("Não foi possível atualizar o evento.");
+        await syncArtistasEvento(modal.editing.id, cleanTitle, form.date, validArtists);
+        await reservarPacksEvento(modal.editing.id, cleanTitle);
+        const linkedLeadId = updateRes.leadId ?? (modal.editing as any).origem_lead_id;
+        if (linkedLeadId) await syncArtistasParaLead(linkedLeadId, cleanTitle, form.date, validArtists);
+        const marketing = await saveMarketingPresence(modal.editing.id, marketingRequested);
+        if (!marketing.success) throw new Error(marketing.message || "Erro no pedido de Marketing.");
+        feedback = marketingRequested ? marketing.message : "Evento atualizado";
+      } else {
+        const dates = isResidencia && residenciaDates.length > 0 ? residenciaDates.filter(d => d.trim()) : [form.date];
+        let created = 0;
+        const warnings: string[] = [];
+        for (const d of dates) {
+          const res = await createAgendaEvent({ ...data, date: d });
+          if (!res.success || !res.id) { warnings.push(`Evento ${d}: não foi possível criar`); continue; }
+          created++;
+          await syncArtistasEvento(res.id, cleanTitle, d, validArtists);
+          await reservarPacksEvento(res.id, cleanTitle);
+          if (marketingRequested) {
+            const result = await saveMarketingPresence(res.id, true);
+            if (!result.sent) warnings.push(`${d}: ${result.message}`);
+          }
+        }
+        if (!created) throw new Error(warnings.join(" · ") || "Não foi possível criar o evento.");
+        feedback = `${created} evento${created !== 1 ? "s" : ""} criado${created !== 1 ? "s" : ""}${marketingRequested ? " · pedidos de Marketing processados" : ""}${warnings.length ? ` · ${warnings.join(" · ")}` : ""}`;
+      }
+      closeModal();
+      await load(undefined, selectedMonth);
+      showToast(feedback, undefined, marketingRequested ? 10000 : 4000);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Erro ao guardar o evento.", undefined, 10000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const handleCancel = async (e: AgendaEvent) => {
+    if (cancellingId === e.id) return;
+    setCancellingId(e.id);
+    try {
+      const res: { success: boolean; message?: string } = await cancelAgendaEvent(e.id);
+      if (!res.success) {
+        console.error("Falha ao cancelar evento", { id: e.id, res });
+        showToast(res.message ? `Erro: ${res.message}` : "Erro ao cancelar evento (ver consola)", undefined, 10000);
+        return;
+      }
+      await load(undefined, selectedMonth);
+      showToast("Evento cancelado", {
+        label: "Undo",
+        fn: async () => { await restoreAgendaEvent(e.id); setToast(""); setUndoAction(null); load(undefined, selectedMonth); },
+      });
+    } finally {
+      setCancellingId(null);
+    }
+  };
+  const handleRestore = async (e: AgendaEvent) => {
+    await restoreAgendaEvent(e.id); showToast("Evento reposto"); load(undefined, selectedMonth);
+  };
+  const handleDelete = async (id: number) => {
+    if (!confirm("Eliminar este evento definitivamente?")) return;
+    await deleteAgendaEvent(id); showToast("Evento eliminado"); load(undefined, selectedMonth);
+  };
+  const handleCancelFromModal = async () => {
+    if (modal.editing && !cancellingId) {
+      const ev = modal.editing;
+      setCancellingId(ev.id);
+      try {
+        const res: { success: boolean; message?: string } = await cancelAgendaEvent(ev.id);
+        if (!res.success) {
+          console.error("Falha ao cancelar evento", { id: ev.id, res });
+          showToast(res.message ? `Erro: ${res.message}` : "Erro ao cancelar evento (ver consola)", undefined, 10000);
+          return;
+        }
+        closeModal(); await load(undefined, selectedMonth);
+        showToast("Evento cancelado", {
+          label: "Undo",
+          fn: async () => { await restoreAgendaEvent(ev.id); setToast(""); setUndoAction(null); load(undefined, selectedMonth); },
+        });
+      } finally {
+        setCancellingId(null);
+      }
+    }
+  };
+
+  // Converter lead em evento real na agenda
+  const handleLeadConvert = async (l: Lead) => {
+    const res = await createAgendaEvent({
+      title: l.title, date: l.event_date, time: "", tipo: "Evento",
+      bill: l.value || 0, valor_recebido: Number(l.valor_recebido || 0), billing_status: l.status,
+      cliente_id: (l as any).cliente_id ?? null,
+      cliente_nome: l.cliente_nome, modalidade: l.modalidade,
+      origem_lead_id: l.id,
+      tipo_comercial: l.tipo_comercial || "Evento",
+      servico_comercial: l.servico_comercial || "",
+      valor_contexto: l.valor_contexto || inferValorContexto(l.cliente_nome || "", l.tipo_comercial || "Evento"),
+      venue: l.local || "", contacto: l.contacto || "", notas: l.notas || "",
+    });
+    if (res.success) { showToast("Lead convertida em evento"); load(undefined, selectedMonth); }
+    else showToast("Erro ao converter");
+  };
+
+  // Cancelar lead a partir da agenda (redireciona para leads page)
+  const handleLeadRemove = (l: Lead) => {
+    if (!confirm(`Remover "${l.title}" da vista da agenda?\n(A lead continua nas Leads)`)) return;
+    // Esconde localmente sem alterar a BD — basta retirar do state
+    setConfirmedLeads(prev => prev.filter(x => x.id !== l.id));
+  };
+
+  // ── Trocas: regista que um evento mudou de dia por troca com outra pessoa
+  // (ex: SUD), guardando o dia original como anotação em "notas". Não cria
+  // nem apaga eventos — só atualiza a data do evento existente.
+  // Extrai a anotação de troca (se existir) do campo notas, sem perder o resto do texto
+  const TROCA_TAG_RE = /\[TROCA:([^\]]*)\]/;
+  const stripTrocaTag = (notas: string) => (notas || "").replace(TROCA_TAG_RE, "").trim();
+  const getTrocaNota = (notas: string): string | null => {
+    const m = TROCA_TAG_RE.exec(notas || "");
+    return m ? m[1].trim() : null;
+  };
+  const fmtDataPt = (d: string) => {
+    const [, m, dd] = d.split("-");
+    return `${dd}/${m}`;
+  };
+  // Aplica a troca: muda a data do evento para novaData e regista o dia original na nota
+  const handleAplicarTroca = async (ev: AgendaEvent, novaData: string) => {
+    if (!novaData || novaData === ev.event_date) return;
+    const diaOriginal = fmtDataPt(ev.event_date);
+    const notaTroca = `[TROCA:troca, dia original ${diaOriginal}]`;
+    const notasBase = stripTrocaTag(ev.notas || "");
+    const res = await updateAgendaEvent(ev.id, {
+      title: ev.title, date: novaData, time: ev.time_range || "",
+      tipo: ev.tipo || "", bill: Number(ev.bill) || 0, valor_recebido: Number(ev.valor_recebido || 0),
+      billing_status: ev.billing_status, cliente_nome: ev.cliente_nome,
+      modalidade: ev.modalidade, venue: ev.venue || "",
+      contacto: ev.contacto || "",
+      notas: `${notasBase} ${notaTroca}`.trim(),
+    });
+    if (res.success) {
+      showToast(`Evento movido para ${fmtDataPt(novaData)} (troca registada)`);
+      closeModal();
+      await load(undefined, selectedMonth);
+    } else {
+      showToast("Erro ao registar troca");
+    }
+  };
+  // Remove a anotação de troca, sem alterar mais nada
+  const handleRemoverNotaTroca = async (ev: AgendaEvent) => {
+    const novasNotas = stripTrocaTag(ev.notas || "");
+    const res = await updateAgendaEvent(ev.id, {
+      title: ev.title, date: ev.event_date, time: ev.time_range || "",
+      tipo: ev.tipo || "", bill: Number(ev.bill) || 0, valor_recebido: Number(ev.valor_recebido || 0),
+      billing_status: ev.billing_status, cliente_nome: ev.cliente_nome,
+      modalidade: ev.modalidade, venue: ev.venue || "",
+      contacto: ev.contacto || "",
+      notas: novasNotas,
+    });
+    if (res.success) {
+      showToast("Anotação de troca removida");
+      setModal(m => m.editing ? { ...m, editing: { ...m.editing, notas: novasNotas } } : m);
+      await load(undefined, selectedMonth);
+    }
+  };
+
+  // Verifica se um evento e so do Joao (equipa tem apenas azul)
+  const isSoJoao = (tipo: string) => {
+    const equipa = parseEquipa(tipo);
+    return equipa.length > 0 && equipa.every(n => n === "João");
+  };
+
+  const filtered = events.filter(e => {
+    const monthMatch = monthKey(e.event_date) === selectedMonth;
+    const searchMatch = !search || e.title.toLowerCase().includes(search.toLowerCase()) || (e.tipo || "").toLowerCase().includes(search.toLowerCase());
+    const evArtists = artistasMap[e.id] || [];
+    const artistaMatch = !filterArtista || evArtists.some(a => resolveColaboradorNome(a.nome).toLowerCase() === filterArtista.toLowerCase());
+    const clienteMatch = !filterCliente || (() => {
+      const cn = e.cliente_nome || '';
+      const c = clientes.find(c => c.nome === cn || (c.alias?.trim() && c.alias.trim() === cn));
+      const display = c?.alias?.trim() || cn;
+      return display.toLowerCase() === filterCliente.toLowerCase();
+    })();
+    const equipaMatch = !filterEquipa || parseEquipa(e.tipo || "").includes(filterEquipa);
+    // João, Tânia/Annia, Soraya e Inês veem a agenda completa.
+    // Mantém-se apenas a restrição antiga da Larissa.
+    const visibilityMatch = userName !== "Larissa" || !isSoJoao(e.tipo || "");
+    return monthMatch && searchMatch && artistaMatch && clienteMatch && equipaMatch && visibilityMatch;
+  });
+
+  // Leads confirmadas do mês seleccionado que ainda não estão na agenda
+  // Listas para os dropdowns — baseadas em TODOS os eventos do mês seleccionado
+  const allMonthEvents = events.filter(e => monthKey(e.event_date) === selectedMonth);
+  const dropdownArtistas = Array.from(new Set(
+    allMonthEvents.flatMap(e => (artistasMap[e.id] || []).map(a => resolveColaboradorNome(a.nome))).filter(Boolean)
+  )).sort((a, b) => a.localeCompare(b, "pt-PT", { sensitivity: "base" }));
+  const dropdownClientes = Array.from(new Set(
+    allMonthEvents.map(e => {
+      if (!e.cliente_nome) return '';
+      const c = clientes.find(c => c.nome === e.cliente_nome || (c.alias?.trim() && c.alias.trim() === e.cliente_nome));
+      return c?.alias?.trim() || e.cliente_nome;
+    }).filter(Boolean)
+  )).sort((a, b) => a.localeCompare(b, "pt-PT", { sensitivity: "base" }));
+  const dropdownEquipa = EQUIPA_NOMES.filter(n =>
+    allMonthEvents.some(e => parseEquipa(e.tipo || "").includes(n))
+  );
+
+  const displayCliente = (nome?: string) => {
+    if (!nome) return "";
+    const c = clientes.find(c => c.nome === nome || (c.alias?.trim() && c.alias.trim() === nome));
+    return c?.alias?.trim() || nome;
+  };
+
+  // Mantém a mesma lógica do módulo Pagamentos: o fee da Annia não é tratado como custo externo.
+  const custoArtistasParaLucro = (rows: ArtistRow[]) => rows
+    .filter(a => !normalizeText(resolveColaboradorNome(a.nome || "")).includes("annia"))
+    .reduce((sum, a) => sum + (parseFloat(String(a.fee || 0)) || 0), 0);
+
+  const lucroVisivel = (valor: number | string | undefined, rows: ArtistRow[], materialCost: number = 0) =>
+    Number(valor || 0) - custoArtistasParaLucro(rows) - Number(materialCost || 0);
+
+  const temMovimentoFinanceiro = (valor: number | string | undefined, rows: ArtistRow[], materialCost: number = 0) =>
+    Number(valor || 0) !== 0 || custoArtistasParaLucro(rows) !== 0 || Number(materialCost || 0) !== 0;
+
+  const artistsForAgendaLead = (l: Lead) =>
+    l.agenda_event_id ? (artistasMap[l.agenda_event_id] || []) : (artistasMap[-l.id] || []);
+
+  const filteredLeads = confirmedLeads.filter(l => monthKey(l.event_date) === selectedMonth);
+
+  // Histórico de artistas com tipos para autocomplete
+  const artistHistory = Array.from(new Set(
+    Object.values(artistasMap)
+      .flat()
+      .filter(a => a.nome?.trim() && a.tipo?.trim())
+      .map(a => JSON.stringify({ nome: a.nome, tipo: a.tipo, colaborador_id: a.colaborador_id ?? null }))
+  )).map(j => JSON.parse(j)).sort((a, b) => a.nome.localeCompare(b.nome, "pt", { sensitivity: "base" }));
+
+  // Todos os dias do mês seleccionado para mostrar folgas
+  const daysInSelectedMonth = (() => {
+    const [y, m] = selectedMonth.split("-").map(Number);
+    const count = new Date(y, m, 0).getDate();
+    const days: string[] = [];
+    for (let d = 1; d <= count; d++) {
+      days.push(`${selectedMonth}-${String(d).padStart(2, "0")}`);
+    }
+    return days;
+  })();
+
+  const eventDates = new Set(filtered.map(e => toIsoDate(e.event_date)));
+  const leadDates = new Set(filteredLeads.map(l => toIsoDate(l.event_date)));
+
+  // Dias sem nenhum evento nem lead confirmada = Folga
+  const folgaDays = !search ? daysInSelectedMonth.filter(d => !eventDates.has(d) && !leadDates.has(d)) : [];
+
+  // Unificar tudo numa lista ordenada por data
+  type Row =
+    | { kind: "event"; date: string; data: AgendaEvent }
+    | { kind: "lead"; date: string; data: Lead }
+    | { kind: "folga"; date: string };
+
+  // Helper: extract start hour from time_range like "20:00-23:00"
+  const timeToMinutes = (t?: string) => {
+    if (!t) return 9999;
+    const m = t.match(/^(\d{1,2}):(\d{2})/);
+    return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : 9999;
+  };
+
+  const allRows: Row[] = [
+    ...filtered.map(e => ({ kind: "event" as const, date: toIsoDate(e.event_date), data: e })),
+    ...filteredLeads.map(l => ({ kind: "lead" as const, date: toIsoDate(l.event_date), data: l })),
+    ...folgaDays.map(d => ({ kind: "folga" as const, date: d })),
+  ].sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    // Same day: sort events by start time
+    const aTime = a.kind === "event" ? timeToMinutes(a.data.time_range) : (a.kind === "lead" ? 9998 : 9999);
+    const bTime = b.kind === "event" ? timeToMinutes(b.data.time_range) : (b.kind === "lead" ? 9998 : 9999);
+    return aTime - bTime;
+  });
+
+  const normalizeConflictName = (name: string) => resolveColaboradorNome(name || '')
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+  const conflictOverrideKeys = new Set(conflictOverrides.map(o => `${o.event_date}|${o.artist_key}`));
+  const conflictItems = [
+    ...filtered.map(e => ({ key: `event-${e.id}`, entityKey: e.event_id || `agenda-${e.id}`, date: toIsoDate(e.event_date), title: e.title || "Evento", artists: artistasMap[e.id] || [] })),
+    ...filteredLeads.map(l => ({ key: `lead-${l.id}`, entityKey: l.event_id || `lead-${l.id}`, date: toIsoDate(l.event_date), title: l.title || "Lead", artists: artistasMap[-l.id] || [] })),
+  ];
+  const conflictMap = (() => {
+    const groups = new Map<string, { artist: string; items: { key: string; entityKey: string; title: string }[] }>();
+    for (const item of conflictItems) {
+      const seenArtists = new Set<string>();
+      for (const a of item.artists) {
+        const display = resolveColaboradorNome(a.nome || '').trim();
+        const artistKey = normalizeConflictName(display);
+        if (!artistKey || seenArtists.has(artistKey)) continue;
+        seenArtists.add(artistKey);
+        const key = `${item.date}|${artistKey}`;
+        if (conflictOverrideKeys.has(key)) continue;
+        if (!groups.has(key)) groups.set(key, { artist: display, items: [] });
+        groups.get(key)!.items.push({ key: item.key, entityKey: item.entityKey, title: item.title });
+      }
+    }
+    const result = new Map<string, { artist: string; date: string; artistKey: string; others: string[] }[]>();
+    for (const [key, group] of groups.entries()) {
+      const uniqueEntities = Array.from(new Set(group.items.map(i => i.entityKey)));
+      if (uniqueEntities.length < 2) continue;
+      const [date, artistKey] = key.split('|');
+      for (const item of group.items) {
+        const others = group.items.filter(i => i.entityKey !== item.entityKey).map(i => i.title);
+        if (!result.has(item.key)) result.set(item.key, []);
+        result.get(item.key)!.push({ artist: group.artist, date, artistKey, others: Array.from(new Set(others)) });
+      }
+    }
+    return result;
+  })();
+  const conflictsForEvent = (e: AgendaEvent) => conflictMap.get(`event-${e.id}`) || [];
+  const conflictsForLead = (l: Lead) => conflictMap.get(`lead-${l.id}`) || [];
+  const handleDismissConflict = async (date: string, artist: string) => {
+    await dismissArtistConflict({ event_date: date, artist_name: artist, note: "Dá para fazer ambos", dismissed_by: userName });
+    showToast("Alerta retirado para esse artista nesse dia");
+    await load(undefined, selectedMonth);
+  };
+  const ConflictAlert = ({ conflicts }: { conflicts: { artist: string; date: string; others: string[] }[] }) => conflicts.length === 0 ? null : (
+    <div style={{ marginTop: "5px", display: "flex", flexDirection: "column", gap: "4px" }}>
+      {conflicts.map(c => (
+        <div key={`${c.date}-${c.artist}`} style={{ background: "rgba(226,75,74,0.10)", border: "1px solid rgba(226,75,74,0.35)", color: Colors.red, padding: "5px 7px", fontSize: "11px", lineHeight: 1.35, fontWeight: 700 }}>
+          🚨🚨 {c.artist} também está em {c.others.join(" / ")} 🚨🚨
+          <button onClick={(ev) => { ev.stopPropagation(); handleDismissConflict(c.date, c.artist); }} style={{ marginLeft: "8px", background: "transparent", border: "none", color: Colors.red, textDecoration: "underline", cursor: "pointer", fontSize: "11px", fontFamily: "inherit" }}>retirar alerta</button>
+        </div>
+      ))}
+    </div>
+  );
+
+  const monthTabs = availableMonths.length ? availableMonths : Array.from(new Set([
+    ...events.map(e => e.event_date.slice(0, 7)),
+    ...confirmedLeads.map(l => l.event_date.slice(0, 7)),
+    selectedMonth,
+  ])).filter(Boolean).sort();
+  const monthLabel = (ym: string) => {
+    const [y, m] = ym.split("-");
+    const d = new Date(Number(y), Number(m) - 1, 1);
+    return d.toLocaleDateString("pt-PT", { month: "long", year: "numeric" });
+  };
+
+
+  // ── WhatsApp: abrir modal de seleção de período ───────────────────────────
+  const openWaPeriodModal = () => {
+    setWaPeriodMode("month");
+    setWaCustomStart("");
+    setWaCustomEnd("");
+    setWaPeriodError("");
+    setWaPeriodModal(true);
+  };
+
+  const WEEKDAYS_PT_LONG = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+
+  const buildAgendaTextForRange = (
+    startDate: string,
+    endDate: string,
+    label: string,
+    sourceEvents: AgendaEvent[] = events,
+    sourceLeads: Lead[] = confirmedLeads,
+    sourceArtistsMap: Record<number, ArtistRow[]> = artistasMap,
+  ): string => {
+    const lines: string[] = [label, ""];
+    const parseLocalDate = (dateStr: string) => {
+      const [y, m, d] = dateStr.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    };
+    const cur = parseLocalDate(startDate);
+    const last = parseLocalDate(endDate);
+    while (cur <= last) {
+      const dd = String(cur.getDate()).padStart(2, "0");
+      const mm = String(cur.getMonth() + 1).padStart(2, "0");
+      const yyyy = cur.getFullYear();
+      const dateStr = `${yyyy}-${mm}-${dd}`;
+      const wd = WEEKDAYS_PT_LONG[cur.getDay()];
+      const dayEvents = sourceEvents.filter(e => {
+        if (toIsoDate(e.event_date) !== dateStr) return false;
+        if (userName === "Larissa" && isSoJoao(e.tipo || "")) return false;
+        const evArtists = sourceArtistsMap[e.id] || [];
+        if (filterArtista && !evArtists.some(a => resolveColaboradorNome(a.nome).toLowerCase() === filterArtista.toLowerCase())) return false;
+        if (filterCliente && (() => {
+          const cn = e.cliente_nome || '';
+          const c = clientes.find(c => c.nome === cn || (c.alias?.trim() && c.alias.trim() === cn));
+          const display = c?.alias?.trim() || cn;
+          return display.toLowerCase() !== filterCliente.toLowerCase();
+        })()) return false;
+        if (filterEquipa && !parseEquipa(e.tipo || "").includes(filterEquipa)) return false;
+        return true;
+      });
+      const dayLeads = sourceLeads.filter(l => toIsoDate(l.event_date) === dateStr);
+
+      // Dias sem nenhum evento/lead = Folga
+      if (dayEvents.length === 0 && dayLeads.length === 0) {
+        lines.push(`*${dd}/${mm} (${wd}-feira)* ⛱️ Folga`);
+        lines.push("");
+      } else {
+        const dateLabel = `*${dd}/${mm} (${wd}-feira)*`;
+        const totalItems = dayEvents.length + dayLeads.length;
+
+        const eventLineFor = (e: AgendaEvent): string => {
+          const evArtists = (sourceArtistsMap[e.id] || []).filter(a => a.nome.trim());
+          const seen = new Set<string>();
+          const icons = evArtists
+            .map(a => { const ic = TIPO_ICON[a.tipo] || ""; if (!ic || seen.has(ic)) return ""; seen.add(ic); return ic; })
+            .filter(Boolean).join("");
+          const title = (e.title || "").trim();
+          const venue = (e.venue || "").trim();
+          const trocaNota = getTrocaNota(e.notas || "");
+          const anotacao = trocaNota ? ` (${trocaNota})` : "";
+          const canceladoTag = e.cancelled ? " 🔴 [CANCELADO]" : "";
+          const prefix = icons ? `${icons} ` : "";
+          const titleLine = venue ? `${prefix}${title} — ${venue}${anotacao}${canceladoTag}` : `${prefix}${title}${anotacao}${canceladoTag}`;
+          const artistLines = evArtists.map(a => `  * ${a.nome} | ${a.tipo}`).join("\n");
+          return artistLines ? `${titleLine}\n${artistLines}` : titleLine;
+        };
+        const leadLineFor = (l: Lead): string => {
+          const status = (l.status || "").toLowerCase();
+          const icon = ["confirmado","adjudicado","faturado","pago"].includes(status) ? "🟢" : status === "cancelado" ? "🔴" : "🟡";
+          return `${icon} ${l.title}`;
+        };
+
+        if (totalItems === 1 && dayLeads.length === 1) {
+          lines.push(`${dateLabel} ${leadLineFor(dayLeads[0])}`);
+        } else if (totalItems === 1 && dayEvents.length === 1) {
+          const evLine = eventLineFor(dayEvents[0]);
+          const evParts = evLine.split("\n");
+          if (evParts.length === 1) {
+            lines.push(`${dateLabel} ${evLine}`);
+          } else {
+            lines.push(dateLabel);
+            lines.push("");
+            lines.push(evLine);
+          }
+        } else {
+          lines.push(dateLabel);
+          lines.push("");
+          for (const e of dayEvents) lines.push(eventLineFor(e));
+          for (const l of dayLeads) lines.push(leadLineFor(l));
+        }
+        lines.push("");
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    return lines.join("\n").trim();
+  };
+
+  // ── PDF: impressão completa dos eventos ───────────────────────────────────
+  const openPdfPeriodModal = () => {
+    setPdfPeriodMode("today");
+    setPdfCustomStart("");
+    setPdfCustomEnd("");
+    setPdfPeriodError("");
+    setPdfPeriodModal(true);
+  };
+
+  const handlePrintAgendaPdf = async () => {
+    let startDate = "", endDate = "", label = "";
+    const toLocalDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const today = new Date();
+    if (pdfPeriodMode === "today") {
+      startDate = endDate = toLocalDateStr(today);
+      label = "Eventos de hoje";
+    } else if (pdfPeriodMode === "week7") {
+      const end = new Date(today);
+      end.setDate(today.getDate() + 6);
+      startDate = toLocalDateStr(today);
+      endDate = toLocalDateStr(end);
+      label = "Eventos dos próximos 7 dias";
+    } else if (pdfPeriodMode === "month") {
+      const [y, m] = selectedMonth.split("-").map(Number);
+      const daysInMonth = new Date(y, m, 0).getDate();
+      startDate = `${selectedMonth}-01`;
+      endDate = `${selectedMonth}-${String(daysInMonth).padStart(2, "0")}`;
+      const monthName = new Date(y, m - 1, 1).toLocaleDateString("pt-PT", { month: "long", year: "numeric" });
+      label = `Eventos de ${monthName}`;
+    } else {
+      if (!pdfCustomStart || !pdfCustomEnd) { setPdfPeriodError("Preenche as duas datas."); return; }
+      if (pdfCustomEnd < pdfCustomStart) { setPdfPeriodError("Data final não pode ser anterior à inicial."); return; }
+      startDate = pdfCustomStart;
+      endDate = pdfCustomEnd;
+      label = `Eventos de ${formatAgendaPdfDate(startDate)} a ${formatAgendaPdfDate(endDate)}`;
+    }
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      setPdfPeriodError("O navegador bloqueou a janela de impressão. Autoriza pop-ups para esta app e tenta novamente.");
+      return;
+    }
+    try { printWindow.opener = null; } catch { }
+    printWindow.document.write('<!doctype html><html><head><title>A preparar PDF...</title></head><body style="font-family:Arial;padding:40px;color:#333">A preparar o relatório completo...</body></html>');
+    printWindow.document.close();
+    setPdfGenerating(true);
+    setPdfPeriodError("");
+    try {
+      const result = await getAgendaPdfBundle(userName || "Admin", startDate, endDate);
+      if (!result.success) throw new Error(result.message || "Não foi possível carregar os eventos.");
+      const html = buildAgendaPdfHtml({
+        events: (result.data || []) as AgendaPdfEvent[],
+        startDate,
+        endDate,
+        label,
+        showValues: userRole !== "limited_novalues",
+      });
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      setPdfPeriodModal(false);
+      printWindow.focus();
+      printWindow.onafterprint = () => printWindow.close();
+
+      // Espera pelo ajuste de cada evento à respetiva página A4 antes de abrir
+      // a impressão. Isto evita que o Safari calcule as quebras antes do layout
+      // final estar pronto.
+      const printWhenReady = (attempt = 0) => {
+        const isReady = printWindow.document.documentElement.dataset.pdfReady === "true";
+        if (isReady || attempt >= 25) {
+          printWindow.focus();
+          printWindow.print();
+          return;
+        }
+        window.setTimeout(() => printWhenReady(attempt + 1), 80);
+      };
+      window.setTimeout(() => printWhenReady(), 40);
+    } catch (error) {
+      printWindow.close();
+      setPdfPeriodError(error instanceof Error ? error.message : "Não foi possível gerar o PDF.");
+    } finally {
+      setPdfGenerating(false);
+    }
+  };
+
+  const handleCopyAgenda = async () => {
+    let startDate = "", endDate = "", label = "";
+    if (waPeriodMode === "month") {
+      const [y, m] = selectedMonth.split("-").map(Number);
+      const daysInMonth = new Date(y, m, 0).getDate();
+      startDate = `${selectedMonth}-01`;
+      endDate = `${selectedMonth}-${String(daysInMonth).padStart(2, "0")}`;
+      const mName = new Date(y, m - 1, 1).toLocaleDateString("pt-PT", { month: "long" });
+      label = `*Agenda de ${mName.charAt(0).toUpperCase() + mName.slice(1)}*`;
+    } else if (waPeriodMode === "week7") {
+      const today = new Date();
+      const end = new Date(today);
+      end.setDate(today.getDate() + 7);
+      // Use local date (not toISOString which shifts timezone)
+      const toLocalDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+      startDate = toLocalDateStr(today);
+      endDate = toLocalDateStr(end);
+      const fmt = (d: Date) => `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
+      label = `*Agenda de ${fmt(today)} a ${fmt(end)}*`;
+    } else {
+      if (!waCustomStart || !waCustomEnd) { setWaPeriodError("Preenche as duas datas."); return; }
+      if (waCustomEnd < waCustomStart) { setWaPeriodError("Data final não pode ser anterior à inicial."); return; }
+      startDate = waCustomStart;
+      endDate = waCustomEnd;
+      const [, sm, sd] = waCustomStart.split("-");
+      const [, em, ed] = waCustomEnd.split("-");
+      label = `*Agenda de ${sd}/${sm} a ${ed}/${em}*`;
+    }
+
+    setWaGenerating(true);
+    setWaPeriodError("");
+    try {
+      // A agenda visível só carrega o mês selecionado. Para períodos que atravessam
+      // o fim do mês (ex.: julho → agosto), o WhatsApp precisa de consultar a BD
+      // pelo intervalo completo, tal como já acontece no PDF.
+      const result = await getAgendaWhatsAppBundle(userName || "Admin", startDate, endDate);
+      if (!result.success) throw new Error(result.message || "Não foi possível carregar a agenda.");
+
+      const rangeEvents = (result.agenda || []) as AgendaEvent[];
+      const rawRangeLeads = (result.leads || []) as Lead[];
+      const rangeArtistsMap = Object.fromEntries(
+        Object.entries((result.artistas || {}) as Record<number, any[]>).map(([key, rows]) => [
+          key,
+          rows.map((a: any) => ({ ...a, colaborador_id: a.colaborador_id ?? null, fee: String(a.fee ?? "") })),
+        ])
+      ) as Record<number, ArtistRow[]>;
+
+      // Manter exatamente a mesma regra da agenda: só leads confirmadas e ainda
+      // não convertidas/duplicadas aparecem na mensagem.
+      const stripEmoji = (value: string) => value.replace(/[\p{Emoji}‍️]+/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
+      const rangeLeads = rawRangeLeads.filter(l => {
+        if (!CONFIRMED_STATUSES.includes(l.status || "") || !l.event_date) return false;
+        const leadTitle = stripEmoji(l.title || "");
+        const leadValue = l.value || 0;
+        const hasLinkedEvent = rangeEvents.some(e => e.origem_lead_id === l.id);
+        if (hasLinkedEvent) return false;
+        return !rangeEvents.some(e => {
+          if (toIsoDate(e.event_date) !== toIsoDate(l.event_date)) return false;
+          const agendaTitle = stripEmoji(e.title || "");
+          const titleMatch = agendaTitle.includes(leadTitle.slice(0, 12)) || leadTitle.includes(agendaTitle.slice(0, 12));
+          const valueMatch = leadValue > 0 && Number(e.bill) === leadValue;
+          return titleMatch || valueMatch;
+        });
+      });
+
+      const text = buildAgendaTextForRange(startDate, endDate, label, rangeEvents, rangeLeads, rangeArtistsMap);
+      setWaText(text);
+      setWaCopied(false);
+      setWaPeriodModal(false);
+      setWaModal(true);
+      const doCopy = (t: string) => {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(t).then(() => setWaCopied(true)).catch(() => {
+            const ta = document.createElement("textarea");
+            ta.value = t; document.body.appendChild(ta); ta.select();
+            document.execCommand("copy"); document.body.removeChild(ta); setWaCopied(true);
+          });
+        } else {
+          const ta = document.createElement("textarea");
+          ta.value = t; document.body.appendChild(ta); ta.select();
+          document.execCommand("copy"); document.body.removeChild(ta); setWaCopied(true);
+        }
+      };
+      doCopy(text);
+    } catch (error) {
+      setWaPeriodError(error instanceof Error ? error.message : "Não foi possível preparar a mensagem para WhatsApp.");
+    } finally {
+      setWaGenerating(false);
+    }
+  };
+
+  if (loading) return <Loading />;
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  // Colors resolved near theme state so all render helpers can use them safely.
+  const bsColors: Record<string, string> = {
+    "Contacto": "var(--theme-text-muted)", "Proposta Enviada": Colors.blue,
+    "Em Negociação": Colors.amber, "Confirmado": Colors.green,
+    "Em Adjudicação": Colors.gold, "Adjudicado": Colors.gold,
+    "Faturado": "#A78BFA", "Pago": Colors.green, "Cancelado": Colors.red,
+  };
+
+  return (
+    <>
+    {/* ═══ DESKTOP ═══ */}
+    {!modal.open && !materialModal.open && (
+    <div className="mob-page-desktop" style={{ minHeight: "100vh", background: lightTheme ? "#FFFBF7" : "var(--theme-bg)", color: lightTheme ? Colors.textPrimary : Colors.textPrimary, fontFamily: "'Montserrat','Helvetica Neue',sans-serif", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
+      <DesktopNav userName={userName} active="agenda" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
+
+      <main style={{ padding: "2.75rem 3.25rem", maxWidth: "1500px", margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+          <p style={{ fontSize: "11px", letterSpacing: "0.4em", color: Colors.textSec, textTransform: "uppercase", fontWeight: 600 }}>Agenda 2026</p>
+          <div style={{ display: "flex", gap: "0.95rem", alignItems: "center" }}>
+            <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
+            <button
+              onClick={openPdfPeriodModal}
+              style={{ background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.22)", color: "var(--theme-accent)", fontSize: "10px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              PDF
+            </button>
+            <button
+              onClick={openWaPeriodModal}
+              style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "10px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+              WhatsApp
+            </button>
+            {userRole !== "limited_novalues" && (
+            <button onClick={openCreate} style={createAddBtnStyle(lightTheme)}>
+              <svg width="10" height="10" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
+              Novo Evento
+            </button>
+            )}
+          </div>
+        </div>
+
+        <div style={{ background: Colors.surface, border: `1px solid ${Colors.borderDim}`, position: "relative" }}>
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
+          <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${Colors.borderDim}`, overflowX: "auto" }}>
+            {monthTabs.map(ym => (
+              <button key={ym} onClick={() => setSelectedMonth(ym)} style={{ background: selectedMonth === ym ? "rgba(var(--theme-accent-rgb),0.08)" : "transparent", border: "none", borderRight: `1px solid ${Colors.borderDim}`, borderBottom: selectedMonth === ym ? `1px solid ${Colors.gold}` : "none", color: selectedMonth === ym ? Colors.gold : Colors.textMuted, fontSize: "10px", letterSpacing: "0.3em", padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize", fontWeight: selectedMonth === ym ? 700 : 400, whiteSpace: "nowrap", transition: "all 0.2s" }}>
+                {monthLabel(ym)}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: "0", borderBottom: `1px solid ${Colors.borderDim}` }}>
+            <input
+              value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Pesquisar evento..."
+              style={{ flex: 1, background: "var(--theme-subtle-bg)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: Colors.textPrimary, fontFamily: "inherit", fontSize: "13px", padding: "0.9rem 1.5rem", letterSpacing: "0.05em", outline: "none" }}
+            />
+            {/* Artista dropdown */}
+            <CustomSelect
+              value={filterArtista}
+              onChange={v => setFilterArtista(v)}
+              placeholder="Artista"
+              options={[{ value: "", label: "Artista" }, ...dropdownArtistas.map(a => ({ value: a, label: a }))]}
+              style={{ background: filterArtista ? "rgba(var(--theme-accent-rgb),0.08)" : "rgba(var(--theme-contrast-rgb),0.02)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: filterArtista ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "10px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
+            />
+            {/* Cliente dropdown */}
+            <CustomSelect
+              value={filterCliente}
+              onChange={v => setFilterCliente(v)}
+              placeholder="Cliente"
+              options={[{ value: "", label: "Cliente" }, ...dropdownClientes.map(c => ({ value: c, label: c }))]}
+              style={{ background: filterCliente ? "rgba(var(--theme-accent-rgb),0.08)" : "rgba(var(--theme-contrast-rgb),0.02)", border: "none", borderRight: `1px solid ${Colors.borderDim}`, color: filterCliente ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "10px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "130px", textTransform: "uppercase" as any }}
+            />
+            {/* Equipa dropdown */}
+            <CustomSelect
+              value={filterEquipa}
+              onChange={v => setFilterEquipa(v)}
+              placeholder="Equipa"
+              options={[{ value: "", label: "Equipa" }, ...dropdownEquipa.map(n => ({ value: n, label: `${EQUIPA_SYMBOL[n]} ${n}` }))]}
+              style={{ background: filterEquipa ? "rgba(var(--theme-accent-rgb),0.08)" : "rgba(var(--theme-contrast-rgb),0.02)", border: "none", color: filterEquipa ? Colors.gold : Colors.textMuted, fontFamily: "inherit", fontSize: "10px", letterSpacing: "0.25em", padding: "0.9rem 1.25rem", outline: "none", cursor: "pointer", minWidth: "120px", textTransform: "uppercase" as any }}
+            />
+            {/* Clear filters — só aparece se houver algum filtro activo */}
+            {(filterArtista || filterCliente || filterEquipa) && (
+              <button
+                onClick={() => { setFilterArtista(""); setFilterCliente(""); setFilterEquipa(""); }}
+                style={{ background: "transparent", border: "none", borderLeft: `1px solid ${Colors.borderDim}`, color: Colors.textMuted, fontSize: "11px", padding: "0.9rem 1rem", cursor: "pointer", whiteSpace: "nowrap", letterSpacing: "0.2em" }}
+                title="Limpar filtros"
+              >✕</button>
+            )}
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  {["Data", "Evento", "Hora", "Local", "Equipa", "Artistas", "Modalidade", "Estado", "Faturação", "Ações"].map((h, i) => (
+                    <th key={h} style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.goldDim, fontWeight: 600, textTransform: "uppercase", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${Colors.border}`, textAlign: i >= 8 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {allRows.map((row, idx) => {
+                  if (row.kind === "folga") {
+                    const isFolgaToday = row.date === todayStr;
+                    return (
+                      <tr key={`folga-${row.date}`} style={{ opacity: 0.38, background: isFolgaToday ? "rgba(var(--theme-accent-rgb),0.04)" : undefined }}>
+                        <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), color: isFolgaToday ? "var(--theme-accent)" : undefined, fontWeight: isFolgaToday ? 700 : undefined }}>{fmtDate(row.date)}</td>
+                        <td colSpan={8} style={{ ...createTdStyle(lightTheme, {}), fontSize: "12px", color: Colors.textMuted, letterSpacing: "0.2em", fontStyle: "italic" }}>
+                          ⛱️ Folga
+                        </td>
+                      </tr>
+                    );
+                  }
+                  if (row.kind === "lead") {
+                    const l = row.data;
+                    const isLeadToday = l.event_date === todayStr;
+                    return (
+                      <tr key={`lead-${l.id}`} style={{ background: isLeadToday ? "rgba(var(--theme-accent-rgb),0.07)" : "rgba(var(--theme-accent-rgb),0.04)", borderLeft: isLeadToday ? `3px solid ${Colors.gold}` : `2px solid rgba(var(--theme-accent-rgb),0.35)` }}>
+                        <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), color: isLeadToday ? Colors.gold : undefined, fontWeight: isLeadToday ? 700 : undefined }}>{fmtDate(l.event_date)}</td>
+                        <td style={{ ...createTdStyle(lightTheme, {}), maxWidth: "280px" }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <span style={{ fontSize: "13px" }}>{l.title}</span>
+                            </span>
+                            {l.local && <span style={{ fontSize: "11px", color: Colors.gold, letterSpacing: "0.03em" }}>📍 {l.local}</span>}
+                            {displayCliente(l.cliente_nome) && <span style={{ fontSize: "11px", color: Colors.textSec, letterSpacing: "0.03em" }}>👤 {displayCliente(l.cliente_nome)}</span>}
+                            <span style={{ fontSize: "10px", color: Colors.goldDim, letterSpacing: "0.25em", textTransform: "uppercase" }}>Lead · {l.status}</span>
+                            <ConflictAlert conflicts={conflictsForLead(l)} />
+                          </div>
+                        </td>
+                        <td style={createTdStyle(lightTheme, { muted: true })} colSpan={3}>—</td>
+                        <td style={createTdStyle(lightTheme, { muted: true })}>
+                          <span style={{ fontSize: "11px", color: Colors.textMuted }}>{l.modalidade || "Fatura"}</span>
+                        </td>
+                        <td style={createTdStyle(lightTheme, {})}>
+                          <StatusBadge color={Colors.amber} label={l.status || "Confirmado"} />
+                        </td>
+                        <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "13px" }}>
+                          {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(l.value, artistsForAgendaLead(l), l.material_cost || 0) ? (
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
+                              <span>{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
+                              <span style={{ fontSize: "10px", color: lucroVisivel(l.value, artistsForAgendaLead(l), l.material_cost || 0) >= 0 ? Colors.green : Colors.red, fontWeight: 600 }}>
+                                Lucro {lucroVisivel(l.value, artistsForAgendaLead(l), l.material_cost || 0).toLocaleString("pt-PT")}€
+                              </span>
+                            </div>
+                          ) : "—")}
+                        </td>
+                        <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
+                          <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end", alignItems: "center" }}>
+                            <button
+                              title="Converter para evento"
+                              onClick={() => handleLeadConvert(l)}
+                              style={{ background: "transparent", border: "none", cursor: "pointer", padding: "5px", color: Colors.green, fontSize: "11px", letterSpacing: "0.15em", fontFamily: "inherit", fontWeight: 600 }}
+                            >→</button>
+                            <IconBtn title="Ocultar da agenda" onClick={() => handleLeadRemove(l)} icon="cancel" danger />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  // kind === "event"
+                  const e = row.data;
+                  const isEventToday = e.event_date === todayStr;
+                  return (
+                  <tr key={e.id} style={{ opacity: e.cancelled ? 0.45 : 1, background: isEventToday ? "rgba(var(--theme-accent-rgb),0.06)" : undefined, borderLeft: isEventToday ? `3px solid ${Colors.gold}` : undefined }}>
+                    <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), color: isEventToday ? Colors.gold : undefined, fontWeight: isEventToday ? 700 : undefined }}>{fmtDate(e.event_date)}</td>
+                    <td style={{ ...createTdStyle(lightTheme, {}), maxWidth: "280px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                        <span style={{ textDecoration: e.cancelled ? "line-through" : "none", display: "flex", alignItems: "center", gap: "6px" }}>
+                          {(() => {
+                            const evArtists = artistasMap[e.id] || [];
+                            const icons = artistIcons(evArtists);
+                            return icons
+                              ? <span style={{ fontSize: "14px", letterSpacing: "1px", flexShrink: 0 }}>{icons}</span>
+                              : null;
+                          })()}
+                          <span style={{ fontSize: "13px" }}>{e.title.replace(/^\p{Emoji}[\p{Emoji}\u200d\s]*/u, "")}</span>
+                        </span>
+                        {e.venue && <span style={{ fontSize: "11px", color: Colors.gold, letterSpacing: "0.03em" }}>📍 {e.venue}</span>}
+                        {displayCliente(e.cliente_nome) && <span style={{ fontSize: "11px", color: Colors.textSec, letterSpacing: "0.03em" }}>👤 {displayCliente(e.cliente_nome)}</span>}
+                        {!!e.cancelled && <span style={{ fontSize: "10px", color: Colors.red, letterSpacing: "0.2em" }}>[CANCELADO]</span>}
+                        <ConflictAlert conflicts={conflictsForEvent(e)} />
+                      </div>
+                    </td>
+                    <td style={createTdStyle(lightTheme, { muted: true, nowrap: true })}>{e.time_range || "—"}</td>
+                    <td style={createTdStyle(lightTheme, { muted: true, maxW: "140px" })}>{e.venue || <span style={{ color: Colors.textMuted }}>—</span>}</td>
+                    <td style={{ ...createTdStyle(lightTheme, {}), padding: "0.85rem 1rem" }}>
+                      <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", alignItems: "center" }}>
+                        {parseEquipa(e.tipo || "").length > 0
+                          ? parseEquipa(e.tipo || "").map(n => (
+                              <span key={n} title={n} style={{ fontSize: "16px", lineHeight: 1 }}>{EQUIPA_SYMBOL[n]}</span>
+                            ))
+                          : <span style={{ fontSize: "12px", color: Colors.textMuted }}>—</span>
+                        }
+                      </div>
+                    </td>
+                    <td style={{ ...createTdStyle(lightTheme, {}), maxWidth: "200px" }}>
+                      {(() => {
+                        const evArtists = (artistasMap[e.id] || []).filter(a => a.nome.trim());
+                        return evArtists.length > 0
+                          ? <span style={{ fontSize: "12px", color: Colors.textSec, letterSpacing: "0.03em" }}>
+                              {evArtists.map(a => resolveColaboradorNome(a.nome)).join(" · ")}
+                            </span>
+                          : <span style={{ fontSize: "12px", color: Colors.textMuted }}>—</span>;
+                      })()}
+                    </td>
+                    <td style={createTdStyle(lightTheme, { muted: true })}>
+                      {e.modalidade && e.modalidade !== "Fatura" ? (
+                        <span style={{ fontSize: "11px", color: Colors.amber, letterSpacing: "0.1em" }}>{e.modalidade}</span>
+                      ) : (
+                        <span style={{ fontSize: "11px", color: Colors.textMuted }}>Fatura</span>
+                      )}
+                    </td>
+                    <td style={createTdStyle(lightTheme, {})}>
+                      {e.cancelled ? (
+                        <StatusBadge color={Colors.red} label="Cancelado" />
+                      ) : (() => {
+                        const bs = e.billing_status || "Contacto";
+                        const colorMap: Record<string, string> = {
+                          "Contacto": Colors.textSec, "Proposta Enviada": Colors.blue,
+                          "Em Negociação": Colors.amber, "Confirmado": Colors.green,
+                          "Em Adjudicação": Colors.gold, "Adjudicado": Colors.gold,
+                          "Faturado": "#A78BFA", "Pago": Colors.green, "Cancelado": Colors.red,
+                        };
+                        return <StatusBadge color={colorMap[bs] || Colors.textSec} label={bs} />;
+                      })()}
+                    </td>
+                    <td style={{ ...createTdStyle(lightTheme, { nowrap: true }), textAlign: "right", color: Colors.gold, fontWeight: 600, fontSize: "13px" }}>
+                      {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(e.bill, artistasMap[e.id] || [], e.material_cost || 0) ? (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
+                          <span>{Number(e.bill || 0).toLocaleString("pt-PT")}€</span>
+                          {Number(e.bill || 0) > 0 && <span style={{ fontSize: "10px", color: Colors.green, fontWeight: 600, whiteSpace: "nowrap" }}>
+                            Pago {effectiveReceived(e.bill, e.valor_recebido, e.billing_status).toLocaleString("pt-PT")}€ · {paymentPercent(e.bill, e.valor_recebido, e.billing_status).toFixed(0)}%
+                          </span>}
+                          <span style={{ fontSize: "10px", color: lucroVisivel(e.bill, artistasMap[e.id] || [], e.material_cost || 0) >= 0 ? Colors.green : Colors.red, fontWeight: 600 }}>
+                            Lucro {lucroVisivel(e.bill, artistasMap[e.id] || [], e.material_cost || 0).toLocaleString("pt-PT")}€
+                          </span>
+                        </div>
+                      ) : "—")}
+                    </td>
+                    <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
+                      {userRole !== "limited_novalues" && (
+                      <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
+                        {(e.material_count || 0) > 0 && (
+                          <IconBtn
+                            title="Ver materiais do evento"
+                            onClick={() => openMaterialModal(e)}
+                            icon="material"
+                            success
+                          />
+                        )}
+                        <IconBtn title="Editar" onClick={() => openEdit(e)} icon="edit" />
+                        {!e.cancelled
+                          ? <IconBtn title="Cancelar" onClick={() => handleCancel(e)} icon="cancel" danger disabled={cancellingId === e.id} />
+                          : <IconBtn title="Repor" onClick={() => handleRestore(e)} icon="restore" success />
+                        }
+                        <IconBtn title="Eliminar" onClick={() => handleDelete(e.id)} icon="delete" danger />
+                      </div>
+                      )}
+                    </td>
+                  </tr>
+                  );
+                })}
+                {allRows.length === 0 && (
+                  <tr><td colSpan={9} style={{ textAlign: "center", padding: "3rem", fontSize: "13px", color: Colors.textMuted, letterSpacing: "0.2em" }}>Sem eventos encontrados</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+
+    </div>)}{/* end desktop */}
+
+    {/* ═══ MOBILE ═══ */}
+    {!modal.open && !materialModal.open && (
+    <div className="mob-shell" style={{ fontFamily: "'Montserrat','Helvetica Neue',sans-serif", color: "var(--theme-text)", opacity: mounted ? 1 : 0, transition: "opacity 0.6s ease" }}>
+      {/* Mobile top nav */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--theme-border)", background: "var(--theme-nav-bg)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
+        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.2rem", letterSpacing: "0.35em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
+        <div style={{ display: "flex", gap: "0.7rem", alignItems: "center" }}>
+          <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} style={{ fontSize: "12px", padding: "0.4rem 0.5rem" }} />
+          <span style={{ fontSize: "10px", letterSpacing: "0.35em", color: "var(--theme-text-faint)", textTransform: "uppercase" }}>{userName}</span>
+        </div>
+      </div>
+
+      {/* Month pills */}
+      <div className="mob-months">
+        {monthTabs.map(ym => (
+          <button key={ym} className={`mob-mpill${selectedMonth === ym ? " active" : ""}`} onClick={() => setSelectedMonth(ym)}>
+            {monthLabel(ym).split(" ")[0]}
+          </button>
+        ))}
+      </div>
+
+      {/* Search + Add */}
+      <div className="mob-topbar">
+        <div className="mob-search-wrap">
+          <svg className="mob-search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="7" cy="7" r="5"/><line x1="11" y1="11" x2="15" y2="15"/>
+          </svg>
+          <input className="mob-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar evento..." />
+        </div>
+        <div style={{ display: "flex", gap: "0.7rem" }}>
+          <button
+            onClick={openPdfPeriodModal}
+            style={{ background: "rgba(var(--theme-accent-rgb),0.08)", border: "1px solid rgba(var(--theme-accent-rgb),0.2)", color: "var(--theme-accent)", fontSize: "12px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px" }}
+            title="Imprimir agenda completa em PDF"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          </button>
+          <button
+            onClick={openWaPeriodModal}
+            style={{ background: "rgba(93,202,165,0.08)", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "12px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px" }}
+            title="Copiar Agenda para WhatsApp"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          </button>
+          {/* Mobile filter button */}
+          <button
+            onClick={() => { setMobFilterOpen(o => !o); setMobFilterCategory(""); }}
+            style={{ background: (filterArtista || filterCliente || filterEquipa) ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: `1px solid ${(filterArtista || filterCliente || filterEquipa) ? "var(--theme-accent)" : "var(--theme-input-border)"}`, color: (filterArtista || filterCliente || filterEquipa) ? "var(--theme-accent)" : "var(--theme-text-muted)", fontSize: "12px", padding: "0.5rem 0.7rem", cursor: "pointer", borderRadius: "2px", display: "flex", alignItems: "center", gap: "4px" }}
+            title="Filtros"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            {(filterArtista || filterCliente || filterEquipa) && <span style={{ fontSize: "10px", fontWeight: 700 }}>1</span>}
+          </button>
+          {userRole !== "limited_novalues" && (
+            <button className="mob-fab" onClick={openCreate}>
+              <svg width="16" height="16" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile filter panel */}
+      {mobFilterOpen && (
+        <div style={{ background: "var(--theme-surface)", borderBottom: "1px solid var(--theme-border)", padding: "0.75rem 1rem", flexShrink: 0 }}>
+          {!mobFilterCategory ? (
+            <div style={{ display: "flex", gap: "0.7rem", flexWrap: "wrap" }}>
+              {(["equipa", "artista", "cliente"] as const).map(cat => (
+                <button key={cat} onClick={() => setMobFilterCategory(cat)} style={{ background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-secondary)", fontSize: "11px", letterSpacing: "0.2em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>
+                  {cat === "equipa" ? "Equipa" : cat === "artista" ? "Artistas" : "Clientes"}
+                </button>
+              ))}
+              {(filterArtista || filterCliente || filterEquipa) && (
+                <button onClick={() => { setFilterArtista(""); setFilterCliente(""); setFilterEquipa(""); setMobFilterOpen(false); }} style={{ background: "rgba(226,75,74,0.08)", border: "1px solid rgba(226,75,74,0.2)", color: "var(--theme-danger)", fontSize: "11px", letterSpacing: "0.2em", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
+                  Limpar filtros
+                </button>
+              )}
+            </div>
+          ) : (
+            <div>
+              <button onClick={() => setMobFilterCategory("")} style={{ background: "transparent", border: "none", color: "var(--theme-accent)", fontSize: "10px", letterSpacing: "0.3em", cursor: "pointer", fontFamily: "inherit", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "4px" }}>← Voltar</button>
+              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                {mobFilterCategory === "equipa" && dropdownEquipa.map(n => (
+                  <button key={n} onClick={() => { setFilterEquipa(filterEquipa === n ? "" : n); setMobFilterOpen(false); }} style={{ background: filterEquipa === n ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: `1px solid ${filterEquipa === n ? "var(--theme-accent)" : "var(--theme-input-border)"}`, color: filterEquipa === n ? "var(--theme-accent)" : "var(--theme-text-secondary)", fontSize: "12px", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
+                    {EQUIPA_SYMBOL[n]} {n}
+                  </button>
+                ))}
+                {mobFilterCategory === "artista" && dropdownArtistas.map(a => (
+                  <button key={a} onClick={() => { setFilterArtista(filterArtista === a ? "" : a); setMobFilterOpen(false); }} style={{ background: filterArtista === a ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: `1px solid ${filterArtista === a ? "var(--theme-accent)" : "var(--theme-input-border)"}`, color: filterArtista === a ? "var(--theme-accent)" : "var(--theme-text-secondary)", fontSize: "12px", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
+                    {a}
+                  </button>
+                ))}
+                {mobFilterCategory === "cliente" && dropdownClientes.map(c => (
+                  <button key={c} onClick={() => { setFilterCliente(filterCliente === c ? "" : c); setMobFilterOpen(false); }} style={{ background: filterCliente === c ? "var(--theme-dropdown-selected)" : "var(--theme-input-bg)", border: `1px solid ${filterCliente === c ? "var(--theme-accent)" : "var(--theme-input-border)"}`, color: filterCliente === c ? "var(--theme-accent)" : "var(--theme-text-secondary)", fontSize: "12px", padding: "0.4rem 0.9rem", cursor: "pointer", fontFamily: "inherit" }}>
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Card list */}
+      <div className="mob-list">
+        {allRows.length === 0 && <div className="mob-empty">Sem eventos encontrados</div>}
+        {allRows.map((row) => {
+          if (row.kind === "folga") {
+            const d = new Date(row.date + "T00:00:00");
+            return (
+              <div key={`f-${row.date}`} className="mob-card is-folga">
+                <div className="mob-date-bubble">
+                  <div className="mob-date-day">{d.getDate()}</div>
+                  <div className="mob-date-weekday">{d.toLocaleDateString("pt-PT",{weekday:"short"})}</div>
+                </div>
+                <div className="mob-card-body">
+                  <div className="mob-card-title" style={{opacity:0.35}}>⛱️ Folga</div>
+                </div>
+              </div>
+            );
+          }
+          if (row.kind === "lead") {
+            const l = row.data;
+            const d = new Date(l.event_date + "T00:00:00");
+            const isToday = l.event_date === todayStr;
+            return (
+              <div key={`l-${l.id}`} className={`mob-card is-lead${isToday ? " is-today" : ""}`}>
+                <div className="mob-date-bubble">
+                  <div className="mob-date-day">{d.getDate()}</div>
+                  <div className="mob-date-weekday">{d.toLocaleDateString("pt-PT",{weekday:"short"})}</div>
+                </div>
+                <div className="mob-card-body">
+                  <div className="mob-card-title">{l.title}</div>
+                  <ConflictAlert conflicts={conflictsForLead(l)} />
+                  {l.local && <div style={{marginTop:"3px",fontSize: "12px",color:"var(--theme-accent)",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📍 {l.local}</div>}
+                  {displayCliente(l.cliente_nome) && <div style={{marginTop:"3px",fontSize: "12px",color:"var(--theme-text-muted)",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>👤 {displayCliente(l.cliente_nome)}</div>}
+                  <div className="mob-card-meta">
+                    <span className="mob-badge" style={{background:"rgba(var(--theme-accent-rgb),0.08)",color:"var(--theme-accent)"}}>
+                      <span className="mob-badge-dot" style={{background:"var(--theme-accent)"}}/>Lead
+                    </span>
+                    <span className="mob-badge" style={{background:"rgba(239,159,39,0.08)",color:"var(--theme-warning)"}}>{l.status}</span>
+                  </div>
+                </div>
+                <div className="mob-card-right">
+                  {userRole !== "limited_novalues" && temMovimentoFinanceiro(l.value, artistsForAgendaLead(l), l.material_cost || 0)
+                    ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
+                        <span className="mob-card-value">{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
+                        <span style={{fontSize: "10px",fontWeight:700,color:lucroVisivel(l.value, artistsForAgendaLead(l), l.material_cost || 0)>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(l.value, artistsForAgendaLead(l), l.material_cost || 0).toLocaleString("pt-PT")}€</span>
+                      </div>
+                    : <span className="mob-card-value muted">—</span>
+                  }
+                  {userRole !== "limited_novalues" && (
+                    <button onClick={() => handleLeadConvert(l)} style={{background:"transparent",border:"none",color:"var(--theme-success)",fontSize:"16px",cursor:"pointer",padding:"2px"}}>→</button>
+                  )}
+                </div>
+              </div>
+            );
+          }
+          const e = row.data;
+          const d = new Date(e.event_date + "T00:00:00");
+          const isToday = e.event_date === todayStr;
+          const evArtists = (artistasMap[e.id] || []).filter((a:any) => a.nome.trim());
+          const bs = e.billing_status || "Contacto";
+          const bsColor = e.cancelled ? Colors.red : (bsColors[bs] || "var(--theme-text-subtle)");
+          return (
+            <div key={e.id} className={`mob-card${isToday ? " is-today" : ""}${e.cancelled ? " is-folga" : ""}`}>
+              <div className="mob-date-bubble">
+                <div className="mob-date-day">{d.getDate()}</div>
+                <div className="mob-date-weekday">{d.toLocaleDateString("pt-PT",{weekday:"short"})}</div>
+              </div>
+              <div className="mob-card-body" onClick={() => userRole !== "limited_novalues" && openEdit(e)} style={{cursor: userRole !== "limited_novalues" ? "pointer" : "default"}}>
+                <div className={`mob-card-title${e.cancelled?" cancelled":""}`}>
+                  {artistIcons(artistasMap[e.id]||[]) && <span style={{marginRight:4}}>{artistIcons(artistasMap[e.id]||[])}</span>}
+                  {e.title.replace(/^\p{Emoji}[\p{Emoji}‍\s]*/u,"")}
+                </div>
+                <ConflictAlert conflicts={conflictsForEvent(e)} />
+                {e.venue && <div style={{marginTop:"3px",fontSize: "12px",color:"var(--theme-accent)",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📍 {e.venue}</div>}
+                {displayCliente(e.cliente_nome) && <div style={{marginTop:"3px",fontSize: "12px",color:"var(--theme-text-muted)",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>👤 {displayCliente(e.cliente_nome)}</div>}
+                <div className="mob-card-meta">
+                  {e.time_range && <><span>{e.time_range}</span><span className="mob-card-meta-dot">·</span></>}
+                  {parseEquipa(e.tipo||"").map(n=><span key={n}>{EQUIPA_SYMBOL[n]}</span>)}
+                  {evArtists.length > 0 && <><span className="mob-card-meta-dot">·</span><span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"140px"}}>{evArtists.slice(0,2).map((a:any)=>resolveColaboradorNome(a.nome)).join(" · ")}{evArtists.length>2?` +${evArtists.length-2}`:""}</span></>}
+                </div>
+                <div className="mob-card-badges">
+                  <span className="mob-badge" style={{background:`${bsColor}18`,color:bsColor}}>
+                    <span className="mob-badge-dot" style={{background:bsColor}}/>
+                    {e.cancelled?"Cancelado":bs}
+                  </span>
+                </div>
+              </div>
+              <div className="mob-card-right">
+                {userRole !== "limited_novalues" && temMovimentoFinanceiro(e.bill, artistasMap[e.id]||[], e.material_cost || 0)
+                  ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
+                      <span className="mob-card-value">{Number(e.bill || 0).toLocaleString("pt-PT")}€</span>
+                      {Number(e.bill || 0) > 0 && <span style={{fontSize: "10px",fontWeight:700,color:"var(--theme-success)",whiteSpace:"nowrap"}}>Pago {paymentPercent(e.bill, e.valor_recebido, e.billing_status).toFixed(0)}%</span>}
+                      <span style={{fontSize: "10px",fontWeight:700,color:lucroVisivel(e.bill, artistasMap[e.id]||[], e.material_cost || 0)>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(e.bill, artistasMap[e.id]||[], e.material_cost || 0).toLocaleString("pt-PT")}€</span>
+                    </div>
+                  : <span className="mob-card-value muted">—</span>
+                }
+                {userRole !== "limited_novalues" && (e.material_count || 0) > 0 && (
+                  <button
+                    onClick={(ev) => { ev.stopPropagation(); openMaterialModal(e); }}
+                    title="Ver materiais do evento"
+                    style={{ background: "transparent", border: "none", color: "var(--theme-success)", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="1.8"><rect x="2" y="5" width="12" height="9" rx="1.2" /><path d="M5.5 5V3.5a2 2 0 014 0V5" /></svg>
+                  </button>
+                )}
+                {userRole !== "limited_novalues" && (
+                  e.cancelled
+                    ? <button
+                        onClick={(ev) => { ev.stopPropagation(); handleRestore(e); }}
+                        title="Repor"
+                        style={{ background: "transparent", border: "none", color: "var(--theme-success)", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-9" /></svg>
+                      </button>
+                    : <button
+                        onClick={(ev) => { ev.stopPropagation(); handleCancel(e); }}
+                        disabled={cancellingId === e.id}
+                        title="Cancelar"
+                        style={{ background: "transparent", border: "none", color: "var(--theme-danger)", cursor: cancellingId === e.id ? "default" : "pointer", padding: "4px", display: "flex", alignItems: "center", opacity: cancellingId === e.id ? 0.4 : 1 }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><circle cx="8" cy="8" r="6" /><path d="M5 5l6 6M11 5l-6 6" /></svg>
+                      </button>
+                )}
+                <svg className="mob-card-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 4 10 8 6 12"/></svg>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Bottom tab bar */}
+      <MobTabBar active="agenda" role={userRole} lightTheme={lightTheme} />
+    </div>)}
+
+    {/* ═══ MODAL (shared) ═══ */}
+      {/* PDF — Modal de Período */}
+      {pdfPeriodModal && (
+        <div onClick={(e: React.MouseEvent<HTMLDivElement>) => !pdfGenerating && e.target === e.currentTarget && setPdfPeriodModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1120, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "none" }}>
+          <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "420px", maxWidth: "95vw", position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+              <div>
+                <p style={{ fontSize: "10px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Imprimir agenda completa</p>
+                <p style={{ fontSize: "11px", color: "var(--theme-text-subtle)", marginTop: "0.35rem", lineHeight: 1.5 }}>Inclui dados do evento, notas, materiais e artistas com valores.</p>
+              </div>
+              <button disabled={pdfGenerating} onClick={() => setPdfPeriodModal(false)} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: pdfGenerating ? "default" : "pointer", fontSize: "16px", opacity: pdfGenerating ? 0.4 : 1 }}>✕</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.7rem", marginBottom: "1.25rem" }}>
+              {([
+                { id: "today" as const, label: "Eventos de hoje", sub: new Date().toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" }) },
+                { id: "week7" as const, label: "Próximos 7 dias", sub: (() => { const t = new Date(); const e2 = new Date(t); e2.setDate(t.getDate() + 6); const fmt = (d: Date) => `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`; return `${fmt(t)} → ${fmt(e2)}`; })() },
+                { id: "month" as const, label: "Mês selecionado", sub: monthLabel(selectedMonth) },
+                { id: "custom" as const, label: "Intervalo personalizado", sub: "" },
+              ] as { id: "today" | "week7" | "month" | "custom"; label: string; sub: string }[]).map(opt => (
+                <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: "0.95rem", cursor: pdfGenerating ? "default" : "pointer", padding: "0.65rem 0.75rem", background: pdfPeriodMode === opt.id ? "rgba(var(--theme-accent-rgb),0.06)" : "transparent", border: `1px solid ${pdfPeriodMode === opt.id ? "rgba(var(--theme-accent-rgb),0.22)" : "rgba(var(--theme-contrast-rgb),0.05)"}`, transition: "all 0.15s", opacity: pdfGenerating ? 0.6 : 1 }}>
+                  <input disabled={pdfGenerating} type="radio" name="pdfPeriod" checked={pdfPeriodMode === opt.id} onChange={() => { setPdfPeriodMode(opt.id); setPdfPeriodError(""); }} style={{ accentColor: "var(--theme-accent)", flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontSize: "13px", color: pdfPeriodMode === opt.id ? "var(--theme-text)" : "var(--theme-text-secondary)", letterSpacing: "0.04em" }}>{opt.label}</div>
+                    {opt.sub && <div style={{ fontSize: "11px", color: "var(--theme-text-subtle)", letterSpacing: "0.1em", marginTop: "2px", textTransform: "capitalize" }}>{opt.sub}</div>}
+                  </div>
+                </label>
+              ))}
+            </div>
+            {pdfPeriodMode === "custom" && (
+              <div style={{ display: "flex", gap: "0.95rem", marginBottom: "1.25rem" }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: "block", fontSize: "9px", letterSpacing: "0.35em", color: "var(--theme-text-subtle)", textTransform: "uppercase", marginBottom: "0.4rem" }}>De</label>
+                  <input disabled={pdfGenerating} type="date" value={pdfCustomStart} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setPdfCustomStart(e.target.value); setPdfPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "13px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: "block", fontSize: "9px", letterSpacing: "0.35em", color: "var(--theme-text-subtle)", textTransform: "uppercase", marginBottom: "0.4rem" }}>Até</label>
+                  <input disabled={pdfGenerating} type="date" value={pdfCustomEnd} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setPdfCustomEnd(e.target.value); setPdfPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "13px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
+                </div>
+              </div>
+            )}
+            {pdfPeriodError && <p style={{ fontSize: "11px", color: "var(--theme-danger)", letterSpacing: "0.08em", marginBottom: "0.85rem", lineHeight: 1.5 }}>{pdfPeriodError}</p>}
+            <div style={{ display: "flex", gap: "0.95rem", justifyContent: "flex-end" }}>
+              <button disabled={pdfGenerating} onClick={() => setPdfPeriodModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "11px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: pdfGenerating ? "default" : "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: pdfGenerating ? 0.5 : 1 }}>Cancelar</button>
+              <button disabled={pdfGenerating} onClick={handlePrintAgendaPdf} style={{ background: "var(--theme-accent)", border: "none", color: "var(--theme-bg)", fontSize: "11px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: pdfGenerating ? "wait" : "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: pdfGenerating ? 0.65 : 1 }}>{pdfGenerating ? "A preparar..." : "Imprimir PDF"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WhatsApp — Modal de Período */}
+      {waPeriodModal && (
+        <div onClick={e => e.target === e.currentTarget && setWaPeriodModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "none" }}>
+          <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "400px", maxWidth: "95vw", position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+              <p style={{ fontSize: "10px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Copiar Agenda para WhatsApp</p>
+              <button onClick={() => setWaPeriodModal(false)} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: "pointer", fontSize: "16px" }}>✕</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.7rem", marginBottom: "1.25rem" }}>
+              {([
+                { id: "month" as const, label: "Geral / Mês atual", sub: monthLabel(selectedMonth) },
+                { id: "week7" as const, label: "Hoje + 7 dias", sub: (() => { const t = new Date(); const e2 = new Date(t); e2.setDate(t.getDate()+7); const fmt = (d: Date) => `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`; return `${fmt(t)} → ${fmt(e2)}`; })() },
+                { id: "custom" as const, label: "Intervalo personalizado", sub: "" },
+              ] as { id: "month" | "week7" | "custom"; label: string; sub: string }[]).map(opt => (
+                <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: "0.95rem", cursor: "pointer", padding: "0.65rem 0.75rem", background: waPeriodMode === opt.id ? "rgba(var(--theme-accent-rgb),0.06)" : "transparent", border: `1px solid ${waPeriodMode === opt.id ? "rgba(var(--theme-accent-rgb),0.22)" : "rgba(var(--theme-contrast-rgb),0.05)"}`, transition: "all 0.15s" }}>
+                  <input type="radio" name="waPeriod" checked={waPeriodMode === opt.id} onChange={() => { setWaPeriodMode(opt.id); setWaPeriodError(""); }} style={{ accentColor: "var(--theme-accent)", flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontSize: "13px", color: waPeriodMode === opt.id ? "var(--theme-text)" : "var(--theme-text-secondary)", letterSpacing: "0.04em" }}>{opt.label}</div>
+                    {opt.sub && <div style={{ fontSize: "11px", color: "var(--theme-text-subtle)", letterSpacing: "0.1em", marginTop: "2px", textTransform: "capitalize" }}>{opt.sub}</div>}
+                  </div>
+                </label>
+              ))}
+            </div>
+            {waPeriodMode === "custom" && (
+              <div style={{ display: "flex", gap: "0.95rem", marginBottom: "1.25rem" }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: "block", fontSize: "9px", letterSpacing: "0.35em", color: "var(--theme-text-subtle)", textTransform: "uppercase", marginBottom: "0.4rem" }}>De</label>
+                  <input type="date" value={waCustomStart} onChange={e => { setWaCustomStart(e.target.value); setWaPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "13px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: "block", fontSize: "9px", letterSpacing: "0.35em", color: "var(--theme-text-subtle)", textTransform: "uppercase", marginBottom: "0.4rem" }}>Até</label>
+                  <input type="date" value={waCustomEnd} onChange={e => { setWaCustomEnd(e.target.value); setWaPeriodError(""); }} style={{ width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "13px", padding: "0.6rem 0.75rem", outline: "none", boxSizing: "border-box" as const }} />
+                </div>
+              </div>
+            )}
+            {waPeriodError && <p style={{ fontSize: "11px", color: "var(--theme-danger)", letterSpacing: "0.2em", marginBottom: "0.85rem", textTransform: "uppercase" }}>{waPeriodError}</p>}
+            <div style={{ display: "flex", gap: "0.95rem", justifyContent: "flex-end" }}>
+              <button onClick={() => setWaPeriodModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "11px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Cancelar</button>
+              <button disabled={waGenerating} onClick={handleCopyAgenda} style={{ background: "var(--theme-success)", border: "none", color: "var(--theme-bg)", fontSize: "11px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.5rem", cursor: waGenerating ? "wait" : "pointer", fontFamily: "inherit", textTransform: "uppercase", opacity: waGenerating ? 0.65 : 1 }}>{waGenerating ? "A preparar..." : "Copiar Agenda"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WhatsApp Modal */}
+      {waModal && (
+        <div onClick={e => e.target === e.currentTarget && setWaModal(false)} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "none" }}>
+          <div style={{ background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "2rem", width: "500px", maxWidth: "95vw", maxHeight: "85vh", display: "flex", flexDirection: "column", position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+              <p style={{ fontSize: "10px", letterSpacing: "0.4em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600 }}>Copiar para WhatsApp</p>
+              <button onClick={() => setWaModal(false)} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: "pointer", fontSize: "16px" }}>✕</button>
+            </div>
+            {waCopied && (
+              <div style={{ marginBottom: "0.75rem", fontSize: "11px", letterSpacing: "0.25em", color: "var(--theme-success)", textTransform: "uppercase" }}>✓ Copiado — pode colar no WhatsApp</div>
+            )}
+            <textarea
+              readOnly
+              value={waText}
+              style={{ flex: 1, minHeight: "300px", background: "var(--theme-subtle-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "monospace", fontSize: "13px", padding: "0.75rem", outline: "none", resize: "vertical", letterSpacing: "0.02em", lineHeight: "1.6" }}
+              onClick={e => (e.target as HTMLTextAreaElement).select()}
+            />
+            <div style={{ display: "flex", gap: "0.95rem", justifyContent: "flex-end", marginTop: "1rem" }}>
+              <button onClick={() => setWaModal(false)} style={{ background: "transparent", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-subtle)", fontSize: "11px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Fechar</button>
+              <button
+                onClick={() => {
+                  if (navigator.clipboard) {
+                    navigator.clipboard.writeText(waText).then(() => setWaCopied(true));
+                  } else {
+                    const ta = document.createElement("textarea");
+                    ta.value = waText; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); setWaCopied(true);
+                  }
+                }}
+                style={{ background: "var(--theme-success)", border: "none", color: "var(--theme-bg)", fontSize: "11px", letterSpacing: "0.3em", fontWeight: 700, padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}
+              >Copiar novamente</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal */}
+      {modal.open && (
+        <div onClick={e => e.target === e.currentTarget && closeModal()} style={overlayStyle}>
+          <div style={{ ...modalStyle, width: "640px" }}>
+            <div style={topLineStyle} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
+              <p style={{ fontSize: "11px", letterSpacing: "0.4em", color: Colors.goldDim, textTransform: "uppercase", fontWeight: 600, margin: 0 }}>
+                {modal.editing ? "Editar Evento" : "Novo Evento"}
+              </p>
+              {!modal.editing && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !isResidencia;
+                    setIsResidencia(next);
+                    const nextTipo = next ? "Residência" : "Evento";
+                    const nextContext = next ? "Residência" : inferValorContexto(form.cliente_nome, "Evento");
+                    const nextResidenciaId = next ? form.residencia_id : null;
+                    setForm(f => ({ ...f, tipo_comercial: nextTipo, valor_contexto: nextContext, residencia_id: nextResidenciaId }));
+                    repriceAutoArtists(nextTipo, nextContext, nextResidenciaId);
+                  }}
+                  style={{
+                    background: isResidencia ? "rgba(var(--theme-accent-rgb),0.12)" : "transparent",
+                    border: `1px solid ${isResidencia ? Colors.gold : "rgba(var(--theme-contrast-rgb),0.08)"}`,
+                    color: isResidencia ? Colors.gold : Colors.textMuted,
+                    fontSize: "10px", letterSpacing: "0.3em", padding: "0.4rem 0.9rem",
+                    cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600,
+                    display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s",
+                  }}
+                >
+                  🔁 Residência
+                </button>
+              )}
+            </div>
+
+            <datalist id="agenda-servicos-vendidos-list">
+              {SERVICOS_VENDIDOS.map(s => <option key={s} value={s} />)}
+            </datalist>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 1.5rem" }}>
+              <FormField label="Título do Evento" style={{ gridColumn: "1 / -1" }}>
+                <input style={inputStyle} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Nome do evento..." />
+              </FormField>
+              {isResidencia && !modal.editing ? (
+                <>
+                  <FormField label="Datas das Residências" style={{ gridColumn: "1 / -1" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {residenciaDates.map((d, i) => (
+                        <div key={i} style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                          <input
+                            type="date"
+                            value={d}
+                            onChange={e => {
+                              const next = [...residenciaDates];
+                              next[i] = e.target.value;
+                              setResidenciaDates(next);
+                            }}
+                            style={{ ...inputStyle, flex: 1 }}
+                          />
+                          {residenciaDates.length > 1 && (
+                            <button type="button" onClick={() => setResidenciaDates(prev => prev.filter((_, idx) => idx !== i))} style={{ background: "transparent", border: "none", color: Colors.textMuted, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}>
+                              <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2"><line x1="1" y1="1" x2="11" y2="11" /><line x1="11" y1="1" x2="1" y2="11" /></svg>
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button type="button" onClick={() => setResidenciaDates(prev => [...prev, prev[prev.length - 1] || new Date().toISOString().split("T")[0]])} style={{ ...btnSecStyle, fontSize: "10px", padding: "0.4rem 0.9rem", alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "5px" }}>
+                        <svg width="8" height="8" viewBox="0 0 10 10" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="5" y1="1" x2="5" y2="9" /><line x1="1" y1="5" x2="9" y2="5" /></svg>
+                        Adicionar data
+                      </button>
+                    </div>
+                  </FormField>
+                </>
+              ) : (
+                <FormField label="Data">
+                  <input style={inputStyle} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+                </FormField>
+              )}
+              <FormField label="Hora">
+                <input style={inputStyle} value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} placeholder="20:00-23:00" />
+              </FormField>
+              <FormField label="Local">
+                <input style={inputStyle} value={form.venue} onChange={e => setForm(f => ({ ...f, venue: e.target.value }))} placeholder="SUD, Hyatt, Epic Sana..." />
+              </FormField>
+              <FormField label="Contacto">
+                <input style={inputStyle} value={form.contacto} onChange={e => setForm(f => ({ ...f, contacto: e.target.value }))} placeholder="Nome ou telefone..." />
+              </FormField>
+              <FormField label="Equipa / Tipo">
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  {EQUIPA_NOMES.map(n => {
+                    const active = parseEquipa(form.tipo).includes(n);
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => {
+                          const current = parseEquipa(form.tipo);
+                          const next = active ? current.filter(x => x !== n) : [...current, n];
+                          setForm(f => ({ ...f, tipo: next.join(" / ") }));
+                        }}
+                        style={{
+                          background: active ? `${EQUIPA_COLOR[n]}18` : "rgba(var(--theme-contrast-rgb),0.03)",
+                          border: `1px solid ${active ? EQUIPA_COLOR[n] : "rgba(var(--theme-contrast-rgb),0.08)"}`,
+                          color: active ? EQUIPA_COLOR[n] : "var(--theme-text-subtle)",
+                          fontSize: "12px", letterSpacing: "0.15em", padding: "0.5rem 1rem",
+                          cursor: "pointer", fontFamily: "inherit", fontWeight: active ? 700 : 400,
+                          display: "flex", alignItems: "center", gap: "6px", transition: "all 0.15s",
+                        }}
+                      >
+                        <span style={{ fontSize: "15px" }}>{EQUIPA_SYMBOL[n]}</span>
+                        {n}
+                      </button>
+                    );
+                  })}
+                </div>
+              </FormField>
+              <FormField label="Cliente" style={{ gridColumn: "1 / -1", position: "relative" }}>
+                {clienteCreating ? (
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <input
+                      style={{ ...inputStyle, flex: 1 }}
+                      value={form.cliente_nome}
+                      onChange={e => setForm(f => ({ ...f, cliente_nome: e.target.value }))}
+                      placeholder="Nome do novo cliente..."
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!form.cliente_nome.trim()) return;
+                        const r = await createCliente({ nome: form.cliente_nome.trim() });
+                        if (r.success) {
+                          const cr = await getAllClientes();
+                          if (cr.success) setClientes(cr.data as Cliente[]);
+                          setClienteSearch(form.cliente_nome.trim());
+                          showToast("Cliente criado");
+                        }
+                        setClienteCreating(false);
+                      }}
+                      style={{ ...btnPrimStyle, whiteSpace: "nowrap", padding: "0.6rem 1rem" }}
+                    >Guardar</button>
+                    <button
+                      type="button"
+                      onClick={() => setClienteCreating(false)}
+                      style={{ ...btnSecStyle, padding: "0.6rem 0.75rem" }}
+                    >✕</button>
+                  </div>
+                ) : (
+                  <div style={{ position: "relative" }}>
+                    <input
+                      style={inputStyle}
+                      value={clienteSearch}
+                      onChange={e => {
+                        setClienteSearch(e.target.value);
+                        setForm(f => ({ ...f, cliente_nome: e.target.value }));
+                        setClienteDropOpen(true);
+                      }}
+                      onFocus={() => setClienteDropOpen(true)}
+                      onBlur={() => setTimeout(() => setClienteDropOpen(false), 150)}
+                      placeholder="Pesquisar cliente..."
+                    />
+                    {clienteDropOpen && (
+                      <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--theme-surface-elevated)", color: "var(--theme-text)", border: "1px solid var(--theme-input-border)", boxShadow: "var(--theme-dropdown-shadow)", zIndex: 500, maxHeight: "200px", overflowY: "auto" }}>
+                        {clientes
+                          .filter((c, idx, arr) => arr.findIndex(x => x.nome === c.nome) === idx)
+                          .filter(c => c.nome.toLowerCase().includes(clienteSearch.toLowerCase()))
+                          .map(c => (
+                            <div
+                              key={c.id}
+                              onMouseDown={() => {
+                                const nextContext = inferValorContexto(c.nome, form.tipo_comercial);
+                                setForm(f => ({ ...f, cliente_nome: c.nome, valor_contexto: nextContext }));
+                                repriceAutoArtists(form.tipo_comercial, nextContext, form.residencia_id);
+                                setClienteSearch((c as any).alias?.trim() || c.nome);
+                                setClienteDropOpen(false);
+                              }}
+                              style={{ padding: "0.6rem 1rem", fontSize: "13px", color: "var(--theme-text-secondary)", cursor: "pointer", borderBottom: "1px solid var(--theme-border)" }}
+                              onMouseEnter={e => (e.currentTarget.style.background = "var(--theme-dropdown-hover)")}
+                              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                            >
+                              {(c as any).alias?.trim() || c.nome}
+                              {(c as any).alias?.trim() && <span style={{ fontSize: "11px", color: Colors.textMuted, marginLeft: "8px" }}>{c.nome}</span>}
+                              {c.nif && !((c as any).alias?.trim()) && <span style={{ fontSize: "11px", color: Colors.textMuted, marginLeft: "8px" }}>{c.nif}</span>}
+                            </div>
+                          ))
+                        }
+                        <div
+                          onMouseDown={() => { setClienteCreating(true); setClienteDropOpen(false); }}
+                          style={{ padding: "0.6rem 1rem", fontSize: "12px", color: Colors.gold, cursor: "pointer", letterSpacing: "0.15em", borderTop: "1px solid rgba(var(--theme-accent-rgb),0.12)", display: "flex", alignItems: "center", gap: "6px" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "var(--theme-dropdown-hover)")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <span>+</span> Criar novo cliente
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </FormField>
+
+              {/* Contexto operacional — sempre visível, independente do Auto Budget */}
+              <FormField label="Contexto do Trabalho">
+                <CustomSelect
+                  value={form.tipo_comercial}
+                  onChange={v => {
+                    const nextContext = inferValorContexto(form.cliente_nome, v);
+                    const nextResidenciaId = v === "Residência" || v === "Evento de Residência" ? form.residencia_id : null;
+                    setForm(f => ({ ...f, tipo_comercial: v, valor_contexto: nextContext, residencia_id: nextResidenciaId, autobudget_snapshot: "" }));
+                    repriceAutoArtists(v, nextContext, nextResidenciaId);
+                  }}
+                  options={TIPOS_COMERCIAIS.map(t => ({ value: t, label: t }))}
+                  style={inputStyle}
+                />
+                <p style={{ marginTop: "0.4rem", fontSize: "10px", color: Colors.textMuted, lineHeight: 1.45 }}>
+                  Define o custo que a LLE prevê pagar aos artistas. A faturação ao cliente é independente e fica no Auto Budget / Faturação.
+                </p>
+              </FormField>
+              {(form.tipo_comercial === "Residência" || form.tipo_comercial === "Evento de Residência") && (
+                <FormField label="Residência Ativa">
+                  <CustomSelect
+                    value={form.residencia_id ? String(form.residencia_id) : ""}
+                    onChange={v => applyResidenciaAtiva(v ? Number(v) : null)}
+                    options={[
+                      { value: "", label: "Sem residência específica — usar tabela do colaborador" },
+                      ...residenciasAtivas.map(r => ({ value: String(r.id), label: `${r.nome}${r.cliente_nome ? ` · ${r.cliente_nome}` : ""}${r.local ? ` · ${r.local}` : ""}` }))
+                    ]}
+                    style={inputStyle}
+                  />
+                  <p style={{ marginTop: "0.4rem", fontSize: "10px", color: Colors.textMuted, lineHeight: 1.45 }}>
+                    Se estiver definida, custo e faturação específicos desta residência têm prioridade quando aplicáveis; sem override usa Colaboradores.
+                  </p>
+                </FormField>
+              )}
+
+              <div style={{ gridColumn: "1 / -1", marginBottom: "1.25rem" }}>
+                <button
+                  type="button"
+                  onClick={() => setBudgetOpen(v => !v)}
+                  style={{
+                    width: "100%", minHeight: "48px", padding: "0 1rem",
+                    display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
+                    background: budgetOpen ? "rgba(var(--theme-accent-rgb),0.055)" : "rgba(var(--theme-contrast-rgb),0.015)",
+                    border: `1px solid ${budgetOpen ? "rgba(var(--theme-accent-rgb),0.22)" : "var(--theme-input-border)"}`,
+                    color: budgetOpen ? Colors.gold : Colors.textMuted,
+                    cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+                  }}
+                >
+                  <span>
+                    <b style={{ display: "block", fontSize: "11px", letterSpacing: "0.28em", textTransform: "uppercase" }}>Auto Budget</b>
+                    <small style={{ display: "block", marginTop: "4px", fontSize: "10px", letterSpacing: "0.06em", color: Colors.textMuted }}>Serviços · perfil de valor · cálculo automático</small>
+                  </span>
+                  <span style={{ fontSize: "14px" }}>{budgetOpen ? "−" : "+"}</span>
+                </button>
+
+                {budgetOpen && (
+                  <div style={{
+                    display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 1.5rem",
+                    padding: "1.2rem", border: "1px solid rgba(var(--theme-accent-rgb),0.14)", borderTop: "none",
+                    background: "rgba(var(--theme-accent-rgb),0.018)",
+                  }}>
+                    <FormField label="Serviços Contratados" style={{ gridColumn: "1 / -1" }}>
+                      <ServiceMultiSelect
+                        value={form.servico_comercial}
+                        onChange={v => setForm(f => ({ ...f, servico_comercial: v, autobudget_snapshot: "" }))}
+                        standaloneOptions={autoBudgetStandaloneOptions}
+                        packOptions={autoBudgetPackOptions}
+                        placeholder="DJ + Bailarino(a) + Produtor..."
+                      />
+                    </FormField>
+                    <FormField label="Perfil de Valor">
+                      <CustomSelect
+                        value={form.valor_contexto}
+                        onChange={v => {
+                          setForm(f => ({ ...f, valor_contexto: v, autobudget_snapshot: "" }));
+                          repriceAutoArtists(form.tipo_comercial, v, form.residencia_id);
+                        }}
+                        options={VALOR_CONTEXTOS.map(c => ({ value: c, label: c }))}
+                        style={inputStyle}
+                      />
+                    </FormField>
+                    <FormField label="Sugestão" style={{ gridColumn: "1 / -1" }}>
+                      <button type="button" onClick={aplicarValorSugerido} style={{ ...btnSecStyle, width: "100%" }}>
+                        Calcular faturação dos serviços selecionados
+                      </button>
+                    </FormField>
+                    {(valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto) || materiaisReceita > 0 || materiaisCusto > 0) && (() => {
+                      const suggestion = valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto);
+                      const totalValor = Number(suggestion?.valor || 0) + materiaisReceita;
+                      const totalCusto = Number(suggestion?.custo || 0) + materiaisCusto;
+                      return (
+                        <div style={{ gridColumn: "1 / -1", fontSize: "12px", color: Colors.textMuted, letterSpacing: "0.05em", marginTop: "-0.5rem", marginBottom: "0.2rem", lineHeight: 1.6 }}>
+                          Faturação sugerida: <b style={{ color: Colors.gold }}>{totalValor}€</b> · Custo estimado LLE: {totalCusto}€ · {form.valor_contexto || "Cliente Final"}
+                          {materiaisReceita > 0 || materiaisCusto > 0 ? <span> · Materiais {materiaisReceita}€ / custo {materiaisCusto}€</span> : null}
+                          {suggestion && suggestion.total > 1 && <span> · {suggestion.encontrados}/{suggestion.total} serviços com valor automático</span>}
+                          {suggestion && suggestion.items.length > 0 && (
+                            <div style={{ marginTop: "7px", paddingTop: "7px", borderTop: "1px solid var(--theme-border)", display: "grid", gap: "4px" }}>
+                              {suggestion.items.map(item => (
+                                <div key={item.servico} style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "baseline" }}>
+                                  <span style={{ color: Colors.textSec }}>
+                                    {item.servico}{item.quantidade > 1 ? ` ×${item.quantidade}` : ""}
+                                    <small style={{ display: "block", color: Colors.textMuted, fontSize: "10px", letterSpacing: "0.03em" }}>
+                                      Faturação: {item.sourceName || ("noActiveProvider" in item && item.noActiveProvider ? "sem colaborador ativo / preço por definir" : "sem referência")}
+                                      {item.costSourceName ? ` · Custo: ${item.costSourceName}` : ""}
+                                      {item.skill && item.assignedCount !== null ? ` · Atribuídos: ${item.assignedCount}/${item.quantidade}` : ""}
+                                    </small>
+                                  </span>
+                                  <b style={{ color: Colors.textPrimary, whiteSpace: "nowrap" }}>{item.valorTotal}€</b>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {suggestion && suggestion.semValor.length > 0 && <div style={{ marginTop: "5px", color: "var(--theme-warning)" }}>Sem valor automático: {suggestion.semValor.join(" · ")}</div>}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+              {userRole !== "limited_novalues" && (
+              <FormField label="Faturação (€)">
+                <input
+                  style={inputStyle}
+                  type="text"
+                  inputMode="decimal"
+                  value={form.bill}
+                  onChange={e => setForm(f => ({ ...f, bill: e.target.value, valor_recebido: f.billing_status === "Pago" ? e.target.value : f.valor_recebido, autobudget_snapshot: "" }))}
+                  onFocus={e => e.currentTarget.select()}
+                />
+              </FormField>
+              )}
+              {userRole !== "limited_novalues" && (
+              <FormField label="Valor pago até agora (€)">
+                <div>
+                  <input
+                    style={inputStyle}
+                    type="text"
+                    inputMode="decimal"
+                    value={form.valor_recebido}
+                    onChange={e => setForm(f => ({ ...f, valor_recebido: e.target.value }))}
+                    onFocus={e => e.currentTarget.select()}
+                  />
+                  <div style={{ marginTop: "6px", fontSize: "11px", color: Colors.textMuted, display: "flex", justifyContent: "space-between", gap: "0.75rem" }}>
+                    <span>{paymentPercent(form.bill, form.valor_recebido, form.billing_status).toFixed(0)}% pago</span>
+                    <span>{Math.max(0, Number(form.bill || 0) - effectiveReceived(form.bill, form.valor_recebido, form.billing_status)).toLocaleString("pt-PT")}€ por receber</span>
+                  </div>
+                  <div style={{ height: "4px", background: "rgba(var(--theme-contrast-rgb),0.08)", marginTop: "6px", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${paymentPercent(form.bill, form.valor_recebido, form.billing_status)}%`, background: "var(--theme-success)", transition: "width .2s ease" }} />
+                  </div>
+                </div>
+              </FormField>
+              )}
+              <FormField label="Modalidade">
+                <CustomSelect
+                  value={form.modalidade}
+                  onChange={v => setForm(f => ({ ...f, modalidade: v }))}
+                  options={MODALIDADES.map(m => ({ value: m, label: m }))}
+                  style={inputStyle}
+                />
+              </FormField>
+              <FormField label="Estado" style={{ gridColumn: "1 / -1" }}>
+                <CustomSelect
+                  value={form.billing_status}
+                  onChange={v => setForm(f => ({ ...f, billing_status: v, valor_recebido: v === "Pago" ? String(Number(f.bill || 0)) : f.valor_recebido }))}
+                  options={BILLING_ESTADOS.map(s => ({ value: s, label: s }))}
+                  style={inputStyle}
+                />
+              </FormField>
+              <div style={{ gridColumn: "1 / -1", marginTop: "0.15rem" }}>
+                <label style={{
+                  minHeight: "48px", padding: "0 0.9rem", display: "flex", alignItems: "center", gap: "0.95rem",
+                  border: `1px solid ${useMaterials ? "rgba(var(--theme-accent-rgb),0.24)" : Colors.borderDim}`,
+                  background: useMaterials ? "rgba(var(--theme-accent-rgb),0.045)" : "rgba(var(--theme-contrast-rgb),0.012)",
+                  cursor: "pointer", color: useMaterials ? Colors.gold : Colors.textMuted,
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={useMaterials}
+                    onChange={async e => {
+                      const checked = e.target.checked;
+                      if (!checked && materiaisReservadosResumo.length > 0) {
+                        showToast("Remove primeiro os materiais associados ao evento");
+                        return;
+                      }
+                      setUseMaterials(checked);
+                      if (checked) {
+                        await loadMateriais();
+                        if (modal.editing) await refreshMateriaisResumo(modal.editing.id);
+                      }
+                    }}
+                    style={{ width: "16px", height: "16px", accentColor: "var(--theme-accent)" }}
+                  />
+                  <span>
+                    <b style={{ display: "block", fontSize: "11px", letterSpacing: "0.22em", textTransform: "uppercase" }}>Usar materiais neste evento</b>
+                    <small style={{ display: "block", marginTop: "3px", fontSize: "10px", color: Colors.textMuted }}>Abre a gestão de equipamento apenas quando é necessária.</small>
+                  </span>
+                </label>
+
+                <label style={{ minHeight: 48, padding: "0.65rem 0.9rem", display: "flex", alignItems: "center", gap: "0.95rem", marginTop: 10,
+                  border: `1px solid ${marketingRequested ? "rgba(var(--theme-accent-rgb),0.3)" : Colors.borderDim}`,
+                  background: marketingRequested ? "rgba(var(--theme-accent-rgb),0.045)" : "rgba(var(--theme-contrast-rgb),0.012)", cursor: "pointer" }}>
+                  <input type="checkbox" checked={marketingRequested} onChange={e => setMarketingRequested(e.target.checked)}
+                    style={{ width: 16, height: 16, accentColor: "var(--theme-accent)" }} />
+                  <span>
+                    <b style={{ display: "block", fontSize: 11, letterSpacing: "0.14em", color: marketingRequested ? Colors.gold : Colors.textMuted }}>Solicitar presença da equipa de Marketing</b>
+                    <small style={{ display: "block", marginTop: 4, fontSize: 10, color: Colors.textMuted }}>Ao guardar, enviar email com data, horário, local, evento e equipa. Sem duplicados.</small>
+                  </span>
+                </label>
+
+                {useMaterials && (
+                  <div style={{ border: `1px solid ${Colors.borderDim}`, borderTop: "none", padding: "0.9rem", background: "rgba(var(--theme-contrast-rgb),0.012)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.95rem", marginBottom: "0.75rem" }}>
+                      <div>
+                        <div style={{ fontSize: "9px", letterSpacing: "0.35em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 700 }}>Materiais do evento</div>
+                        {(materiaisReceita > 0 || materiaisCusto > 0) && (
+                          <div style={{ marginTop: "5px", fontSize: "11px", color: Colors.textMuted }}>
+                            Faturação materiais <b style={{ color: Colors.gold }}>{materiaisReceita}€</b> · Custo <b style={{ color: materiaisCusto > 0 ? Colors.amber : Colors.green }}>{materiaisCusto}€</b>
+                          </div>
+                        )}
+                      </div>
+                      {modal.editing ? (
+                        <button type="button" onClick={() => openMaterialModal(modal.editing as AgendaEvent)} style={{ ...btnSecStyle, padding: "0.45rem 0.7rem", fontSize: "10px" }}>Gerir materiais</button>
+                      ) : (
+                        <span style={{ fontSize: "10px", color: Colors.textMuted }}>Guarda o evento primeiro</span>
+                      )}
+                    </div>
+                    {loadingMateriaisResumo ? (
+                      <div style={{ color: Colors.textMuted, fontSize: "12px" }}>A carregar materiais...</div>
+                    ) : materiaisReservadosResumo.length ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: "8px" }}>
+                        {materiaisReservadosResumo.map((m, idx) => {
+                          const estado = m.status === "reservado" ? "Reservado" : m.status === "fora" ? "Fora" : "Devolvido";
+                          const stateColor = m.status === "reservado" ? Colors.blue : m.status === "fora" ? Colors.amber : Colors.green;
+                          const valor = Number(m.contabilizar || 0) === 1 ? Number(m.valor_unitario || 0) * Math.max(1, Number(m.quantidade) || 1) : 0;
+                          const custo = Number(m.contabilizar || 0) === 1 ? Number(m.custo_unitario || 0) * Math.max(1, Number(m.quantidade) || 1) : 0;
+                          return (
+                            <div key={`${m.source}-${m.id}-${idx}`} style={{ display: "grid", gridTemplateColumns: "54px 1fr", gap: "8px", padding: "7px", border: `1px solid ${Colors.borderDim}`, background: "var(--theme-subtle-bg)" }}>
+                              <div style={{ width: "54px", height: "54px", overflow: "hidden", background: "rgba(var(--theme-contrast-rgb),0.04)", display: "grid", placeItems: "center" }}>
+                                {m.material_imagem ? <img src={m.material_imagem} alt={m.material_nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: "18px", opacity: 0.45 }}>▣</span>}
+                              </div>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: "12px", color: Colors.textPrimary, fontWeight: 650, lineHeight: 1.25 }}>{m.material_nome} <span style={{ color: Colors.textMuted }}>×{m.quantidade}</span></div>
+                                <div style={{ fontSize: "10px", color: stateColor, marginTop: "3px" }}>{estado}{m.source === "pack" ? " · incluído no serviço" : ""}</div>
+                                {Number(m.contabilizar || 0) === 1 && <div style={{ fontSize: "10px", color: Colors.textMuted, marginTop: "3px" }}>+{valor}€ faturação · {custo}€ custo</div>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{ color: Colors.textMuted, fontSize: "12px" }}>Sem materiais associados.</div>
+                    )}
+                  </div>
+                )}
+              </div>
+              {useMaterials && <FormField label="Notas de materiais / observações" style={{ gridColumn: "1 / -1" }}>
+                <textarea style={{ ...inputStyle, minHeight: "72px", resize: "vertical" }} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Ex: dual mic extra, 2 colunas, cabos XLR... / observações" />
+              </FormField>}
+            </div>
+
+            {/* ── Artistas ── */}
+            <div style={{ marginTop: "1.75rem", borderTop: `1px solid ${Colors.borderDim}`, paddingTop: "1.5rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+                <span style={{ fontSize: "9px", letterSpacing: "0.4em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600 }}>Artistas & Pagamentos</span>
+                {totalArtistas > 0 && (
+                  <span style={{ fontSize: "11px", color: Colors.amber, letterSpacing: "0.15em", fontWeight: 600 }}>
+                    Total: {userRole === "limited_novalues" ? "—" : `${totalArtistas.toLocaleString("pt-PT")}€`}
+                  </span>
+                )}
+              </div>
+
+              {loadingArtists ? (
+                <p style={{ fontSize: "12px", color: Colors.textMuted, textAlign: "center", padding: "1.2rem" }}>A carregar...</p>
+              ) : (
+                <>
+                  {/* Table header */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "6px" }}>
+                    {["Nome", "Tipo", "Custo (€)", ""].map(h => (
+                      <span key={h} style={{ fontSize: "9px", letterSpacing: "0.3em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600, padding: "0 4px" }}>{h}</span>
+                    ))}
+                  </div>
+                  <datalist id="agenda-colaboradores-list">
+                    {colaboradoresAtivos.map(c => <option key={c.id} value={colaboradorDisplayName(c)}>{c.nome_pessoal || c.skills || "Colaborador"}</option>)}
+                  </datalist>
+                  {artists.map((a, i) => (
+                    <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 130px 90px 32px", gap: "4px", marginBottom: "4px", alignItems: "flex-start" }}>
+                      <div style={{ position: "relative" }}>
+                        <ArtistAutocomplete
+                          value={a.nome}
+                          tipoValue={a.tipo}
+                          onNomeChange={nome => updateArtistNome(i, nome)}
+                          onTipoChange={tipo => updateArtistTipo(i, tipo)}
+                          onSelectSuggestion={suggestion => selectArtistSuggestion(i, suggestion)}
+                          artistHistory={artistHistory}
+                          allTipos={[...ARTIST_TIPOS]}
+                          colaboradores={colaboradoresAtivos.map(c => ({ 
+                            id: c.id,
+                            nome: c.nome,
+                            nome_artistico: c.nome_artistico,
+                            nome_pessoal: c.nome_pessoal,
+                            skills: c.skills,
+                          }))}
+                          placeholder="Escolher colaborador..."
+                          inputStyle={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "13px" }}
+                        />
+                      </div>
+                      <ArtistTypeAutocomplete
+                        value={a.tipo}
+                        onChange={v => updateArtistTipo(i, v)}
+                        options={tiposDisponiveisParaArtista(a)}
+                        placeholder="s/ tipo"
+                        inputStyle={{ ...inputStyle, padding: "0.5rem 0.5rem", fontSize: "12px" }}
+                      />
+                      <div>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={a.fee}
+                          onChange={e => updateArtistFee(i, e.target.value)}
+                          onFocus={e => { if (e.target.value === "0") updateArtistFee(i, ""); }}
+                          onBlur={e => { if (e.target.value === "") updateArtistFee(i, "0"); }}
+                          placeholder="0"
+                          style={{ ...inputStyle, padding: "0.5rem 0.75rem", fontSize: "13px" }}
+                        />
+                        {a.nome && a.tipo && (
+                          <small style={{ display: "block", marginTop: "3px", color: Colors.textMuted, fontSize: "9px", lineHeight: 1.3 }}>
+                            {a.fee_auto !== false
+                              ? artistCostSuggestion(findColaboradorById(a.colaborador_id) || findColaboradorByNome(a.nome), a.tipo).source
+                              : "Custo guardado / editável"}
+                          </small>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => removeArtistRow(i)}
+                        style={{ background: "transparent", border: "none", color: Colors.textMuted, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                        title="Remover"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2"><line x1="1" y1="1" x2="11" y2="11" /><line x1="11" y1="1" x2="1" y2="11" /></svg>
+                      </button>
+                    </div>
+                  ))}
+                  <button onClick={addArtistRow} style={{ ...btnSecStyle, fontSize: "10px", padding: "0.4rem 0.9rem", marginTop: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
+                    <svg width="8" height="8" viewBox="0 0 10 10" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="5" y1="1" x2="5" y2="9" /><line x1="1" y1="5" x2="9" y2="5" /></svg>
+                    Adicionar artista
+                  </button>
+                </>
+              )}
+            </div>
+
+            {modal.editing && !modal.editing.cancelled && (
+              <div style={{ marginTop: "1.5rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(var(--theme-contrast-rgb),0.06)" }}>
+                <label style={{ display: "block", fontSize: "9px", letterSpacing: "0.4em", color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Troca de Dia</label>
+                {getTrocaNota(modal.editing.notas || "") ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.95rem", background: "rgba(var(--theme-accent-rgb),0.06)", border: "1px solid rgba(var(--theme-accent-rgb),0.18)", padding: "0.65rem 0.85rem" }}>
+                    <span style={{ fontSize: "12px", color: Colors.gold, letterSpacing: "0.03em" }}>
+                      🔁 {getTrocaNota(modal.editing.notas || "")}
+                    </span>
+                    <button
+                      onClick={() => handleRemoverNotaTroca(modal.editing as AgendaEvent)}
+                      style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", fontSize: "10px", letterSpacing: "0.2em", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", flexShrink: 0 }}
+                    >Remover</button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
+                    <input
+                      type="date"
+                      value={trocaNovaData}
+                      onChange={e => setTrocaNovaData(e.target.value)}
+                      style={{ ...inputStyle, flex: 1 }}
+                    />
+                    <button
+                      onClick={() => { if (trocaNovaData) { handleAplicarTroca(modal.editing as AgendaEvent, trocaNovaData); setTrocaNovaData(""); } }}
+                      disabled={!trocaNovaData}
+                      style={{ ...btnSecStyle, padding: "0.7rem 1.1rem", flexShrink: 0, opacity: !trocaNovaData ? 0.4 : 1, color: Colors.gold, borderColor: "rgba(var(--theme-accent-rgb),0.25)" }}
+                    >Registar troca</button>
+                  </div>
+                )}
+                <p style={{ fontSize: "11px", color: "var(--theme-text-subtle)", letterSpacing: "0.02em", marginTop: "0.6rem", lineHeight: "1.5" }}>
+                  Usa isto quando o evento mudou de dia por troca com outra pessoa (ex: SUD). O evento passa para o novo dia e fica anotado o dia original.
+                </p>
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "1rem", marginTop: "2rem", justifyContent: "flex-end" }}>
+              <button onClick={closeModal} style={btnSecStyle}>Fechar</button>
+              {modal.editing && !modal.editing.cancelled && (
+                <button onClick={handleCancelFromModal} style={btnDangerStyle}>Cancelar Evento</button>
+              )}
+              <button onClick={handleSave} disabled={saving} style={btnPrimStyle}>{saving ? "A guardar..." : "Guardar"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Gaveta: Materiais do Evento ── */}
+      {materialModal.open && materialModal.event && (
+        <div onClick={e => e.target === e.currentTarget && closeMaterialModal()} style={{ position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1150, display: "flex", justifyContent: "flex-end", backdropFilter: "none" }}>
+          <div style={{ background: "var(--theme-surface)", borderLeft: `1px solid ${Colors.border}`, padding: "1.6rem", width: "600px", maxWidth: "94vw", height: "100vh", overflowY: "auto", position: "relative", boxShadow: "-24px 0 60px rgba(0,0,0,.28)" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: "1px", background: "linear-gradient(180deg, transparent, var(--theme-accent), transparent)" }} />
+            <div style={{ position: "sticky", top: "-1.6rem", zIndex: 2, margin: "-1.6rem -1.6rem 1.15rem", padding: "1.35rem 1.6rem 1rem", background: "var(--theme-surface)", borderBottom: `1px solid ${Colors.borderDim}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
+                <div>
+                  <p style={{ fontSize: "11px", letterSpacing: "0.35em", color: "var(--theme-accent)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.25rem" }}>Materiais do Evento</p>
+                  <p style={{ fontSize: "14px", color: Colors.textPrimary, margin: 0 }}>{materialModal.event.title}</p>
+                </div>
+                <button onClick={closeMaterialModal} style={{ background: "transparent", border: "none", color: "var(--theme-text-subtle)", cursor: "pointer", fontSize: "18px", padding: "6px" }}>✕</button>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: "1.25rem", display: "flex", flexDirection: "column", gap: "7px" }}>
+              {loadingMateriaisResumo && <div style={{ fontSize: "12px", color: Colors.textMuted }}>A carregar materiais...</div>}
+              {!loadingMateriaisResumo && materiaisReservadosResumo.length === 0 && (
+                <div style={{ fontSize: "12px", color: Colors.textMuted, padding: "0.7rem", border: `1px solid ${Colors.borderDim}` }}>Sem materiais associados a este evento.</div>
+              )}
+              {!loadingMateriaisResumo && materiaisReservadosResumo.map((item, idx) => {
+                const isReserva = item.status === "reservado";
+                const isFora = item.status === "fora";
+                const key = `${item.source}-${item.id}`;
+                const mov = item.source === "movement" ? movimentosMateriais.find(m => m.id === item.id) : undefined;
+                return (
+                  <div key={`${key}-${item.material_nome}-${idx}`} style={{ padding: "0.7rem", background: "var(--theme-subtle-bg)", border: `1px solid ${isReserva ? "rgba(80,140,220,0.28)" : isFora ? "rgba(223,155,52,0.28)" : Colors.borderDim}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.95rem" }}>
+                      <div style={{ display: "flex", gap: "9px", minWidth: 0 }}>
+                        <div style={{ width: "64px", height: "64px", flexShrink: 0, overflow: "hidden", background: "rgba(var(--theme-contrast-rgb),0.04)", display: "grid", placeItems: "center", border: `1px solid ${Colors.borderDim}` }}>
+                          {item.material_imagem ? <img src={item.material_imagem} alt={item.material_nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: "20px", opacity: 0.45 }}>▣</span>}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
+                            <div style={{ fontSize: "13px", color: Colors.textPrimary, fontWeight: 650 }}>{item.material_nome}</div>
+                            <span style={{ minWidth: "26px", textAlign: "center", fontSize: "10px", color: Colors.gold, border: `1px solid ${Colors.border}`, padding: "2px 6px" }}>×{item.quantidade}</span>
+                          </div>
+                          <div style={{ fontSize: "11px", marginTop: "2px", color: isReserva ? Colors.blue : isFora ? Colors.amber : Colors.green }}>
+                            {isReserva ? "Reservado · ainda no local" : isFora ? `Fora${item.quem_levou ? ` · levou ${item.quem_levou}` : ""}` : "Devolvido"}
+                            {item.source === "pack" && item.pack_nome ? ` · ${item.pack_nome}` : ""}
+                          </div>
+                          {Number(item.contabilizar || 0) === 1 && <div style={{ fontSize: "10px", color: Colors.textMuted, marginTop: "3px" }}>+{Number(item.valor_unitario || 0) * Math.max(1, Number(item.quantidade) || 1)}€ faturação · {Number(item.custo_unitario || 0) * Math.max(1, Number(item.quantidade) || 1)}€ custo</div>}
+                        </div>
+                      </div>
+                      {(item.source === "manual" || item.source === "legacy") && isReserva && (
+                        <div style={{ display: "flex", gap: "4px", alignItems: "center", flexShrink: 0 }}>
+                          <input type="number" min={1} value={reservaQtyDrafts[key] ?? item.quantidade} onChange={e => setReservaQtyDrafts(prev => ({ ...prev, [key]: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...inputStyle, width: "58px", padding: "0.4rem" }} />
+                          <button onClick={() => handleGuardarQuantidadeReserva(item)} style={{ ...btnSecStyle, padding: "0.42rem 0.55rem", fontSize: "10px" }}>Guardar</button>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "0.55rem" }}>
+                      {isReserva && <button onClick={() => handleConfirmarSaidaReserva(item)} style={{ background: "rgba(223,155,52,0.1)", border: "1px solid rgba(223,155,52,0.28)", color: Colors.amber, fontSize: "10px", padding: "5px 8px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Registar saída</button>}
+                      {isFora && mov && <button onClick={() => handleMaterialVoltou(mov)} style={{ background: "rgba(93,202,165,0.12)", border: "1px solid rgba(93,202,165,0.3)", color: Colors.green, fontSize: "10px", padding: "5px 8px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Voltou</button>}
+                      {item.source !== "pack" && <button onClick={() => handleRemoverItemMaterial(item)} style={{ background: "transparent", border: "1px solid rgba(210,80,80,0.22)", color: Colors.red, fontSize: "10px", padding: "5px 8px", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>Remover</button>}
+                      {item.source === "pack" && <span style={{ fontSize: "10px", color: Colors.textMuted, alignSelf: "center" }}>Gerido pelo pack do serviço</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p style={{ fontSize: "10px", letterSpacing: "0.3em", color: Colors.textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Reservar novo material</p>
+
+            <div style={{ marginBottom: "0.85rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: "7px", maxHeight: "310px", overflowY: "auto", paddingRight: "2px" }}>
+                {materiaisAtivos.map(m => {
+                  const active = reservaForm.material_id === m.id;
+                  const valor = form.valor_contexto === "SUD"
+                    ? (m.valor_sud || m.valor_cliente_final || m.valor_parceiro || 0)
+                    : (form.valor_contexto === "Parceiro" || form.valor_contexto === "Residência")
+                      ? (m.valor_parceiro || m.valor_cliente_final || 0)
+                      : (m.valor_cliente_final || m.valor_parceiro || m.valor_sud || 0);
+                  return (
+                    <button key={m.id} type="button" onClick={() => setReservaForm(f => ({ ...f, material_id: m.id }))} style={{ padding: "6px", border: `1px solid ${active ? "rgba(var(--theme-accent-rgb),0.5)" : Colors.borderDim}`, background: active ? "rgba(var(--theme-accent-rgb),0.08)" : "var(--theme-subtle-bg)", color: active ? Colors.gold : Colors.textPrimary, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
+                      <div style={{ aspectRatio: "1.25", overflow: "hidden", background: "rgba(var(--theme-contrast-rgb),0.04)", display: "grid", placeItems: "center", marginBottom: "5px" }}>
+                        {m.imagem ? <img src={m.imagem} alt={m.nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: "22px", opacity: 0.38 }}>▣</span>}
+                      </div>
+                      <div style={{ fontSize: "10px", fontWeight: 650, lineHeight: 1.25 }}>{m.nome}</div>
+                      <div style={{ fontSize: "9px", color: Colors.textMuted, marginTop: "3px" }}>{valor}€ · custo {m.custo_interno || 0}€</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "0.95rem", marginBottom: "0.85rem" }}>
+              <input type="number" min={1} style={inputStyle} value={reservaForm.quantidade} onChange={(e: any) => setReservaForm(f => ({ ...f, quantidade: Math.max(1, Number(e.target.value) || 1) }))} />
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                {MATERIAL_ORIGENS.map(o => (
+                  <button key={o} onClick={() => setReservaForm(f => ({ ...f, origem: o }))} style={{
+                    background: reservaForm.origem === o ? "rgba(var(--theme-accent-rgb),0.18)" : "rgba(var(--theme-contrast-rgb),0.04)",
+                    border: `1px solid ${reservaForm.origem === o ? "rgba(var(--theme-accent-rgb),0.4)" : "rgba(var(--theme-contrast-rgb),0.1)"}`,
+                    color: reservaForm.origem === o ? Colors.gold : Colors.textMuted,
+                    fontSize: "12px", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit",
+                  }}>{o}</button>
+                ))}
+              </div>
+            </div>
+            {reservaForm.origem === "Outro" && (
+              <input style={{ ...inputStyle, marginBottom: "0.85rem" }} placeholder="Especificar..." value={reservaForm.origem_detalhe} onChange={(e: any) => setReservaForm(f => ({ ...f, origem_detalhe: e.target.value }))} />
+            )}
+
+            <div style={{ display: "flex", gap: "0.95rem", marginTop: "0.5rem" }}>
+              <button onClick={closeMaterialModal} style={btnSecStyle}>Fechar</button>
+              <button onClick={handleReservarMaterial} disabled={reservaSaving || !reservaForm.material_id} style={{ ...btnPrimStyle, opacity: !reservaForm.material_id ? 0.5 : 1 }}>{reservaSaving ? "A reservar..." : "Reservar"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ position: "fixed", bottom: "2rem", right: "2rem", maxWidth: "420px", background: "var(--theme-toast-bg)", border: `1px solid ${Colors.border}`, color: Colors.gold, fontSize: "12px", letterSpacing: toast.length > 40 ? "0.02em" : "0.25em", padding: "1rem 1.5rem", zIndex: 2000, transform: toast ? "translateX(0)" : "translateX(200%)", transition: "transform 0.3s ease", textTransform: toast.length > 40 ? "none" : "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "1rem" }}>
+        <span style={{ wordBreak: "break-word", userSelect: "text" }}>{toast}</span>
+        {undoAction && (
+          <button onClick={undoAction.fn} style={{ background: "rgba(var(--theme-accent-rgb),0.15)", border: "1px solid rgba(var(--theme-accent-rgb),0.3)", color: Colors.gold, fontSize: "11px", letterSpacing: "0.3em", padding: "0.3rem 0.75rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, flexShrink: 0 }}>
+            {undoAction.label}
+          </button>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ── Shared components ─────────────────────────────────────────────────────────
+
+function Nav({ userName, active, onLogout, lightTheme }: { userName: string; active: string; onLogout: () => void; lightTheme: boolean }) {
+  const stored = typeof window !== "undefined" ? localStorage.getItem("lle_user") : null;
+  const role = stored ? JSON.parse(stored).role : "admin";
+  const isDark = !lightTheme;
+  const allLinks = [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/agenda", label: "Agenda" },
+    { href: "/leads", label: "Leads" },
+    { href: "/faturacao", label: "Faturação" },
+    { href: "/pagamentos", label: "Pagamentos" },
+    { href: "/colaboradores", label: "Colaboradores" },
+    { href: "/valores", label: "Valores" }, { href: "/packs", label: "Packs" }, { href: "/residencias", label: "Residências" },
+    { href: "/clientes", label: "Clientes" },
+    { href: "/crm", label: "CRM" },
+  ];
+  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/packs", "/residencias"];
+  const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes", "/crm"];
+  const financeLinks = [
+    ...allLinks.filter(l => financeHrefs.includes(l.href)),
+    ...(allLinks.some(l => l.href === "/clientes") ? [] : [{ href: "/clientes", label: "Clientes" }]),
+  ].filter((l, i, arr) => arr.findIndex(x => x.href === l.href) === i);
+  const baseLinks = role === "admin" ? allLinks : role === "finance" ? financeLinks : allLinks.filter(l => !restrictedHrefs.includes(l.href));
+  const links = [
+    ...baseLinks,
+    ...((role !== "limited_novalues" && role !== "finance") ? [{ href: "/materiais", label: "Materiais" }] : []),
+  ];
+  const navBg = isDark ? "var(--theme-nav-bg)" : "#FFFFFF";
+  const navBorder = isDark ? "1px solid rgba(var(--theme-contrast-rgb),0.05)" : "1px solid rgba(0,0,0,0.12)";
+  const textMuted = isDark ? "var(--theme-text-muted)" : "#000000";
+  const textVeryMuted = isDark ? "var(--theme-text-faint)" : "rgba(0,0,0,0.55)";
+  const buttonBorder = isDark ? "1px solid rgba(var(--theme-accent-rgb),0.12)" : "1px solid rgba(0,0,0,0.2)";
+  const goldColor = isDark ? "var(--theme-accent)" : "#000000";
+  
+  return (
+    <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem", borderBottom: navBorder, position: "sticky", top: 0, zIndex: 100, background: navBg, backdropFilter: "blur(12px)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", letterSpacing: "0.35em", color: goldColor, fontWeight: lightTheme ? 700 : 300 }}>LLE</span>
+        <div style={{ display: "flex", gap: "0.25rem" }}>
+          {links.map(l => (
+            <a key={l.href} href={l.href} style={{ fontSize: "11px", letterSpacing: "0.3em", padding: "0.5rem 1rem", textTransform: "uppercase", fontWeight: active === l.href.slice(1) ? (lightTheme ? 700 : 600) : (lightTheme ? 600 : 500), color: active === l.href.slice(1) ? goldColor : textMuted, textDecoration: "none", fontFamily: "'Montserrat','Helvetica Neue',sans-serif" }}>{l.label}</a>
+          ))}
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+        <span style={{ fontSize: "11px", letterSpacing: "0.3em", color: textVeryMuted, textTransform: "uppercase", fontWeight: lightTheme ? 600 : 400 }}>{userName}</span>
+        <button onClick={onLogout} style={{ background: "transparent", border: buttonBorder, color: textVeryMuted, fontSize: "10px", letterSpacing: "0.4em", padding: "0.5rem 1rem", cursor: "pointer", textTransform: "uppercase", fontFamily: "inherit", fontWeight: lightTheme ? 700 : 600 }}>SAIR</button>
+      </div>
+    </nav>
+  );
+}
+
+function Loading() {
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--theme-bg)" }}>
+      <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "3rem", letterSpacing: "0.4em", color: "var(--theme-accent)", fontWeight: 300 }}>LLE</span>
+    </div>
+  );
+}
+
+function StatusBadge({ color, label }: { color: string; label: string }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "11px", letterSpacing: "0.2em", padding: "3px 8px", fontWeight: 600, textTransform: "uppercase", background: `${color}18`, color }}>
+      <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: color }} />
+      {label}
+    </span>
+  );
+}
+
+function IconBtn({ title, onClick, icon, danger, success, disabled }: { title: string; onClick: () => void; icon: string; danger?: boolean; success?: boolean; disabled?: boolean }) {
+  const icons: Record<string, React.ReactNode> = {
+    edit: <svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><path d="M11 2l3 3-9 9H2v-3l9-9z" /></svg>,
+    cancel: <svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><circle cx="8" cy="8" r="6" /><path d="M5 5l6 6M11 5l-6 6" /></svg>,
+    restore: <svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-9" /></svg>,
+    delete: <svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="3 6 4 14 12 14 13 6" /><path d="M2 6h12M10 6V4H6v2" /></svg>,
+    material: <svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="1.8"><rect x="2" y="5" width="12" height="9" rx="1.2" /><path d="M5.5 5V3.5a2 2 0 014 0V5" /></svg>,
+  };
+  const color = danger ? "var(--theme-danger)" : success ? "var(--theme-success)" : "var(--theme-text-subtle)";
+  return (
+    <button title={title} onClick={onClick} disabled={disabled} style={{ background: "transparent", border: "none", cursor: disabled ? "default" : "pointer", padding: "5px", color, opacity: disabled ? 0.4 : 1, transition: "color 0.15s" }}>
+      {icons[icon]}
+    </button>
+  );
+}
+
+function FormField({ label, children, style }: { label: string; children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div style={{ marginBottom: "1.25rem", ...style }}>
+      <label style={{ display: "block", fontSize: "9px", letterSpacing: "0.4em", color: "var(--theme-text-faint)", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.6rem" }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+const createAddBtnStyle = (lightTheme: boolean): React.CSSProperties => {
+  const isDark = !lightTheme;
+  return {
+    background: "transparent",
+    border: isDark ? "1px solid rgba(var(--theme-accent-rgb),0.12)" : "1px solid rgba(0,0,0,0.2)",
+    color: isDark ? "var(--theme-accent-muted)" : "#000000",
+    fontSize: "10px",
+    letterSpacing: "0.35em",
+    padding: "0.5rem 1.25rem",
+    cursor: "pointer",
+    fontFamily: "inherit",
+    textTransform: "uppercase",
+    fontWeight: lightTheme ? 700 : 600,
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    transition: "all 0.2s"
+  };
+};
+
+// Helper dinâmico para criar tdStyle baseado no tema
+const createTdStyle = (lightTheme: boolean, { muted, nowrap, maxW }: { muted?: boolean; nowrap?: boolean; maxW?: string }): React.CSSProperties => {
+  const isDark = !lightTheme;
+  return {
+    fontSize: "14px",
+    color: isDark
+      ? (muted ? "var(--theme-text-muted)" : "var(--theme-text)")
+      : (muted ? "rgba(0,0,0,0.75)" : "#000000"),
+    fontWeight: lightTheme ? 500 : undefined,
+    padding: "0.85rem 1.25rem",
+    borderBottom: isDark ? "1px solid rgba(var(--theme-contrast-rgb),0.05)" : "1px solid rgba(0,0,0,0.12)",
+    whiteSpace: nowrap ? "nowrap" : undefined,
+    maxWidth: maxW,
+    overflow: maxW ? "hidden" : undefined,
+    textOverflow: maxW ? "ellipsis" : undefined
+  };
+};
+const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "var(--theme-overlay)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "none" };
+const modalStyle: React.CSSProperties = { background: "var(--theme-surface)", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", padding: "clamp(1.25rem, 4vw, 2.5rem)", width: "640px", maxWidth: "96vw", maxHeight: "92dvh", overflowY: "auto", position: "relative" };
+const topLineStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, var(--theme-accent), transparent)" };
+const inputStyle: React.CSSProperties = { width: "100%", background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "'Montserrat','Helvetica Neue',sans-serif", fontSize: "13px", padding: "0.75rem 1rem", letterSpacing: "0.05em", outline: "none", boxSizing: "border-box" };
+const btnPrimStyle: React.CSSProperties = { background: "var(--theme-accent)", border: "none", color: "var(--theme-accent-contrast)", fontSize: "11px", letterSpacing: "0.4em", fontWeight: 700, padding: "0.75rem 1.75rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnSecStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(var(--theme-accent-rgb),0.12)", color: "var(--theme-text-subtle)", fontSize: "11px", letterSpacing: "0.4em", fontWeight: 600, padding: "0.75rem 1.5rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+const btnDangerStyle: React.CSSProperties = { background: "transparent", border: "1px solid rgba(226,75,74,0.3)", color: "var(--theme-danger)", fontSize: "10px", letterSpacing: "0.3em", fontWeight: 600, padding: "0.75rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" };
+
