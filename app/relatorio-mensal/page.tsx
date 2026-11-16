@@ -6,12 +6,16 @@ import DesktopNav from "../DesktopNav";
 import MobTabBar from "../MobTabBar";
 import { ThemeSwitcher } from "../ThemeSwitcher";
 import { useTheme } from "../useTheme";
-import { getAnnualReportData, saveReportMonthlyCosts } from "../actions";
+import { getAnnualReportData, saveReportMonthlyCosts, saveReportMonthlyCostLines } from "../actions";
 
+type CustoLinha = { codigo: string; descricao: string; grupo: "fixo" | "vencimento"; valor: number | null; origem: "referencia" | "guardado" };
 type Mes = {
   mes: number; eventos: number; faturado: number; faturadoAnterior: number; faturadoMesAnterior: number;
   dentro: number; fora: number; custoDentro: number; custoFora: number;
   custo: number; gastosFixos: number | null; vencimentos: number | null;
+  gastosFixosParcial?: number | null; vencimentosParcial?: number | null;
+  custosDetalhe?: CustoLinha[]; custosPendentes?: string[];
+  custosOrigem?: "anterior" | "guardado" | "referencia" | "por_guardar" | "sem_dados";
 };
 type Linha = {
   id: number; origem: string; data: string; descricao: string; cliente: string;
@@ -86,6 +90,42 @@ export default function MonthlyReportPage() {
     if (n !== null && (!Number.isFinite(n) || n < 0)) return;
     setMeses(ms => ms.map(m => m.mes === mesSelecionado ? { ...m, [field]: n } : m));
   };
+  const atualizarRubrica = (codigo: string, texto: string) => {
+    const n = texto.trim() === "" ? null : Number(texto);
+    if (n !== null && (!Number.isFinite(n) || n < 0 || n > 1_000_000)) return;
+    setMeses(lista => lista.map(m => {
+      if (m.mes !== mesSelecionado || !m.custosDetalhe) return m;
+      const custosDetalhe = m.custosDetalhe.map(l => l.codigo === codigo ? { ...l, valor: n } : l);
+      const total = (grupo: "fixo" | "vencimento") =>
+        custosDetalhe.some(l => l.grupo === grupo && l.valor === null)
+          ? null : Math.round(custosDetalhe.filter(l => l.grupo === grupo)
+              .reduce((s, l) => s + (l.valor ?? 0), 0) * 100) / 100;
+      return {
+        ...m, custosDetalhe,
+        gastosFixos: total("fixo"), vencimentos: total("vencimento"),
+        custosPendentes: custosDetalhe.filter(l => l.valor === null).map(l => l.descricao),
+        custosOrigem: "por_guardar" as const,
+      };
+    }));
+  };
+  const guardarRubricas = async () => {
+    if (!mes?.custosDetalhe) return;
+    setSaving(true);
+    try {
+      const linhas = mes.custosDetalhe.map(({ codigo, valor }) => ({ codigo, valor }));
+      const resposta = await saveReportMonthlyCostLines(ano, mesSelecionado, linhas);
+      if (resposta.success) {
+        setMeses(lista => lista.map(m => m.mes === mesSelecionado ? {
+          ...m, custosOrigem: "guardado" as const,
+          custosDetalhe: (m.custosDetalhe || []).map(l => ({ ...l, origem: "guardado" as const })),
+        } : m));
+      }
+      setFeedback(resposta.success
+        ? `Rubricas de ${mesesNomes[mesSelecionado - 1]} de ${ano} guardadas.`
+        : (resposta.message || "Não foi possível guardar as rubricas."));
+    } catch { setFeedback("Não foi possível guardar as rubricas."); }
+    finally { setSaving(false); }
+  };
   const guardarCustos = async () => {
     if (!mes || !custoCompleto) { setFeedback("Preenche gastos fixos e vencimentos antes de guardar."); return; }
     setSaving(true);
@@ -145,12 +185,35 @@ export default function MonthlyReportPage() {
           </section>
           <section style={panel}>
             <h2 style={{ fontSize: 16, marginTop: 0 }}>Vencimentos e gastos fixos · {mesesNomes[mesSelecionado - 1]}</h2>
-            <div className="report-cost-editor" style={{ display: "flex", flexWrap: "wrap", alignItems: "end", gap: 16 }}>
-              <label style={{ display: "grid", gap: 5, fontSize: 12 }}>Vencimentos (€)<input aria-label="Vencimentos do mês" type="number" min="0" step="0.01" value={mes.vencimentos ?? ""} onChange={e => setCusto("vencimentos", e.target.value)} style={input} placeholder="Por apurar" /></label>
-              <label style={{ display: "grid", gap: 5, fontSize: 12 }}>Gastos fixos (€)<input aria-label="Gastos fixos do mês" type="number" min="0" step="0.01" value={mes.gastosFixos ?? ""} onChange={e => setCusto("gastosFixos", e.target.value)} style={input} placeholder="Por apurar" /></label>
-              <button disabled={!custoCompleto || saving} onClick={() => void guardarCustos()} style={{ background: "var(--theme-accent)", color: "var(--theme-accent-contrast)", border: 0, padding: "11px 17px", opacity: !custoCompleto || saving ? 0.5 : 1, cursor: "pointer" }}>{saving ? "A guardar…" : "Guardar custos"}</button>
-            </div>
-            <p style={muted}>O lucro real só é calculado quando ambos os custos são preenchidos. Valores de outros meses não são copiados automaticamente.</p>
+            {mes.custosDetalhe?.length ? <>
+              <p style={muted}>
+                Valores de referência fornecidos pela LLE, não comprovativos de pagamento.
+                {mesSelecionado === 12 ? " Dezembro é uma projeção." : " Confirma qualquer alteração neste mês."}
+                {mes.custosOrigem === "anterior" ? " Existe um total antigo guardado que prevalece até guardares estas rubricas." : ""}
+              </p>
+              <div className="report-cost-editor" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(270px, 1fr))", gap: 22 }}>
+                {(["vencimento", "fixo"] as const).map(grupo => <div key={grupo}>
+                  <h3 style={{ fontSize: 13, color: "var(--theme-accent)", margin: "8px 0 12px" }}>{grupo === "fixo" ? "Gastos fixos" : "Vencimentos"}</h3>
+                  {mes.custosDetalhe!.filter(l => l.grupo === grupo).map(l => <label key={l.codigo} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, padding: "6px 0", borderBottom: "1px solid var(--theme-border)" }}>
+                    <span style={{ ...muted, maxWidth: "60%" }}>{l.descricao}</span>
+                    <input type="number" min="0" max="1000000" step="0.01" aria-label={l.descricao} value={l.valor ?? ""} onChange={e => atualizarRubrica(l.codigo, e.target.value)} style={{ ...input, width: 112 }} placeholder="Pendente" />
+                  </label>)}
+                  <p style={{ ...muted, marginTop: 12 }}><b>Total {grupo === "fixo" ? "gastos fixos" : "vencimentos"}:</b> {grupo === "fixo" ? (mes.gastosFixos === null ? "Por apurar" : fmt(mes.gastosFixos)) : (mes.vencimentos === null ? "Por apurar" : fmt(mes.vencimentos))}</p>
+                </div>)}
+              </div>
+              <div className="report-cost-editor" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12, marginTop: 14 }}>
+                <button type="button" disabled={saving || mes.custosOrigem === "guardado"} onClick={() => void guardarRubricas()} style={{ background: "var(--theme-accent)", color: "var(--theme-accent-contrast)", border: 0, padding: "11px 17px", opacity: saving ? 0.5 : 1, cursor: "pointer" }}>{saving ? "A guardar…" : "Guardar rubricas do mês"}</button>
+                <span style={muted}>{mes.custosOrigem === "guardado" ? "Rubricas guardadas" : mes.custosOrigem === "por_guardar" ? "Alterações por guardar" : "Valores de referência"}</span>
+              </div>
+              {mes.custosPendentes?.length ? <p style={{ ...muted, marginTop: 12 }}>Por confirmar: {mes.custosPendentes.join(" · ")}. O lucro real fica por apurar até completar as rubricas.</p> : null}
+            </> : <>
+              <div className="report-cost-editor" style={{ display: "flex", flexWrap: "wrap", alignItems: "end", gap: 16 }}>
+                <label style={{ display: "grid", gap: 5, fontSize: 12 }}>Vencimentos (€)<input aria-label="Vencimentos do mês" type="number" min="0" step="0.01" value={mes.vencimentos ?? ""} onChange={e => setCusto("vencimentos", e.target.value)} style={input} placeholder="Por apurar" /></label>
+                <label style={{ display: "grid", gap: 5, fontSize: 12 }}>Gastos fixos (€)<input aria-label="Gastos fixos do mês" type="number" min="0" step="0.01" value={mes.gastosFixos ?? ""} onChange={e => setCusto("gastosFixos", e.target.value)} style={input} placeholder="Por apurar" /></label>
+                <button disabled={!custoCompleto || saving} onClick={() => void guardarCustos()} style={{ background: "var(--theme-accent)", color: "var(--theme-accent-contrast)", border: 0, padding: "11px 17px", opacity: !custoCompleto || saving ? 0.5 : 1, cursor: "pointer" }}>{saving ? "A guardar…" : "Guardar custos"}</button>
+              </div>
+              <p style={muted}>O lucro real só é calculado quando ambos os totais são preenchidos.</p>
+            </>}
           </section>
           <section style={panel}>
             <h2 style={{ fontSize: 16, marginTop: 0 }}>Casamentos · Eventos · Residências</h2>

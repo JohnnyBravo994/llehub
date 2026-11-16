@@ -5483,6 +5483,83 @@ async function ensureReportMonthlyCosts() {
   )`);
 }
 
+// Custos indicados pela direção da LLE (novembro/2026).
+// Referências para o ano de 2026: não equivalem a comprovativos de pagamento.
+// Custos sem valor confirmado permanecem null; nunca são tratados como zero.
+type ReportCostGroup = "fixo" | "vencimento";
+type ReportCostLine = { codigo: string; descricao: string; grupo: ReportCostGroup; valor: number | null; origem: "referencia" | "guardado" };
+type ReportCostInput = { codigo: string; valor: number | null };
+
+function getReportCostTemplate(ano: number, mes: number): ReportCostLine[] {
+  if (ano !== 2026 || mes < 1 || mes > 12) return [];
+  // Junho: referência mensal confirmada. Julho–outubro: rubricas recorrentes
+  // projetadas a partir de junho, editáveis para diferenças reais.
+  // Novembro: alteração NOS → DIGI, cessação Goldie. Dezembro: projeção.
+  // Janeiro–maio: o histórico só confirma alguns montantes, sem permitir
+  // extrapolar todos os vencimentos e encargos desse período.
+  const regular = mes >= 6;
+  const oldPeriod = mes <= 10;
+  const confirmedOldComms = mes >= 2 && oldPeriod;
+  const feb = mes === 2;
+  const base: Array<[string, string, ReportCostGroup, number | null]> = [
+    ["google", "Google", "fixo", regular ? 100 : null],
+    ["renda", "Renda da loja", "fixo", regular ? 325 : feb ? 350 : null],
+    ["garagem", "Garagem do carro", "fixo", regular ? 275 : null],
+    ["seguranca_social", "Segurança Social", "fixo", regular ? 829.69 : null],
+    ["edp", "EDP", "fixo", mes >= 2 ? 11 : null],
+    ["seguradora", "Seguradora", "fixo", mes >= 2 ? 46.98 : null],
+    ...(oldPeriod
+      ? [["goldie", "Goldie (até outubro)", "fixo", regular ? 29.99 : null],
+         ["nos", "NOS (até outubro)", "fixo", confirmedOldComms ? 47.99 : null]] as Array<[string, string, ReportCostGroup, number | null]>
+      : [["digi", "DIGI (10 € + 3 × 4,50 €)", "fixo", 23.50]] as Array<[string, string, ReportCostGroup, number | null]>),
+    ["soraya", "Soraya", "vencimento", regular ? 1080 : null],
+    ["tania", "Tânia", "vencimento", regular ? 1467.33 : null],
+    ["larissa", "Larissa", "vencimento", regular ? 809.67 : null],
+    ["joao", "João", "vencimento", regular ? 300 : null],
+    ["ines", "Inês", "vencimento", regular ? 500 : null],
+    ["vilma", "Vilma", "vencimento", regular ? 210 : null],
+  ];
+  return base.map(([codigo, descricao, grupo, valor]) => ({ codigo, descricao, grupo, valor, origem: "referencia" }));
+}
+
+async function ensureReportCostLines() {
+  await turso.execute(`CREATE TABLE IF NOT EXISTS report_monthly_cost_lines (
+    ano INTEGER NOT NULL, mes INTEGER NOT NULL,
+    codigo TEXT NOT NULL, valor REAL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY(ano, mes, codigo)
+  )`);
+}
+
+// Guarda cada rubrica separadamente. O registo agregado antigo permanece intacto
+// para compatibilidade, mas deixa de prevalecer quando existem rubricas detalhadas.
+export async function saveReportMonthlyCostLines(ano: number, mes: number, linhas: ReportCostInput[]) {
+  if (!Number.isInteger(ano) || ano !== 2026 || !Number.isInteger(mes) || mes < 1 || mes > 12) {
+    return { success: false, message: "A edição por rubrica está disponível apenas para 2026." };
+  }
+  const template = getReportCostTemplate(ano, mes);
+  const keys = new Set(template.map(t => t.codigo));
+  if (!Array.isArray(linhas) || linhas.length !== keys.size ||
+      new Set(linhas.map(l => l.codigo)).size !== keys.size ||
+      linhas.some(l => !l || !keys.has(l.codigo) ||
+        !(l.valor === null || (typeof l.valor === "number" && Number.isFinite(l.valor) && l.valor >= 0 && l.valor <= 1_000_000)))) {
+    return { success: false, message: "Lista de rubricas ou valores inválidos." };
+  }
+  try {
+    await ensureReportCostLines();
+    await turso.batch(linhas.map(l => ({
+      sql: `INSERT INTO report_monthly_cost_lines (ano,mes,codigo,valor,updated_at)
+            VALUES (?,?,?,?,datetime('now'))
+            ON CONFLICT(ano,mes,codigo) DO UPDATE SET valor=excluded.valor,updated_at=datetime('now')`,
+      args: [ano, mes, l.codigo, l.valor],
+    })), "write");
+    return { success: true };
+  } catch (error) {
+    console.error("Erro guardar rubricas mensais:", error);
+    return { success: false, message: "Não foi possível guardar os valores por rubrica." };
+  }
+}
+
 export async function saveReportMonthlyCosts(ano: number, mes: number, gastosFixos: number, vencimentos: number) {
   if (!Number.isInteger(ano) || ano < 2020 || ano > 2100 || !Number.isInteger(mes) || mes < 1 || mes > 12) {
     return { success: false, message: "Ano ou mês inválido." };
@@ -5511,9 +5588,9 @@ export async function getAnnualReportData(ano: number) {
     return { success: false, meses: [], linhas: [], custos: [], excluidos: 0, message: "Ano inválido." };
   }
   try {
-    await ensureReportMonthlyCosts();
+    await Promise.all([ensureReportMonthlyCosts(), ensureReportCostLines()]);
     const years = [ano, ano - 1];
-    const [agendaRes, leadsRes, custosRes] = await Promise.all([
+    const [agendaRes, leadsRes, custosRes, linhasCustosRes] = await Promise.all([
       turso.execute({
         sql: "SELECT * FROM agenda WHERE (" + years.map(() => `(event_date LIKE ? OR event_date LIKE ?)`).join(" OR ") + ") ORDER BY id ASC",
         args: years.flatMap(y => [`${y}-%`, `%/${y}%`]),
@@ -5523,6 +5600,7 @@ export async function getAnnualReportData(ano: number) {
         args: years.flatMap(y => [`${y}-%`, `%/${y}%`]),
       }),
       turso.execute({ sql: "SELECT ano, mes, gastos_fixos, vencimentos FROM report_monthly_costs WHERE ano=? ORDER BY mes", args: [ano] }),
+      turso.execute({ sql: "SELECT mes, codigo, valor FROM report_monthly_cost_lines WHERE ano=? ORDER BY mes,codigo", args: [ano] }),
     ]);
     const agenda = agendaRes.rows.map(normalizeAgendaRow).filter((r: any) => years.some(y => r.event_date && toIsoDateServer(r.event_date).startsWith(`${y}-`)));
     const leads = leadsRes.rows.map(normalizeLeadRow).filter((r: any) => years.some(y => r.event_date && toIsoDateServer(r.event_date).startsWith(`${y}-`)));
@@ -5584,6 +5662,22 @@ export async function getAnnualReportData(ano: number) {
       const monthly = linhas.filter(r => Number(r.data.slice(0, 4)) === ano && Number(r.data.slice(5, 7)) === mes);
       const anteriores = linhas.filter(r => Number(r.data.slice(0, 4)) === ano - 1 && Number(r.data.slice(5, 7)) === mes);
       const row = custos.find(c => c.mes === mes);
+      const gravadas = linhasCustosRes.rows.filter((r: any) => Number(r.mes) === mes);
+      const hasLines = gravadas.length > 0;
+      const custosDetalhe = getReportCostTemplate(ano, mes).map(base => {
+        const saved = gravadas.find((r: any) => String(r.codigo) === base.codigo);
+        return saved ? { ...base, valor: saved.valor === null ? null : Number(saved.valor), origem: "guardado" as const } : base;
+      });
+      const pendentes = custosDetalhe.filter(c => c.valor === null).map(c => c.descricao);
+      const totalGrupo = (grupo: ReportCostGroup) => custosDetalhe
+        .filter(c => c.grupo === grupo).reduce((total, c) => total + (c.valor ?? 0), 0);
+      const faltamFixos = custosDetalhe.some(c => c.grupo === "fixo" && c.valor === null);
+      const faltamVencimentos = custosDetalhe.some(c => c.grupo === "vencimento" && c.valor === null);
+      // Caso já existissem valores consolidados guardados na v32, respeitá-los
+      // até serem guardadas rubricas individuais nesta versão.
+      const legacy = !!row && !hasLines;
+      const gastosFixos = legacy ? row.gastos_fixos : custosDetalhe.length && !faltamFixos ? totalGrupo("fixo") : null;
+      const vencimentos = legacy ? row.vencimentos : custosDetalhe.length && !faltamVencimentos ? totalGrupo("vencimento") : null;
       const sum = (arr: typeof linhas, key: "faturado" | "custo" | "dentro" | "fora" | "custo_dentro" | "custo_fora") => arr.reduce((n, e) => n + e[key], 0);
       return {
         mes, eventos: monthly.length, faturado: sum(monthly, "faturado"),
@@ -5595,8 +5689,10 @@ export async function getAnnualReportData(ano: number) {
         }), "faturado"),
         dentro: sum(monthly, "dentro"), fora: sum(monthly, "fora"),
         custoDentro: sum(monthly, "custo_dentro"), custoFora: sum(monthly, "custo_fora"),
-        custo: sum(monthly, "custo"), gastosFixos: row ? row.gastos_fixos : null,
-        vencimentos: row ? row.vencimentos : null,
+        custo: sum(monthly, "custo"), gastosFixos, vencimentos,
+        gastosFixosParcial: custosDetalhe.length ? totalGrupo("fixo") : null,
+        vencimentosParcial: custosDetalhe.length ? totalGrupo("vencimento") : null,
+        custosDetalhe, custosPendentes: pendentes, custosOrigem: legacy ? "anterior" : hasLines ? "guardado" : custosDetalhe.length ? "referencia" : "sem_dados",
       };
     });
     return { success: true, meses, linhas: linhas.filter(r => Number(r.data.slice(0, 4)) === ano), custos, excluidos };
@@ -5671,7 +5767,7 @@ export async function saveMarketingPresence(eventoId: number, requested: boolean
       args: [eventoId],
     });
     persisted = true;
-    const destination = process.env.MARKETING_EMAIL?.trim() || "deptMarketing@lifeliveevent.eu";
+    const destination = process.env.MARKETING_EMAIL?.trim() || "Dept.marketing@lifeliveevent.eu";
     const from = process.env.RESEND_FROM_EMAIL?.trim();
     const apiKey = process.env.RESEND_API_KEY?.trim();
     if (!destination || !from || !apiKey) {

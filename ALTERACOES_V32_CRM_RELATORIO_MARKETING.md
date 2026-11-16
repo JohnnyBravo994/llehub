@@ -13,7 +13,7 @@ No projeto alojado (Vercel / Settings / Environment Variables), adicionar:
 
 - `RESEND_API_KEY`: chave da API do fornecedor Resend.
 - `RESEND_FROM_EMAIL`: remetente com domínio verificado no Resend, por exemplo `notificacoes@lifeliveevent.eu` **apenas se esse endereço estiver autorizado no fornecedor**.
-- `MARKETING_EMAIL`: opcional; por defeito, `deptMarketing@lifeliveevent.eu`.
+- `MARKETING_EMAIL`: opcional; por defeito, `Dept.marketing@lifeliveevent.eu`.
 
 Depois de configurar, republicar a aplicação. Sem as duas primeiras variáveis, a checkbox funciona e fica guardada, mas **nenhum email pode ser enviado** e o Hub apresenta uma mensagem de pendência. O envio depende de uma conta Resend válida e de um remetente verificado.
 
