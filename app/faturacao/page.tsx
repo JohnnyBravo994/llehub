@@ -289,6 +289,7 @@ export default function FaturacaoPage() {
       <DesktopNav userName={userName} active="faturacao" onLogout={() => { localStorage.removeItem("lle_user"); router.push("/"); }} />
 
       <main style={{ padding: "2.75rem 3.25rem", maxWidth: "1500px", margin: "0 auto" }}>
+        <div style={{ marginBottom: "1rem", textAlign: "right" }}><a href="/relatorio-mensal" style={{ color: "var(--theme-accent)", border: "1px solid var(--theme-border)", padding: "0.65rem 1rem", textDecoration: "none", fontSize: 11 }}>Relatório financeiro mensal</a></div>
 
         {/* HEADER */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "2rem" }}>
@@ -689,6 +690,7 @@ export default function FaturacaoPage() {
         })}
       </div>
 
+      <div style={{ padding: "0.65rem 1rem", textAlign: "center" }}><a href="/relatorio-mensal" style={{ color: "var(--theme-accent)", textDecoration: "none", fontSize: 12 }}>Relatório financeiro mensal</a></div>
       <MobTabBar active="faturacao" role={userRole} lightTheme={lightTheme} />
     </div>
     </>
@@ -709,9 +711,10 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     { href: "/colaboradores", label: "Colaboradores" },
     { href: "/valores", label: "Valores" }, { href: "/packs", label: "Packs" }, { href: "/residencias", label: "Residências" },
     { href: "/clientes", label: "Clientes" },
+    { href: "/crm", label: "CRM" },
   ];
-  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/packs", "/residencias", "/clientes"];
-  const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes"];
+  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/packs", "/residencias"];
+  const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes", "/crm"];
   const financeLinks = [
     ...allLinks.filter(l => financeHrefs.includes(l.href)),
     ...(allLinks.some(l => l.href === "/clientes") ? [] : [{ href: "/clientes", label: "Clientes" }]),

@@ -441,9 +441,10 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     { href: "/dashboard", label: "Dashboard" }, { href: "/agenda", label: "Agenda" }, { href: "/leads", label: "Leads" },
     { href: "/faturacao", label: "Faturação" }, { href: "/pagamentos", label: "Pagamentos" }, { href: "/colaboradores", label: "Colaboradores" },
     { href: "/valores", label: "Valores" }, { href: "/packs", label: "Packs" }, { href: "/residencias", label: "Residências" }, { href: "/clientes", label: "Clientes" },
+    { href: "/crm", label: "CRM" },
   ];
-  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/packs", "/residencias", "/clientes"];
-  const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes"];
+  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/packs", "/residencias"];
+  const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes", "/crm"];
   const financeLinks = [
     ...allLinks.filter(l => financeHrefs.includes(l.href)),
     ...(allLinks.some(l => l.href === "/clientes") ? [] : [{ href: "/clientes", label: "Clientes" }]),

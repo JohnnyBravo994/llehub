@@ -16,6 +16,7 @@ const ALL_LINKS: NavItem[] = [
   { href: "/agenda", label: "Agenda" },
   { href: "/leads", label: "Leads" },
   { href: "/clientes", label: "Clientes" },
+  { href: "/crm", label: "CRM" },
   { href: "/faturacao", label: "Faturação" },
   { href: "/pagamentos", label: "Pagamentos" },
   { href: "/colaboradores", label: "Colaboradores" },
@@ -23,6 +24,8 @@ const ALL_LINKS: NavItem[] = [
   { href: "/residencias", label: "Residências" },
   { href: "/valores", label: "Valores" },
 ];
+
+const ANNUAL_REPORT: NavItem = { href: "/relatorio-mensal", label: "Relatório mensal" };
 
 const MATERIALS: NavItem = { href: "/materiais", label: "Materiais" };
 
@@ -37,8 +40,8 @@ function currentRole() {
 }
 
 function allowedLinks(role: string) {
-  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/packs", "/residencias", "/clientes"];
-  const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes"];
+  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/packs", "/residencias"];
+  const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes", "/crm"];
 
   let base: NavItem[];
   if (role === "admin") base = [...ALL_LINKS];
@@ -46,6 +49,7 @@ function allowedLinks(role: string) {
   else base = ALL_LINKS.filter(l => !restrictedHrefs.includes(l.href));
 
   if (role !== "limited_novalues" && role !== "finance") base.push(MATERIALS);
+  if (role === "admin" || role === "finance") base.push(ANNUAL_REPORT);
   return base.filter((l, i, arr) => arr.findIndex(x => x.href === l.href) === i);
 }
 
@@ -64,7 +68,7 @@ export default function DesktopNav({ userName, active, onLogout }: Props) {
   }, []);
 
   const allowed = useMemo(() => allowedLinks(role), [role]);
-  const direct = ["/dashboard", "/agenda", "/leads", "/clientes"].map(href => allowed.find(x => x.href === href)).filter(Boolean) as NavItem[];
+  const direct = ["/dashboard", "/agenda", "/leads", "/clientes", "/crm"].map(href => allowed.find(x => x.href === href)).filter(Boolean) as NavItem[];
   const groups: NavGroup[] = [
     {
       id: "operacao",
@@ -74,7 +78,7 @@ export default function DesktopNav({ userName, active, onLogout }: Props) {
     {
       id: "financeiro",
       label: "Financeiro",
-      items: ["/faturacao", "/pagamentos"].map(href => allowed.find(x => x.href === href)).filter(Boolean) as NavItem[],
+      items: ["/faturacao", "/pagamentos", "/relatorio-mensal"].map(href => allowed.find(x => x.href === href)).filter(Boolean) as NavItem[],
     },
     {
       id: "gestao",

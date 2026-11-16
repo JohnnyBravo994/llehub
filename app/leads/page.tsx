@@ -1179,6 +1179,7 @@ export default function LeadsPage() {
           </p>
           <div style={{ display: "flex", gap: "0.95rem", alignItems: "center" }}>
             <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
+            <a href="/crm" style={{ color: C.gold, border: `1px solid ${C.border}`, padding: "0.6rem 1rem", fontSize: "11px", letterSpacing: "0.1em", textDecoration: "none" }}>Ver CRM</a>
             <button
               onClick={openWaMonthModal}
               style={{ background: "transparent", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "10px", letterSpacing: "0.3em", padding: "0.5rem 1.1rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}
@@ -1308,7 +1309,7 @@ export default function LeadsPage() {
           <input className="mob-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar lead..." />
         </div>
         <div style={{ display: "flex", gap: "0.7rem" }}>
-          
+          <a href="/crm" style={{ alignSelf: "center", color: "var(--theme-accent)", fontSize: 12, textDecoration: "none" }}>CRM</a>
           <button
             onClick={openWaMonthModal}
             style={{ background: "rgba(93,202,165,0.08)", border: "1px solid rgba(93,202,165,0.2)", color: "var(--theme-success)", fontSize: "12px", padding: "0.5rem 0.7rem", cursor: "pointer" }}
@@ -1713,13 +1714,8 @@ export default function LeadsPage() {
             <FormField label="Contacto">
               <input style={inputStyle} value={form.contacto} onChange={e => setForm(f => ({ ...f, contacto: e.target.value }))} placeholder="Nome ou telefone..." />
             </FormField>
-            <FormField label="Notas / Observações" style={{ gridColumn: "1 / -1" }}>
-              <textarea
-                style={{ ...inputStyle, minHeight: "72px", resize: "vertical" }}
-                value={form.notas}
-                onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
-                placeholder="Notas internas, pedidos do cliente, detalhes importantes..."
-              />
+            <FormField label="Materiais / Notas">
+              <input style={inputStyle} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Ex: dual mic, 2 colunas... / observações" />
             </FormField>
 
 
@@ -1839,8 +1835,8 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
   const stored = typeof window !== "undefined" ? localStorage.getItem("lle_user") : null;
   const role = stored ? JSON.parse(stored).role : "admin";
   const allLinks = [{ href: "/dashboard", label: "Dashboard" }, { href: "/agenda", label: "Agenda" }, { href: "/leads", label: "Leads" }, { href: "/faturacao", label: "Faturação" }, { href: "/pagamentos", label: "Pagamentos" }, { href: "/colaboradores", label: "Colaboradores" }, { href: "/valores", label: "Valores" }, { href: "/packs", label: "Packs" }, { href: "/residencias", label: "Residências" }];
-  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/packs", "/residencias", "/clientes"];
-  const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes"];
+  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/packs", "/residencias"];
+  const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes", "/crm"];
   const financeLinks = [
     ...allLinks.filter(l => financeHrefs.includes(l.href)),
     ...(allLinks.some(l => l.href === "/clientes") ? [] : [{ href: "/clientes", label: "Clientes" }]),

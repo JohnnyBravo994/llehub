@@ -91,7 +91,7 @@ import {
   registarVoltaMaterial, deleteMovimentoMaterial,
   getAllMaterialPacks, reservarMaterialPacksParaEvento, getMaterialPackReservasEvento, getMateriaisReservadosResumoEvento,
   reservarMaterialEvento, updateReservaMaterialEvento, deleteReservaMaterialEvento, confirmarSaidaReservaEvento,
-  getArtistConflictOverrides, dismissArtistConflict, getAgendaPageBundle, getAgendaFormLookups, getMaterialPackIdsForServico, getAgendaPdfBundle, getAgendaWhatsAppBundle, syncPacksComerciaisMateriaisEvento,
+  getArtistConflictOverrides, dismissArtistConflict, getAgendaPageBundle, getAgendaFormLookups, getMaterialPackIdsForServico, getAgendaPdfBundle, getAgendaWhatsAppBundle, syncPacksComerciaisMateriaisEvento, getMarketingPresence, saveMarketingPresence,
 } from "../actions";
 
 interface AgendaEvent {
@@ -338,6 +338,7 @@ export default function AgendaPage() {
   const [modal, setModal] = useState<{ open: boolean; editing: AgendaEvent | null }>({ open: false, editing: null });
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [useMaterials, setUseMaterials] = useState(false);
+  const [marketingRequested, setMarketingRequested] = useState(false);
   const [waModal, setWaModal] = useState(false);
   const [waText, setWaText] = useState("");
   const [waCopied, setWaCopied] = useState(false);
@@ -993,6 +994,7 @@ export default function AgendaPage() {
     loadLookups();
     setBudgetOpen(false);
     setUseMaterials(false);
+    setMarketingRequested(false);
     setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
     setArtists([emptyArtist()]);
     setClienteSearch("");
@@ -1010,6 +1012,8 @@ export default function AgendaPage() {
     loadLookups();
     setBudgetOpen(false);
     setUseMaterials(false);
+    setMarketingRequested(false);
+    getMarketingPresence(e.id).then(r => { if (r.success) setMarketingRequested(r.requested); });
     setForm({
       title: e.title, date: e.event_date, time: e.time_range || "",
       tipo: e.tipo || "", bill: String(e.bill || 0), valor_recebido: String(e.valor_recebido || 0),
@@ -1052,6 +1056,7 @@ export default function AgendaPage() {
     setModal({ open: false, editing: null });
     setBudgetOpen(false);
     setUseMaterials(false);
+    setMarketingRequested(false);
     setForm(emptyForm);
     setArtists([emptyArtist()]);
     setIsResidencia(false);
@@ -1110,37 +1115,44 @@ export default function AgendaPage() {
       });
     };
 
-    if (modal.editing) {
-      const updateRes = await updateAgendaEvent(modal.editing.id, data);
-      await syncArtistasEvento(modal.editing.id, cleanTitle, form.date, validArtists);
-      await reservarPacksEvento(modal.editing.id, cleanTitle);
-      // Sync artistas para a lead ligada — usar leadId resolvido pela action (mais fiável que o objeto em memória)
-      const linkedLeadId = updateRes.leadId ?? (modal.editing as any).origem_lead_id;
-      if (linkedLeadId) {
-        await syncArtistasParaLead(linkedLeadId, cleanTitle, form.date, validArtists);
-      }
-      showToast("Evento actualizado");
-    } else if (isResidencia && residenciaDates.length > 0) {
-      const validDates = residenciaDates.filter(d => d.trim());
-      for (const d of validDates) {
-        const res = await createAgendaEvent({ ...data, date: d });
-        if (res.success && res.id) {
+    try {
+      let feedback = "Evento guardado";
+      if (modal.editing) {
+        const updateRes = await updateAgendaEvent(modal.editing.id, data);
+        if (!updateRes.success) throw new Error("Não foi possível atualizar o evento.");
+        await syncArtistasEvento(modal.editing.id, cleanTitle, form.date, validArtists);
+        await reservarPacksEvento(modal.editing.id, cleanTitle);
+        const linkedLeadId = updateRes.leadId ?? (modal.editing as any).origem_lead_id;
+        if (linkedLeadId) await syncArtistasParaLead(linkedLeadId, cleanTitle, form.date, validArtists);
+        const marketing = await saveMarketingPresence(modal.editing.id, marketingRequested);
+        if (!marketing.success) throw new Error(marketing.message || "Erro no pedido de Marketing.");
+        feedback = marketingRequested ? marketing.message : "Evento atualizado";
+      } else {
+        const dates = isResidencia && residenciaDates.length > 0 ? residenciaDates.filter(d => d.trim()) : [form.date];
+        let created = 0;
+        const warnings: string[] = [];
+        for (const d of dates) {
+          const res = await createAgendaEvent({ ...data, date: d });
+          if (!res.success || !res.id) { warnings.push(`Evento ${d}: não foi possível criar`); continue; }
+          created++;
           await syncArtistasEvento(res.id, cleanTitle, d, validArtists);
           await reservarPacksEvento(res.id, cleanTitle);
+          if (marketingRequested) {
+            const result = await saveMarketingPresence(res.id, true);
+            if (!result.sent) warnings.push(`${d}: ${result.message}`);
+          }
         }
+        if (!created) throw new Error(warnings.join(" · ") || "Não foi possível criar o evento.");
+        feedback = `${created} evento${created !== 1 ? "s" : ""} criado${created !== 1 ? "s" : ""}${marketingRequested ? " · pedidos de Marketing processados" : ""}${warnings.length ? ` · ${warnings.join(" · ")}` : ""}`;
       }
-      showToast(`${validDates.length} evento${validDates.length > 1 ? "s" : ""} criado${validDates.length > 1 ? "s" : ""}`);
-    } else {
-      const res = await createAgendaEvent(data);
-      if (res.success && res.id) {
-        await syncArtistasEvento(res.id, cleanTitle, form.date, validArtists);
-        await reservarPacksEvento(res.id, cleanTitle);
-      }
-      showToast("Evento criado");
+      closeModal();
+      await load(undefined, selectedMonth);
+      showToast(feedback, undefined, marketingRequested ? 10000 : 4000);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Erro ao guardar o evento.", undefined, 10000);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    closeModal();
-    load(undefined, selectedMonth);
   };
 
   const [cancellingId, setCancellingId] = useState<number | null>(null);
@@ -2738,14 +2750,6 @@ export default function AgendaPage() {
                   style={inputStyle}
                 />
               </FormField>
-              <FormField label="Notas / Observações" style={{ gridColumn: "1 / -1" }}>
-                <textarea
-                  style={{ ...inputStyle, minHeight: "72px", resize: "vertical" }}
-                  value={form.notas}
-                  onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
-                  placeholder="Notas internas, pedidos do cliente, detalhes importantes..."
-                />
-              </FormField>
               <div style={{ gridColumn: "1 / -1", marginTop: "0.15rem" }}>
                 <label style={{
                   minHeight: "48px", padding: "0 0.9rem", display: "flex", alignItems: "center", gap: "0.95rem",
@@ -2773,6 +2777,17 @@ export default function AgendaPage() {
                   <span>
                     <b style={{ display: "block", fontSize: "11px", letterSpacing: "0.22em", textTransform: "uppercase" }}>Usar materiais neste evento</b>
                     <small style={{ display: "block", marginTop: "3px", fontSize: "10px", color: Colors.textMuted }}>Abre a gestão de equipamento apenas quando é necessária.</small>
+                  </span>
+                </label>
+
+                <label style={{ minHeight: 48, padding: "0.65rem 0.9rem", display: "flex", alignItems: "center", gap: "0.95rem", marginTop: 10,
+                  border: `1px solid ${marketingRequested ? "rgba(var(--theme-accent-rgb),0.3)" : Colors.borderDim}`,
+                  background: marketingRequested ? "rgba(var(--theme-accent-rgb),0.045)" : "rgba(var(--theme-contrast-rgb),0.012)", cursor: "pointer" }}>
+                  <input type="checkbox" checked={marketingRequested} onChange={e => setMarketingRequested(e.target.checked)}
+                    style={{ width: 16, height: 16, accentColor: "var(--theme-accent)" }} />
+                  <span>
+                    <b style={{ display: "block", fontSize: 11, letterSpacing: "0.14em", color: marketingRequested ? Colors.gold : Colors.textMuted }}>Solicitar presença da equipa de Marketing</b>
+                    <small style={{ display: "block", marginTop: 4, fontSize: 10, color: Colors.textMuted }}>Ao guardar, enviar email com data, horário, local, evento e equipa. Sem duplicados.</small>
                   </span>
                 </label>
 
@@ -2822,6 +2837,9 @@ export default function AgendaPage() {
                   </div>
                 )}
               </div>
+              {useMaterials && <FormField label="Notas de materiais / observações" style={{ gridColumn: "1 / -1" }}>
+                <textarea style={{ ...inputStyle, minHeight: "72px", resize: "vertical" }} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Ex: dual mic extra, 2 colunas, cabos XLR... / observações" />
+              </FormField>}
             </div>
 
             {/* ── Artistas ── */}
@@ -3096,9 +3114,10 @@ function Nav({ userName, active, onLogout, lightTheme }: { userName: string; act
     { href: "/colaboradores", label: "Colaboradores" },
     { href: "/valores", label: "Valores" }, { href: "/packs", label: "Packs" }, { href: "/residencias", label: "Residências" },
     { href: "/clientes", label: "Clientes" },
+    { href: "/crm", label: "CRM" },
   ];
-  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/packs", "/residencias", "/clientes"];
-  const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes"];
+  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/packs", "/residencias"];
+  const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes", "/crm"];
   const financeLinks = [
     ...allLinks.filter(l => financeHrefs.includes(l.href)),
     ...(allLinks.some(l => l.href === "/clientes") ? [] : [{ href: "/clientes", label: "Clientes" }]),

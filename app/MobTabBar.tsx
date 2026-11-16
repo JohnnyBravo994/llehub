@@ -133,17 +133,25 @@ const adminTabs: Tab[] = [
 export default function MobTabBar({ active, role, lightTheme }: MobTabBarProps) {
   const [maisOpen, setMaisOpen] = useState(false);
 
+  const crmTab: Tab = { href: "/crm", label: "CRM", id: "crm", icon: icons.leads };
+  const clientesTab: Tab = { href: "/clientes", label: "Clientes", id: "clientes", icon: icons.clientes };
+  const monthlyTab: Tab = { href: "/relatorio-mensal", label: "Relatório mensal", id: "relatorio-mensal", icon: icons.faturacao };
   const maisTabs: Tab[] = role === "admin"
-    ? adminTabs
+    ? [...adminTabs, crmTab, monthlyTab]
     : role === "finance"
       ? [
           { href: "/clientes", label: "Clientes", id: "clientes", icon: icons.clientes },
           { href: "/pagamentos", label: "Pagamentos", id: "pagamentos", icon: icons.pagamentos },
+          crmTab,
+          monthlyTab,
         ]
       : role !== "limited_novalues"
         ? [{ href: "/materiais", label: "Materiais", id: "materiais", icon: icons.materiais }]
-        : [];
+        : [clientesTab, crmTab];
 
+  const visibleMainTabs = role === "limited_novalues"
+    ? mainTabs.filter(tab => tab.id === "agenda" || tab.id === "leads")
+    : role === "finance" ? mainTabs.filter(tab => tab.id !== "colaboradores") : mainTabs;
   const activeMoreTab = maisTabs.find((tab) => tab.id === active);
   const drawerBg = lightTheme ? "#FFFFFF" : "var(--theme-surface)";
   const drawerBorder = lightTheme ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(var(--theme-accent-rgb),0.15)";
@@ -196,7 +204,7 @@ export default function MobTabBar({ active, role, lightTheme }: MobTabBarProps) 
       </section>
 
       <nav className="mob-tabbar" aria-label="Navegação principal">
-        {mainTabs.map((tab) => (
+        {visibleMainTabs.map((tab) => (
           <Link key={tab.href} href={tab.href} prefetch className={`mob-tab${active === tab.id ? " active" : ""}`}>
             <span className="mob-tab-icon">{tab.icon}</span>
             <span className="mob-tab-label">{tab.label}</span>

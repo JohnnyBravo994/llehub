@@ -5427,3 +5427,298 @@ export async function getMateriaisPageBundle() {
     return { success: false };
   }
 }
+
+// ── CRM LLE · visão única de clientes, leads e eventos ──────────────────────
+// Consulta apenas: não duplica tabelas nem altera ligações históricas.
+export async function getCrmUnified() {
+  noStore();
+  try {
+    const [clientesRes, leadsRes, agendaRes] = await Promise.all([
+      turso.execute("SELECT * FROM clientes ORDER BY nome COLLATE NOCASE ASC"),
+      turso.execute("SELECT * FROM leads ORDER BY id DESC LIMIT 10000"),
+      turso.execute("SELECT * FROM agenda ORDER BY id DESC LIMIT 10000"),
+    ]);
+    const clientes = clientesRes.rows.map((r: any) => ({
+      id: Number(r.id), nome: String(r.nome || ""), alias: String(r.alias || ""),
+      email: String(r.email || ""), telefone: String(r.telefone || ""),
+      nif: String(r.nif || ""), notas: String(r.notas || ""),
+    }));
+    const eventos = agendaRes.rows.map((r: any) => ({
+      id: Number(r.id), origem: "agenda" as const, title: String(r.event_name || ""),
+      event_date: toIsoDateServer(r.event_date), estado: String(r.billing_status || r.status || ""),
+      tipo: String(r.tipo_comercial || "Evento"), cliente_id: r.cliente_id ? Number(r.cliente_id) : null,
+      cliente_nome: String(r.cliente_nome || ""), contacto: String(r.contacto || ""),
+      event_id: String(r.event_id || ""), lead_id: r.origem_lead_id ? Number(r.origem_lead_id) : null,
+      local: String(r.venue || ""), notas: String(r.notas || ""),
+    }));
+    const agendaLeadIds = new Set(eventos.map(e => e.lead_id).filter(Boolean));
+    const agendaEventIds = new Set(eventos.map(e => e.event_id).filter(Boolean));
+    const leadEventos = leadsRes.rows.map((r: any) => ({
+      id: Number(r.id), origem: "lead" as const, title: String(r.title || ""),
+      event_date: toIsoDateServer(r.event_date), estado: String(r.status || ""),
+      tipo: String(r.tipo_comercial || "Evento"), cliente_id: r.cliente_id ? Number(r.cliente_id) : null,
+      cliente_nome: String(r.client_name || ""), contacto: String(r.contacto || ""),
+      event_id: String(r.event_id || ""), lead_id: null,
+      local: String(r.local || ""), notas: String(r.notas || ""),
+    })).filter(e => !agendaLeadIds.has(e.id) && !(e.event_id && agendaEventIds.has(e.event_id)));
+    // Dados financeiros deliberadamente ausentes, para não expor valores no CRM da Larissa.
+    return { success: true, clientes, atividades: [...eventos, ...leadEventos].sort((a, b) => b.event_date.localeCompare(a.event_date)) };
+  } catch (error) {
+    console.error("Erro CRM:", error);
+    return { success: false, clientes: [], atividades: [], message: "Não foi possível consultar o CRM." };
+  }
+}
+
+// ── Relatório anual · baseado em Agenda, Leads, artistas e materiais ─────────
+// 4 estados do relatório: Confirmado, Adjudicado, Faturado, Pago.
+// IVA apenas informativo; custos fixos e vencimentos só quando configurados.
+const RELATORIO_ESTADOS = new Set(["Confirmado", "Adjudicado", "Faturado", "Pago"]);
+
+async function ensureReportMonthlyCosts() {
+  await turso.execute(`CREATE TABLE IF NOT EXISTS report_monthly_costs (
+    ano INTEGER NOT NULL, mes INTEGER NOT NULL,
+    gastos_fixos REAL NOT NULL DEFAULT 0, vencimentos REAL NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY(ano, mes)
+  )`);
+}
+
+export async function saveReportMonthlyCosts(ano: number, mes: number, gastosFixos: number, vencimentos: number) {
+  if (!Number.isInteger(ano) || ano < 2020 || ano > 2100 || !Number.isInteger(mes) || mes < 1 || mes > 12) {
+    return { success: false, message: "Ano ou mês inválido." };
+  }
+  if (![gastosFixos, vencimentos].every(n => Number.isFinite(n) && n >= 0 && n <= 1_000_000)) {
+    return { success: false, message: "Valores inválidos." };
+  }
+  try {
+    await ensureReportMonthlyCosts();
+    await turso.execute({
+      sql: `INSERT INTO report_monthly_costs (ano, mes, gastos_fixos, vencimentos, updated_at)
+            VALUES (?,?,?,?,datetime('now')) ON CONFLICT(ano,mes)
+            DO UPDATE SET gastos_fixos=excluded.gastos_fixos, vencimentos=excluded.vencimentos, updated_at=datetime('now')`,
+      args: [ano, mes, gastosFixos, vencimentos],
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Erro guardar custos mensais:", error);
+    return { success: false, message: "Não foi possível guardar os custos mensais." };
+  }
+}
+
+export async function getAnnualReportData(ano: number) {
+  noStore();
+  if (!Number.isInteger(ano) || ano < 2020 || ano > 2100) {
+    return { success: false, meses: [], linhas: [], custos: [], excluidos: 0, message: "Ano inválido." };
+  }
+  try {
+    await ensureReportMonthlyCosts();
+    const years = [ano, ano - 1];
+    const [agendaRes, leadsRes, custosRes] = await Promise.all([
+      turso.execute({
+        sql: "SELECT * FROM agenda WHERE (" + years.map(() => `(event_date LIKE ? OR event_date LIKE ?)`).join(" OR ") + ") ORDER BY id ASC",
+        args: years.flatMap(y => [`${y}-%`, `%/${y}%`]),
+      }),
+      turso.execute({
+        sql: "SELECT * FROM leads WHERE (" + years.map(() => `(event_date LIKE ? OR event_date LIKE ?)`).join(" OR ") + ") ORDER BY id ASC",
+        args: years.flatMap(y => [`${y}-%`, `%/${y}%`]),
+      }),
+      turso.execute({ sql: "SELECT ano, mes, gastos_fixos, vencimentos FROM report_monthly_costs WHERE ano=? ORDER BY mes", args: [ano] }),
+    ]);
+    const agenda = agendaRes.rows.map(normalizeAgendaRow).filter((r: any) => years.some(y => r.event_date && toIsoDateServer(r.event_date).startsWith(`${y}-`)));
+    const leads = leadsRes.rows.map(normalizeLeadRow).filter((r: any) => years.some(y => r.event_date && toIsoDateServer(r.event_date).startsWith(`${y}-`)));
+    const agendaLeadIds = new Set(agenda.map((r: any) => Number(r.origem_lead_id)).filter(Boolean));
+    const agendaEventIds = new Set(agenda.map((r: any) => String(r.event_id || "")).filter(Boolean));
+    const leadUnlinked = leads.filter((r: any) => !agendaLeadIds.has(Number(r.id)) && !(r.event_id && agendaEventIds.has(String(r.event_id))));
+    const agendaIds = agenda.map((r: any) => Number(r.id));
+    const artistIds = [...agendaIds, ...leadUnlinked.map((r: any) => -Number(r.id))];
+    const artistFees: Record<number, number> = {};
+    // SQLite limite de parâmetros por query: processar blocos.
+    for (let off = 0; off < artistIds.length; off += 300) {
+      const chunk = artistIds.slice(off, off + 300);
+      const res = await turso.execute({
+        sql: `SELECT evento_id, SUM(COALESCE(fee,0)) as total FROM artistas_evento WHERE evento_id IN (${chunk.map(() => "?").join(",")}) GROUP BY evento_id`,
+        args: chunk,
+      });
+      for (const r of res.rows as any[]) artistFees[Number(r.evento_id)] = Number(r.total || 0);
+    }
+    const materiais: Record<number, { material_cost: number }> = {};
+    for (let off = 0; off < agendaIds.length; off += 250) {
+      Object.assign(materiais, await getMaterialFinanceMapForEventIds(agendaIds.slice(off, off + 250)));
+    }
+    const linhas: {
+      id: number; origem: string; data: string; descricao: string; cliente: string; estado: string;
+      categoria: string; modalidade: string; dentro: number; fora: number; faturado: number;
+      custo: number; lucro: number; custo_dentro: number; custo_fora: number;
+    }[] = [];
+    let excluidos = 0;
+    for (const r of [...agenda.map((x: any) => ({...x, _origem: "Agenda"})), ...leadUnlinked.map((x: any) => ({...x, _origem: "Lead"}))]) {
+      const estado = String(r._origem === "Agenda" ? r.billing_status : r.status || "").trim();
+      if (!RELATORIO_ESTADOS.has(estado) || r.cancelled || isCancelledValue(r.status)) continue;
+      const data = toIsoDateServer(r.event_date);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) continue;
+      const descricao = String(r.title || "");
+      const tipoOriginal = String(r.tipo_comercial || "Evento");
+      const descricaoCompleta = `${descricao} ${tipoOriginal} ${String(r.servico_comercial || "")}`;
+      const categoria = /resid[eê]ncia/i.test(tipoOriginal) ? "Residências"
+        : /casamento|wedding|matrim[oó]nio/i.test(descricaoCompleta) ? "Casamentos" : "Eventos";
+      // Repasses e residências pessoais do João não são receita/custo da LLE.
+      const eventoPessoal = /\b(gio|jo[aã]o pereira)\b/i.test(descricao) &&
+        (/resid[eê]ncia/i.test(tipoOriginal) || /repasse/i.test(descricaoCompleta));
+      if (eventoPessoal) { excluidos += 1; continue; }
+      const valor = Math.max(0, Number(r._origem === "Agenda" ? r.bill : r.value) || 0);
+      const custoArtistas = Math.max(0, artistFees[r._origem === "Agenda" ? Number(r.id) : -Number(r.id)] || 0);
+      const custoMateriais = r._origem === "Agenda" ? Math.max(0, Number(materiais[Number(r.id)]?.material_cost || 0)) : 0;
+      const custo = custoArtistas + custoMateriais;
+      const modalidade = String(r.modalidade || "Fatura");
+      const foraPct = modalidade === "Por Fora" ? 1 : modalidade === "50% Por Fora" ? 0.5 : modalidade === "10% Por Fora" ? 0.1 : 0;
+      const fora = valor * foraPct, dentro = valor - fora;
+      linhas.push({
+        id: Number(r.id), origem: r._origem, data, descricao, cliente: String(r.cliente_nome || ""),
+        estado, categoria, modalidade, dentro, fora, faturado: valor,
+        custo, lucro: valor - custo, custo_dentro: custo * (1 - foraPct), custo_fora: custo * foraPct,
+      });
+    }
+    const custos = custosRes.rows.map((r: any) => ({ mes: Number(r.mes), gastos_fixos: Number(r.gastos_fixos), vencimentos: Number(r.vencimentos) }));
+    const meses = Array.from({ length: 12 }, (_, index) => {
+      const mes = index + 1;
+      const monthly = linhas.filter(r => Number(r.data.slice(0, 4)) === ano && Number(r.data.slice(5, 7)) === mes);
+      const anteriores = linhas.filter(r => Number(r.data.slice(0, 4)) === ano - 1 && Number(r.data.slice(5, 7)) === mes);
+      const row = custos.find(c => c.mes === mes);
+      const sum = (arr: typeof linhas, key: "faturado" | "custo" | "dentro" | "fora" | "custo_dentro" | "custo_fora") => arr.reduce((n, e) => n + e[key], 0);
+      return {
+        mes, eventos: monthly.length, faturado: sum(monthly, "faturado"),
+        faturadoAnterior: sum(anteriores, "faturado"),
+        faturadoMesAnterior: sum(linhas.filter(r => {
+          const anteriorAno = mes === 1 ? ano - 1 : ano;
+          const anteriorMes = mes === 1 ? 12 : mes - 1;
+          return Number(r.data.slice(0, 4)) === anteriorAno && Number(r.data.slice(5, 7)) === anteriorMes;
+        }), "faturado"),
+        dentro: sum(monthly, "dentro"), fora: sum(monthly, "fora"),
+        custoDentro: sum(monthly, "custo_dentro"), custoFora: sum(monthly, "custo_fora"),
+        custo: sum(monthly, "custo"), gastosFixos: row ? row.gastos_fixos : null,
+        vencimentos: row ? row.vencimentos : null,
+      };
+    });
+    return { success: true, meses, linhas: linhas.filter(r => Number(r.data.slice(0, 4)) === ano), custos, excluidos };
+  } catch (error) {
+    console.error("Erro relatório anual:", error);
+    return { success: false, meses: [], linhas: [], custos: [], excluidos: 0, message: "Não foi possível calcular o relatório anual." };
+  }
+}
+
+
+// ── Pedido à equipa de Marketing ─────────────────────────────────────────────
+// Persiste a intenção independentemente de o fornecedor de email estar disponível.
+// Um email é enviado uma única vez por ativação. Desmarcar e voltar a marcar cria
+// um novo pedido. Na ausência de configuração, fica pendente para novo Guardar.
+async function ensureMarketingPresenceTable() {
+  await turso.execute(`CREATE TABLE IF NOT EXISTS event_marketing_presence (
+    evento_id INTEGER PRIMARY KEY,
+    requested INTEGER NOT NULL DEFAULT 0,
+    notified_at TEXT,
+    last_error TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+}
+
+export async function getMarketingPresence(eventoId: number) {
+  if (!Number.isSafeInteger(eventoId) || eventoId <= 0) return { success: false, requested: false, notified: false };
+  try {
+    await ensureMarketingPresenceTable();
+    const res = await turso.execute({ sql: "SELECT requested, notified_at FROM event_marketing_presence WHERE evento_id=?", args: [eventoId] });
+    return { success: true, requested: Number(res.rows[0]?.requested || 0) === 1, notified: !!res.rows[0]?.notified_at };
+  } catch (error) {
+    console.error("Erro consulta Marketing:", error);
+    return { success: false, requested: false, notified: false };
+  }
+}
+
+function escapeMailHtml(raw: unknown): string {
+  return String(raw ?? "").replace(/[&<>"']/g, ch => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[ch] || ch));
+}
+
+export async function saveMarketingPresence(eventoId: number, requested: boolean) {
+  if (!Number.isSafeInteger(eventoId) || eventoId <= 0 || typeof requested !== "boolean") {
+    return { success: false, sent: false, message: "Pedido de Marketing inválido." };
+  }
+  let persisted = false;
+  try {
+    await ensureMarketingPresenceTable();
+    const eventRes = await turso.execute({
+      sql: "SELECT id, event_name, event_date, location, venue FROM agenda WHERE id=?",
+      args: [eventoId],
+    });
+    if (!eventRes.rows.length) return { success: false, sent: false, message: "O evento não existe." };
+    const previous = await turso.execute({ sql: "SELECT requested, notified_at FROM event_marketing_presence WHERE evento_id=?", args: [eventoId] });
+    const priorRequested = Number(previous.rows[0]?.requested || 0) === 1;
+    const priorNotified = !!previous.rows[0]?.notified_at;
+    if (!requested) {
+      await turso.execute({
+        sql: `INSERT INTO event_marketing_presence (evento_id, requested, notified_at, last_error, updated_at)
+              VALUES (?,0,NULL,NULL,datetime('now'))
+              ON CONFLICT(evento_id) DO UPDATE SET requested=0, notified_at=NULL, last_error=NULL, updated_at=datetime('now')`,
+        args: [eventoId],
+      });
+      return { success: true, sent: false, message: "Pedido de Marketing desativado." };
+    }
+    if (priorRequested && priorNotified) return { success: true, sent: true, message: "A equipa de Marketing já foi notificada para este evento." };
+    await turso.execute({
+      sql: `INSERT INTO event_marketing_presence (evento_id, requested, notified_at, last_error, updated_at)
+            VALUES (?,1,NULL,NULL,datetime('now'))
+            ON CONFLICT(evento_id) DO UPDATE SET requested=1, updated_at=datetime('now')`,
+      args: [eventoId],
+    });
+    persisted = true;
+    const destination = process.env.MARKETING_EMAIL?.trim() || "deptMarketing@lifeliveevent.eu";
+    const from = process.env.RESEND_FROM_EMAIL?.trim();
+    const apiKey = process.env.RESEND_API_KEY?.trim();
+    if (!destination || !from || !apiKey) {
+      await turso.execute({
+        sql: "UPDATE event_marketing_presence SET last_error=? WHERE evento_id=?",
+        args: ["Configurar RESEND_FROM_EMAIL e RESEND_API_KEY no servidor.", eventoId],
+      });
+      return { success: true, sent: false, message: "Pedido guardado, mas email pendente: configurar o serviço de email no servidor." };
+    }
+    if (!/^\S+@\S+\.\S+$/.test(destination) || !/^\S+@\S+\.\S+$/.test(from)) {
+      return { success: true, sent: false, message: "Pedido guardado; verificar endereços de email na configuração." };
+    }
+    const event = eventRes.rows[0];
+    const artistsRes = await turso.execute({
+      sql: "SELECT nome, tipo FROM artistas_evento WHERE evento_id=? ORDER BY id ASC",
+      args: [eventoId],
+    });
+    const team = artistsRes.rows.map(r => `${r.nome || ""}${r.tipo ? ` (${r.tipo})` : ""}`).filter(Boolean);
+    const eventDate = String(event.event_date || "");
+    const formattedDate = /^\d{4}-\d{2}-\d{2}$/.test(eventDate) ? eventDate.split("-").reverse().join("/") : eventDate;
+    const fields = [
+      ["Evento", event.event_name || "—"],
+      ["Data", formattedDate || "—"],
+      ["Horário", event.location || "Por definir"],
+      ["Local", event.venue || "Por definir"],
+      ["Equipa", team.length ? team.join(", ") : "Por definir"],
+    ];
+    const html = `<p>Foi solicitada a presença da equipa de Marketing no seguinte evento:</p><table>${fields.map(([k, v]) => `<tr><th align="left" style="padding:6px 18px 6px 0">${escapeMailHtml(k)}</th><td>${escapeMailHtml(v)}</td></tr>`).join("")}</table><p>Pedido criado no LLE Hub.</p>`;
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from,
+        to: [destination],
+        subject: `Pedido de presença Marketing · ${String(event.event_name || "Evento").slice(0, 100)} · ${formattedDate}`,
+        html,
+        text: `Solicitada presença da equipa de Marketing:\n\n${fields.map(([k, v]) => `${k}: ${v}`).join("\n")}\n\nPedido criado no LLE Hub.`,
+      }),
+    });
+    if (!response.ok) throw new Error(`Fornecedor de email: HTTP ${response.status}`);
+    await turso.execute({ sql: "UPDATE event_marketing_presence SET notified_at=datetime('now'), last_error=NULL WHERE evento_id=? AND requested=1", args: [eventoId] });
+    return { success: true, sent: true, message: "Pedido guardado e email enviado à equipa de Marketing." };
+  } catch (error) {
+    console.error("Erro envio pedido Marketing:", error);
+    try { await turso.execute({ sql: "UPDATE event_marketing_presence SET last_error=? WHERE evento_id=?", args: [String(error).slice(0, 400), eventoId] }); } catch { /* não mascarar erro original */ }
+    return persisted
+      ? { success: true, sent: false, message: "Pedido guardado, mas não foi possível enviar o email. Tenta guardar novamente após corrigir a ligação." }
+      : { success: false, sent: false, message: "Não foi possível guardar o pedido de Marketing. Verifica a base de dados." };
+  }
+}

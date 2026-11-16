@@ -73,18 +73,20 @@ export default function ClientesPage() {
     const u = localStorage.getItem("lle_user");
     if (!u) { router.push("/"); return; }
     const parsed = JSON.parse(u);
-    if (!["admin", "finance"].includes(parsed.role || "")) { router.push("/agenda"); return; }
+    if (!["admin", "finance", "limited_novalues"].includes(parsed.role || "")) { router.push("/agenda"); return; }
     setUserName(parsed.name);
     setUserRole(parsed.role || "admin");
     load();
   }, [load]);
 
   const openCreate = () => {
+    if (userRole === "limited_novalues") return;
     setForm(emptyForm);
     setModal({ open: true, editing: null });
   };
 
   const openEdit = (c: Cliente) => {
+    if (userRole === "limited_novalues") return;
     setForm({ nome: c.nome, nif: c.nif || "", email: c.email || "", telefone: c.telefone || "", notas: c.notas || "", alias: c.alias || "" });
     setModal({ open: true, editing: c });
   };
@@ -107,6 +109,7 @@ export default function ClientesPage() {
   };
 
   const handleDelete = (c: Cliente) => {
+    if (userRole === "limited_novalues") return;
     setConfirmDelete(c);
   };
 
@@ -176,10 +179,11 @@ export default function ClientesPage() {
           <p style={{ fontSize: "11px", letterSpacing: "0.4em", color: C.textSec, textTransform: "uppercase", fontWeight: 600 }}>Clientes</p>
           <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
             <ThemeSwitcher lightTheme={lightTheme} setLightTheme={setLightTheme} />
-            <button onClick={openCreate} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.gold, fontSize: "11px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.7rem" }}>
+            <a href="/crm" style={{ color: C.gold, border: `1px solid ${C.border}`, padding: "0.6rem 1rem", fontSize: "11px", letterSpacing: "0.1em", textDecoration: "none" }}>Ver CRM</a>
+            {userRole !== "limited_novalues" && <button onClick={openCreate} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.gold, fontSize: "11px", letterSpacing: "0.3em", padding: "0.6rem 1.25rem", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.7rem" }}>
             <svg width="10" height="10" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
             Novo Cliente
-          </button>
+          </button>}
           </div>
         </div>
 
@@ -217,14 +221,14 @@ export default function ClientesPage() {
                     <td style={tdS({ muted: true })}>{c.telefone || "—"}</td>
                     <td style={{ ...tdS({ muted: true }), maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.notas || "—"}</td>
                     <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
-                      <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
+                      {userRole !== "limited_novalues" && <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
                         <button onClick={() => openEdit(c)} title="Editar" style={iconBtnStyle}>
                           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M11 2l3 3-9 9H2v-3L11 2z" /></svg>
                         </button>
                         <button onClick={() => handleDelete(c)} title="Eliminar" style={{ ...iconBtnStyle, color: C.red }}>
                           <svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="3 6 4 14 12 14 13 6" /><path d="M2 6h12M10 6V4H6v2" /></svg>
                         </button>
-                      </div>
+                      </div>}
                     </td>
                   </tr>
                 ))}
@@ -261,7 +265,8 @@ export default function ClientesPage() {
           placeholder="Pesquisar cliente..."
           style={{ flex: 1, background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text)", fontFamily: "inherit", fontSize: "14px", padding: "0.6rem 0.9rem", outline: "none" }}
         />
-        <button onClick={openCreate} style={{ background: "rgba(var(--theme-accent-rgb),0.12)", border: "1px solid rgba(var(--theme-accent-rgb),0.2)", color: "var(--theme-accent)", fontSize: "16px", padding: "0.6rem 0.9rem", cursor: "pointer" }}>+</button>
+        <a href="/crm" style={{ alignSelf: "center", color: "var(--theme-accent)", fontSize: 12, textDecoration: "none" }}>CRM</a>
+        {userRole !== "limited_novalues" && <button onClick={openCreate} style={{ background: "rgba(var(--theme-accent-rgb),0.12)", border: "1px solid rgba(var(--theme-accent-rgb),0.2)", color: "var(--theme-accent)", fontSize: "16px", padding: "0.6rem 0.9rem", cursor: "pointer" }}>+</button>}
       </div>
 
       <div className="mob-list">
@@ -279,10 +284,10 @@ export default function ClientesPage() {
                 {c.email && <div style={{ fontSize: "12px", color: "var(--theme-text-muted)" }}>{c.email}</div>}
                 {c.telefone && <div style={{ fontSize: "12px", color: "var(--theme-text-muted)" }}>{c.telefone}</div>}
               </div>
-              <div style={{ display: "flex", gap: "4px", marginLeft: "0.75rem" }}>
+              {userRole !== "limited_novalues" && <div style={{ display: "flex", gap: "4px", marginLeft: "0.75rem" }}>
                 <button onClick={() => openEdit(c)} style={{ background: "var(--theme-input-bg)", border: "1px solid var(--theme-input-border)", color: "var(--theme-text-muted)", fontSize: "12px", padding: "6px 10px", cursor: "pointer" }}>✏️</button>
                 <button onClick={() => handleDelete(c)} style={{ background: "rgba(226,75,74,0.08)", border: "1px solid rgba(226,75,74,0.2)", color: "var(--theme-danger)", fontSize: "12px", padding: "6px 10px", cursor: "pointer" }}>🗑</button>
-              </div>
+              </div>}
             </div>
           </div>
         ))}
@@ -463,9 +468,10 @@ function Nav({ userName, active, onLogout }: { userName: string; active: string;
     { href: "/colaboradores", label: "Colaboradores" },
     { href: "/valores", label: "Valores" }, { href: "/packs", label: "Packs" }, { href: "/residencias", label: "Residências" },
     { href: "/clientes", label: "Clientes" },
+    { href: "/crm", label: "CRM" },
   ];
-  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/packs", "/residencias", "/clientes"];
-  const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes"];
+  const restrictedHrefs = ["/dashboard", "/faturacao", "/pagamentos", "/colaboradores", "/valores", "/packs", "/residencias"];
+  const financeHrefs = ["/agenda", "/leads", "/faturacao", "/pagamentos", "/clientes", "/crm"];
   const financeLinks = [
     ...allLinks.filter(l => financeHrefs.includes(l.href)),
     ...(allLinks.some(l => l.href === "/clientes") ? [] : [{ href: "/clientes", label: "Clientes" }]),
