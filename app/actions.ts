@@ -989,7 +989,6 @@ async function propagateByEventId(event_id: string, fields: {
   if (f.autobudget_snapshot !== undefined){ agendaUpdates.push('autobudget_snapshot=?');agendaArgs.push(f.autobudget_snapshot); }
   if (f.local !== undefined)         { agendaUpdates.push('venue=?');         agendaArgs.push(f.local); }
   if (f.contacto !== undefined)      { agendaUpdates.push('contacto=?');      agendaArgs.push(f.contacto); }
-  if (f.notas !== undefined)         { agendaUpdates.push('notas=?');         agendaArgs.push(f.notas); }
   if (f.residencia_id !== undefined) { agendaUpdates.push('residencia_id=?'); agendaArgs.push(f.residencia_id ?? null); }
   if (f.valor_recebido !== undefined){ agendaUpdates.push('valor_recebido=?');agendaArgs.push(f.valor_recebido); }
   if (agendaUpdates.length > 0) {
@@ -1013,7 +1012,6 @@ async function propagateByEventId(event_id: string, fields: {
   if (f.autobudget_snapshot !== undefined){ leadsUpdates.push('autobudget_snapshot=?');leadsArgs.push(f.autobudget_snapshot); }
   if (f.local !== undefined)         { leadsUpdates.push('local=?');         leadsArgs.push(f.local); }
   if (f.contacto !== undefined)      { leadsUpdates.push('contacto=?');      leadsArgs.push(f.contacto); }
-  if (f.notas !== undefined)         { leadsUpdates.push('notas=?');         leadsArgs.push(f.notas); }
   if (f.residencia_id !== undefined) { leadsUpdates.push('residencia_id=?'); leadsArgs.push(f.residencia_id ?? null); }
   if (f.valor_recebido !== undefined){ leadsUpdates.push('valor_recebido=?');leadsArgs.push(f.valor_recebido); }
   if (leadsUpdates.length > 0) {
@@ -1290,7 +1288,7 @@ export async function getDashboardData(userName: string = 'Admin', clientTodaySt
         title: r.title || r.project_name || r.event_name || '(sem título)',
         local: r.details ? extractField(r.details, 'Local') : (r.local || ''),
         contacto: r.details ? extractField(r.details, 'Contacto') : (r.contacto || ''),
-        notas: r.details ? extractField(r.details, 'Notas') : (r.notas || ''),
+        notas: (r.notas || (r.details ? extractField(r.details, 'Notas') : '')),
         status_icon: r.status_icon || '🔵', value: r.value || 0,
         status: r.status || 'Contacto', // explícito para filtros no frontend
         event_date: normDate(r.event_date || ''),
@@ -1562,7 +1560,7 @@ export async function updateAgendaEvent(
       valor_contexto: data.valor_contexto || 'Cliente Final',
       autobudget_snapshot: data.autobudget_snapshot || '',
       valor_recebido: Number(data.valor_recebido || 0),
-      local: data.venue || '', contacto: data.contacto || '', notas: data.notas || '',
+      local: data.venue || '', contacto: data.contacto || '',
       residencia_id: data.residencia_id ?? null,
     });
 
@@ -1574,8 +1572,8 @@ export async function updateAgendaEvent(
         // Dar o event_id correcto à lead e fazer sync directo
         await turso.execute({ sql: "UPDATE leads SET event_id=? WHERE id=?", args: [eventId, leadId] });
         await turso.execute({
-          sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, autobudget_snapshot=?, local=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
-          args: [data.title, data.date, data.bill, billingStatus, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', data.venue || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, leadId],
+          sql: "UPDATE leads SET title=?, event_date=?, value=?, status=?, cliente_id=?, client_name=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, autobudget_snapshot=?, local=?, contacto=?, residencia_id=? WHERE id=?",
+          args: [data.title, data.date, data.bill, billingStatus, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', data.venue || '', data.contacto || '', data.residencia_id ?? null, leadId],
         });
       }
     }
@@ -1809,7 +1807,7 @@ export async function getAllLeads(limit: number = 500) {
         status: r.status || 'Contacto', status_icon: r.status_icon || '',
         local: r.details ? extractField(r.details, 'Local') : (r.local || ''),
         contacto: r.details ? extractField(r.details, 'Contacto') : (r.contacto || ''),
-        notas: r.details ? extractField(r.details, 'Notas') : (r.notas || ''),
+        notas: (r.notas || (r.details ? extractField(r.details, 'Notas') : '')),
         cancelled: r.status === 'Cancelado' ? 1 : 0,
         cliente_id: r.cliente_id || null, cliente_nome: (r.client_name as string) || '',
         modalidade: r.modalidade || 'Fatura',
@@ -1880,7 +1878,7 @@ export async function updateLead(
       valor_contexto: data.valor_contexto || 'Cliente Final',
       autobudget_snapshot: data.autobudget_snapshot || '',
       valor_recebido: Number(data.valor_recebido || 0),
-      local: data.local || '', contacto: data.contacto || '', notas: data.notas || '',
+      local: data.local || '', contacto: data.contacto || '',
       residencia_id: data.residencia_id ?? null,
     });
 
@@ -1894,8 +1892,8 @@ export async function updateLead(
       if (!agEid || agEid !== eventId) {
         await turso.execute({ sql: "UPDATE agenda SET event_id=? WHERE id=?", args: [eventId, (row as any).id] });
         await turso.execute({
-          sql: "UPDATE agenda SET event_name=?, event_date=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, autobudget_snapshot=?, venue=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
-          args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', data.local || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, (row as any).id],
+          sql: "UPDATE agenda SET event_name=?, event_date=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, autobudget_snapshot=?, venue=?, contacto=?, residencia_id=? WHERE id=?",
+          args: [data.title, data.event_date, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', data.local || '', data.contacto || '', data.residencia_id ?? null, (row as any).id],
         });
       }
     }
@@ -1909,8 +1907,8 @@ export async function updateLead(
     for (const row of unlinked.rows as any[]) {
       // Ligar e partilhar event_id
       await turso.execute({
-        sql: "UPDATE agenda SET origem_lead_id=?, event_id=?, event_name=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, autobudget_snapshot=?, venue=?, contacto=?, notas=?, residencia_id=? WHERE id=?",
-        args: [id, eventId, data.title, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', data.local || '', data.contacto || '', data.notas || '', data.residencia_id ?? null, row.id],
+        sql: "UPDATE agenda SET origem_lead_id=?, event_id=?, event_name=?, client_cachet=?, billing_status=?, cliente_id=?, cliente_nome=?, modalidade=?, tipo_comercial=?, servico_comercial=?, valor_contexto=?, autobudget_snapshot=?, venue=?, contacto=?, residencia_id=? WHERE id=?",
+        args: [id, eventId, data.title, data.value, data.status, data.cliente_id ?? null, data.cliente_nome || '', data.modalidade || 'Fatura', data.tipo_comercial || 'Evento', data.servico_comercial || '', data.valor_contexto || 'Cliente Final', data.autobudget_snapshot || '', data.local || '', data.contacto || '', data.residencia_id ?? null, row.id],
       });
     }
 
@@ -4716,7 +4714,7 @@ function normalizeLeadRow(r: any) {
     status_icon: (r.status_icon as string) || '',
     local: r.details ? extractField(r.details as string, 'Local') : ((r.local as string) || ''),
     contacto: r.details ? extractField(r.details as string, 'Contacto') : ((r.contacto as string) || ''),
-    notas: r.details ? extractField(r.details as string, 'Notas') : ((r.notas as string) || ''),
+    notas: ((r.notas as string) || (r.details ? extractField(r.details as string, 'Notas') : '')),
     cancelled: r.status === 'Cancelado' ? 1 : 0,
     cliente_id: r.cliente_id || null,
     cliente_nome: (r.client_name as string) || '',

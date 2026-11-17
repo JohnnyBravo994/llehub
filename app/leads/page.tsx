@@ -792,11 +792,12 @@ export default function LeadsPage() {
         setSaving(false);
         return;
       }
-      // Save artistas linked to this lead (stored as lead id, will be synced)
-      await syncArtistasEvento(modal.editing.id * -1, form.title.trim(), form.event_date, validArtists);
-      await syncMaterialPacksLead(modal.editing.id, await getAutoPackIds());
-      // Sync artistas para o evento de agenda ligado (se existir)
-      await syncArtistasParaAgenda(modal.editing.id, form.title.trim(), form.event_date, validArtists);
+      // Perfil Marketing só altera a informação comercial: nunca substitui custos de artistas nem materiais.
+      if (userRole !== "limited_novalues") {
+        await syncArtistasEvento(modal.editing.id * -1, form.title.trim(), form.event_date, validArtists);
+        await syncMaterialPacksLead(modal.editing.id, await getAutoPackIds());
+        await syncArtistasParaAgenda(modal.editing.id, form.title.trim(), form.event_date, validArtists);
+      }
       // Auto-importar para Agenda se passou para estado confirmado/avançado
       const isNowAdvanced = AGENDA_AUTO_STATUSES.includes(form.status);
       const wasAlreadyAdvanced = AGENDA_AUTO_STATUSES.includes(previousStatus);
@@ -823,9 +824,11 @@ export default function LeadsPage() {
           residencia_id: form.residencia_id,
         });
         if (agendaRes.success && agendaRes.id) {
-          await syncArtistasEvento(agendaRes.id, form.title.trim(), form.event_date, validArtists);
-          await syncPacksComerciaisMateriaisEvento(agendaRes.id, parseServicosContratados(form.servico_comercial), userName);
-          await reservarMaterialPacksDaLeadParaEvento(modal.editing.id, agendaRes.id, form.title.trim(), "Lead");
+          if (userRole !== "limited_novalues") {
+            await syncArtistasEvento(agendaRes.id, form.title.trim(), form.event_date, validArtists);
+            await syncPacksComerciaisMateriaisEvento(agendaRes.id, parseServicosContratados(form.servico_comercial), userName);
+            await reservarMaterialPacksDaLeadParaEvento(modal.editing.id, agendaRes.id, form.title.trim(), "Lead");
+          }
         }
         showToast("Lead actualizada · Evento criado na Agenda");
       } else {
@@ -833,7 +836,12 @@ export default function LeadsPage() {
       }
     } else {
       const res = await createLead(data);
-      if (res.success && res.id) {
+      if (!res.success || !res.id) {
+        showToast("Erro ao criar Lead: " + (res.message || "erro desconhecido"));
+        setSaving(false);
+        return;
+      }
+      if (userRole !== "limited_novalues") {
         await syncArtistasEvento(res.id * -1, form.title.trim(), form.event_date, validArtists);
         await syncMaterialPacksLead(res.id, await getAutoPackIds());
       }
@@ -860,9 +868,11 @@ export default function LeadsPage() {
           residencia_id: form.residencia_id,
         });
         if (agendaRes.success && agendaRes.id) {
-          await syncArtistasEvento(agendaRes.id, form.title.trim(), form.event_date, validArtists);
-          await syncPacksComerciaisMateriaisEvento(agendaRes.id, parseServicosContratados(form.servico_comercial), userName);
-          if (res.id) await reservarMaterialPacksDaLeadParaEvento(res.id, agendaRes.id, form.title.trim(), "Lead");
+          if (userRole !== "limited_novalues") {
+            await syncArtistasEvento(agendaRes.id, form.title.trim(), form.event_date, validArtists);
+            await syncPacksComerciaisMateriaisEvento(agendaRes.id, parseServicosContratados(form.servico_comercial), userName);
+            if (res.id) await reservarMaterialPacksDaLeadParaEvento(res.id, agendaRes.id, form.title.trim(), "Lead");
+          }
         }
         showToast("Lead criada · Evento criado na Agenda");
       } else {
@@ -1187,7 +1197,7 @@ export default function LeadsPage() {
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
               WhatsApp
             </button>
-            {userRole !== "limited_novalues" && (
+            {(
             <button onClick={openCreate} style={addBtnStyle}>
               <svg width="10" height="10" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
               Nova Lead
@@ -1243,7 +1253,12 @@ export default function LeadsPage() {
                           <StatusBadge color={statusColor(l.status)} label={l.status || "Pendente"} />
                         </td>
                         <td style={{ ...tdStyle({ nowrap: true }), textAlign: "right", color: C.gold, fontWeight: 600, fontSize: "13px" }}>
-                          {userRole === "limited_novalues" ? "—" : (temMovimentoFinanceiro(l.value, artistsForLead(l), l.material_cost || 0) ? (
+                          {userRole === "limited_novalues" ? (
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
+                              <span>{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
+                              <span style={{ fontSize: 10, color: C.textMuted }}>Recebido: {effectiveReceived(l.value, l.valor_recebido, l.status).toLocaleString("pt-PT")}€</span>
+                            </div>
+                          ) : (temMovimentoFinanceiro(l.value, artistsForLead(l), l.material_cost || 0) ? (
                             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
                               <span>{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
                               {Number(l.value || 0) > 0 && <span style={{ fontSize: "10px", color: C.green, fontWeight: 600, whiteSpace: "nowrap" }}>
@@ -1256,14 +1271,16 @@ export default function LeadsPage() {
                           ) : "—")}
                         </td>
                         <td style={{ padding: "0.85rem 1.25rem", textAlign: "right" }}>
-                          {userRole !== "limited_novalues" && (
+                          {(
                           <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
                             <IconBtn title="Editar" onClick={() => openEdit(l)} icon="edit" />
+                            {userRole !== "limited_novalues" && <>
                             {!l.cancelled
                               ? <IconBtn title="Cancelar" onClick={() => handleCancel(l)} icon="cancel" danger />
                               : <IconBtn title="Repor" onClick={() => handleRestore(l)} icon="restore" success />
                             }
                             <IconBtn title="Eliminar" onClick={() => handleDelete(l.id)} icon="delete" danger />
+                            </>}
                           </div>
                           )}
                         </td>
@@ -1317,7 +1334,7 @@ export default function LeadsPage() {
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
           </button>
-          {userRole !== "limited_novalues" && (
+          {(
             <button className="mob-fab" onClick={openCreate}>
               <svg width="16" height="16" viewBox="0 0 12 12" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
             </button>
@@ -1337,7 +1354,7 @@ export default function LeadsPage() {
               const d = new Date(l.event_date + "T00:00:00");
               const sc = statusColors[l.status||""] || "var(--theme-text-subtle)";
               return (
-                <div key={l.id} className={`mob-card${l.cancelled?" is-folga":""}`} onClick={() => userRole !== "limited_novalues" && openEdit(l)} style={{cursor: userRole !== "limited_novalues" ? "pointer" : "default"}}>
+                <div key={l.id} className={`mob-card${l.cancelled?" is-folga":""}`} onClick={() => openEdit(l)} style={{cursor: "pointer"}}>
                   <div className="mob-date-bubble">
                     <div className="mob-date-day">{d.getDate()}</div>
                     <div className="mob-date-weekday">{d.toLocaleDateString("pt-PT",{weekday:"short"})}</div>
@@ -1356,11 +1373,11 @@ export default function LeadsPage() {
                     </div>
                   </div>
                   <div className="mob-card-right">
-                    {userRole !== "limited_novalues" && temMovimentoFinanceiro(l.value, artistsForLead(l), l.material_cost || 0)
+                    {temMovimentoFinanceiro(l.value, artistsForLead(l), l.material_cost || 0)
                       ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
                           <span className="mob-card-value">{Number(l.value || 0).toLocaleString("pt-PT")}€</span>
                           {Number(l.value || 0) > 0 && <span style={{fontSize: "10px",fontWeight:700,color:"var(--theme-success)",whiteSpace:"nowrap"}}>Pago {paymentPercent(l.value, l.valor_recebido, l.status).toFixed(0)}%</span>}
-                          <span style={{fontSize: "10px",fontWeight:700,color:lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0)>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0).toLocaleString("pt-PT")}€</span>
+                          {userRole !== "limited_novalues" && <span style={{fontSize: "10px",fontWeight:700,color:lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0)>=0?"var(--theme-success)":"var(--theme-danger)",whiteSpace:"nowrap"}}>Lucro {lucroVisivel(l.value, artistsForLead(l), l.material_cost || 0).toLocaleString("pt-PT")}€</span>}
                         </div>
                       : <span className="mob-card-value muted">—</span>
                     }
@@ -1562,14 +1579,14 @@ export default function LeadsPage() {
                   const nextContext = inferValorContexto(form.cliente_nome, v);
                   const nextResidenciaId = v === "Residência" || v === "Evento de Residência" ? form.residencia_id : null;
                   setForm(f => ({ ...f, tipo_comercial: v, valor_contexto: nextContext, residencia_id: nextResidenciaId, autobudget_snapshot: "" }));
-                  repriceAutoArtists(v, nextContext, nextResidenciaId);
+                  if (userRole !== "limited_novalues") repriceAutoArtists(v, nextContext, nextResidenciaId);
                 }}
                 options={TIPOS_COMERCIAIS.map(t => ({ value: t, label: t }))}
                 style={inputStyle}
               />
-              <p style={{ marginTop: "0.4rem", fontSize: "10px", color: C.textMuted, lineHeight: 1.45 }}>
+              {userRole !== "limited_novalues" && <p style={{ marginTop: "0.4rem", fontSize: "10px", color: C.textMuted, lineHeight: 1.45 }}>
                 Define o custo que a LLE prevê pagar aos artistas. A faturação ao cliente é independente e fica no Auto Budget / Faturação.
-              </p>
+              </p>}
             </FormField>
             {(form.tipo_comercial === "Residência" || form.tipo_comercial === "Evento de Residência") && (
               <FormField label="Residência Ativa">
@@ -1582,9 +1599,9 @@ export default function LeadsPage() {
                   ]}
                   style={inputStyle}
                 />
-                <p style={{ marginTop: "0.4rem", fontSize: "10px", color: C.textMuted, lineHeight: 1.45 }}>
+                {userRole !== "limited_novalues" && <p style={{ marginTop: "0.4rem", fontSize: "10px", color: C.textMuted, lineHeight: 1.45 }}>
                   Se estiver definida, custo e faturação específicos desta residência têm prioridade quando aplicáveis; sem override usa Colaboradores.
-                </p>
+                </p>}
               </FormField>
             )}
 
@@ -1628,7 +1645,7 @@ export default function LeadsPage() {
                       value={form.valor_contexto}
                       onChange={v => {
                         setForm(f => ({ ...f, valor_contexto: v, autobudget_snapshot: "" }));
-                        repriceAutoArtists(form.tipo_comercial, v, form.residencia_id);
+                        if (userRole !== "limited_novalues") repriceAutoArtists(form.tipo_comercial, v, form.residencia_id);
                       }}
                       options={VALOR_CONTEXTOS.map(c => ({ value: c, label: c }))}
                       style={inputStyle}
@@ -1643,7 +1660,7 @@ export default function LeadsPage() {
                     const suggestion = valorMasterSuggestion(form.servico_comercial || form.title, form.valor_contexto)!;
                     return (
                       <div style={{ gridColumn: "1 / -1", fontSize: "12px", color: C.textMuted, letterSpacing: "0.05em", marginTop: "-0.5rem", marginBottom: "0.2rem", lineHeight: 1.6 }}>
-                        Faturação sugerida: <b style={{ color: C.gold }}>{suggestion.valor || 0}€</b> · Custo estimado LLE: {suggestion.custo || 0}€ · {form.valor_contexto || "Cliente Final"}
+                        Faturação sugerida: <b style={{ color: C.gold }}>{suggestion.valor || 0}€</b>{userRole !== "limited_novalues" && <> · Custo estimado LLE: {suggestion.custo || 0}€</>} · {form.valor_contexto || "Cliente Final"}
                         {suggestion.total > 1 && <span> · {suggestion.encontrados}/{suggestion.total} serviços com valor automático</span>}
                         {suggestion.items.length > 0 && (
                           <div style={{ marginTop: "7px", paddingTop: "7px", borderTop: "1px solid var(--theme-border)", display: "grid", gap: "4px" }}>
@@ -1653,7 +1670,7 @@ export default function LeadsPage() {
                                   {item.servico}{item.quantidade > 1 ? ` ×${item.quantidade}` : ""}
                                   <small style={{ display: "block", color: C.textMuted, fontSize: "10px", letterSpacing: "0.03em" }}>
                                     Faturação: {item.sourceName || ("noActiveProvider" in item && item.noActiveProvider ? "sem colaborador ativo / preço por definir" : "sem referência")}
-                                    {item.costSourceName ? ` · Custo: ${item.costSourceName}` : ""}
+                                    {userRole !== "limited_novalues" && item.costSourceName ? ` · Custo: ${item.costSourceName}` : ""}
                                     {item.skill && item.assignedCount !== null ? ` · Atribuídos: ${item.assignedCount}/${item.quantidade}` : ""}
                                   </small>
                                 </span>
@@ -1673,12 +1690,12 @@ export default function LeadsPage() {
             <FormField label="Data do Evento">
               <input style={inputStyle} type="date" value={form.event_date} onChange={e => setForm(f => ({ ...f, event_date: e.target.value }))} />
             </FormField>
-            {userRole !== "limited_novalues" && (
+            {(
             <FormField label="Faturação estimada (€)">
               <input style={inputStyle} type="number" value={form.value} onFocus={e => e.currentTarget.select()} onChange={e => setForm(f => ({ ...f, value: e.target.value, valor_recebido: f.status === "Pago" ? e.target.value : f.valor_recebido, autobudget_snapshot: "" }))} />
             </FormField>
             )}
-            {userRole !== "limited_novalues" && (
+            {(
             <FormField label="Valor pago até agora (€)">
               <div>
                 <input style={inputStyle} type="number" min="0" value={form.valor_recebido} onFocus={e => e.currentTarget.select()} onChange={e => setForm(f => ({ ...f, valor_recebido: e.target.value }))} />
@@ -1714,12 +1731,15 @@ export default function LeadsPage() {
             <FormField label="Contacto">
               <input style={inputStyle} value={form.contacto} onChange={e => setForm(f => ({ ...f, contacto: e.target.value }))} placeholder="Nome ou telefone..." />
             </FormField>
-            <FormField label="Materiais / Notas">
-              <input style={inputStyle} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Ex: dual mic, 2 colunas... / observações" />
+            {/* Campo livre e histórico da Lead: mantém a mesma coluna notas da BD. */}
+            <FormField label="Notas / Observações da Lead" style={{ gridColumn: "1 / -1" }}>
+              <textarea style={{ ...inputStyle, minHeight: "112px", resize: "vertical" }} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Notas comerciais, pedidos do cliente, materiais, seguimento e outras observações..." />
             </FormField>
 
 
 
+            {/* Custos de artistas reservados aos perfis com acesso financeiro. */}
+            {userRole !== "limited_novalues" && (<>
             {/* ── Artistas & Pagamentos ── */}
             <div style={{ marginTop: "1.75rem", borderTop: `1px solid ${C.borderDim}`, paddingTop: "1.5rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
@@ -1805,9 +1825,10 @@ export default function LeadsPage() {
               </button>
             </div>
 
+            </>)}
             <div style={{ display: "flex", gap: "1rem", marginTop: "2rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
               <button onClick={closeModal} style={btnSecStyle}>Fechar</button>
-              {modal.editing && !modal.editing.cancelled && (
+              {modal.editing && !modal.editing.cancelled && userRole !== "limited_novalues" && (
                 <>
                   <button onClick={async () => { await cancelLead(modal.editing!.id); showToast("Lead cancelada"); closeModal(); load(selectedMonth); }} style={btnDangerStyle}>Cancelar Lead</button>
                   <button onClick={handleConvertToAgenda} disabled={converting} style={btnAgendaStyle}>

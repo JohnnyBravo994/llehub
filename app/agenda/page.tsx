@@ -2837,9 +2837,10 @@ export default function AgendaPage() {
                   </div>
                 )}
               </div>
-              {useMaterials && <FormField label="Notas de materiais / observações" style={{ gridColumn: "1 / -1" }}>
-                <textarea style={{ ...inputStyle, minHeight: "72px", resize: "vertical" }} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Ex: dual mic extra, 2 colunas, cabos XLR... / observações" />
-              </FormField>}
+              {/* Notas históricas do evento: independentes da gestão de materiais. */}
+              <FormField label="Notas / Observações do evento" style={{ gridColumn: "1 / -1" }}>
+                <textarea style={{ ...inputStyle, minHeight: "112px", resize: "vertical" }} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Informações importantes, pedidos especiais, materiais e observações do evento..." />
+              </FormField>
             </div>
 
             {/* ── Artistas ── */}
